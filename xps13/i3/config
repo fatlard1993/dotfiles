@@ -1,0 +1,310 @@
+####################
+#    Variables
+####################
+
+set $mod Mod4
+
+set $sysScr /home/chase/.i3/system
+
+
+#---------------#
+#    modes
+#---------------#
+
+set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
+
+set $mode_system System: (l)ogout, (r)eboot, (s)hutdown
+
+set $mode_layout Layout: (t)abbed, (s)tacking, (d)efault
+
+
+#---------------#
+#    colors
+#---------------#
+
+set $green #bada55
+set $grey #666666
+set $darkGrey #333333
+set $lightGrey #999999
+set $blue #44bbff
+set $orange #e17528
+set $offWhite #cacaca
+set $offBlack #212121
+set $realDark #2c2c2c
+
+
+####################
+#    Startup
+####################
+
+#---------------#
+# window rules
+#---------------#
+
+for_window [window_role="scratchpad"] move scratchpad
+
+for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; resize set 1280 720; sticky enable; move window to position 1920 40'"
+
+for_window [title="Git"] floating enable
+
+for_window [class="Gloobus-preview"] floating enable
+
+for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
+
+for_window [class="Touchegg-gce"] floating disable
+
+
+#---------------#
+#    execs
+#---------------#
+
+exec --no-startup-id gnome-settings-daemon
+
+exec --no-startup-id touchegg &
+
+#exec --no-startup-id nm-applet
+
+exec --no-startup-id feh --bg-max --randomize /home/chase/Pictures/Wallpapers/*
+#sh ~/.fehbg
+
+exec --no-startup-id xautolock -time 10 -locker "$sysScr lock"
+
+
+#---------------#
+#    colors
+#---------------#
+
+client.focused $orange $lightGrey $darkGrey
+
+client.focused_inactive $darkGrey $grey $lightGrey
+
+client.unfocused $offBlack $grey $darkGrey
+
+
+#---------------#
+#     misc
+#---------------#
+
+focus_follows_mouse no
+
+workspace_auto_back_and_forth yes
+
+font pango:DejaVu Sans Mono 22
+
+floating_modifier $mod
+
+
+####################
+#      i3bar
+####################
+
+bar {
+  position top
+  modifier $mod
+  status_command i3status -c ~/.i3/status.conf
+
+  colors {
+    background $realDark
+    statusline $offWhite
+    separator $darkGrey
+
+    focused_workspace  $orange $lightGrey $darkGrey
+    inactive_workspace $offBlack $grey $darkGrey
+  }
+}
+
+
+####################
+#      Modes
+####################
+
+mode "$mode_resize" {
+  bindsym Down resize shrink width 10 px or 10 ppt
+  bindsym Up resize grow width 10 px or 10 ppt
+  bindsym $mod+Up resize shrink height 10 px or 10 ppt
+  bindsym $mod+Down resize grow height 10 px or 10 ppt
+
+  bindsym Shift+Down resize shrink width 5 px or 5 ppt
+  bindsym Shift+Up resize grow width 5 px or 5 ppt
+  bindsym Shift+$mod+Up resize shrink height 5 px or 5 ppt
+  bindsym Shift+$mod+Down resize grow height 5 px or 5 ppt
+
+  bindsym s resize shrink width 10 px or 10 ppt
+  bindsym g resize grow width 10 px or 10 ppt
+  bindsym $mod+g resize shrink height 10 px or 10 ppt
+  bindsym $mod+s resize grow height 10 px or 10 ppt
+
+  bindsym Shift+s resize shrink width 5 px or 5 ppt
+  bindsym Shift+g resize grow width 5 px or 5 ppt
+  bindsym Shift+$mod+g resize shrink height 5 px or 5 ppt
+  bindsym Shift+$mod+s resize grow height 5 px or 5 ppt
+
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+}
+
+mode "$mode_layout" {
+  bindsym s layout stacking
+  bindsym t layout tabbed
+  bindsym d layout toggle split
+  
+  bindsym s --release mode "default"
+  bindsym t --release mode "default"
+  bindsym d --release mode "default"
+  
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+}
+
+mode "$mode_system" {
+  bindsym l exec sudo $sysScr logout
+  bindsym s exec sudo $sysScr shutdown
+  bindsym r exec sudo $sysScr reboot
+
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+}
+
+
+####################
+#    Shortcuts
+####################
+
+bindsym $mod+Shift+Return exec gnome-terminal
+
+bindsym $mod+Return exec st -t "stTerm"
+
+bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && twmnc -c "Screenshot!" --bg black --fg white
+
+bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn 'xft:fixed:style=regular:pixelsize=30' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
+
+bindsym $mod+f fullscreen
+bindsym $mod+q kill
+
+bindsym $mod+XF86AudioRaiseVolume  exec pavucontrol
+bindsym $mod+XF86AudioLowerVolume  exec pavucontrol
+bindsym $mod+XF86AudioMute         exec pavucontrol
+
+
+#---------------#
+#    resize
+#---------------#
+
+bindsym $mod+minus        resize shrink height 10 px or 10 ppt; resize shrink width 10 px or 10 ppt
+bindsym $mod+plus         resize grow height 10 px or 10 ppt; resize grow width 10 px or 10 ppt
+bindsym $mod+Shift+minus  resize shrink height 5 px or 5 ppt; resize shrink width 5 px or 5 ppt
+bindsym $mod+Shift+plus   resize grow height 5 px or 5 ppt; resize grow width 5 px or 5 ppt
+
+
+#---------------#
+#    modes
+#---------------#
+
+bindsym $mod+r        mode "$mode_resize"
+bindsym $mod+Shift+s  mode "$mode_system"
+bindsym $mod+l        mode "$mode_layout"
+
+
+#---------------#
+#  multimedia
+#---------------#
+
+bindsym XF86AudioRaiseVolume  exec --no-startup-id pactl set-sink-volume 0 +5%
+bindsym XF86AudioLowerVolume  exec --no-startup-id pactl set-sink-volume 0 -5%
+bindsym XF86AudioMute         exec --no-startup-id pactl set-sink-mute   0 toggle
+
+bindsym XF86AudioPlay   exec playerctl play
+bindsym XF86AudioPause  exec playerctl pause
+bindsym XF86AudioNext   exec playerctl next
+bindsym XF86AudioPrev   exec playerctl previous
+
+bindsym XF86MonBrightnessUp   exec xbacklight -inc 20
+bindsym XF86MonBrightnessDown exec xbacklight -dec 20
+
+
+#---------------#
+#  workspaces
+#---------------#
+
+# navigate
+bindsym $mod+period workspace next
+bindsym $mod+comma  workspace prev
+
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+7 workspace number 7
+bindsym $mod+8 workspace number 8
+bindsym $mod+9 workspace number 9
+bindsym $mod+0 workspace number 10
+
+# move
+bindsym $mod+Shift+Left   move left
+bindsym $mod+Shift+Right  move right
+bindsym $mod+Shift+Up     move up
+bindsym $mod+Shift+Down   move down
+
+bindsym $mod+Shift+period move container to workspace next
+bindsym $mod+Shift+comma  move container to workspace prev
+
+bindsym $mod+Shift+1 move container to workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6
+bindsym $mod+Shift+7 move container to workspace number 7
+bindsym $mod+Shift+8 move container to workspace number 8
+bindsym $mod+Shift+9 move container to workspace number 9
+bindsym $mod+Shift+0 move container to workspace number 10
+
+bindsym $mod+n exec i3-input -F 'rename workspace to "%s"' -P 'Name this workspace: '
+
+
+#---------------#
+#  containers
+#---------------#
+
+bindsym $mod+Left         focus left
+bindsym $mod+Right        focus right
+bindsym $mod+Up           focus up
+bindsym $mod+Down         focus down
+
+bindsym $mod+bracketleft  focus left
+bindsym $mod+bracketright focus right
+
+
+#---------------#
+# experimental
+#---------------#
+
+bindsym $mod+o fullscreen disable; floating enable; resize set 1280 720; sticky enable; move window to position 1920 40
+
+bindsym $mod+Shift+f floating toggle
+
+bindsym $mod+Shift+l exec $sysScr lock
+
+bindsym $mod+Shift+r restart
+
+bindsym XF86PowerOff mode "$mode_system"
+
+bindsym $mod+XF86PowerOff exec $sysScr reboot
+
+bindsym $mod+Shift+XF86PowerOff exec $sysScr shutdown
+
+
+#exec --no-startup-id twmnd
+
+#exec --no-startup-id gnome-terminal --role=scratchpad
+
+#bindsym h split h
+#bindsym v split v
+
+#bindsym $mod+Shift+s move scratchpad
+#bindsym $mod+s scratchpad show
+
+#bindsym XF86TouchpadToggle exec /home/chase/.i3/toggleTouchpad
+
