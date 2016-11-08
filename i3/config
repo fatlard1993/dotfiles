@@ -6,12 +6,21 @@ set $mod Mod4
 
 set $sysScr /home/chase/.i3/system
 
+
+#---------------#
+#    modes
+#---------------#
+
 set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
 
 set $mode_system System: (l)ogout, (r)eboot, (s)hutdown
 
+set $mode_layout Layout: (t)abbed, (s)tacking, (d)efault
 
-# colors
+
+#---------------#
+#    colors
+#---------------#
 
 set $green #bada55
 set $grey #666666
@@ -28,28 +37,41 @@ set $realDark #2c2c2c
 #    Startup
 ####################
 
+#---------------#
 # window rules
+#---------------#
 
-#for_window [window_role="scratchpad"] move scratchpad
+for_window [window_role="scratchpad"] move scratchpad
 
-for_window [class="Pavucontrol"] floating toggle
+for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; resize set 1280 720; sticky enable; move window to position 1920 40'"
 
+for_window [title="Git"] floating enable
 
-# execs
+for_window [class="Gloobus-preview"] floating enable
 
-exec --no-startup-id nm-applet
+for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
 
-exec --no-startup-id twmnd
-
-#exec --no-startup-id gnome-terminal --role=scratchpad
-
-exec --no-startup-id sh ~/.fehbg
-#exec --no-startup-id feh --bg-fill ~/Pictures/debian_background.jpg
-
-#exec --no-startup-id xautolock -time 10 -locker "$sysScr lock"
+for_window [class="Touchegg-gce"] floating disable
 
 
-# misc
+#---------------#
+#    execs
+#---------------#
+
+exec --no-startup-id gnome-settings-daemon
+
+exec --no-startup-id touchegg &
+
+#exec --no-startup-id nm-applet
+
+exec --no-startup-id feh --no-fehbg --bg-fill --randomize /home/chase/Pictures/Wallpapers/*
+
+exec --no-startup-id xautolock -time 10 -locker "$sysScr lock"
+
+
+#---------------#
+#    colors
+#---------------#
 
 client.focused $orange $lightGrey $darkGrey
 
@@ -58,39 +80,41 @@ client.focused_inactive $darkGrey $grey $lightGrey
 client.unfocused $offBlack $grey $darkGrey
 
 
+#---------------#
+#     misc
+#---------------#
+
 focus_follows_mouse no
 
 workspace_auto_back_and_forth yes
 
-font pango:DejaVu Sans Mono 8
+font pango:DejaVu Sans Mono 10
 
 floating_modifier $mod
 
 
 ####################
-#   i3bar
+#      i3bar
 ####################
 
 bar {
-	position top
+  position top
   modifier $mod
   status_command i3status -c ~/.i3/status.conf
 
-	colors {
-  	background $realDark
+  colors {
+    background $realDark
     statusline $offWhite
     separator $darkGrey
 
     focused_workspace  $orange $lightGrey $darkGrey
-  	inactive_workspace $offBlack $grey $darkGrey
-#		urgent_workspace   #offWhite #900000
-
-	}
+    inactive_workspace $offBlack $grey $darkGrey
+  }
 }
 
 
 ####################
-#    Modes
+#      Modes
 ####################
 
 mode "$mode_resize" {
@@ -118,10 +142,23 @@ mode "$mode_resize" {
   bindsym Escape mode "default"
 }
 
+mode "$mode_layout" {
+  bindsym s layout stacking
+  bindsym t layout tabbed
+  bindsym d layout toggle split
+  
+  bindsym s --release mode "default"
+  bindsym t --release mode "default"
+  bindsym d --release mode "default"
+  
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+}
+
 mode "$mode_system" {
-  bindsym l exec sh sudo $sysScr logout, mode "default"
-  bindsym s exec sh sudo $sysScr shutdown, mode "default"
-  bindsym r exec sh sudo /home/chase/.i3/system reboot, mode "default"
+  bindsym l exec sudo $sysScr logout
+  bindsym s exec sudo $sysScr shutdown
+  bindsym r exec sudo $sysScr reboot
 
   bindsym Return mode "default"
   bindsym Escape mode "default"
@@ -132,59 +169,63 @@ mode "$mode_system" {
 #    Shortcuts
 ####################
 
-bindsym $mod+Return exec i3-sensible-terminal
+bindsym $mod+Shift+Return exec gnome-terminal
 
-bindsym $mod+Shift+l exec $sysScr lock
+bindsym $mod+Return exec st -t "stTerm"
 
 bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && twmnc -c "Screenshot!" --bg black --fg white
 
-bindsym $mod+space exec dmenu_run -i -p 'Debian' -fn 'xft:fixed:style=regular:pixelsize=28' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange'
-
-bindsym $mod+p exec pavucontrol
-
-
-bindsym $mod+Shift+s move scratchpad
-bindsym $mod+s scratchpad show
-
+bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn 'xft:fixed:style=regular:pixelsize=14' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
 
 bindsym $mod+f fullscreen
 bindsym $mod+q kill
 
-
-# modes
-
-bindsym $mod+r      mode "$mode_resize"
-bindsym $mod+Pause  mode "$mode_system"
-
-
-# change split
-
-bindsym $mod+h split h
-bindsym $mod+v split v
-
-
-# change layout
-
-#bindsym $mod+s layout stacking
-bindsym $mod+w layout tabbed
-bindsym $mod+e layout toggle split
-
-
-# toggle floating
-
-bindsym $mod+Shift+f floating toggle
-
-
-
-# restart i3
-
-bindsym $mod+Shift+r restart
+bindsym $mod+XF86AudioRaiseVolume  exec pavucontrol
+bindsym $mod+XF86AudioLowerVolume  exec pavucontrol
+bindsym $mod+XF86AudioMute         exec pavucontrol
 
 
 #---------------#
-# workspaces
+#    resize
 #---------------#
 
+bindsym $mod+minus        resize shrink height 10 px or 10 ppt; resize shrink width 10 px or 10 ppt
+bindsym $mod+plus         resize grow height 10 px or 10 ppt; resize grow width 10 px or 10 ppt
+bindsym $mod+Shift+minus  resize shrink height 5 px or 5 ppt; resize shrink width 5 px or 5 ppt
+bindsym $mod+Shift+plus   resize grow height 5 px or 5 ppt; resize grow width 5 px or 5 ppt
+
+
+#---------------#
+#    modes
+#---------------#
+
+bindsym $mod+r        mode "$mode_resize"
+bindsym $mod+Shift+s  mode "$mode_system"
+bindsym $mod+l        mode "$mode_layout"
+
+
+#---------------#
+#  multimedia
+#---------------#
+
+bindsym XF86AudioRaiseVolume  exec --no-startup-id pactl set-sink-volume 0 +5%
+bindsym XF86AudioLowerVolume  exec --no-startup-id pactl set-sink-volume 0 -5%
+bindsym XF86AudioMute         exec --no-startup-id pactl set-sink-mute   0 toggle
+
+bindsym XF86AudioPlay   exec playerctl play
+bindsym XF86AudioPause  exec playerctl pause
+bindsym XF86AudioNext   exec playerctl next
+bindsym XF86AudioPrev   exec playerctl previous
+
+bindsym XF86MonBrightnessUp   exec xbacklight -inc 20
+bindsym XF86MonBrightnessDown exec xbacklight -dec 20
+
+
+#---------------#
+#  workspaces
+#---------------#
+
+# navigate
 bindsym $mod+period workspace next
 bindsym $mod+comma  workspace prev
 
@@ -199,15 +240,11 @@ bindsym $mod+8 workspace number 8
 bindsym $mod+9 workspace number 9
 bindsym $mod+0 workspace number 10
 
-bindsym $mod+Left   focus left
-bindsym $mod+Down   focus down
-bindsym $mod+Up     focus up
-bindsym $mod+Right  focus right
-
+# move
 bindsym $mod+Shift+Left   move left
-bindsym $mod+Shift+Down   move down
-bindsym $mod+Shift+Up     move up
 bindsym $mod+Shift+Right  move right
+bindsym $mod+Shift+Up     move up
+bindsym $mod+Shift+Down   move down
 
 bindsym $mod+Shift+period move container to workspace next
 bindsym $mod+Shift+comma  move container to workspace prev
@@ -226,36 +263,47 @@ bindsym $mod+Shift+0 move container to workspace number 10
 bindsym $mod+n exec i3-input -F 'rename workspace to "%s"' -P 'Name this workspace: '
 
 
+#---------------#
+#  containers
+#---------------#
+
+bindsym $mod+Left         focus left
+bindsym $mod+Right        focus right
+bindsym $mod+Up           focus up
+bindsym $mod+Down         focus down
+
+bindsym $mod+bracketleft  focus left
+bindsym $mod+bracketright focus right
+
+
+#---------------#
 # experimental
+#---------------#
 
-#bindsym $mod+y fullscreen disable; floating enable; resize set 400 300; sticky enable; move window to position 0 0
+bindsym $mod+o fullscreen disable; floating enable; resize set 1280 720; sticky enable; move window to position 1920 40
 
-#bindsym $mod+z workspace back_and_forth
+bindsym $mod+Shift+f floating toggle
 
-#bindsym $mod+Shift+z move container to workspace back_and_forth
+bindsym $mod+Shift+l exec $sysScr lock
 
+bindsym $mod+Shift+r restart
 
+bindsym XF86PowerOff mode "$mode_system"
 
-# Pulse Audio controls
-bindsym XF86AudioRaiseVolume  exec --no-startup-id pactl set-sink-volume 0 +5%
-bindsym XF86AudioLowerVolume  exec --no-startup-id pactl set-sink-volume 0 -5%
-bindsym XF86AudioMute         exec --no-startup-id pactl set-sink-mute   0 toggle
+bindsym $mod+XF86PowerOff exec $sysScr reboot
 
-# Sreen brightness controls
-bindsym XF86MonBrightnessUp   exec xbacklight -inc 20
-bindsym XF86MonBrightnessDown exec xbacklight -dec 20
-
-# Touchpad controls
-bindsym XF86TouchpadToggle exec /home/chase/.i3/toggleTouchpad
-
-# Media player controls
-bindsym XF86AudioPlay   exec playerctl play
-bindsym XF86AudioPause  exec playerctl pause
-bindsym XF86AudioNext   exec playerctl next
-bindsym XF86AudioPrev   exec playerctl previous
+bindsym $mod+Shift+XF86PowerOff exec $sysScr shutdown
 
 
+#exec --no-startup-id twmnd
 
+#exec --no-startup-id gnome-terminal --role=scratchpad
 
+#bindsym h split h
+#bindsym v split v
 
+#bindsym $mod+Shift+s move scratchpad
+#bindsym $mod+s scratchpad show
+
+#bindsym XF86TouchpadToggle exec /home/chase/.i3/toggleTouchpad
 
