@@ -4,7 +4,7 @@ This folder contains a base set of files for setting up i3
 Instructions for 'de-fuckifing' a fresh unity install
 -----------------------------------------------------
 
-1. run: sudo apt update && sudo apt upgrade -y && sudo apt install i3 feh xautolock gnome-settings-daemon
+1. run: sudo apt update && sudo apt upgrade -y && sudo apt install i3 feh xautolock gnome-settings-daemon git
 2. reboot and select i3 from the login interface, login
 3. run: sudo apt purge compiz* *unity* lightdm && sudo apt autoremove
 4. run: echo "exec i3" > ~/.xinitrc
@@ -14,11 +14,14 @@ Instructions for 'de-fuckifing' a fresh unity install
   * add "net.ifnames=0 biosdevname=0 text" to GRUB_CMDLINE_LINUX
   * uncomment GRUB_TERMINAL="console"
   * set desired timeout (I like 2) (I also comment out the lines containing '_HIDDEN_' so grub always shows for 2s)
-7. reboot
+7. run: git clone https://github/fatlard1993/dotfiles
+8. run: mkdir ~/.i3 && cp ./dotfiles/i3/* ~/.i3/ && rm ~/.i3/README.md
+8. reboot (you will need to login and run startx before you are presented with a UI)
 
 
-notes
+notes (TODO)
   * add system script to sudoers file
+  * make a script that installs everything
 
 Multipule monitors in i3
   * xrandr --output X --left-of Y
