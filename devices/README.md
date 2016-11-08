@@ -1,1 +1,1 @@
-This folder contains device specific files
+This directory contains device specific files

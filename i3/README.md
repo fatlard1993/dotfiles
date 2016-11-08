@@ -1,5 +1,4 @@
-This folder contains a base set of files for setting up i3
-==========================================================
+This directory contains a base set of files for setting up i3
 
 Instructions for 'de-fuckifing' a fresh unity install
 -----------------------------------------------------
