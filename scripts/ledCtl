@@ -1,0 +1,50 @@
+#!/bin/bash
+
+if [ "$(whoami)" != "root" ]; then
+    echo "This script must be run with sudo! To quick fix this run: sudo !!"
+    exit 1
+fi
+
+# check dependencies
+command -v setxkbmap >/dev/null 2>&1 || { echo >&2 "Script requires setxkbmap but it is not installed.Aborting."; exit 1; }
+command -v setleds   >/dev/null 2>&1 || { echo >&2 "Script requires setleds but it is not installed.Aborting."; exit 1; }
+
+CONSOLE=/dev/console
+
+# indicator LED to use: caps | num | scroll
+INDICATOR=caps
+
+getVmstat(){
+  egrep "pgpgin|pgpgout" /proc/vmstat
+}
+
+function led_on(){
+  setleds -L +${INDICATOR} < ${CONSOLE} >/dev/null 2>&1
+}
+
+function led_off(){
+  setleds -L -${INDICATOR} < ${CONSOLE} >/dev/null 2>&1
+}
+
+if [ "$1" = "0" ]; then
+  led_off
+elif [ "$1" = "1" ]; then
+  led_on
+elif [ "$1" = "monitor" ]; then
+  CHECKINTERVAL=0.1
+  NEW=$(getVmstat)
+  OLD=$(getVmstat)
+
+  while [ 1 ] ; do
+    sleep $CHECKINTERVAL
+    NEW=$(getVmstat)
+    if [ "$NEW" = "$OLD" ]; then
+      led_off
+    else
+      led_on
+    fi
+    OLD=$NEW
+  done
+else
+  echo -e "\nUseage:\nledCtl 1\nledCtl 0\nledCtl monitor\n"
+fi

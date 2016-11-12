@@ -3,6 +3,10 @@
 projectDir=/home/chase/Projects/dotfiles
 homeDir=/home/chase
 
-cp $homeDir/.i3/* $projectDir/i3/
+mkdir $homeDir/.i3 $homeDir/.scripts
 
-cp $homeDir/.scripts/* $projectDir/scripts/
+cp $projectDir/i3/config $homeDir/.i3/
+cp $projectDir/i3/status.conf $homeDir/.i3/
+cp $projectDir/i3/getWindowCriteria $homeDir/.i3/
+
+cp $projectDir/scripts/system $homeDir/.scripts/
