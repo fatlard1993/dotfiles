@@ -1,0 +1,8 @@
+#!/bin/bash
+
+projectDir=/home/chase/Projects/dotfiles
+homeDir=/home/chase
+
+cp $homeDir/.i3/* $projectDir/i3/
+
+cp $homeDir/.scripts/* $projectDir/scripts/

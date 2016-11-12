@@ -4,7 +4,8 @@
 
 set $mod Mod4
 
-set $sysScr /home/chase/.i3/system
+# this shit doesnt work... so find and replace that shit I guess
+set $scripts /home/chase/.scripts
 
 
 #---------------#
@@ -13,9 +14,9 @@ set $sysScr /home/chase/.i3/system
 
 set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
 
-set $mode_system System: (l)ogout, (r)eboot, (s)hutdown
+set $mode_system System: (l)ock, (e)xit, (r)eboot, (s)hutdown
 
-set $mode_layout Layout: (t)abbed, (s)tacking, (d)efault
+set $mode_layout Layout: (t)abbed, (s)tacking, (h)orizontal, (v)ertical
 
 
 #---------------#
@@ -53,6 +54,8 @@ for_window [title="appear.in screen sharing is sharing your screen with appear.i
 
 for_window [class="Touchegg-gce"] floating disable
 
+for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
+
 
 #---------------#
 #    execs
@@ -60,13 +63,15 @@ for_window [class="Touchegg-gce"] floating disable
 
 exec --no-startup-id gnome-settings-daemon
 
+exec --no-startup-id setxkbmap -option caps:hyper
+
+exec --no-startup-id feh --bg-fill --randomize /home/chase/Pictures/Wallpapers/*
+
+exec --no-startup-id xautolock -time 10 -locker "$scrips/system lock"
+
 exec --no-startup-id touchegg &
 
-#exec --no-startup-id nm-applet
-
-exec --no-startup-id feh --no-fehbg --bg-fill --randomize /home/chase/Pictures/Wallpapers/*
-
-exec --no-startup-id xautolock -time 10 -locker "$sysScr lock"
+exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
 
 #---------------#
@@ -88,7 +93,7 @@ focus_follows_mouse no
 
 workspace_auto_back_and_forth yes
 
-font pango:DejaVu Sans Mono 10
+font pango:DejaVu Sans Mono 22
 
 floating_modifier $mod
 
@@ -145,20 +150,25 @@ mode "$mode_resize" {
 mode "$mode_layout" {
   bindsym s layout stacking
   bindsym t layout tabbed
-  bindsym d layout toggle split
+  bindsym h split h
+  bindsym v split v
   
   bindsym s --release mode "default"
   bindsym t --release mode "default"
-  bindsym d --release mode "default"
+  bindsym h --release mode "default"
+  bindsym v --release mode "default"
   
   bindsym Return mode "default"
   bindsym Escape mode "default"
 }
 
 mode "$mode_system" {
-  bindsym l exec sudo $sysScr logout
-  bindsym s exec sudo $sysScr shutdown
-  bindsym r exec sudo $sysScr reboot
+  bindsym e exec sudo /home/chase/.scripts/system logout
+  bindsym s exec sudo /home/chase/.scripts/system shutdown
+  bindsym r exec sudo /home/chase/.scripts/system reboot
+  bindsym l exec /home/chase/.scripts/system lock
+
+  bindsym l --release mode "default"
 
   bindsym Return mode "default"
   bindsym Escape mode "default"
@@ -173,16 +183,23 @@ bindsym $mod+Shift+Return exec gnome-terminal
 
 bindsym $mod+Return exec st -t "stTerm"
 
-bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && twmnc -c "Screenshot!" --bg black --fg white
+bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && notify-send "Screenshot!"
 
-bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn 'xft:fixed:style=regular:pixelsize=14' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
+bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn 'xft:fixed:style=regular:pixelsize=30' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
 
 bindsym $mod+f fullscreen
 bindsym $mod+q kill
 
+bindsym $mod+Shift+f floating toggle
+
+bindsym $mod+l layout toggle split
+
 bindsym $mod+XF86AudioRaiseVolume  exec pavucontrol
 bindsym $mod+XF86AudioLowerVolume  exec pavucontrol
 bindsym $mod+XF86AudioMute         exec pavucontrol
+
+bindsym $mod+XF86PowerOff exec sudo /home/chase/.scripts/system reboot
+bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 
 #---------------#
@@ -201,7 +218,8 @@ bindsym $mod+Shift+plus   resize grow height 5 px or 5 ppt; resize grow width 5 
 
 bindsym $mod+r        mode "$mode_resize"
 bindsym $mod+Shift+s  mode "$mode_system"
-bindsym $mod+l        mode "$mode_layout"
+bindsym $mod+Shift+l  mode "$mode_layout"
+bindsym XF86PowerOff  mode "$mode_system"
 
 
 #---------------#
@@ -217,8 +235,8 @@ bindsym XF86AudioPause  exec playerctl pause
 bindsym XF86AudioNext   exec playerctl next
 bindsym XF86AudioPrev   exec playerctl previous
 
-bindsym XF86MonBrightnessUp   exec xbacklight -inc 20
-bindsym XF86MonBrightnessDown exec xbacklight -dec 20
+bindsym XF86MonBrightnessUp   exec xbacklight -inc 10
+bindsym XF86MonBrightnessDown exec xbacklight -dec 10
 
 
 #---------------#
@@ -228,6 +246,7 @@ bindsym XF86MonBrightnessDown exec xbacklight -dec 20
 # navigate
 bindsym $mod+period workspace next
 bindsym $mod+comma  workspace prev
+bindsym $mod+Tab    workspace back_and_forth
 
 bindsym $mod+1 workspace number 1
 bindsym $mod+2 workspace number 2
@@ -272,8 +291,13 @@ bindsym $mod+Right        focus right
 bindsym $mod+Up           focus up
 bindsym $mod+Down         focus down
 
-bindsym $mod+bracketleft  focus left
-bindsym $mod+bracketright focus right
+
+#---------------#
+#  scratchpad
+#---------------#
+
+bindsym $mod+Shift+grave move scratchpad
+bindsym $mod+grave scratchpad show
 
 
 #---------------#
@@ -282,28 +306,8 @@ bindsym $mod+bracketright focus right
 
 bindsym $mod+o fullscreen disable; floating enable; resize set 1280 720; sticky enable; move window to position 1920 40
 
-bindsym $mod+Shift+f floating toggle
-
-bindsym $mod+Shift+l exec $sysScr lock
-
 bindsym $mod+Shift+r restart
 
-bindsym XF86PowerOff mode "$mode_system"
-
-bindsym $mod+XF86PowerOff exec $sysScr reboot
-
-bindsym $mod+Shift+XF86PowerOff exec $sysScr shutdown
-
-
-#exec --no-startup-id twmnd
-
+#this currently breaks shit
 #exec --no-startup-id gnome-terminal --role=scratchpad
-
-#bindsym h split h
-#bindsym v split v
-
-#bindsym $mod+Shift+s move scratchpad
-#bindsym $mod+s scratchpad show
-
-#bindsym XF86TouchpadToggle exec /home/chase/.i3/toggleTouchpad
 
