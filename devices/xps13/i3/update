@@ -5,8 +5,8 @@ homeDir=/home/chase
 
 mkdir $homeDir/.i3 $homeDir/.scripts
 
-cp $projectDir/i3/config $homeDir/.i3/
-cp $projectDir/i3/status.conf $homeDir/.i3/
+cp $projectDir/devices/xps13/i3/config $homeDir/.i3/
+cp $projectDir/devices/xps13/i3/status.conf $homeDir/.i3/
 
 cp $projectDir/scripts/getWindowCriteria $homeDir/.i3/
 cp $projectDir/scripts/system $homeDir/.scripts/
