@@ -1,0 +1,10 @@
+####################
+#    Variables
+####################
+
+set $mod Mod4
+
+set $mainFont DejaVu Sans Mono 22
+
+set $dmenuFont xft:fixed:style=regular:pixelsize=30
+
