@@ -171,10 +171,10 @@ bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/scre
 
 bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
 
-bindsym $mod+f fullscreen
+bindsym $mod+Shift+f fullscreen
 bindsym $mod+q kill
 
-bindsym $mod+Shift+f floating toggle
+bindsym $mod+f floating toggle
 
 bindsym $mod+l layout toggle split
 
