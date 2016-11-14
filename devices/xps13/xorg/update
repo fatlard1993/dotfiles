@@ -1,0 +1,7 @@
+#!/bin/bash
+
+projectDir=/home/chase/Projects/dotfiles
+
+mkdir /etc/X11/xorg.conf.d
+
+cp $projectDir/devices/xps13/xorg/* /etc/X11/xorg.conf.d/
