@@ -33,8 +33,12 @@ QCA6174 802.11ac Wireless Network Adapter
 
 #Notes
 
+###chrome
 chrome is a son of a bitch and to get the damn touchscreen working I had to enable one little thing.. that thing is:
 *chrome://flags
 *Search for "Enable touch events"
 *change from "automatic" to "enabled"
 *reload chrome
+
+###tlp
+a general reminder that if the harddrive gets a non sda/sdb name to add that to the tlp config
