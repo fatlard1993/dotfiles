@@ -297,5 +297,6 @@ bindsym $mod+Shift+r restart
 bindsym --release $mod+c exec --no-startup-id xdotool key --clearmodifiers ctrl+c
 bindsym --release $mod+v exec --no-startup-id xdotool key --clearmodifiers ctrl+v
 bindsym --release $mod+x exec --no-startup-id xdotool key --clearmodifiers ctrl+x
+bindsym --release $mod+d exec --no-startup-id xdotool key --clearmodifiers ctrl+d
 bindsym --release $mod+s exec --no-startup-id xdotool key --clearmodifiers ctrl+s
 bindsym --release $mod+z exec --no-startup-id xdotool key --clearmodifiers ctrl+z
