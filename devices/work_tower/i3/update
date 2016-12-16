@@ -1,0 +1,15 @@
+#!/bin/bash
+
+projectDir=/home/chase/Projects/dotfiles
+homeDir=/home/chase
+
+mkdir $homeDir/.i3 $homeDir/.scripts
+
+cat $projectDir/.warning $projectDir/devices/work_tower/i3/config $projectDir/i3/config > $homeDir/.i3/config
+cp $projectDir/devices/work_tower/i3/status.conf $homeDir/.i3/
+
+cp $projectDir/scripts/getWindowCriteria $homeDir/.i3/
+cp $projectDir/scripts/ledCtl $homeDir/.scripts/
+cp $projectDir/scripts/system $homeDir/.scripts/
+
+i3-msg restart
