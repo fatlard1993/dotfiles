@@ -34,11 +34,9 @@ set $realDark #2c2c2c
 
 for_window [window_role="scratchpad"] move scratchpad
 
-for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; resize set 1280 720; sticky enable; move window to position 1920 40'"
+for_window [title="Git"] exec "i3-msg 'floating enable; border pixel 0'"
 
-for_window [title="Git"] floating enable
-
-for_window [class="Gloobus-preview"] floating enable
+for_window [class="Gloobus-preview"] exec "i3-msg 'floating enable; border pixel 0'"
 
 for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
 
@@ -287,8 +285,6 @@ bindsym $mod+grave scratchpad show
 #---------------#
 # experimental
 #---------------#
-
-bindsym $mod+o fullscreen disable; floating enable; resize set 1280 720; sticky enable; move window to position 1920 40
 
 bindsym $mod+Shift+r restart
 
