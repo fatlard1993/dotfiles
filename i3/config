@@ -81,6 +81,8 @@ font pango:$mainFont
 
 floating_modifier $mod
 
+hide_edge_borders both
+
 
 ####################
 #      i3bar
@@ -290,8 +292,7 @@ bindsym $mod+o fullscreen disable; floating enable; resize set 1280 720; sticky 
 
 bindsym $mod+Shift+r restart
 
-#this currently breaks shit
-#exec --no-startup-id gnome-terminal --role=scratchpad
+bindsym $mod+b border toggle
 
 #mac-esque bindings - testing.. does it feel right?
 bindsym --release $mod+c exec --no-startup-id xdotool key --clearmodifiers ctrl+c
