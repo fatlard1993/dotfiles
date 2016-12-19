@@ -8,6 +8,10 @@ set $mainFont DejaVu Sans Mono 10
 
 set $dmenuFont xft:fixed:style=regular:pixelsize=20
 
+set $bar_output_main HDMI-1
+
+set $bar_output_secondary DVI-D-1
+
 
 #---------------#
 #  workspaces

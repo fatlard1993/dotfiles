@@ -87,9 +87,26 @@ hide_edge_borders both
 ####################
 
 bar {
+  output $bar_output_main
   position top
   modifier $mod
   status_command i3status -c ~/.i3/status.conf
+
+  colors {
+    background $realDark
+    statusline $offWhite
+    separator $darkGrey
+
+    focused_workspace  $orange $lightGrey $darkGrey
+    inactive_workspace $offBlack $grey $darkGrey
+  }
+}
+
+bar {
+  output $bar_output_secondary
+  position top
+  modifier $mod
+  status_command i3status -c ~/.i3/status_secondary.conf
 
   colors {
     background $realDark

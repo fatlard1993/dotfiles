@@ -8,6 +8,8 @@ set $mainFont DejaVu Sans Mono 22
 
 set $dmenuFont xft:fixed:style=regular:pixelsize=30
 
+set $bar_output_main eDP1
+
 #---------------#
 #    execs
 #---------------#
