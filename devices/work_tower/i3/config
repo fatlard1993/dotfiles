@@ -8,9 +8,9 @@ set $mainFont DejaVu Sans Mono 10
 
 set $dmenuFont xft:fixed:style=regular:pixelsize=20
 
-set $bar_output_main HDMI-1
+set $bar_output_main HDMI-0
 
-set $bar_output_secondary DVI-D-1
+set $bar_output_secondary DVI-D-0
 
 
 #---------------#
@@ -18,26 +18,26 @@ set $bar_output_secondary DVI-D-1
 #---------------#
 
 # setup
-workspace 1 output DVI-D-1
-workspace 2 output DVI-D-1
-workspace 3 output DVI-D-1
-workspace 4 output DVI-D-1
-workspace 5 output DVI-D-1
-workspace 6 output DVI-D-1
-workspace 7 output DVI-D-1
-workspace 8 output DVI-D-1
-workspace 9 output DVI-D-1
-workspace 10 output HDMI-1
-workspace 11 output HDMI-1
-workspace 12 output HDMI-1
-workspace 13 output HDMI-1
-workspace 14 output HDMI-1
-workspace 15 output HDMI-1
-workspace 16 output HDMI-1
-workspace 17 output HDMI-1
-workspace 18 output HDMI-1
-workspace 19 output HDMI-1
-workspace 20 output HDMI-1
+workspace 1 output DVI-D-0
+workspace 2 output DVI-D-0
+workspace 3 output DVI-D-0
+workspace 4 output DVI-D-0
+workspace 5 output DVI-D-0
+workspace 6 output DVI-D-0
+workspace 7 output DVI-D-0
+workspace 8 output DVI-D-0
+workspace 9 output DVI-D-0
+workspace 10 output DVI-D-0
+workspace 11 output HDMI-0
+workspace 12 output HDMI-0
+workspace 13 output HDMI-0
+workspace 14 output HDMI-0
+workspace 15 output HDMI-0
+workspace 16 output HDMI-0
+workspace 17 output HDMI-0
+workspace 18 output HDMI-0
+workspace 19 output HDMI-0
+workspace 20 output HDMI-0
 
 # navigate
 bindsym $mod+KP_1 workspace number 11
@@ -85,3 +85,5 @@ for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; 
 #---------------#
 
 new_window 1pixel
+
+#hide_edge_borders both

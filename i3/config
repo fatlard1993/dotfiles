@@ -18,7 +18,8 @@ set $grey #666666
 set $darkGrey #333333
 set $lightGrey #999999
 set $blue #44bbff
-set $orange #e17528
+set $orange #f0ad4e
+set $red #d9534f
 set $offWhite #cacaca
 set $offBlack #212121
 set $realDark #2c2c2c
@@ -60,11 +61,13 @@ exec --no-startup-id xautolock -time 10 -locker "$scrips/system lock"
 #    colors
 #---------------#
 
-client.focused $orange $lightGrey $darkGrey
+client.focused          $orange $orange $offBlack $red
 
-client.focused_inactive $darkGrey $grey $lightGrey
+client.focused_inactive $grey $grey $darkGrey
 
-client.unfocused $offBlack $grey $darkGrey
+client.unfocused        $grey $grey $darkGrey
+
+client.urgent           $red $red $offWhite
 
 
 #---------------#
@@ -78,8 +81,6 @@ workspace_auto_back_and_forth yes
 font pango:$mainFont
 
 floating_modifier $mod
-
-hide_edge_borders both
 
 
 ####################
@@ -95,10 +96,12 @@ bar {
   colors {
     background $realDark
     statusline $offWhite
-    separator $darkGrey
+    separator $grey
 
-    focused_workspace  $orange $lightGrey $darkGrey
-    inactive_workspace $offBlack $grey $darkGrey
+    focused_workspace  $orange $offBlack $offWhite
+    inactive_workspace $realDark $grey $darkGrey
+    active_workspace   $realDark $offBlack $offWhite
+    urgent_workspace   $realDark $red $offWhite
   }
 }
 
@@ -111,10 +114,12 @@ bar {
   colors {
     background $realDark
     statusline $offWhite
-    separator $darkGrey
+    separator $grey
 
-    focused_workspace  $orange $lightGrey $darkGrey
-    inactive_workspace $offBlack $grey $darkGrey
+    focused_workspace  $orange $offBlack $offWhite
+    inactive_workspace $realDark $grey $darkGrey
+    active_workspace   $realDark $offBlack $offWhite
+    urgent_workspace   $realDark $red $offWhite
   }
 }
 
@@ -189,7 +194,12 @@ bindsym $mod+q kill
 
 bindsym $mod+f floating toggle
 
-bindsym $mod+l layout toggle split
+bindsym $mod+b bar mode toggle
+
+bindsym $mod+Control+Up split vertical
+bindsym $mod+Control+Down split vertical
+bindsym $mod+Control+Left split horizontal
+bindsym $mod+Control+Right split horizontal
 
 bindsym $mod+a exec pavucontrol
 
@@ -301,7 +311,7 @@ bindsym $mod+grave scratchpad show
 
 bindsym $mod+Shift+r restart
 
-bindsym $mod+b border toggle
+bindsym $mod+Shift+b border toggle
 
 #mac-esque bindings - testing.. does it feel right?
 bindsym --release $mod+c exec --no-startup-id xdotool key --clearmodifiers ctrl+c
