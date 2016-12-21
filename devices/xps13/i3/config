@@ -21,6 +21,19 @@ exec --no-startup-id touchegg &
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
 
-bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20
+#---------------#
+#     misc
+#---------------#
 
 for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20'"
+
+
+####################
+#    Shortcuts
+####################
+
+bindsym $mod+Shift+Return exec gnome-terminal
+
+bindsym $mod+Return exec st -t "stTerm"
+
+bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20

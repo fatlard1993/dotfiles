@@ -180,10 +180,6 @@ mode "$mode_system" {
 #    Shortcuts
 ####################
 
-bindsym $mod+Shift+Return exec gnome-terminal
-
-bindsym $mod+Return exec st -t "stTerm"
-
 bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && notify-send "Screenshot!"
 
 bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$offWhite' -nf '$offBlack' -sf '#ffffff' -sb '$orange' -l 5"
