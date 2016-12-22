@@ -1,0 +1,89 @@
+####################
+#    Variables
+####################
+
+set $mod Mod4
+
+set $mainFont DejaVu Sans Mono 10
+
+set $dmenuFont xft:fixed:style=regular:pixelsize=20
+
+set $bar_output_main HDMI-0
+
+set $bar_output_secondary DVI-D-0
+
+
+#---------------#
+#  workspaces
+#---------------#
+
+# setup
+workspace 1 output DVI-D-0
+workspace 2 output DVI-D-0
+workspace 3 output DVI-D-0
+workspace 4 output DVI-D-0
+workspace 5 output DVI-D-0
+workspace 6 output DVI-D-0
+workspace 7 output DVI-D-0
+workspace 8 output DVI-D-0
+workspace 9 output DVI-D-0
+workspace 10 output DVI-D-0
+workspace 11 output HDMI-0
+workspace 12 output HDMI-0
+workspace 13 output HDMI-0
+workspace 14 output HDMI-0
+workspace 15 output HDMI-0
+workspace 16 output HDMI-0
+workspace 17 output HDMI-0
+workspace 18 output HDMI-0
+workspace 19 output HDMI-0
+workspace 20 output HDMI-0
+
+# navigate
+bindsym $mod+KP_1 workspace number 11
+bindsym $mod+KP_2 workspace number 12
+bindsym $mod+KP_3 workspace number 13
+bindsym $mod+KP_4 workspace number 14
+bindsym $mod+KP_5 workspace number 15
+bindsym $mod+KP_6 workspace number 16
+bindsym $mod+KP_7 workspace number 17
+bindsym $mod+KP_8 workspace number 18
+bindsym $mod+KP_9 workspace number 19
+bindsym $mod+KP_0 workspace number 20
+
+# move
+bindsym $mod+Shift+KP_1 move container to workspace number 11
+bindsym $mod+Shift+KP_2 move container to workspace number 12
+bindsym $mod+Shift+KP_3 move container to workspace number 13
+bindsym $mod+Shift+KP_4 move container to workspace number 14
+bindsym $mod+Shift+KP_5 move container to workspace number 15
+bindsym $mod+Shift+KP_6 move container to workspace number 16
+bindsym $mod+Shift+KP_7 move container to workspace number 17
+bindsym $mod+Shift+KP_8 move container to workspace number 18
+bindsym $mod+Shift+KP_9 move container to workspace number 19
+bindsym $mod+Shift+KP_0 move container to workspace number 20
+
+
+####################
+#    Shortcuts
+####################
+
+bindsym $mod+Return exec gnome-terminal
+
+bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20
+
+
+#---------------#
+#     misc
+#---------------#
+
+for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20'"
+
+
+#---------------#
+#  experimental
+#---------------#
+
+new_window 1pixel
+
+#hide_edge_borders both
