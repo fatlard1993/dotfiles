@@ -82,6 +82,8 @@ font pango:$mainFont
 
 floating_modifier $mod
 
+new_window 1pixel
+
 
 ####################
 #      i3bar

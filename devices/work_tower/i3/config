@@ -84,6 +84,4 @@ for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; 
 #  experimental
 #---------------#
 
-new_window 1pixel
-
 #hide_edge_borders both
