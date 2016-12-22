@@ -309,6 +309,8 @@ bindsym $mod+grave scratchpad show
 # experimental
 #---------------#
 
+bindsym $mod+i exec leafpad ~/.ideas
+
 bindsym $mod+Shift+r restart
 
 bindsym $mod+Shift+b border toggle
