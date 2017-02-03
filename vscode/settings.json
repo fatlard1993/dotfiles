@@ -1,0 +1,9 @@
+{
+  "editor.fontFamily": "'Source Code Pro', 'monospace'",
+  "editor.tabSize": 2,
+  "editor.cursorBlinking": "expand",
+  "workbench.statusBar.visible": false,
+  "editor.wrappingColumn": -1,
+  "window.zoomLevel": 0,
+  "pasteAndIndent.selectAfter": true
+}
