@@ -42,3 +42,9 @@ chrome is a son of a bitch and to get the damn touchscreen working I had to enab
 
 ###tlp
 a general reminder that if the harddrive gets a non sda/sdb name to add that to the tlp config
+
+gsettings set org.gnome.desktop.background show-desktop-icons false
+
+
+/etc/modprobe.d/xps-9360.config
+    blacklist psmouse
