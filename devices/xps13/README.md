@@ -43,6 +43,9 @@ chrome is a son of a bitch and to get the damn touchscreen working I had to enab
 ###tlp
 a general reminder that if the harddrive gets a non sda/sdb name to add that to the tlp config
 
+###tweak tool
+set scale factor to 2.0
+
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
 

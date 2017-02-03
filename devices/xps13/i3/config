@@ -16,7 +16,7 @@ set $bar_output_main eDP1
 
 exec --no-startup-id setxkbmap -option caps:hyper
 
-exec --no-startup-id touchegg &
+#exec --no-startup-id touchegg &
 
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 

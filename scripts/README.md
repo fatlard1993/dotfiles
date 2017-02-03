@@ -1,4 +1,7 @@
-##This directory contains scripts I find handy for various reasons
+##This directory contains scripts I find handy for various reasonss
+
+To make this easier to script add this line to your sudoers file:
+username ALL=(ALL) NOPASSWD: /home/username/.scripts/*
 
 
 ###getWindowCriteria
