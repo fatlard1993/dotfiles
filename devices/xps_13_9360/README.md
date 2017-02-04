@@ -65,5 +65,5 @@ gsettings set org.gnome.desktop.interface monospace-font-name 'Ubuntu Mono 24'
 gsettings set org.gnome.nautilus.desktop font 'Ubuntu 24'
 
 ###ui is tiny
-(already included in the config)
+(already included in the i3 config)
 exec --no-startup-id xrandr --dpi 186
