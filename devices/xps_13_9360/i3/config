@@ -20,6 +20,8 @@ exec --no-startup-id setxkbmap -option caps:hyper
 
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
+exec --no-startup-id xrandr --dpi 186
+
 
 #---------------#
 #     misc

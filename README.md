@@ -7,6 +7,7 @@ default-jre
 feh
 xautolock
 git
+scrot
 gnome-tweak-tool numix-gtk-theme numix-icon-theme
 
 
