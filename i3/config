@@ -50,8 +50,6 @@ for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
 #    execs
 #---------------#
 
-exec --no-startup-id gnome-settings-daemon
-
 exec --no-startup-id feh --bg-fill --randomize /home/chase/Pictures/Wallpapers/*
 
 exec --no-startup-id xautolock -time 10 -locker "$scrips/system lock"

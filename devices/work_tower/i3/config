@@ -85,3 +85,5 @@ for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; 
 #---------------#
 
 #hide_edge_borders both
+
+exec --no-startup-id gnome-settings-daemon
