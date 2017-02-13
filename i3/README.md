@@ -15,11 +15,9 @@ Instructions for 'de-fuckifing' a fresh unity install
   * set desired timeout (I like 2) (I also comment out the lines containing '_HIDDEN_' so grub always shows for 2s)
 7. run: git clone https://github/fatlard1993/dotfiles
 8. run: mkdir ~/.i3 && cp ./dotfiles/i3/* ~/.i3/ && rm ~/.i3/README.md
-9. reboot (you will need to login and run startx before you are presented with a UI)
+9. add "username ALL=NOPASSWD: /home/username/.scripts/*" to your sudoers file (sudo visudo)
+10. reboot (you will need to login and run startx before you are presented with a UI)
 
-
-notes (TODO)
-  * add system script to sudoers file
 
 Multipule monitors in i3
   * xrandr --output X --left-of Y
