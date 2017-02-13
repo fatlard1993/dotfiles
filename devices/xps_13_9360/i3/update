@@ -5,8 +5,8 @@ homeDir=/home/chase
 
 mkdir $homeDir/.i3 $homeDir/.scripts
 
-cat $projectDir/.warning $projectDir/devices/xps13/i3/config $projectDir/i3/config > $homeDir/.i3/config
-cp $projectDir/devices/xps13/i3/status.conf $homeDir/.i3/
+cat $projectDir/.warning $projectDir/devices/xps_13_9360/i3/config $projectDir/i3/config > $homeDir/.i3/config
+cp $projectDir/devices/xps_13_93603/i3/status.conf $homeDir/.i3/
 
 cp $projectDir/scripts/getWindowCriteria $homeDir/.i3/
 cp $projectDir/scripts/ledCtl $homeDir/.scripts/
