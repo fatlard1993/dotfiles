@@ -51,8 +51,6 @@ gsettings set org.gnome.desktop.background show-desktop-icons false
 *get the fuck rid of gnome-settings-daemon
 *put PROJROOT/devices/xps_13_9360/xorg/50-touchpad-synaptics.conf > /etc/X11/xorg.conf.d/50-touchpad-synaptics.conf
 
-/etc/modprobe.d/xps-9360.config
-    blacklist psmouse
 
 ###cursor changes size when over system elements
 sudo nano /etc/X11/Xresources/x11-common
