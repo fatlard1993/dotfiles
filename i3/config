@@ -35,7 +35,7 @@ set $realDark #2c2c2c
 
 for_window [window_role="scratchpad"] move scratchpad
 
-for_window [title="Git"] exec "i3-msg 'floating enable; border pixel 0'"
+#for_window [title="Git"] exec "i3-msg 'floating enable; border pixel 0'"
 
 for_window [class="Gloobus-preview"] exec "i3-msg 'floating enable; border pixel 0'"
 
