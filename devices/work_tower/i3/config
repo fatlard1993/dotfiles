@@ -87,3 +87,21 @@ for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; 
 #hide_edge_borders both
 
 exec --no-startup-id gnome-settings-daemon
+
+exec --no-startup-id xrandr --output HDMI-0 --auto --right-of DVI-D-0
+
+bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
+bindsym $mod+Shift+t workspace number 11, exec gnome-terminal, exec gnome-terminal
+
+for_window [class="Google-chrome"]  move container to workspace number 1
+for_window [title="control-server - Visual Studio Code"]  move container to workspace number 2
+for_window [title="control-server-mother-hub - Visual Studio Code"]  move container to workspace number 3
+for_window [title="symetrix-common - Visual Studio Code"]  move container to workspace number 20
+
+
+exec --no-startup-id google-chrome-stable
+exec --no-startup-id code Projects/control-server
+exec --no-startup-id code Projects/control-server-mother-hub
+exec --no-startup-id code Projects/symetrix-common
+
+exec --no-startup-id i3-msg "workspace number 11, exec gnome-terminal, exec gnome-terminal"
