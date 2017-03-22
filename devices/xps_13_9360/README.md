@@ -31,37 +31,40 @@ QCA6174 802.11ac Wireless Network Adapter
 
 
 
-##Problems I Ran Into
+## Problems I Ran Into
 
-###chrome | touchscreen doesnt behave like a touch device
+### chrome | touchscreen doesnt behave like a touch device
 chrome is a son of a bitch and to get the damn touchscreen working I had to enable one little thing.. that thing is:
 *chrome://flags
 *Search for "Enable touch events"
 *change from "automatic" to "enabled"
 *reload chrome
 
-###tlp
+### tlp
 a general reminder that if the harddrive gets a non sda/sdb name to add that to the tlp config
 
-###nautilis opens a fullscreen background image
+### nautilis opens a fullscreen background image
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
 
-###trackpad issues ... WIP
+### trackpad issues ... WIP
 *get the fuck rid of gnome-settings-daemon
 *put PROJROOT/devices/xps_13_9360/xorg/50-touchpad-synaptics.conf > /etc/X11/xorg.conf.d/50-touchpad-synaptics.conf
 
 
-###cursor changes size when over system elements
+### cursor changes size when over system elements
 sudo nano /etc/X11/Xresources/x11-common
     Xcursor*size: 48
 
-###setting fonts without tweak tool
+### setting fonts without tweak tool
 gsettings set org.gnome.desktop.interface document-font-name 'Sans 24'
 gsettings set org.gnome.desktop.interface font-name 'Ubuntu 24'
 gsettings set org.gnome.desktop.interface monospace-font-name 'Ubuntu Mono 24'
 gsettings set org.gnome.nautilus.desktop font 'Ubuntu 24'
 
-###ui is tiny
+### ui is tiny
 (already included in the i3 config)
 exec --no-startup-id xrandr --dpi 186
+
+### dell repository
+sudo add-apt-repository ppa:dell-team/ppa

@@ -1,6 +1,3 @@
-####################
-#    Variables
-####################
 
 set $mod Mod4
 
@@ -13,11 +10,6 @@ set $bar_output_main HDMI-0
 set $bar_output_secondary DVI-D-0
 
 
-#---------------#
-#  workspaces
-#---------------#
-
-# setup
 workspace 1 output DVI-D-0
 workspace 2 output DVI-D-0
 workspace 3 output DVI-D-0
@@ -39,7 +31,6 @@ workspace 18 output HDMI-0
 workspace 19 output HDMI-0
 workspace 20 output HDMI-0
 
-# navigate
 bindsym $mod+KP_1 workspace number 11
 bindsym $mod+KP_2 workspace number 12
 bindsym $mod+KP_3 workspace number 13
@@ -51,7 +42,6 @@ bindsym $mod+KP_8 workspace number 18
 bindsym $mod+KP_9 workspace number 19
 bindsym $mod+KP_0 workspace number 20
 
-# move
 bindsym $mod+Shift+KP_1 move container to workspace number 11
 bindsym $mod+Shift+KP_2 move container to workspace number 12
 bindsym $mod+Shift+KP_3 move container to workspace number 13
@@ -64,27 +54,13 @@ bindsym $mod+Shift+KP_9 move container to workspace number 19
 bindsym $mod+Shift+KP_0 move container to workspace number 20
 
 
-####################
-#    Shortcuts
-####################
-
 bindsym $mod+Return exec gnome-terminal
 
 bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20
 
 
-#---------------#
-#     misc
-#---------------#
-
 for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20'"
 
-
-#---------------#
-#  experimental
-#---------------#
-
-#hide_edge_borders both
 
 exec --no-startup-id gnome-settings-daemon
 
@@ -105,3 +81,22 @@ exec --no-startup-id code Projects/control-server-mother-hub
 exec --no-startup-id code Projects/symetrix-common
 
 exec --no-startup-id i3-msg "workspace number 11, exec gnome-terminal, exec gnome-terminal"
+
+
+bar {
+  output $bar_output_secondary
+  position top
+  modifier $mod
+  status_command i3status -c ~/.i3/status_secondary.conf
+
+  colors {
+    background $bg0
+    separator  $bg1
+    statusline $text
+
+    focused_workspace  $blue $bg0 $text
+    inactive_workspace $bg0 $bg3 $comment
+    active_workspace   $teal $bg0 $comment
+    urgent_workspace   $yellow $red $white
+  }
+}

@@ -1,7 +1,3 @@
-####################
-#    Variables
-####################
-
 set $mod Mod4
 
 set $mainFont DejaVu Sans Mono 10
@@ -10,32 +6,15 @@ set $dmenuFont xft:fixed:style=regular:pixelsize=30
 
 set $bar_output_main eDP1
 
-#---------------#
-#    execs
-#---------------#
-
 exec --no-startup-id xrandr --dpi 186
 
 exec --no-startup-id setxkbmap -option caps:escape
 
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
-#exec --no-startup-id touchegg &
-
-
-#---------------#
-#     misc
-#---------------#
 
 for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20'"
 
-
-####################
-#    Shortcuts
-####################
-
 bindsym $mod+Return exec gnome-terminal
-
-#bindsym $mod+Shift+Return exec st -t "stTerm"
 
 bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20

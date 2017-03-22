@@ -1,45 +1,3 @@
-#---------------#
-#    modes
-#---------------#
-
-set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
-
-set $mode_system System: (l)ock, (e)xit, (r)eboot, (s)hutdown
-
-set $mode_layout Layout: (t)abbed, (s)tacking, (h)orizontal, (v)ertical
-
-
-#---------------#
-#    colors
-#---------------#
-
-set $orange         #CB8A4D
-set $yellow         #FCE94F
-set $purple         #6B4DCB
-set $teal           #4DCBAA
-set $green          #AECB4D
-set $red            #CB4D4F
-set $blue           #4D8ECB
-
-
-set $white          #F2F2F2
-set $grey-lightest  #E6E6E6
-set $grey-lighter   #CCCCCC
-set $grey-light     #A6A6A6
-set $grey           #737373
-set $grey-dark      #4D4D4D
-set $grey-darker    #333333
-set $grey-darkest   #262626
-set $black          #1A1A1A
-
-
-####################
-#    Startup
-####################
-
-#---------------#
-# window rules
-#---------------#
 
 for_window [class="Gloobus-preview"] exec "i3-msg 'floating enable; border pixel 0'"
 
@@ -50,33 +8,12 @@ for_window [class="Touchegg-gce"] floating disable
 for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
 
 
-#---------------#
-#    execs
-#---------------#
-
 exec --no-startup-id feh --bg-fill --randomize /home/chase/Pictures/Wallpapers/*
 
 exec --no-startup-id xautolock -time 10 -locker "$scrips/system lock"
 
-exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$white' -nf '$black' -sf '#ffffff' -sb '$blue' -l 5"
+exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$white' -nf '$black' -sf '$white' -sb '$blue' -l 5"
 
-
-#---------------#
-#    styles
-#---------------#
-
-client.focused          $blue $blue $black $teal
-
-client.focused_inactive $grey $grey $grey-dark $grey
-
-client.unfocused        $grey $grey $grey-dark $grey
-
-client.urgent           $red $red $white $red
-
-
-#---------------#
-#     misc
-#---------------#
 
 focus_follows_mouse no
 
@@ -86,14 +23,6 @@ font pango:$mainFont
 
 floating_modifier $mod
 
-new_window 1pixel
-
-new_float 1pixel
-
-
-####################
-#      i3bar
-####################
 
 bar {
   output $bar_output_main
@@ -102,39 +31,19 @@ bar {
   status_command i3status -c ~/.i3/status.conf
 
   colors {
-    background $black
-    statusline $white
-    separator $grey-darker
+    background $bg1
+    separator  $bg2
+    statusline $text
 
-    focused_workspace  $blue $black $white
-    inactive_workspace $black $grey $grey-darker
-    active_workspace   $teal $grey-darkest $grey-lightest
-    urgent_workspace   $red $white $black
-  }
-}
-
-bar {
-  output $bar_output_secondary
-  position top
-  modifier $mod
-  status_command i3status -c ~/.i3/status_secondary.conf
-
-  colors {
-    background $black
-    statusline $white
-    separator $grey-darker
-
-    focused_workspace  $blue $black $white
-    inactive_workspace $black $grey $grey-darker
-    active_workspace   $teal $grey-darkest $grey-lightest
-    urgent_workspace   $red $white $black
+    focused_workspace  $blue $bg0 $white
+    inactive_workspace $bg0 $bg3 $text
+    active_workspace   $teal $bg0 $comment
+    urgent_workspace   $yellow $red $white
   }
 }
 
 
-####################
-#      Modes
-####################
+set $mode_layout Layout: (t)abbed, (s)tacking, (h)orizontal, (v)ertical
 
 mode "$mode_resize" {
   bindsym Down resize shrink width 10 px or 10 ppt
@@ -161,6 +70,9 @@ mode "$mode_resize" {
   bindsym Escape mode "default"
 }
 
+
+set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
+
 mode "$mode_layout" {
   bindsym s layout stacking
   bindsym t layout tabbed
@@ -176,6 +88,9 @@ mode "$mode_layout" {
   bindsym Escape mode "default"
 }
 
+
+set $mode_system System: (l)ock, (e)xit, (r)eboot, (s)hutdown
+
 mode "$mode_system" {
   bindsym e exec sudo /home/chase/.scripts/system logout
   bindsym s exec sudo /home/chase/.scripts/system shutdown
@@ -189,13 +104,9 @@ mode "$mode_system" {
 }
 
 
-####################
-#    Shortcuts
-####################
-
 bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Pictures/screenshots/' && notify-send "Screenshot!"
 
-bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$white' -nf '$black' -sf '#ffffff' -sb '$blue' -l 5"
+bindsym $mod+space exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$black' -nf '$text' -sf '$text' -sb '$blue' -l 5"
 
 bindsym $mod+Shift+f fullscreen
 bindsym $mod+q kill
@@ -215,29 +126,17 @@ bindsym $mod+XF86PowerOff exec sudo /home/chase/.scripts/system reboot
 bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 
-#---------------#
-#    resize
-#---------------#
-
 bindsym $mod+minus        resize shrink height 10 px or 10 ppt; resize shrink width 10 px or 10 ppt
 bindsym $mod+plus         resize grow height 10 px or 10 ppt; resize grow width 10 px or 10 ppt
 bindsym $mod+Shift+minus  resize shrink height 5 px or 5 ppt; resize shrink width 5 px or 5 ppt
 bindsym $mod+Shift+plus   resize grow height 5 px or 5 ppt; resize grow width 5 px or 5 ppt
 
 
-#---------------#
-#    modes
-#---------------#
-
 bindsym $mod+r        mode "$mode_resize"
 bindsym $mod+Shift+s  mode "$mode_system"
 bindsym $mod+Shift+l  mode "$mode_layout"
 bindsym XF86PowerOff  mode "$mode_system"
 
-
-#---------------#
-#  multimedia
-#---------------#
 
 bindsym XF86AudioRaiseVolume  exec --no-startup-id pactl set-sink-volume 0 +5%
 bindsym XF86AudioLowerVolume  exec --no-startup-id pactl set-sink-volume 0 -5%
@@ -252,11 +151,6 @@ bindsym XF86MonBrightnessUp   exec xbacklight -inc 10
 bindsym XF86MonBrightnessDown exec xbacklight -dec 10
 
 
-#---------------#
-#  workspaces
-#---------------#
-
-# navigate
 bindsym $mod+period workspace next
 bindsym $mod+comma  workspace prev
 bindsym $mod+Tab    workspace back_and_forth
@@ -272,7 +166,6 @@ bindsym $mod+8 workspace number 8
 bindsym $mod+9 workspace number 9
 bindsym $mod+0 workspace number 10
 
-# move
 bindsym $mod+Shift+Left   move left
 bindsym $mod+Shift+Right  move right
 bindsym $mod+Shift+Up     move up
@@ -295,38 +188,18 @@ bindsym $mod+Shift+0 move container to workspace number 10
 bindsym $mod+n exec i3-input -F 'rename workspace to "%s"' -P 'Name this workspace: '
 
 
-#---------------#
-#  containers
-#---------------#
-
 bindsym $mod+Left         focus left
 bindsym $mod+Right        focus right
 bindsym $mod+Up           focus up
 bindsym $mod+Down         focus down
 
 
-#---------------#
-#  scratchpad
-#---------------#
-
 bindsym $mod+Shift+grave move scratchpad
 bindsym $mod+grave scratchpad show
 
-
-#---------------#
-# experimental
-#---------------#
 
 bindsym $mod+i exec leafpad ~/.ideas
 
 bindsym $mod+Shift+r restart
 
 bindsym $mod+Shift+b border toggle
-
-#mac-esque bindings - testing.. does it feel right?
-bindsym --release $mod+c exec --no-startup-id xdotool key --clearmodifiers ctrl+c
-bindsym --release $mod+v exec --no-startup-id xdotool key --clearmodifiers ctrl+v
-bindsym --release $mod+x exec --no-startup-id xdotool key --clearmodifiers ctrl+x
-bindsym --release $mod+d exec --no-startup-id xdotool key --clearmodifiers ctrl+d
-bindsym --release $mod+s exec --no-startup-id xdotool key --clearmodifiers ctrl+s
-bindsym --release $mod+z exec --no-startup-id xdotool key --clearmodifiers ctrl+z

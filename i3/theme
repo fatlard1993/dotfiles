@@ -1,0 +1,42 @@
+set $yellow         #f0c674
+set $orange         #d18b5b
+set $red            #cc6666
+set $teal           #8abeb7
+set $green          #abb263
+set $blue           #81a2be
+set $purple         #b294bb
+
+
+set $text           #c5c8c6
+set $comment        #969896
+
+set $bg4            #4d4d4d
+set $bg3            #333333
+set $bg2            #2d2d2d
+set $bg1            #252526
+set $bg0            #1d1f21
+
+
+set $white          #f2f2f2
+set $greyLightest   #c5c8c6
+set $greyLighter    #adadad
+set $greyLight      #969896
+set $grey           #656565
+set $greyDark       #333333
+set $greyDarker     #252526
+set $greyDarkest    #1d1f21
+set $black          #1a1a1a
+
+
+client.focused          $blue $blue $black $purple
+
+client.focused_inactive $grey $grey $greyDark $grey $grey
+
+client.unfocused        $grey $grey $greyDark $grey $grey
+
+client.urgent           $red $red $white $red
+
+
+new_window 1pixel
+
+new_float 1pixel
