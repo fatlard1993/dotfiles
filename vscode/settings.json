@@ -8,6 +8,6 @@
   "editor.wordWrap": "on",
   "pasteAndIndent.selectAfter": true,
   "workbench.colorTheme": "Tomorrow_Night",
-  "workbench.iconTheme": "seti",
+  "workbench.iconTheme": "material-icon-theme",
   "editor.minimap.enabled": true
 }

@@ -6,5 +6,5 @@ Here lie me settings
  * Go
  * jshint
  * Paste and Indent
- * seti-icons
+ * material-icon-theme
  * Tomorrow_Night Theme

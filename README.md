@@ -11,3 +11,6 @@ cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
 
 ### Google Play Music Desktop Player
 https://www.googleplaymusicdesktopplayer.com/#
+
+### Pick color picker
+todo - add reference
