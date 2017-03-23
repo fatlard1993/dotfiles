@@ -114,4 +114,4 @@ bindsym $mod+Control+b border toggle
 
 bindsym $mod+Control+r restart
 
-bindsym $mod+Control+u exec ~/Projects/dotfiles/devices/xps_13_9360/i3/update
+bindsym $mod+Control+u exec ~/dotfiles/devices/xps_13_9360/i3/update

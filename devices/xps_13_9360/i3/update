@@ -10,7 +10,7 @@ cat ~/dotfiles/_fileWarning \
 > ~/.i3/config
 
 cat ~/dotfiles/i3/_status_theme \
-  <(echo) ~/dotfiles/devices/i3/_status_items \
+  <(echo) ~/dotfiles/i3/_status_items \
   <(echo) ~/dotfiles/devices/xps_13_9360/i3/_status_order \
 > ~/.i3/status.conf
 

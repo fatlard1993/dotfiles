@@ -1,0 +1,10 @@
+#!/bin/bash
+
+mkdir ~/.i3 ~/.scripts ~/Pictures/Wallpapers /etc/X11/xorg.conf.d
+
+gsettings set org.gnome.desktop.background show-desktop-icons false
+
+~/dotfiles/devices/xps_13_9360/update
+
+sudo add-apt-repository ppa:dell-team/ppa && sudo apt update && sudo apt install -y xautolock feh pavucontrol leafpad xbacklight \
+  && sudo apt purge -y compiz* *unity* lightdm && sudo apt autoremove -y
