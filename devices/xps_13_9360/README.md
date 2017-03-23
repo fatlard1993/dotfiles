@@ -3,10 +3,10 @@ This directory contains files specific to my Dell XPS 13 9360 'Devoloper Edition
 Hardware Info
 =============
 
-Touchscreen, Apple-esque touchpad, no ethernet port
+touchscreen, clickpad
 
 ### Ports
- * 1 x Thunderbolt 3/usb-c
+ * 1 x thunderbolt 3/usb-c
  * 2 x usb
  * 1 x headphone/mic
  * 1 x sd card
@@ -29,34 +29,14 @@ QCA6174 802.11ac Wireless Network Adapter
 ### SDD
 512Gb
 
+### Setup this device starting from a fresh ubuntu unity install:
 
+1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
+2. cd ~/dotfiles && ./devices/setup
 
-## Problems I Ran Into
 
 ### chrome | touchscreen doesnt behave like a touch device
 *chrome://flags
 *Search for "Enable touch events"
 *change from "automatic" to "enabled"
 *reload chrome
-
-### nautilis opens a fullscreen background image
-gsettings set org.gnome.desktop.background show-desktop-icons false
-
-### trackpad issues ... WIP
-
-### cursor changes size when over system elements
-sudo nano /etc/X11/Xresources/x11-common
-    Xcursor*size: 48
-
-### setting fonts without tweak tool
-gsettings set org.gnome.desktop.interface document-font-name 'Sans 24'
-gsettings set org.gnome.desktop.interface font-name 'Ubuntu 24'
-gsettings set org.gnome.desktop.interface monospace-font-name 'Ubuntu Mono 24'
-gsettings set org.gnome.nautilus.desktop font 'Ubuntu 24'
-
-### ui is tiny
-(already included in the i3 config)
-exec --no-startup-id xrandr --dpi 186
-
-### dell repository
-sudo add-apt-repository ppa:dell-team/ppa
