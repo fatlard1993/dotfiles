@@ -7,5 +7,5 @@ gsettings set org.gnome.desktop.background show-desktop-icons false
 ~/dotfiles/devices/xps_13_9360/update
 
 sudo add-apt-repository ppa:dell-team/ppa && sudo apt update && \
-  sudo apt purge -y compiz* *unity* lightdm && sudo apt autoremove -y && \
-  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus
+  sudo apt purge -y compiz compiz* unity unity* lightdm && sudo apt autoremove -y && \
+  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus cheese
