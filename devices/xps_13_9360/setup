@@ -8,7 +8,7 @@ gsettings set org.gnome.desktop.background show-desktop-icons false
 
 sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 
-sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update && \
+sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update -y && sudo apt upgrade -y && \
   sudo apt purge -y compiz compiz* unity unity* lightdm && sudo apt autoremove -y && \
   sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus \
   cheese build-essential libssl-dev curl wget arp-scan
@@ -22,7 +22,7 @@ sleep 3s
 
 nvm install --lts
 
-sudo apt update -y && sudo apt install -y code default-jre gnome-tweak-tool pick-colour-picker gimp openssh-server ffmpeg
+sudo apt update -y && sudo apt install -y code default-jre gnome-tweak-tool gimp openssh-server ffmpeg
 
 cd ~/Projects && \
   git clone https://github.com/imaustink/game.git && \
