@@ -7,6 +7,7 @@ cat ~/dotfiles/_fileWarning \
   <(echo) ~/dotfiles/i3/config \
   <(echo) ~/dotfiles/i3/i3bar \
   <(echo) ~/dotfiles/i3/modes \
+  <(echo) ~/dotfiles/devices/xps_13_9360/i3/startup \
 > ~/.i3/config
 
 cat ~/dotfiles/i3/_status_theme \
