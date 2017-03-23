@@ -33,7 +33,7 @@ QCA6174 802.11ac Wireless Network Adapter
 
 1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
 2. cd ~/dotfiles && ./devices/setup
-3. reboot
+3. sudu shutdown -r now
 
 
 ### chrome | touchscreen doesnt behave like a touch device
