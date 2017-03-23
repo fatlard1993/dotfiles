@@ -18,7 +18,7 @@ curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microso
 
 curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash
 
-echo "exec i3" > ~/.xinitrc
+cp ~/dotfiles/devices/xps_13_9360/etc/.xinitrc ~/
 
 sleep 3s
 

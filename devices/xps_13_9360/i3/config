@@ -3,8 +3,6 @@ for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; 
 for_window [class="Touchegg-gce"] floating disable
 
 
-exec --no-startup-id xrandr --dpi 186
-
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
 
