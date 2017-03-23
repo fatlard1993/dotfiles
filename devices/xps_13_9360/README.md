@@ -46,7 +46,7 @@ QCA6174 802.11ac Wireless Network Adapter
 * reload chrome
 
 
-### To fix mouse issues (3/22/17 I am unsure if this is necessary anymore)
+### To fix mouse issues (3/22/17 I am unsure if this is necessary anymore or ever even helped)
 ```
 echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
 ```
