@@ -36,10 +36,17 @@ QCA6174 802.11ac Wireless Network Adapter
 2. cd ~/dotfiles && ./devices/setup
 3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
 4. sudo shutdown -r now
+5. Extra steps that may or may not be needed are listed below:
 
 
-### chrome | touchscreen doesnt behave like a touch device
-*chrome://flags
-*Search for "Enable touch events"
-*change from "automatic" to "enabled"
-*reload chrome
+### To fix touchscreen not behaving like a touch device in chrome
+* chrome://flags
+* Search for "Enable touch events"
+* change from "automatic" to "enabled"
+* reload chrome
+
+
+### To fix mouse issues (3/22/17 I am unsure if this is necessary anymore)
+```
+echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
+```
