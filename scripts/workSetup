@@ -1,7 +1,0 @@
-#!/bin/sh
-
-cd ~/Projects && \
-  git clone https://github.com/fatlard1993/symetrix-common.git && \
-  git clone https://github.com/fatlard1993/control-server.git && \
-  git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
-  git clone https://github.com/fatlard1993/unit-status.git

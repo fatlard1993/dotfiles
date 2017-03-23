@@ -1,11 +1,37 @@
 #!/bin/bash
 
-mkdir ~/.i3 ~/.scripts ~/Pictures/Wallpapers ~/Pictures/screenshots /etc/X11/xorg.conf.d
+mkdir ~/.i3 ~/.scripts ~/Projects ~/Pictures/Wallpapers ~/Pictures/screenshots /etc/X11/xorg.conf.d
 
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
 ~/dotfiles/devices/xps_13_9360/update
 
-sudo add-apt-repository ppa:dell-team/ppa && sudo apt update && \
+sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+
+sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update && \
   sudo apt purge -y compiz compiz* unity unity* lightdm && sudo apt autoremove -y && \
-  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus cheese
+  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus \
+  cheese build-essential libssl-dev curl wget arp-scan
+
+curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
+  sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+
+curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash
+
+sleep 3s
+
+nvm install --lts
+
+sudo apt update -y && sudo apt install -y code default-jre gnome-tweak-tool pick-colour-picker gimp openssh-server ffmpeg
+
+cd ~/Projects && \
+  git clone https://github.com/imaustink/game.git && \
+  git clone https://github.com/fatlard1993/copyPasta.git
+
+if [ "$1" == "work" ]; then
+  cd ~/Projects && \
+    git clone https://github.com/fatlard1993/symetrix-common.git && \
+    git clone https://github.com/fatlard1993/control-server.git && \
+    git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
+    git clone https://github.com/fatlard1993/unit-status.git
+fi
