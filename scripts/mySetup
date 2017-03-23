@@ -10,6 +10,19 @@ sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode s
 
 curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash && nvm install --lts
 
-sudo apt update -y && sudo apt install -y code default-jre gnome-tweak-tool pick gimp openssh-server ffmpeg
+sudo apt update -y && sudo apt install -y code default-jre gnome-tweak-tool pick-colour-picker gimp openssh-server ffmpeg
 
-cd ~/Projects && git clone https://github.com/imaustink/game.git
+cd ~/Projects && \
+  git clone https://github.com/imaustink/game.git && \
+  git clone https://github.com/fatlard1993/copyPasta.git
+
+cd ~/Projects && \
+  git clone https://github.com/imaustink/game.git && \
+  git clone https://github.com/fatlard1993/copyPasta.git && \
+  git clone https://github.com/fatlard1993/sandbox.git
+
+cd ~/Projects && \
+  git clone https://github.com/fatlard1993/symetrix-common.git && \
+  git clone https://github.com/fatlard1993/control-server.git && \
+  git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
+  git clone https://github.com/fatlard1993/unit-status.git
