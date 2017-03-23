@@ -4,7 +4,7 @@ mkdir ~/Projects
 
 sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 
-sudo apt update -y && sudo apt install -y build-essential libssl-dev arp-scan default-jre gnome-tweak-tool curl wget
+sudo apt update -y && sudo apt install -y build-essential libssl-dev arp-scan default-jre gnome-tweak-tool curl wget pick gimp
 
 curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash && nvm install --lts
 

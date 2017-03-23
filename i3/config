@@ -16,7 +16,7 @@ exec --no-startup-id setxkbmap -option caps:escape
 
 exec --no-startup-id feh --bg-fill --randomize ~/Pictures/Wallpapers/*
 
-exec --no-startup-id xautolock -time 10 -locker "$scrips/system lock"
+exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
 
 exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$black' -nf '$text' -sf '$text' -sb '#007aac' -l 5"
 

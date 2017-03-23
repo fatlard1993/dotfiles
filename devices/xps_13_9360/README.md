@@ -29,11 +29,13 @@ QCA6174 802.11ac Wireless Network Adapter
 ### SDD
 512Gb
 
+
 ### Setup this device starting from a fresh ubuntu unity install:
 
 1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
 2. cd ~/dotfiles && ./devices/setup
-3. sudu shutdown -r now
+3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
+4. sudo shutdown -r now
 
 
 ### chrome | touchscreen doesnt behave like a touch device
