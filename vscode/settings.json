@@ -1,9 +1,13 @@
 {
+  "window.menuBarVisibility": "toggle",
   "editor.fontFamily": "'Source Code Pro', 'monospace'",
   "editor.tabSize": 2,
   "editor.cursorBlinking": "expand",
   "workbench.statusBar.visible": false,
-  "editor.wrappingColumn": -1,
   "window.zoomLevel": 0,
-  "pasteAndIndent.selectAfter": true
+  "editor.wordWrap": "on",
+  "pasteAndIndent.selectAfter": true,
+  "workbench.colorTheme": "Tomorrow_Night",
+  "workbench.iconTheme": "seti",
+  "editor.minimap.enabled": true
 }
