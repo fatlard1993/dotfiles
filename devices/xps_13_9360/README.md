@@ -33,7 +33,7 @@ QCA6174 802.11ac Wireless Network Adapter
 ### Setup this device starting from a fresh ubuntu unity install:
 
 1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
-2. cd ~/dotfiles && ./devices/setup
+2. cd ~/dotfiles && ./devices/xps_13_9360/setup
 3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
 4. sudo shutdown -r now
 5. Extra steps that may or may not be needed are listed below:
