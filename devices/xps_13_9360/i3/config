@@ -1,20 +1,14 @@
-set $mod Mod4
+for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20'"
 
-set $mainFont DejaVu Sans Mono 10
+for_window [class="Touchegg-gce"] floating disable
 
-set $dmenuFont xft:fixed:style=regular:pixelsize=30
-
-set $bar_output_main eDP1
 
 exec --no-startup-id xrandr --dpi 186
-
-exec --no-startup-id setxkbmap -option caps:escape
 
 exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
 
 
-for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20'"
-
-bindsym $mod+Return exec gnome-terminal
+bindsym $mod+XF86PowerOff       exec sudo /home/chase/.scripts/system reboot
+bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20

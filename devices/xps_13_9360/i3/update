@@ -1,15 +1,21 @@
 #!/bin/bash
 
-projectDir=/home/chase/Projects/dotfiles
-homeDir=/home/chase
+cat ~/dotfiles/_fileWarning \
+  <(echo) ~/dotfiles/i3/_theme \
+  <(echo) ~/dotfiles/devices/xps_13_9360/i3/_variables \
+  <(echo) ~/dotfiles/devices/xps_13_9360/i3/config \
+  <(echo) ~/dotfiles/i3/config \
+  <(echo) ~/dotfiles/i3/i3bar \
+  <(echo) ~/dotfiles/i3/modes \
+> ~/.i3/config
 
-mkdir $homeDir/.i3 $homeDir/.scripts
+cat ~/dotfiles/i3/_status_theme \
+  <(echo) ~/dotfiles/devices/i3/_status_items \
+  <(echo) ~/dotfiles/devices/xps_13_9360/i3/_status_order \
+> ~/.i3/status.conf
 
-cat $projectDir/.warning $projectDir/i3/theme $projectDir/devices/xps_13_9360/i3/config $projectDir/i3/config > $homeDir/.i3/config
-cp $projectDir/devices/xps_13_9360/i3/status.conf $homeDir/.i3/
-
-cp $projectDir/scripts/getWindowCriteria $homeDir/.i3/
-cp $projectDir/scripts/ledCtl $homeDir/.scripts/
-cp $projectDir/scripts/system $homeDir/.scripts/
+cp ~/dotfiles/scripts/getWindowCriteria ~/.i3/
+cp ~/dotfiles/scripts/ledCtl ~/.scripts/
+cp ~/dotfiles/scripts/system ~/.scripts/
 
 i3-msg restart

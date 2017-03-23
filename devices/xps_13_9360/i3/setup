@@ -1,0 +1,9 @@
+#!/bin/bash
+
+mkdir ~/Pictures/Wallpapers ~/.i3 ~/.scripts
+
+gsettings set org.gnome.desktop.background show-desktop-icons false
+
+sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt install -y \
+  xautolock feh pavucontrol leafpad xbacklight \
+  && sudo apt purge -y compiz* *unity* lightdm && sudo apt autoremove -y
