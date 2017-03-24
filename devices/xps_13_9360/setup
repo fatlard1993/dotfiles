@@ -17,7 +17,7 @@ sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-
 
 sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt-get update -y && sudo apt-get upgrade -y
 
-sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot cheese build-essential libssl-dev npm curl wget arp-scan
+sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget
 
 curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
   sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
@@ -32,9 +32,7 @@ sudo npm install -g gulp
 
 sleep 3s
 
-~/.nvm/nvm.sh install --lts
-
-sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp openssh-server ffmpeg
+sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp openssh-server ffmpeg arp-scan cheese scrot
 
 sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 

@@ -55,3 +55,6 @@ echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
 global dark theme: on
 fonts:
   monospace: ubuntu mono regular 22
+
+### nvm
+nvm install --lts
