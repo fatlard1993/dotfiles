@@ -22,7 +22,7 @@ curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | b
 
 cp ~/dotfiles/devices/xps_13_9360/etc/.xinitrc ~/
 
-cp -r ~/dotfiles/fonts ~/.fonts && sudo fc-cache -fv
+~/dotfiles/fonts/update
 
 sudo npm install -g gulp
 
