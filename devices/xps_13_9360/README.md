@@ -50,3 +50,8 @@ QCA6174 802.11ac Wireless Network Adapter
 ```
 echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
 ```
+
+### gnome-tweak-tool settings
+global dark theme: on
+fonts:
+  monospace: ubuntu mono regular 22
