@@ -2,6 +2,8 @@
 
 sudo cp ~/dotfiles/devices/xps_13_9360/etc/grub /etc/default && sudo update-grub2
 
+cp ~/dotfiles/devices/xps_13_9360/etc/.xinitrc ~/
+
 ~/dotfiles/devices/xps_13_9360/xorg/update
 
 ~/dotfiles/devices/xps_13_9360/i3/update
