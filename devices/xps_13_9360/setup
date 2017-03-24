@@ -9,10 +9,12 @@ gsettings set org.gnome.desktop.background show-desktop-icons false
 ~/dotfiles/devices/xps_13_9360/update
 
 sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+sudo sh -c 'echo "deb http://debian.sur5r.net/i3/ $(lsb_release -c -s) universe" > /etc/apt/sources.list.d/i3.list'
 
-sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update -y && sudo apt upgrade -y && \
+sudo apt update -y && sudo apt-get --allow-unauthenticated install -y sur5r-keyring && \
+  sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update -y && sudo apt upgrade -y && \
   sudo apt purge -y compiz compiz* unity unity* lightdm && sudo apt autoremove -y && \
-  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus \
+  sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot \
   cheese build-essential libssl-dev npm curl wget arp-scan
 
 curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
