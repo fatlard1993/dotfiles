@@ -1,6 +1,8 @@
 #!/bin/bash
 
-mkdir ~/.i3 ~/.scripts ~/Projects ~/Pictures/Wallpapers ~/Pictures/screenshots /etc/X11/xorg.conf.d
+mkdir ~/.i3 ~/.scripts ~/Projects ~/Pictures/Wallpapers ~/Pictures/screenshots
+
+sudo mkdir /etc/X11/xorg.conf.d
 
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
@@ -11,7 +13,7 @@ sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode s
 sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt update -y && sudo apt upgrade -y && \
   sudo apt purge -y compiz compiz* unity unity* lightdm && sudo apt autoremove -y && \
   sudo apt install -y i3 xautolock feh pavucontrol leafpad xbacklight scrot nautilus \
-  cheese build-essential libssl-dev curl wget arp-scan
+  cheese build-essential libssl-dev npm curl wget arp-scan
 
 curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
   sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
@@ -19,6 +21,8 @@ curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microso
 curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash
 
 cp ~/dotfiles/devices/xps_13_9360/etc/.xinitrc ~/
+
+sudo npm install -g gulp
 
 sleep 3s
 
@@ -30,6 +34,9 @@ cd ~/Projects && \
   git clone https://github.com/imaustink/game.git && \
   git clone https://github.com/fatlard1993/copyPasta.git
 
+cd ~/Projects/game && npm install
+cd ~/Projects/copyPasta && npm install
+
 if [ "$1" == "work" ]; then
   git config --global user.name  "fatlard1993"
   git config --global user.email "fatlard1993@gmail.com"
@@ -39,4 +46,9 @@ if [ "$1" == "work" ]; then
     git clone https://github.com/fatlard1993/control-server.git && \
     git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
     git clone https://github.com/fatlard1993/unit-status.git
+  
+  cd ~/Projects/symetrix-common && npm install
+  cd ~/Projects/control-server && npm install
+  cd ~/Projects/control-server-mother-hub && npm install
+  cd ~/Projects/unit-status && npm install
 fi
