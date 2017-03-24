@@ -56,10 +56,10 @@ bindsym $mod+Shift+KP_0 move container to workspace number 20
 
 bindsym $mod+Return exec gnome-terminal
 
-bindsym $mod+o fullscreen disable; floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20
+bindsym $mod+o fullscreen disable, floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20
 
 
-for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 600 380; sticky enable; move window to position 1080 20'"
+for_window [class="Pavucontrol"] exec "i3-msg 'floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20'"
 
 
 exec --no-startup-id gnome-settings-daemon
