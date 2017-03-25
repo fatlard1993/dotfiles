@@ -1,15 +1,3 @@
-
-set $mod Mod4
-
-set $mainFont DejaVu Sans Mono 10
-
-set $dmenuFont xft:fixed:style=regular:pixelsize=20
-
-set $bar_output_main HDMI-0
-
-set $bar_output_secondary DVI-D-0
-
-
 workspace 1 output DVI-D-0
 workspace 2 output DVI-D-0
 workspace 3 output DVI-D-0
@@ -54,20 +42,11 @@ bindsym $mod+Shift+KP_9 move container to workspace number 19
 bindsym $mod+Shift+KP_0 move container to workspace number 20
 
 
-bindsym $mod+Return exec gnome-terminal
-
-bindsym $mod+o fullscreen disable, floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20
-
 
 for_window [class="Pavucontrol"] exec "i3-msg 'floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20'"
 
+#exec --no-startup-id xrandr --output HDMI-0 --auto --right-of DVI-D-0
 
-exec --no-startup-id gnome-settings-daemon
-
-exec --no-startup-id xrandr --output HDMI-0 --auto --right-of DVI-D-0
-
-bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
-bindsym $mod+Shift+t workspace number 11, exec gnome-terminal, exec gnome-terminal
 
 for_window [class="Google-chrome"]  move container to workspace number 1
 for_window [title="control-server - Visual Studio Code"]  move container to workspace number 2
@@ -83,20 +62,8 @@ exec --no-startup-id code Projects/symetrix-common
 exec --no-startup-id i3-msg "workspace number 11, exec gnome-terminal, exec gnome-terminal"
 
 
-bar {
-  output $bar_output_secondary
-  position top
-  modifier $mod
-  status_command i3status -c ~/.i3/status_secondary.conf
+bindsym $mod+o fullscreen disable, floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20
 
-  colors {
-    background $bg0
-    separator  $bg1
-    statusline $text
+bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
 
-    focused_workspace  $blue $bg0 $text
-    inactive_workspace $bg0 $bg3 $comment
-    active_workspace   $teal $bg0 $comment
-    urgent_workspace   $yellow $red $white
-  }
-}
+bindsym $mod+Shift+t workspace number 11, exec gnome-terminal, exec gnome-terminal

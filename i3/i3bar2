@@ -1,0 +1,17 @@
+bar {
+  output $i3bar2Output
+  position top
+  modifier $mod
+  status_command i3status -c ~/.i3/status2.conf
+
+  colors {
+    background $bg1
+    separator  $bg2
+    statusline $text
+
+    focused_workspace  $blue $bg0 $white
+    inactive_workspace $bg0 $bg3 $text
+    active_workspace   $teal $bg0 $comment
+    urgent_workspace   $yellow $red $white
+  }
+}
