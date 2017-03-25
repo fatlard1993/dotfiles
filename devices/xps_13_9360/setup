@@ -36,7 +36,7 @@ sleep 3s
 
 sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp openssh-server ffmpeg arp-scan cheese scrot
 
-#sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
+sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 
 cd ~/Projects && \
   git clone https://github.com/imaustink/game.git && \
