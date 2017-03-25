@@ -6,8 +6,6 @@ sudo mkdir /etc/X11/xorg.conf.d
 
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
-~/dotfiles/devices/xps_13_9360/update
-
 sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 sudo sh -c 'echo "deb http://debian.sur5r.net/i3/ $(lsb_release -c -s) universe" > /etc/apt/sources.list.d/i3.list'
 
@@ -18,6 +16,8 @@ sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-
 sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt-get update -y && sudo apt-get upgrade -y
 
 sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget
+
+~/dotfiles/devices/xps_13_9360/update
 
 sleep 3s
 
@@ -38,25 +38,4 @@ sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-t
 
 sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 
-cd ~/Projects && \
-  git clone https://github.com/imaustink/game.git && \
-  git clone https://github.com/fatlard1993/copyPasta.git
-
-cd ~/Projects/game && npm install
-cd ~/Projects/copyPasta && npm install
-
-if [ "$1" == "work" ]; then
-  git config --global user.name  "fatlard1993"
-  git config --global user.email "fatlard1993@gmail.com"
-
-  cd ~/Projects && \
-    git clone https://github.com/fatlard1993/symetrix-common.git && \
-    git clone https://github.com/fatlard1993/control-server.git && \
-    git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
-    git clone https://github.com/fatlard1993/unit-status.git
-  
-  cd ~/Projects/symetrix-common && npm install
-  cd ~/Projects/control-server && npm install
-  cd ~/Projects/control-server-mother-hub && npm install
-  cd ~/Projects/unit-status && npm install
-fi
+sudo apt-get dist-upgrade -y
