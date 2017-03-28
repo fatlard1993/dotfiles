@@ -42,24 +42,12 @@ bindsym $mod+Shift+KP_9 move container to workspace number 19
 bindsym $mod+Shift+KP_0 move container to workspace number 20
 
 
-
 for_window [class="Pavucontrol"] exec "i3-msg 'floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20'"
-
-#exec --no-startup-id xrandr --output HDMI-0 --auto --right-of DVI-D-0
-
 
 for_window [class="Google-chrome"]  move container to workspace number 1
 for_window [title="control-server - Visual Studio Code"]  move container to workspace number 2
 for_window [title="control-server-mother-hub - Visual Studio Code"]  move container to workspace number 3
 for_window [title="symetrix-common - Visual Studio Code"]  move container to workspace number 20
-
-
-exec --no-startup-id google-chrome-stable
-exec --no-startup-id code Projects/control-server
-exec --no-startup-id code Projects/control-server-mother-hub
-exec --no-startup-id code Projects/symetrix-common
-
-exec --no-startup-id i3-msg "workspace number 11, exec gnome-terminal, exec gnome-terminal"
 
 
 bindsym $mod+o fullscreen disable, floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20

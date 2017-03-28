@@ -6,33 +6,40 @@ Hardware Info
 =============
 
 ### Ports
- * 1 x thunderbolt 3/usb-c
- * 2 x usb
- * 1 x headphone/mic
- * 1 x sd card
+ * 2 x usb 3.0 (front)
+ * 2 x usb 2.0 (top)
+ * 1 x headphone (top)
+ * 1 x mic (top)
+ * ports on the back exist
 
 ### Processor
-working
+Intel(R) Core(TM) i5-4440 CPU @ 3.10GHz
 
 ### Graphics
-supplying graphs
-
-### Screen
-2 x ASUS PB258Q 25" WQHD LCD 2560 x 1440
+NVIDIA GK208 [GeForce GT 635]
 
 ### Wifi
-in there somewhere
+Qualcomm Atheros AR9485
 
 ### RAM
-eating all my grass
+8Gb
 
 ### HDD
-1Tb thingy
+1Tb spinning
+
+### Screen(s)
+2 x ASUS PB258Q 25" WQHD LCD 2560 x 1440
+
+### Keyboard
+WASD Code Keyboard V2B [Cherry MX Brown]
+
+### Mouse
+Logitech MX Master
 
 
 ### Setup this device starting from a fresh ubuntu unity install:
 
 1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
-2. cd ~/dotfiles && ./devices/setup
+2. cd ~/dotfiles && ./devices/work_tower/setup
 3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
 4. sudo shutdown -r now
