@@ -52,9 +52,12 @@ echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
 ```
 
 ### gnome-tweak-tool settings
-global dark theme: on
+apperance:
+  global dark theme: on
+  gtk+ theme high contrast
+  icons gnome
 fonts:
-  monospace: ubuntu mono regular 22
+  scaling factor 1.5
 
 ### nvm
 nvm install --lts
