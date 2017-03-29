@@ -7,3 +7,7 @@ bindsym $mod+XF86PowerOff       exec sudo /home/chase/.scripts/system reboot
 bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 bindsym $mod+o fullscreen disable, floating enable, resize set 1280 720, sticky enable, move window to position 1924 42
+
+bindsym $mod+Control+u exec ~/dotfiles/devices/xps_13_9360/i3/update
+
+font pango:Source Code Pro 10, pango:FontAwesome 7

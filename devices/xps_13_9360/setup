@@ -34,7 +34,7 @@ sudo npm install -g gulp
 
 sleep 3s
 
-sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp openssh-server ffmpeg arp-scan cheese scrot
+sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp gpick openssh-server ffmpeg arp-scan cheese scrot
 
 sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 

@@ -59,6 +59,15 @@ fonts:
 ### nvm
 nvm install --lts
 
+### vs code
+ * copy and paste settings and keybindings
+ * install packages
+
+### sudo
+```
+Defaults Insults
+```
+
 ### stuff
 cd ~/Projects && \
   git clone https://github.com/imaustink/game.git && \

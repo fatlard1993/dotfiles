@@ -17,6 +17,6 @@ sudo dpkg -i ~/Downloads/google-chrome-stable*.deb; sudo apt install -f -y
 
 ### Google Play Music Desktop Player
 https://www.googleplaymusicdesktopplayer.com/#
-
-### Pick color picker
-todo - add reference
+```
+sudo dpkg -i ~/Downloads/google-play-music-desktop-player*.deb; sudo apt install -f -y
+```

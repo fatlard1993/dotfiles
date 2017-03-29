@@ -1,37 +1,54 @@
-ethernet eth0 {
+ethernet _first_ {
   format_up = " %ip (%speed) "
   format_down = " LAN down "
 }
 
-wireless wlan0 {
-  format_up = " %ip (%essid %quality) "
+wireless _first_ {
+  format_up = " %ip (%essid | %bitrate) "
   format_down = " wlan0 down "
 }
 
 volume master {
+  color_degraded = "#969896"
+
   device = "default"
   mixer = "Master"
   mixer_idx = 0
   
-  format = " ♫ %volume "
-  format_muted = " /* ♫ %volume */ "
+  format = "  %volume "
+  format_muted = " /*  %volume */ "
 }
 
 load {
   format = " %1minᵟ "
 }
 
-disk "/" {
-  format = " %avail "
+disk / {
+  low_threshold = 5
+  threshold_type = percentage_free
+
+  format = "  %free "
+  format_below_threshold = " !  %free !"
 }
 
 battery 0 {
+  integer_battery_capacity = true
   last_full_capacity = true
-  path = "/sys/class/power_supply/BAT0/uevent"
+  hide_seconds = true
+
+  status_bat = ""
+  status_chr = ""
+  status_full = ""
+  status_unk = "?"
+
+  low_threshold = 25
+  threshold_type = percentage
+
+  path = "/sys/class/power_supply/BAT%d/uevent"
 
   format = " %status %percentage (%remaining) "
 }
 
-tztime local {
-  format = " %m/%d %H:%M:%S "
+time {
+  format = "  %m/%d %H:%M:%S "
 }

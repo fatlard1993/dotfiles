@@ -2,6 +2,6 @@ general {
   colors = true
   interval = 5
   color_good = "#abb263"
-  color_degraded = "#969896"
+  color_degraded = "#f0c674"
   color_bad = "#cc6666"
 }
