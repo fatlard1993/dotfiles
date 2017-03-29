@@ -4,8 +4,8 @@ ethernet _first_ {
 }
 
 wireless _first_ {
-  format_up = " %ip (%essid | %bitrate) "
-  format_down = " wlan0 down "
+  format_up = "  %ip (%essid | %bitrate) "
+  format_down = "  down "
 }
 
 volume master {
@@ -20,7 +20,7 @@ volume master {
 }
 
 load {
-  format = " %1minᵟ "
+  format = "  %1min "
 }
 
 disk / {
