@@ -5,13 +5,26 @@ bar {
   status_command i3status -c ~/.i3/status.conf
 
   colors {
-    background $bg1
-    separator  $bg2
-    statusline $text
+    background $base00
+    separator  $base01
+    statusline $base04
 
-    focused_workspace  $blue $bg0 $white
-    inactive_workspace $bg0 $bg3 $text
-    active_workspace   $teal $bg0 $comment
-    urgent_workspace   $yellow $red $white
+    # State             Border  BG      Text
+    focused_workspace   $base05 $base0D $base00
+    active_workspace    $base05 $base03 $base00
+    inactive_workspace  $base03 $base01 $base05
+    urgent_workspace    $base08 $base08 $base00
+    binding_mode        $base00 $base0A $base00
   }
 }
+
+#colors {
+#  background $bg1
+#  separator  $bg2
+#  statusline $text
+#
+#  focused_workspace  $blue $bg0 $white
+#  inactive_workspace $bg0 $bg3 $text
+#  active_workspace   $teal $bg0 $comment
+#  urgent_workspace   $yellow $red $white
+#}

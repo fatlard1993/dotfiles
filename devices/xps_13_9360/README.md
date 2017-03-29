@@ -59,6 +59,10 @@ apperance:
 fonts:
   scaling factor 1.5
 
+### gnome-terminal
+uncheck "show menubar by default on new terminals"
+Shortcuts>view>"hide and show toolbar" alt+F4
+
 ### nvm
 nvm install --lts
 
