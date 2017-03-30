@@ -57,7 +57,7 @@ apperance:
   gtk+ theme high contrast
   icons gnome
 fonts:
-  scaling factor 1.5
+  scaling factor 1.7
 
 ### gnome-terminal
 uncheck "show menubar by default on new terminals"
