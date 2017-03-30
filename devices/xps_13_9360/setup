@@ -6,6 +6,8 @@ sudo mkdir /etc/X11/xorg.conf.d
 
 gsettings set org.gnome.desktop.background show-desktop-icons false
 
+gsettings set org.gnome.settings-daemon.plugins.mouse active false
+
 sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 sudo sh -c 'echo "deb http://debian.sur5r.net/i3/ $(lsb_release -c -s) universe" > /etc/apt/sources.list.d/i3.list'
 
@@ -15,7 +17,7 @@ sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-
 
 sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt-get update -y && sudo apt-get upgrade -y
 
-sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget
+sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget speedtest-cli
 
 ~/dotfiles/devices/xps_13_9360/update
 
@@ -39,3 +41,16 @@ sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-t
 sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 
 sudo apt-get dist-upgrade -y
+
+
+cd ~ && git clone https://github.com/kvalo/ath10k-firmware.git
+
+sudo rm -rf /lib/firmware/ath10k/QCA6174/
+
+sudo cp -r ~/ath10k-firmware/QCA6174/ /lib/firmware/ath10k/
+
+sudo mv /lib/firmware/ath10k/QCA6174/hw2.1/firmware-5.bin_SW_RM.1.1.1-00157-QCARMSWPZ-1 /lib/firmware/ath10k/QCA6174/hw2.1/firmware-5.bin
+
+sudo mv /lib/firmware/ath10k/QCA6174/hw3.0/firmware-4.bin_WLAN.RM.2.0-00180-QCARMSWPZ-1 /lib/firmware/ath10k/QCA6174/hw3.0/firmware-4.bin
+
+sudo cp /lib/firmware/ath10k/QCA6174/hw3.0/firmware-4.bin /lib/firmware/ath10k/QCA6174/hw3.0/firmware-5.bin
