@@ -1,30 +1,23 @@
 bar {
-  output $i3barOutput
+  id bar-0
+  output $mainDisplay
+  
   position top
-  modifier $mod
   status_command i3status -c ~/.i3/status.conf
+  strip_workspace_numbers yes
+  separator_symbol "  "
+  #other good separators: 
 
   colors {
-    background $base00
-    separator  $base01
+    background $base01
+    separator  $base02
     statusline $base04
 
     # State             Border  BG      Text
-    focused_workspace   $base05 $base0D $base00
+    focused_workspace   $base0D $base0D $base07
     active_workspace    $base05 $base03 $base00
-    inactive_workspace  $base03 $base01 $base05
-    urgent_workspace    $base08 $base08 $base00
-    binding_mode        $base00 $base0A $base00
+    inactive_workspace  $base02 $base01 $base05
+    urgent_workspace    $base08 $base08 $base07
+    binding_mode        $base0A $base0A $base01
   }
 }
-
-#colors {
-#  background $bg1
-#  separator  $bg2
-#  statusline $text
-#
-#  focused_workspace  $blue $bg0 $white
-#  inactive_workspace $bg0 $bg3 $text
-#  active_workspace   $teal $bg0 $comment
-#  urgent_workspace   $yellow $red $white
-#}
