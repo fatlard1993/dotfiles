@@ -19,7 +19,12 @@ sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-
 
 sudo add-apt-repository ppa:dell-team/ppa -y && sudo add-apt-repository ppa:leolik/leolik -y && sudo apt-get update -y && sudo apt-get upgrade -y
 
-sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget speedtest-cli ruby xclip
+sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget speedtest-cli ruby xclip python3 python-pip
+
+pip install --upgrade pip
+
+pip install pylint
+
 
 ~/dotfiles/devices/xps_13_9360/update
 
