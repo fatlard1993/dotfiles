@@ -1,8 +1,8 @@
 set $mod Mod4
 
-set $dmenuFont xft:fixed:style=regular:pixelsize=30
+set $fontSize 9
 
-set $i3barOutput eDP1
+set $mainDisplay eDP1
 
 set $overwatch floating enable, sticky enable, resize set 1280 720, move window to position 1926 32
 

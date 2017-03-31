@@ -1,58 +1,23 @@
-set $mode_resize Resize: (mod) vertical, (up | g)row, (down | s)hrink
-mode "$mode_resize" {
-  bindsym Down resize shrink width 10 px or 10 ppt
-  bindsym Up resize grow width 10 px or 10 ppt
-  bindsym $mod+Up resize shrink height 10 px or 10 ppt
-  bindsym $mod+Down resize grow height 10 px or 10 ppt
-
-  bindsym Shift+Down resize shrink width 5 px or 5 ppt
-  bindsym Shift+Up resize grow width 5 px or 5 ppt
-  bindsym Shift+$mod+Up resize shrink height 5 px or 5 ppt
-  bindsym Shift+$mod+Down resize grow height 5 px or 5 ppt
-
-  bindsym s resize shrink width 10 px or 10 ppt
-  bindsym g resize grow width 10 px or 10 ppt
-  bindsym $mod+g resize shrink height 10 px or 10 ppt
-  bindsym $mod+s resize grow height 10 px or 10 ppt
-
-  bindsym Shift+s resize shrink width 5 px or 5 ppt
-  bindsym Shift+g resize grow width 5 px or 5 ppt
-  bindsym Shift+$mod+g resize shrink height 5 px or 5 ppt
-  bindsym Shift+$mod+s resize grow height 5 px or 5 ppt
-
-  bindsym Return mode "default"
-  bindsym Escape mode "default"
-}
-bindsym $mod+r mode "$mode_resize"
-
-set $mode_layout Layout: (t)abbed, (s)tacking, (h)orizontal, (v)ertical
-mode "$mode_layout" {
-  bindsym s layout stacking
-  bindsym t layout tabbed
-  bindsym h split h
-  bindsym v split v
+set $mode_layout "<span foreground='#000' weight='bold'>Layout</span>  <b>D</b>efault <b>S</b>tacking <b>T</b>abbed"
+mode --pango_markup $mode_layout {
+  bindsym s layout stacking, mode default
+  bindsym t layout tabbed, mode default
+  bindsym d layout default, mode default
   
-  bindsym s --release mode "default"
-  bindsym t --release mode "default"
-  bindsym h --release mode "default"
-  bindsym v --release mode "default"
-  
-  bindsym Return mode "default"
-  bindsym Escape mode "default"
+  bindsym Return mode default
+  bindsym Escape mode default
 }
-bindsym $mod+Shift+l mode "$mode_layout"
+bindsym $mod+Control+l mode $mode_layout
 
-set $mode_system System: (l)ock, (e)xit, (r)eboot, (s)hutdown
-mode "$mode_system" {
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>S</b>hutdown"
+mode --pango_markup $mode_system {
   bindsym e exec sudo /home/chase/.scripts/system logout
   bindsym s exec sudo /home/chase/.scripts/system shutdown
   bindsym r exec sudo /home/chase/.scripts/system reboot
-  bindsym l exec /home/chase/.scripts/system lock
+  bindsym l mode default, exec /home/chase/.scripts/system lock
 
-  bindsym l --release mode "default"
-
-  bindsym Return mode "default"
-  bindsym Escape mode "default"
+  bindsym Return mode default
+  bindsym Escape mode default
 }
-bindsym $mod+Shift+s mode "$mode_system"
-bindsym XF86PowerOff mode "$mode_system"
+bindsym $mod+Control+s mode $mode_system
+bindsym XF86PowerOff   mode $mode_system

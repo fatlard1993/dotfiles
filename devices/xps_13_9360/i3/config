@@ -1,15 +1,11 @@
-for_window [class="Pavucontrol"] exec "i3-msg 'floating enable; border pixel 0; resize set 1280 720; sticky enable; move window to position 1920 20'"
-
-for_window [class="Touchegg-gce"] floating disable
+for_window [class="Pavucontrol"] $overwatch
 
 
 bindsym $mod+XF86PowerOff       exec sudo /home/chase/.scripts/system reboot
 bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
-bindsym $mod+o fullscreen disable, floating enable, resize set 1280 720, sticky enable, move window to position 1924 42
+bindsym $mod+o $overwatch
 
 bindsym $mod+Control+u exec ~/dotfiles/devices/xps_13_9360/update
 
 bindsym $mod+Control+n exec notify-send -u low 'Hello world!' 'This is an example notification.'
-
-font pango:Source Code Pro 9, pango:FontAwesome 9
