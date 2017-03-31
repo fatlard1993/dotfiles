@@ -8,6 +8,8 @@ bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 bindsym $mod+o fullscreen disable, floating enable, resize set 1280 720, sticky enable, move window to position 1924 42
 
-bindsym $mod+Control+u exec ~/dotfiles/devices/xps_13_9360/i3/update
+bindsym $mod+Control+u exec ~/dotfiles/devices/xps_13_9360/update
+
+bindsym $mod+Control+n exec notify-send -u low 'Hello world!' 'This is an example notification.'
 
 font pango:Source Code Pro 9, pango:FontAwesome 9

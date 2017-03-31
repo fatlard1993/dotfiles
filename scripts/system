@@ -2,6 +2,9 @@
 
 case "$1" in
   lock)
+    #killall -SIGUSR1 dunst # pause
+    #killall -SIGUSR2 dunst # resume
+
     screenCap=~/.i3/screen_locked.png
     scrot $screenCap && convert $screenCap -blur 8x8 $screenCap
     i3lock -i  $screenCap 

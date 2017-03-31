@@ -1,6 +1,8 @@
 #!/bin/bash
 
-mkdir ~/.i3 ~/.scripts ~/Projects ~/Pictures/Wallpapers ~/Pictures/screenshots
+sudo apt-get purge -y compiz* unity* lightdm notify-osd*
+
+mkdir ~/.i3 ~/.scripts ~/Projects ~/Pictures/Wallpapers ~/Pictures/Screenshots
 
 sudo mkdir /etc/X11/xorg.conf.d
 
@@ -15,7 +17,7 @@ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E3CA1A89941C42E6
 
 sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-keyring
 
-sudo add-apt-repository ppa:dell-team/ppa -y && sudo apt-get update -y && sudo apt-get upgrade -y
+sudo add-apt-repository ppa:dell-team/ppa -y && sudo add-apt-repository ppa:leolik/leolik -y && sudo apt-get update -y && sudo apt-get upgrade -y
 
 sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev npm curl wget speedtest-cli
 
@@ -38,9 +40,8 @@ sleep 3s
 
 sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp gpick openssh-server ffmpeg arp-scan cheese scrot
 
-sudo apt-get purge -y compiz compiz* unity unity* lightdm && sudo apt-get autoremove -y
 
-sudo apt-get dist-upgrade -y
+sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y
 
 
 cd ~ && git clone https://github.com/kvalo/ath10k-firmware.git

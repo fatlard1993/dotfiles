@@ -1,6 +1,8 @@
 #!/bin/bash
 
-sudo cp ~/dotfiles/devices/xps_13_9360/etc/grub /etc/default && sudo update-grub2
+cd ~ && sudo cp ./dotfiles/devices/xps_13_9360/etc/grub /etc/default && sudo update-grub2
+
+cp ~/dotfiles/devices/xps_13_9360/etc/dunstrc ~/.config/dunst/ && pkill dunst
 
 cp ~/dotfiles/devices/xps_13_9360/etc/.xinitrc ~/
 
