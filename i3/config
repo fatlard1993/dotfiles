@@ -9,6 +9,9 @@ workspace_auto_back_and_forth yes
 force_display_urgency_hint 1000 ms
 
 
+set $notifyBrightness notify-send "Brightness" $(xbacklight)
+
+
 for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
 
 for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
@@ -30,8 +33,15 @@ bindsym XF86AudioPause        exec playerctl pause
 bindsym XF86AudioNext         exec playerctl next
 bindsym XF86AudioPrev         exec playerctl previous
 
-bindsym XF86MonBrightnessUp   exec xbacklight -inc 10
-bindsym XF86MonBrightnessDown exec xbacklight -dec 10
+
+bindsym XF86MonBrightnessUp   exec xbacklight -inc 10 -time 10 && $notifyBrightness
+bindsym XF86MonBrightnessDown exec xbacklight -dec 10 -time 10 && $notifyBrightness
+
+bindsym $mod+F11        exec xbacklight -inc 5 -time 10 && $notifyBrightness
+bindsym $mod+F12        exec xbacklight -dec 5 -time 10 && $notifyBrightness
+
+bindsym $mod+ShiftF11   exec xbacklight -set 10 -time 3000 && $notifyBrightness
+bindsym $mod+ShiftF12   exec xbacklight -set 90 -time 3000 && $notifyBrightness
 
 
 bindsym $mod+1             workspace number 1
