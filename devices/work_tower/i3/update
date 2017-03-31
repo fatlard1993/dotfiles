@@ -27,4 +27,4 @@ cp ~/dotfiles/scripts/getWindowCriteria ~/.i3/
 cp ~/dotfiles/scripts/ledCtl ~/.scripts/
 cp ~/dotfiles/scripts/system ~/.scripts/
 
-i3-msg restart
+i3-msg reload
