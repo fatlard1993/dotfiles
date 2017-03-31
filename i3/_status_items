@@ -1,11 +1,11 @@
 ethernet _first_ {
-  format_up = " %ip (%speed) "
-  format_down = " LAN down "
+  format_up = " %ip (%speed)"
+  format_down = " down"
 }
 
 wireless _first_ {
-  format_up = "  %ip (%essid | %bitrate) "
-  format_down = "  down "
+  format_up = " %ip (%essid | %bitrate)"
+  format_down = " down"
 }
 
 volume master {
@@ -14,21 +14,21 @@ volume master {
   device = "default"
   mixer = "Master"
   mixer_idx = 0
-  
-  format = "  %volume "
-  format_muted = " /*  %volume */ "
+
+  format = " %volume"
+  format_muted = " %volume"
 }
 
 load {
-  format = "  %1min "
+  format = " %1min"
 }
 
 disk / {
   low_threshold = 5
   threshold_type = percentage_free
 
-  format = "  %free "
-  format_below_threshold = " !  %free !"
+  format = " %free"
+  format_below_threshold = "    %free "
 }
 
 battery 0 {
@@ -39,16 +39,16 @@ battery 0 {
   status_bat = ""
   status_chr = ""
   status_full = ""
-  status_unk = "?"
+  status_unk = ""
 
   low_threshold = 25
   threshold_type = percentage
 
   path = "/sys/class/power_supply/BAT%d/uevent"
 
-  format = " %status %percentage (%remaining) "
+  format = "%status %percentage (%remaining)"
 }
 
 time {
-  format = "  %m/%d %H:%M:%S "
+  format = " %m/%d %H:%M:%S"
 }
