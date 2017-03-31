@@ -19,5 +19,6 @@ cat ~/dotfiles/_fileWarning \
 cp ~/dotfiles/scripts/getWindowCriteria ~/.i3/
 cp ~/dotfiles/scripts/ledCtl ~/.scripts/
 cp ~/dotfiles/scripts/system ~/.scripts/
+cp ~/dotfiles/scripts/clipd  ~/.scripts/
 
 i3-msg restart
