@@ -1,21 +1,67 @@
 #!/bin/bash
 
-TMP="/tmp/wallpapers"
-DIR="Pictures/Wallpapers"
-IMAGES_TO_DOWNLOAD=${1:-3}
+shopt -s expand_aliases
 
-SUBREDDITS=("wallpapers" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "LivingBackgrounds" "SpecArt")
-SUBREDDIT=${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}
+WALLPAPER_DIR=~/Pictures/Wallpapers
+PREFERRED_SIZE=3200x1800
 
-mkdir -p $TMP $DIR
+SUBREDDITS=("wallpapers" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
 
-echo -e "Downloading $IMAGES_TO_DOWNLOAD wallpaper possibilities from /r/${SUBREDDIT}...\n"
+LINK_REGEX="http((?!&quot;|\"|icon|thumb).)*j?pn?g"
 
-FILES=$(wget -q http://www.reddit.com/r/${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;).)*jpg' | grep -v thumbs | shuf -n $IMAGES_TO_DOWNLOAD)
+alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 
-for FILE in $FILES
-do
-  FILENAME=$(echo $FILE | grep -Po '(?=\w+\.\w{3,4}$).+')
-  echo -e "Downloading: $FILE\n"
-  wget -qc $FILE -O "$TMP/$FILENAME" && convert "$TMP/$FILENAME" -resize 3200x1800 $DIR/$FILENAME
-done
+if [ "$1" = "get" ]; then
+  TMP_DIR="/tmp/wallpapers"
+  REDDIT="http://www.reddit.com/r/"
+
+  if [ "$3" = "list" ]; then
+    SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
+  else
+    SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
+  fi
+
+  NUM_IMAGES_TO_DOWNLOAD=${2:-3}
+
+  mkdir -p $TMP_DIR $WALLPAPER_DIR
+
+  echo -e "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpaper possibilities from $REDDIT${SUBREDDIT}...\n"
+
+  LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po $LINK_REGEX | shuf -n $NUM_IMAGES_TO_DOWNLOAD)
+
+  for LINK in $LINKS
+  do
+    FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
+    TMP_FILE=$TMP_DIR/$FILENAME
+    OUT_FILE=$WALLPAPER_DIR/$(date +"%Y_%m_%d_")$FILENAME
+
+    echo -e "Downloading: $LINK\n"
+
+    wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
+
+    echo -e "Saved: $OUT_FILE\n"
+  done
+elif [ "$1" = "set" ]; then
+  if [ "$2" = "random" ]; then
+    feh --bg-fill --randomize $WALLPAPER_DIR/*
+  else
+    WALLPAPER=$(ls $WALLPAPER_DIR | dmenu_styled -p 'Set Wallpaper')
+    feh --bg-fill $WALLPAPER_DIR/$WALLPAPER
+  fi
+elif [ "$1" = "view" ]; then
+  if [ "$2" = "today" ]; then
+    feh $WALLPAPER_DIR/$(date +"%Y_%m_%d_")*
+  elif [ "$2" = "month" ]; then
+    feh $WALLPAPER_DIR/$(date +"%Y_%m_")*
+  else
+    WALLPAPER=$(ls $WALLPAPER_DIR | dmenu_styled -p 'View Wallpaper')
+    feh  $WALLPAPER_DIR/$WALLPAPER
+  fi
+else
+  echo -e "Useage: PATH/wallpaper [command] [options]\n\
+  get  |NUM_IMAGES_TO_DOWNLOAD |list|SUBREDDIT\n\
+  set  |random\n\
+  view |today|month"
+fi
+
+unalias dmenu_styled

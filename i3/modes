@@ -21,3 +21,43 @@ mode --pango_markup $mode_system {
 }
 bindsym $mod+Control+s mode $mode_system
 bindsym XF86PowerOff   mode $mode_system
+
+set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
+mode --pango_markup $mode_wallpaper_main {
+  bindsym r exec ~/.scripts/wallpaper get, mode default
+  bindsym l exec ~/.scripts/wallpaper get 3 list, mode default
+  bindsym s exec exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode default  
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_wallpaper_set "<span foreground='#000' weight='bold'>Set Wallpaper</span>  <b>B</b>rowse <b>R</b>andom"
+mode --pango_markup $mode_wallpaper_main {
+  bindsym b exec ~/.scripts/wallpaper set, mode default
+  bindsym r exec ~/.scripts/wallpaper set random, mode default
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_wallpaper_view "<span foreground='#000' weight='bold'>View Wallpaper</span>  <b>B</b>rowse <b>T</b>oday <b>M</b>onth"
+mode --pango_markup $mode_wallpaper_main {
+  bindsym b exec ~/.scripts/wallpaper view, mode default
+  bindsym t exec ~/.scripts/wallpaper view today, mode default
+  bindsym m exec ~/.scripts/wallpaper view month, mode default
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>S</b>et <b>V</b>iew"
+mode --pango_markup $mode_wallpaper_main {
+  bindsym g mode $mode_wallpaper_get
+  bindsym s mode $mode_wallpaper_set
+  bindsym v mode $mode_wallpaper_view
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+bindsym $mod+Control+w mode $mode_wallpaper_main

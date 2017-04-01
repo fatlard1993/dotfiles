@@ -16,6 +16,8 @@ for_window [title="appear.in screen sharing is sharing your screen with appear.i
 
 for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
 
+for_window [class="feh"] floating enable
+
 
 bindsym $mod+a exec pavucontrol
 
@@ -111,7 +113,9 @@ bindsym $mod+d floating disable
 
 bindsym $mod+w          exec i3-input -F 'workspace "%s"' -P 'New workspace: '
 bindsym $mod+Shift+w    exec i3-input -F 'move to workspace "%s"' -P 'Move to workspace: '
-bindsym $mod+Control+w  exec i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
+
+
+bindsym $mod+n  exec i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
 
 bindsym $mod+Return  exec gnome-terminal
 
@@ -124,8 +128,5 @@ bindsym $mod+q       kill
 bindsym $mod+v       exec ~/.scripts/clipd menu
 
 bindsym --release $mod+Shift+Print exec --no-startup-id import /tmp/latest-screenshot.png
-
-
-bindsym $mod+Control+b border toggle
 
 bindsym $mod+Control+r reload
