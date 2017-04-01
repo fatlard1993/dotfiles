@@ -1,0 +1,21 @@
+#!/bin/bash
+
+TMP="/tmp/wallpapers"
+DIR="Pictures/Wallpapers"
+IMAGES_TO_DOWNLOAD=${1:-3}
+
+SUBREDDITS=("wallpapers" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "LivingBackgrounds" "SpecArt")
+SUBREDDIT=${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}
+
+mkdir -p $TMP $DIR
+
+echo -e "Downloading $IMAGES_TO_DOWNLOAD wallpaper possibilities from /r/${SUBREDDIT}...\n"
+
+FILES=$(wget -q http://www.reddit.com/r/${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;).)*jpg' | grep -v thumbs | shuf -n $IMAGES_TO_DOWNLOAD)
+
+for FILE in $FILES
+do
+  FILENAME=$(echo $FILE | grep -Po '(?=\w+\.\w{3,4}$).+')
+  echo -e "Downloading: $FILE\n"
+  wget -qc $FILE -O "$TMP/$FILENAME" && convert "$TMP/$FILENAME" -resize 3200x1800 $DIR/$FILENAME
+done

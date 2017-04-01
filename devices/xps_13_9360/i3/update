@@ -20,5 +20,6 @@ cp ~/dotfiles/scripts/getWindowCriteria ~/.i3/
 cp ~/dotfiles/scripts/ledCtl ~/.scripts/
 cp ~/dotfiles/scripts/system ~/.scripts/
 cp ~/dotfiles/scripts/clipd  ~/.scripts/
+cp ~/dotfiles/scripts/wallpaper  ~/.scripts/
 
 i3-msg restart
