@@ -59,6 +59,15 @@ apperance:
 fonts:
   scaling factor 1.7
 
+### google play music desktop player
+settings
+  enable notifications
+desktop settings
+  uncheck minimize to tray
+  custom dark theme, highlight: #81a2be
+  enable playback api
+
+
 ### gnome-terminal
 uncheck "show menubar by default on new terminals"
 Shortcuts>view>"hide and show toolbar" alt+F4
