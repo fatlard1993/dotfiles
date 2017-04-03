@@ -1,4 +1,4 @@
-xrandr --dpi 186
+xrandr --dpi 276
 
 setxkbmap -option caps:escape
 
