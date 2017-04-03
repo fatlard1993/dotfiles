@@ -42,7 +42,7 @@ if [ "$1" = "get" ]; then
 
     if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
       echo -e "Didnt like: $FILENAME\n"
-    elif [ ! -e "$WALLPAPER_DIR/**/*$FILENAME" ]; then
+    elif [[ ! $(set -- $WALLPAPER_DIR/**/*$FILENAME; echo $#) -ge 1 ]]; then
       echo -e "Downloading: $LINK\n"
 
       wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
