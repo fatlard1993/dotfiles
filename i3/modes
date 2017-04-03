@@ -50,9 +50,9 @@ bindsym $mod+Control+g mode $mode_gpmdp
 
 set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
 mode --pango_markup $mode_wallpaper_get {
-  bindsym r exec ~/.scripts/wallpaper get, mode default
-  bindsym l exec ~/.scripts/wallpaper get 3 list, mode default
-  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode default  
+  bindsym r exec ~/.scripts/wallpaper get, mode $mode_wallpaper_main
+  bindsym l exec ~/.scripts/wallpaper get 3 list, mode $mode_wallpaper_main
+  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main  
   
   bindsym Return mode default
   bindsym Escape mode default
