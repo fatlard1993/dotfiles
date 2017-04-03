@@ -19,7 +19,7 @@
     browser = /usr/bin/firefox -new-tab
     font = "Source Code Pro Semibold 20"
     format = "<span weight="bold" font="22">%s</span> %p\n%b"
-    geometry = "600x7-0+32"
+    geometry = "600x7-0+38"
     alignment = center
     separator_height = 2
     padding = 8

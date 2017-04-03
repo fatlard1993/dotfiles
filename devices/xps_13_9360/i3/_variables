@@ -1,4 +1,4 @@
-set $fontSize 9
+set $fontSize 6
 
 set $mainDisplay eDP1
 
