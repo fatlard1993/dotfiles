@@ -2,6 +2,7 @@
 
 cat ~/dotfiles/_fileWarning \
   <(echo) ~/dotfiles/i3/_theme \
+  <(echo) ~/dotfiles/i3/_variables \
   <(echo) ~/dotfiles/devices/xps_13_9360/i3/_variables \
   <(echo) ~/dotfiles/devices/xps_13_9360/i3/config \
   <(echo) ~/dotfiles/i3/config \
@@ -21,5 +22,6 @@ cp ~/dotfiles/scripts/ledCtl ~/.scripts/
 cp ~/dotfiles/scripts/system ~/.scripts/
 cp ~/dotfiles/scripts/clipd  ~/.scripts/
 cp ~/dotfiles/scripts/wallpaper  ~/.scripts/
+cp ~/dotfiles/scripts/gpmdp.js  ~/.scripts/
 
 i3-msg restart
