@@ -1,6 +1,7 @@
 #!/bin/bash
 
 shopt -s expand_aliases
+shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
 PREFERRED_SIZE=3200x1800
@@ -27,7 +28,9 @@ if [ "$1" = "get" ]; then
 
   echo -e "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpaper possibilities from $REDDIT${SUBREDDIT}...\n"
 
-  LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po $LINK_REGEX | shuf -n $NUM_IMAGES_TO_DOWNLOAD)
+  LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
+
+  DOWNLOADED=0
 
   for LINK in $LINKS
   do
@@ -35,33 +38,63 @@ if [ "$1" = "get" ]; then
     TMP_FILE=$TMP_DIR/$FILENAME
     OUT_FILE=$WALLPAPER_DIR/$(date +"%Y_%m_%d_")$FILENAME
 
-    echo -e "Downloading: $LINK\n"
+    echo -e "Checking on: $FILENAME\n"
 
-    wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
+    if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
+      echo -e "Didnt like: $FILENAME\n"
+    elif [ ! -e "$WALLPAPER_DIR/**/*$FILENAME" ]; then
+      echo -e "Downloading: $LINK\n"
 
-    echo -e "Saved: $OUT_FILE\n"
+      wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
+
+      echo -e "Saved: $OUT_FILE\n"
+
+      ((DOWNLOADED=DOWNLOADED+1))
+    else
+      echo -e "Already have: $FILENAME\n"
+    fi
+
+    if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
+      break
+    fi
   done
 elif [ "$1" = "set" ]; then
-  if [ "$2" = "random" ]; then
-    feh --bg-fill --randomize $WALLPAPER_DIR/*
-  else
-    WALLPAPER=$(ls $WALLPAPER_DIR | dmenu_styled -p 'Set Wallpaper')
-    feh --bg-fill $WALLPAPER_DIR/$WALLPAPER
-  fi
-elif [ "$1" = "view" ]; then
   if [ "$2" = "today" ]; then
-    feh $WALLPAPER_DIR/$(date +"%Y_%m_%d_")*
-  elif [ "$2" = "month" ]; then
-    feh $WALLPAPER_DIR/$(date +"%Y_%m_")*
+    WALLPAPER=$(ls $WALLPAPER_DIR/**/$(date +"%Y_%m_%d_")*.* | shuf -n 1)
+  elif [ "$2" = "unsorted" ]; then
+    WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
+  elif [ "$2" = "random" ]; then
+    WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | shuf -n 1)
   else
-    WALLPAPER=$(ls $WALLPAPER_DIR | dmenu_styled -p 'View Wallpaper')
-    feh  $WALLPAPER_DIR/$WALLPAPER
+    WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | dmenu_styled -p 'Set Wallpaper')
   fi
+
+  if [ -f $WALLPAPER ]; then
+    feh --bg-fill $WALLPAPER
+  else
+    xsetroot -solid "#1d1f21"
+  fi
+
+  echo $WALLPAPER > $WALLPAPER_DIR/.current
+elif [ "$1" = "save" ]; then
+  FOLDER=${2:-"saved"}
+  mkdir -p $WALLPAPER_DIR/$FOLDER
+  CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
+  mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$FOLDER/
+  $0 set unsorted
+elif [ "$1" = "delete" ]; then
+  CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
+  FILENAME=$(echo $CURRENT_WALLPAPER | grep -Po '(?=\w+\.\w{3,4}$).+')
+  rm $CURRENT_WALLPAPER
+  notify-send "Deleted" "${FILENAME:11}"
+  echo -e "${FILENAME:11}" >> $WALLPAPER_DIR/.ignore
+  $0 set unsorted
 else
   echo -e "Useage: PATH/wallpaper [command] [options]\n\
   get  |NUM_IMAGES_TO_DOWNLOAD |list|SUBREDDIT\n\
   set  |random\n\
-  view |today|month"
+  save |SUBFOLDER\n
+  delete"
 fi
 
 unalias dmenu_styled
