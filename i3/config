@@ -8,6 +8,8 @@ workspace_auto_back_and_forth yes
 
 force_display_urgency_hint 1000 ms
 
+set $ex exec --no-startup-id
+
 
 set $notifyBrightness notify-send "Brightness" $(xbacklight)
 
@@ -16,29 +18,29 @@ for_window [title="appear.in screen sharing is sharing your screen with appear.i
 
 for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
 
-for_window [class="feh"] floating enable
+for_window [class="feh"] fullscreen enable
 
 
-bindsym $mod+a exec pavucontrol
+bindsym $mod+a $ex pavucontrol
 
-bindsym Print  exec scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M.png" && notify-send "Screenshot!"
+bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M.png" && notify-send "Screenshot!"
 
-bindsym $mod+i exec leafpad ~/.ideas
-
-
-bindsym XF86AudioRaiseVolume  exec pactl set-sink-volume 0 +5%
-bindsym XF86AudioLowerVolume  exec pactl set-sink-volume 0 -5%
-bindsym XF86AudioMute         exec pactl set-sink-mute   0 toggle
+bindsym $mod+i $ex leafpad ~/.ideas
 
 
-bindsym XF86MonBrightnessUp   exec xbacklight -inc 10 -time 10 && $notifyBrightness
-bindsym XF86MonBrightnessDown exec xbacklight -dec 10 -time 10 && $notifyBrightness
+bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume 0 +5%
+bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume 0 -5%
+bindsym XF86AudioMute         $ex pactl set-sink-mute   0 toggle
 
-bindsym $mod+F11              exec xbacklight -inc 5 -time 10 && $notifyBrightness
-bindsym $mod+F12              exec xbacklight -dec 5 -time 10 && $notifyBrightness
 
-bindsym $mod+ShiftF11         exec xbacklight -set 10 -time 3000 && $notifyBrightness
-bindsym $mod+ShiftF12         exec xbacklight -set 90 -time 3000 && $notifyBrightness
+bindsym XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && $notifyBrightness
+bindsym XF86MonBrightnessDown $ex xbacklight -dec 10 -time 10 && $notifyBrightness
+
+bindsym $mod+F11              $ex xbacklight -inc 5 -time 10 && $notifyBrightness
+bindsym $mod+F12              $ex xbacklight -dec 5 -time 10 && $notifyBrightness
+
+bindsym $mod+ShiftF11         $ex xbacklight -set 10 -time 3000 && $notifyBrightness
+bindsym $mod+ShiftF12         $ex xbacklight -set 90 -time 3000 && $notifyBrightness
 
 
 bindsym $mod+1             workspace number 1
@@ -106,13 +108,13 @@ bindsym $mod+f floating enable
 bindsym $mod+d floating disable
 
 
-bindsym $mod+w          exec i3-input -F 'workspace %s' -P 'New workspace: '
-bindsym $mod+Shift+w    exec i3-input -F 'move to workspace %s' -P 'Move to workspace: '
+bindsym $mod+w          $ex i3-input -F 'workspace %s' -P 'New workspace: '
+bindsym $mod+Shift+w    $ex i3-input -F 'move to workspace %s' -P 'Move to workspace: '
 
 
-bindsym $mod+n  exec i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
+bindsym $mod+n  $ex i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
 
-bindsym $mod+Return  exec gnome-terminal
+bindsym $mod+Return  $ex gnome-terminal
 
 bindsym $mod+space   $launcher
 
@@ -120,11 +122,12 @@ bindsym $mod+Shift+f fullscreen
 
 bindsym $mod+q       kill
 
-bindsym $mod+v       exec ~/.scripts/clipd menu
+bindsym $mod+v       $ex ~/.scripts/clipd menu
 
-bindsym --release $mod+Shift+Print exec --no-startup-id import /tmp/latest-screenshot.png
+bindsym --release $mod+Shift+Print $ex import /tmp/latest-screenshot.png
 
-bindsym $mod+Control+r reload
+bindsym $mod+Control+r       reload
+bindsym $mod+Control+Shift+r restart
 
-bindsym $mod+m       exec i3-input -l 1 -F 'mark %s' -P 'Mark: '
-bindsym $mod+Shift+m exec i3-input -l 1 -F '[con_mark="%s"] focus' -P 'Go to mark: '
+bindsym $mod+m       $ex i3-input -l 1 -F 'mark %s' -P 'Mark: '
+bindsym $mod+Shift+m $ex i3-input -l 1 -F '[con_mark="%s"] focus' -P 'Go to mark: '
