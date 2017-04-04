@@ -16,7 +16,7 @@ volume master {
   mixer_idx = 0
 
   format = " %volume"
-  format_muted = " %volume"
+  format_muted = "/*  %volume */"
 }
 
 load {
