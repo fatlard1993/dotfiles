@@ -58,15 +58,16 @@ mode --pango_markup $mode_wallpaper_get {
   bindsym Escape mode default
 }
 
-set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete"
+set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete (Shift)<b>S</b>tash"
 mode --pango_markup $mode_wallpaper_main {
   bindsym g mode $mode_wallpaper_get
-  bindsym b mode default, exec ~/.scripts/wallpaper set
+  bindsym b mode default, exec ~/.scripts/wallpaper set list
+  bindsym r exec ~/.scripts/wallpaper set
   bindsym t exec ~/.scripts/wallpaper set today
-  bindsym r exec ~/.scripts/wallpaper set random
   bindsym u exec ~/.scripts/wallpaper set unsorted
   bindsym s exec ~/.scripts/wallpaper save
-  bindsym Shift+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
+  bindsym Shift+s exec ~/.scripts/wallpaper delete stash
+  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
   bindsym d exec ~/.scripts/wallpaper delete
   
   bindsym Return mode default

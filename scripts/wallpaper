@@ -1,14 +1,17 @@
 #!/bin/bash
 
+# TODO
+#use hashing to check if I have the file instead of the unreliable filename
+
 shopt -s expand_aliases
 shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
+STASH_DIR=$WALLPAPER_DIR/../notWallpapers
+
 PREFERRED_SIZE=3200x1800
 
 SUBREDDITS=("wallpapers" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
-
-LINK_REGEX="http((?!&quot;|\"|icon|thumb).)*j?pn?g"
 
 alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 
@@ -24,9 +27,9 @@ if [ "$1" = "get" ]; then
 
   NUM_IMAGES_TO_DOWNLOAD=${2:-3}
 
-  mkdir -p $TMP_DIR $WALLPAPER_DIR
+  notify-send "Wallpaper" "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpapers.."
 
-  echo -e "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpaper possibilities from $REDDIT${SUBREDDIT}...\n"
+  mkdir -p $TMP_DIR $WALLPAPER_DIR
 
   LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
 
@@ -37,8 +40,6 @@ if [ "$1" = "get" ]; then
     FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
     TMP_FILE=$TMP_DIR/$FILENAME
     OUT_FILE=$WALLPAPER_DIR/$(date +"%Y_%m_%d_")$FILENAME
-
-    echo -e "Checking on: $FILENAME\n"
 
     if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
       echo -e "Didnt like: $FILENAME\n"
@@ -58,43 +59,68 @@ if [ "$1" = "get" ]; then
       break
     fi
   done
+
+  notify-send "Wallpaper" "Downloaded $DOWNLOADED wallpapers from $SUBREDDIT"
+
+  if (( DOWNLOADED > 0 )); then
+    sleep 1s
+
+    $0 set unsorted
+  fi
 elif [ "$1" = "set" ]; then
   if [ "$2" = "today" ]; then
     WALLPAPER=$(ls $WALLPAPER_DIR/**/$(date +"%Y_%m_%d_")*.* | shuf -n 1)
   elif [ "$2" = "unsorted" ]; then
     WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
-  elif [ "$2" = "random" ]; then
-    WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | shuf -n 1)
-  else
+  elif [ "$2" = "list" ]; then
     WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | dmenu_styled -p 'Set Wallpaper')
+  else
+    WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | shuf -n 1)
   fi
 
-  if [ -f $WALLPAPER ]; then
+  if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
+    notify-send "Wallpaper" "Setting $WALLPAPER"
+    
     feh --bg-fill $WALLPAPER
+    
+    echo $WALLPAPER > $WALLPAPER_DIR/.current
   else
     xsetroot -solid "#1d1f21"
   fi
-
-  echo $WALLPAPER > $WALLPAPER_DIR/.current
 elif [ "$1" = "save" ]; then
-  FOLDER=${2:-"saved"}
-  mkdir -p $WALLPAPER_DIR/$FOLDER
+  SUBFOLDER=${2:-"saved"}
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-  mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$FOLDER/
+  
+  mkdir -p $WALLPAPER_DIR/$SUBFOLDER
+  
+  mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/
+  
   $0 set unsorted
 elif [ "$1" = "delete" ]; then
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
   FILENAME=$(echo $CURRENT_WALLPAPER | grep -Po '(?=\w+\.\w{3,4}$).+')
-  rm $CURRENT_WALLPAPER
-  notify-send "Deleted" "${FILENAME:11}"
+
+  if [ "$2" = "stash" ]; then
+    mkdir -p $WALLPAPER_DIR/../notWallpapers
+
+    mv $CURRENT_WALLPAPER $STASH_DIR/
+
+    notify-send "Wallpaper" "Stashed $STASH_DIR/${FILENAME:11}"
+  else
+    rm $CURRENT_WALLPAPER
+
+    notify-send "Wallpaper" "Deleted ${FILENAME:11}"
+  fi
+
   echo -e "${FILENAME:11}" >> $WALLPAPER_DIR/.ignore
+  
   $0 set unsorted
 else
   echo -e "Useage: PATH/wallpaper [command] [options]\n\
   get  |NUM_IMAGES_TO_DOWNLOAD |list|SUBREDDIT\n\
-  set  |random\n\
+  set  |list|today|unsorted\n\
   save |SUBFOLDER\n
-  delete"
+  delete |stash"
 fi
 
 unalias dmenu_styled

@@ -3,5 +3,3 @@ exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
 exec --no-startup-id /home/chase/.scripts/clipd &
 
 exec_always --no-startup-id /home/chase/.scripts/wallpaper get
-
-exec_always --no-startup-id /home/chase/.scripts/wallpaper set unsorted
