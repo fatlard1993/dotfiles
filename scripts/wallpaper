@@ -43,7 +43,9 @@ if [ "$1" = "get" ]; then
 
     if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
       echo -e "Didnt like: $FILENAME\n"
-    elif [[ ! $(set -- $WALLPAPER_DIR/**/*$FILENAME; echo $#) -ge 1 ]]; then
+    elif [[ $(set -- $WALLPAPER_DIR/**/*$FILENAME; echo $#) -ge 1 ]]; then
+      echo -e "Already have: $FILENAME\n"
+    else
       echo -e "Downloading: $LINK\n"
 
       wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
@@ -51,8 +53,6 @@ if [ "$1" = "get" ]; then
       echo -e "Saved: $OUT_FILE\n"
 
       ((DOWNLOADED=DOWNLOADED+1))
-    else
-      echo -e "Already have: $FILENAME\n"
     fi
 
     if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
@@ -60,9 +60,18 @@ if [ "$1" = "get" ]; then
     fi
   done
 
+  if [ $DOWNLOADED = 0 ]; then
+    $0 get $NUM_IMAGES_TO_DOWNLOAD
+    exit 0
+  fi
+
   notify-send "Wallpaper" "Downloaded $DOWNLOADED wallpapers from $SUBREDDIT"
 
-  if (( DOWNLOADED > 0 )); then
+  if ((DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD)); then
+    ((NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED))
+  
+    $0 get $NUM_IMAGES_TO_DOWNLOAD
+  elif (( DOWNLOADED > 0 )); then
     sleep 1s
 
     $0 set unsorted
