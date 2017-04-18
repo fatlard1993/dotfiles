@@ -36,7 +36,7 @@ if [ "$1" = "get" ]; then
 
   if [ ! $SUBREDDITS ]; then
     notify-send "Wallpaper" "No subreddits to scan!"
-    exit 1
+    exit 0
   fi
 
   if [ "$3" = "list" ]; then
@@ -112,11 +112,11 @@ elif [ "$1" = "set" ]; then
   fi
 
   if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
-    #notify-send "Wallpaper" "Setting $WALLPAPER"
-
     feh --bg-fill $WALLPAPER
 
     echo $WALLPAPER > $WALLPAPER_DIR/.current
+
+    #notify-send "Wallpaper" "Set $WALLPAPER"
   else
     xsetroot -solid "#1d1f21"
   fi
@@ -146,21 +146,19 @@ elif [ "$1" = "delete" ]; then
 
   if [ ! -e $CURRENT_WALLPAPER ]; then
     notify-send "Wallpaper" "No wallpaper to delete!"
-    exit 1
+    exit 0
   fi
  
   FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
   
   if [ "$2" = "stash" ]; then
-    mkdir -p $WALLPAPER_DIR/../notWallpapers
-
     mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 
     notify-send "Wallpaper" "Stashed $STASH_DIR/$FILE_SUM"
   else
     rm $CURRENT_WALLPAPER
 
-    notify-send "Wallpaper" "Deleted $FILE_SUM"
+    #notify-send "Wallpaper" "Deleted $FILE_SUM"
   fi
 
   echo -e "$FILE_SUM" >> $WALLPAPER_DIR/.ignore
