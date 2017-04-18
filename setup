@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [ "$1" ]; then
+  if [ ! -e ~/dotfiles/devices/$1 ]; then
+    echo "$1 is not a valid device"
+    exit 1
+  else
+    ~/dotfiles/devices/$1/setup
+  fi
+fi
+
 sudo apt-get purge -y compiz* unity* lightdm notify-osd*
 
 mkdir -p ~/Projects ~/Pictures/Wallpapers ~/Pictures/Screenshots

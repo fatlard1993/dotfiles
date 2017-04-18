@@ -4,7 +4,8 @@ sudo cp ~/dotfiles/devices/work_tower/etc/grub /etc/default/ && sudo update-grub
 
 cp ~/dotfiles/devices/work_tower/.xinitrc ~/
 
-
 mkdir -p ~/Pictures/Wallpapers/
 
 cp ~/dotfiles/devices/work_tower/.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
+
+~/dotfiles/i3/update work_tower

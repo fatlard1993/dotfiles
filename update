@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ "$1" ]; then
+  if [ ! -e ~/dotfiles/devices/$1 ]; then
+    echo "$1 is not a valid device"
+    exit 1
+  else
+    ~/dotfiles/devices/$1/update
+  fi
+fi
+
+~/dotfiles/dunst/update
+~/dotfiles/fonts/update
+~/dotfiles/scripts/update

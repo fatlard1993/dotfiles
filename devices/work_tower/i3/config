@@ -43,7 +43,8 @@ for_window [class="Pavucontrol"] $overwatch
 
 bindsym $mod+o $overwatch
 
-bindsym $mod+Control+u exec ~/dotfiles/i3/update
+bindsym $mod+Control+u exec ~/dotfiles/i3/update work_tower
+bindsym $mod+Shift+Control+u exec ~/dotfiles/devices/work_tower/update
 
 bindsym $mod+Control+n exec notify-send -u low 'Hello world!' 'This is an example notification.'
 
