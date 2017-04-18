@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # TODO
-#use hashing to check if I have the file instead of the unreliable filename
+#make a config file of somekind that includes the preferred size and subreddits
+#break the get list command into its own thing, it feels funky
 
 shopt -s expand_aliases
 shopt -s nullglob
@@ -16,7 +17,7 @@ alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b
 
 touch $WALLPAPER_DIR/.ignore
 
-mkdir -p $TMP_DIR $WALLPAPER_DIR $STASH_DIR
+mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $STASH_DIR
 
 if [ "$1" = "get" ]; then
   REDDIT="http://www.reddit.com/r/"
@@ -50,8 +51,8 @@ if [ "$1" = "get" ]; then
   for LINK in $LINKS
   do
     FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
+    FILE_EXTENSION=$(echo $FILENAME | grep -Po '\..{3}$')
     TMP_FILE=$TMP_DIR/$FILENAME
-    OUT_FILE=$WALLPAPER_DIR/$(date +"%Y_%m_%d_")$FILENAME
 
     if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
       echo -e "Didnt like: $FILENAME\n"
@@ -60,11 +61,23 @@ if [ "$1" = "get" ]; then
     else
       echo -e "Downloading: $LINK\n"
 
-      wget -qc $LINK -O $TMP_FILE && convert $TMP_FILE -resize $PREFERRED_SIZE $OUT_FILE
+      wget -qc $LINK -O $TMP_FILE
 
-      echo -e "Saved: $OUT_FILE\n"
+      FILE_SUM=$(crc32 $TMP_FILE)
+      
+      if [[ $(set -- $WALLPAPER_DIR/**/$FILE_SUM$FILE_EXTENSION; echo $#) -ge 1 ]]; then
+        echo -e "Already have: $FILE_SUM\n"
+        rm $TMP_FILE
+      elif grep -q "$FILE_SUM$FILE_EXTENSION" "$WALLPAPER_DIR/.ignore" ; then
+        echo -e "Didnt like: $FILE_SUM\n"
+        rm $TMP_FILE        
+      else
+        convert $TMP_FILE -resize $PREFERRED_SIZE $WALLPAPER_DIR/$FILE_SUM$FILE_EXTENSION
 
-      ((DOWNLOADED=DOWNLOADED+1))
+        echo -e "Saved: $FILE_SUM\n"
+
+        ((DOWNLOADED=DOWNLOADED+1))
+      fi
     fi
 
     if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
@@ -73,7 +86,7 @@ if [ "$1" = "get" ]; then
   done
 
   if [ $DOWNLOADED = 0 ]; then
-    notify-send "Wallpaper" "No images from $SUBREDDIT today"
+    notify-send "Wallpaper" "No new images from $SUBREDDIT today"
     sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
     $0 get $NUM_IMAGES_TO_DOWNLOAD
     exit 0
@@ -91,9 +104,7 @@ if [ "$1" = "get" ]; then
     $0 set unsorted
   fi
 elif [ "$1" = "set" ]; then
-  if [ "$2" = "today" ]; then
-    WALLPAPER=$(ls $WALLPAPER_DIR/**/$(date +"%Y_%m_%d_")*.* | shuf -n 1)
-  elif [ "$2" = "unsorted" ]; then
+  if [ "$2" = "unsorted" ]; then
     WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
   elif [ "$2" = "list" ]; then
     WALLPAPER=$(ls -R $WALLPAPER_DIR | awk '/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }' | grep -Po ".*\.j?pn?g$" | dmenu_styled -p 'Set Wallpaper')
@@ -110,6 +121,18 @@ elif [ "$1" = "set" ]; then
   else
     xsetroot -solid "#1d1f21"
   fi
+elif [ "$1" = "convert" ]; then
+  SUBFOLDER=${2:-"saved"}
+  FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
+
+  for FILE in $FILES
+  do
+    FILE_SUM=$(crc32 $FILE)
+    FILE_EXTENSION=$(echo $FILE | grep -Po '\..{3}$')
+    
+    echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM$FILE_EXTENSION"
+    mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM$FILE_EXTENSION
+  done
 elif [ "$1" = "save" ]; then
   SUBFOLDER=${2:-"saved"}
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
@@ -141,7 +164,7 @@ elif [ "$1" = "delete" ]; then
 else
   echo -e "Useage: PATH/wallpaper [command] [options]\n\
   get  |NUM_IMAGES_TO_DOWNLOAD |list|SUBREDDIT\n\
-  set  |list|today|unsorted\n\
+  set  |list|unsorted\n\
   save |SUBFOLDER\n
   delete |stash"
 fi
