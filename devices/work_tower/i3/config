@@ -9,33 +9,33 @@ workspace 18 output $secondaryDisplay
 workspace 19 output $secondaryDisplay
 workspace 20 output $secondaryDisplay
 
-bindsym $mod+KP_1 workspace number 11
-bindsym $mod+KP_2 workspace number 12
-bindsym $mod+KP_3 workspace number 13
-bindsym $mod+KP_4 workspace number 14
-bindsym $mod+KP_5 workspace number 15
-bindsym $mod+KP_6 workspace number 16
-bindsym $mod+KP_7 workspace number 17
-bindsym $mod+KP_8 workspace number 18
-bindsym $mod+KP_9 workspace number 19
-bindsym $mod+KP_0 workspace number 20
+bindcode $mod+$KP_1 workspace number 11
+bindcode $mod+$KP_2 workspace number 12
+bindcode $mod+$KP_3 workspace number 13
+bindcode $mod+$KP_4 workspace number 14
+bindcode $mod+$KP_5 workspace number 15
+bindcode $mod+$KP_6 workspace number 16
+bindcode $mod+$KP_7 workspace number 17
+bindcode $mod+$KP_8 workspace number 18
+bindcode $mod+$KP_9 workspace number 19
+bindcode $mod+$KP_0 workspace number 20
 
-bindsym $mod+Shift+KP_1 move container to workspace number 11
-bindsym $mod+Shift+KP_2 move container to workspace number 12
-bindsym $mod+Shift+KP_3 move container to workspace number 13
-bindsym $mod+Shift+KP_4 move container to workspace number 14
-bindsym $mod+Shift+KP_5 move container to workspace number 15
-bindsym $mod+Shift+KP_6 move container to workspace number 16
-bindsym $mod+Shift+KP_7 move container to workspace number 17
-bindsym $mod+Shift+KP_8 move container to workspace number 18
-bindsym $mod+Shift+KP_9 move container to workspace number 19
-bindsym $mod+Shift+KP_0 move container to workspace number 20
+bindcode $mod+Shift+$KP_1 move container to workspace number 11, workspace number 11
+bindcode $mod+Shift+$KP_2 move container to workspace number 12, workspace number 12
+bindcode $mod+Shift+$KP_3 move container to workspace number 13, workspace number 13
+bindcode $mod+Shift+$KP_4 move container to workspace number 14, workspace number 14
+bindcode $mod+Shift+$KP_5 move container to workspace number 15, workspace number 15
+bindcode $mod+Shift+$KP_6 move container to workspace number 16, workspace number 16
+bindcode $mod+Shift+$KP_7 move container to workspace number 17, workspace number 17
+bindcode $mod+Shift+$KP_8 move container to workspace number 18, workspace number 18
+bindcode $mod+Shift+$KP_9 move container to workspace number 19, workspace number 19
+bindcode $mod+Shift+$KP_0 move container to workspace number 20, workspace number 20
 
 
-assign [class="Google-chrome"]                                  → workspace number 1
-assign [title="control-server - Visual Studio Code"]            → workspace number 2
-assign [title="control-server-mother-hub - Visual Studio Code"] → workspace number 3
-assign [title="symetrix-common - Visual Studio Code"]           → workspace number 20
+assign [class="Google-chrome"]                                  → workspace 1
+assign [title="control-server - Visual Studio Code"]            → workspace 2
+assign [title="control-server-mother-hub - Visual Studio Code"] → workspace 3
+assign [title="symetrix-common - Visual Studio Code"]           → workspace 20
 
 
 for_window [class="Pavucontrol"] $overwatch
