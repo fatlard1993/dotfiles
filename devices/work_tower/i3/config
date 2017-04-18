@@ -44,4 +44,4 @@ for_window [class="Pavucontrol"] $overwatch
 bindsym $mod+o $overwatch
 
 bindsym $mod+Control+u exec ~/dotfiles/i3/update work_tower
-bindsym $mod+Shift+Control+u exec ~/dotfiles/devices/work_tower/update
+bindsym $mod+Shift+Control+u exec ~/dotfiles/update work_tower
