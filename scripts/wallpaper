@@ -29,7 +29,7 @@ if [ "$1" = "get" ]; then
     else
       SUBREDDITS=("wallpapers" "earthview" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
     fi
-    
+
     echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
   fi
 
@@ -73,6 +73,7 @@ if [ "$1" = "get" ]; then
   done
 
   if [ $DOWNLOADED = 0 ]; then
+    notify-send "Wallpaper" "No images from $SUBREDDIT today"
     sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
     $0 get $NUM_IMAGES_TO_DOWNLOAD
     exit 0
@@ -82,7 +83,7 @@ if [ "$1" = "get" ]; then
 
   if ((DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD)); then
     ((NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED))
-  
+
     $0 get $NUM_IMAGES_TO_DOWNLOAD
   elif (( DOWNLOADED > 0 )); then
     sleep 1s
@@ -102,9 +103,9 @@ elif [ "$1" = "set" ]; then
 
   if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
     notify-send "Wallpaper" "Setting $WALLPAPER"
-    
+
     feh --bg-fill $WALLPAPER
-    
+
     echo $WALLPAPER > $WALLPAPER_DIR/.current
   else
     xsetroot -solid "#1d1f21"
@@ -112,11 +113,11 @@ elif [ "$1" = "set" ]; then
 elif [ "$1" = "save" ]; then
   SUBFOLDER=${2:-"saved"}
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-  
+
   mkdir -p $WALLPAPER_DIR/$SUBFOLDER
-  
+
   mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/
-  
+
   $0 set unsorted
 elif [ "$1" = "delete" ]; then
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
@@ -135,7 +136,7 @@ elif [ "$1" = "delete" ]; then
   fi
 
   echo -e "${FILENAME:11}" >> $WALLPAPER_DIR/.ignore
-  
+
   $0 set unsorted
 else
   echo -e "Useage: PATH/wallpaper [command] [options]\n\
