@@ -34,6 +34,11 @@ if [ "$1" = "get" ]; then
     echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
   fi
 
+  if [ ! $SUBREDDITS ]; then
+    notify-send "Wallpaper" "No subreddits to scan!"
+    exit 1
+  fi
+
   if [ "$3" = "list" ]; then
     SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
   else
@@ -59,7 +64,7 @@ if [ "$1" = "get" ]; then
 
     FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
 
-    if [[ $(set -- $WALLPAPER_DIR/**/$FILE_SUM.*; echo $#) -ge 1 ]]; then
+    if stat -t $WALLPAPER_DIR/../**/$FILE_SUM.* >/dev/null 2>&1 ; then
       echo -e "Already have: $FILE_SUM\n"
       rm $TMP_FILE
     elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
