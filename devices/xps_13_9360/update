@@ -7,3 +7,5 @@ cp ~/dotfiles/devices/xps_13_9360/.xinitrc ~/
 ~/dotfiles/devices/xps_13_9360/xorg/update
 
 ~/dotfiles/i3/update xps_13_9360
+
+cp ~/dotfiles/devices/xps_13_9360/.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
