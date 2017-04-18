@@ -64,7 +64,10 @@ if [ "$1" = "get" ]; then
 
     FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
 
-    if stat -t $WALLPAPER_DIR/../**/$FILE_SUM.* >/dev/null 2>&1 ; then
+    if stat -t $WALLPAPER_DIR/**/$FILE_SUM.* >/dev/null 2>&1 ; then
+      echo -e "Already have: $FILE_SUM\n"
+      rm $TMP_FILE
+    elif stat -t $WALLPAPER_DIR/../**/$FILE_SUM.* >/dev/null 2>&1 ; then
       echo -e "Already have: $FILE_SUM\n"
       rm $TMP_FILE
     elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
@@ -86,8 +89,11 @@ if [ "$1" = "get" ]; then
 
   if [ $DOWNLOADED = 0 ]; then
     notify-send "Wallpaper" "No new images from $SUBREDDIT today"
+
     sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+
     $0 get $NUM_IMAGES_TO_DOWNLOAD
+    
     exit 0
   fi
 
@@ -95,6 +101,8 @@ if [ "$1" = "get" ]; then
 
   if (( DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD )); then
     (( NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED ))
+
+    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits    
 
     $0 get $NUM_IMAGES_TO_DOWNLOAD
   elif (( DOWNLOADED > 0 )); then
