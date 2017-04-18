@@ -45,7 +45,3 @@ bindsym $mod+o $overwatch
 
 bindsym $mod+Control+u exec ~/dotfiles/i3/update work_tower
 bindsym $mod+Shift+Control+u exec ~/dotfiles/devices/work_tower/update
-
-bindsym $mod+Control+n exec notify-send -u low 'Hello world!' 'This is an example notification.'
-
-#bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
