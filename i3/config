@@ -1,3 +1,15 @@
+workspace 1 output $mainDisplay
+workspace 2 output $mainDisplay
+workspace 3 output $mainDisplay
+workspace 4 output $mainDisplay
+workspace 5 output $mainDisplay
+workspace 6 output $mainDisplay
+workspace 7 output $mainDisplay
+workspace 8 output $mainDisplay
+workspace 9 output $mainDisplay
+workspace 10 output $mainDisplay
+
+
 font pango:Source Code Pro, FontAwesome $fontSize
 
 floating_modifier $mod

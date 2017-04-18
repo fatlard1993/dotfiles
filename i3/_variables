@@ -1,3 +1,5 @@
 set $mod Mod4
 
 set $ex_ui exec --no-startup-id
+
+set $mainDisplay LVDS-0

@@ -1,3 +1,5 @@
 #!/bin/bash
 
+mkdir -p ~/.fonts
+
 cp ~/dotfiles/fonts/*.* ~/.fonts/ && sudo fc-cache -fv

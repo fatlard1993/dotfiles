@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sudo cp ~/dotfiles/devices/work_tower/etc/grub /etc/default/ && sudo update-grub2
+
+cp ~/dotfiles/devices/work_tower/etc/.xinitrc ~/

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+~/dotfiles/setup
+
+~/dotfiles/devices/work_tower/update

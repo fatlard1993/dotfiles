@@ -1,0 +1,43 @@
+#!/bin/bash
+
+sudo apt-get purge -y compiz* unity* lightdm notify-osd*
+
+mkdir -p ~/Projects ~/Pictures/Wallpapers ~/Pictures/Screenshots
+
+gsettings set org.gnome.desktop.background show-desktop-icons false
+
+gsettings set org.gnome.settings-daemon.plugins.mouse active false
+
+sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+sudo sh -c 'echo "deb http://debian.sur5r.net/i3/ $(lsb_release -c -s) universe" > /etc/apt/sources.list.d/i3.list'
+
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E3CA1A89941C42E6
+
+sudo apt-get update -y && sudo apt-get --allow-unauthenticated install -y sur5r-keyring
+
+sudo add-apt-repository ppa:dell-team/ppa -y && sudo add-apt-repository ppa:leolik/leolik -y && sudo apt-get update -y && sudo apt-get upgrade -y
+
+sudo apt-get update -y && sudo apt-get install -y i3 xautolock feh pavucontrol leafpad xbacklight build-essential libssl-dev dunst npm curl wget speedtest-cli ruby xclip python3 python-pip
+
+sudo pip install --upgrade pip
+
+sudo pip install pylint
+
+sleep 3s
+
+~/dotfiles/fonts/update
+
+~/dotfiles/dunst/update
+
+curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
+  sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+
+curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.1/install.sh | bash
+
+sudo npm install -g gulp jshint
+
+sleep 3s
+
+sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp gpick openssh-server ffmpeg arp-scan cheese scrot
+
+sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y

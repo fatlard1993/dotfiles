@@ -1,16 +1,10 @@
-exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
+$ex_ui sudo /home/chase/.scripts/ledCtl monitor &
 
-exec --no-startup-id feh --bg-fill --randomize ~/Pictures/Wallpapers/*
+$ex_ui google-chrome-stable
+$ex_ui code Projects/control-server
+$ex_ui code Projects/control-server-mother-hub
+$ex_ui code Projects/symetrix-common
 
-exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
+exec i3-msg "workspace number 11, exec --no-startup-id gnome-terminal, exec --no-startup-id gnome-terminal"
 
-exec --no-startup-id google-chrome-stable
-exec --no-startup-id code Projects/control-server
-exec --no-startup-id code Projects/control-server-mother-hub
-exec --no-startup-id code Projects/symetrix-common
-
-exec --no-startup-id i3-msg "workspace number 11, exec gnome-terminal, exec gnome-terminal"
-
-exec i3-dmenu-desktop --dmenu="dmenu -i -p 'Launch: ' -fn '$dmenuFont' -nb '$black' -nf '$text' -sf '$text' -sb '#007aac' -l 5"
-
-#exec --no-startup-id xrandr --output HDMI-0 --auto --right-of DVI-D-0
+$launcher

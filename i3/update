@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ ! -e ~/dotfiles/devices/$1 ]; then
+  echo "$1 is not a valid device"
+  exit 1
+fi
+
+mkdir -p ~/.i3
+
+cat ~/dotfiles/_fileWarning \
+  <(echo) ~/dotfiles/i3/_theme \
+  <(echo) ~/dotfiles/i3/_variables \
+  <(echo) ~/dotfiles/devices/$1/i3/_variables \
+  <(echo) ~/dotfiles/devices/$1/i3/config \
+  <(echo) ~/dotfiles/i3/config \
+  <(echo) ~/dotfiles/i3/i3bar \
+  <(echo) ~/dotfiles/i3/modes \
+  <(echo) ~/dotfiles/i3/startup \
+  <(echo) ~/dotfiles/devices/$1/i3/startup \
+> ~/.i3/config
+
+cat ~/dotfiles/_fileWarning \
+  <(echo) ~/dotfiles/i3/_status_theme \
+  <(echo) ~/dotfiles/i3/_status_items \
+  <(echo) ~/dotfiles/devices/$1/i3/_status_order \
+> ~/.i3/status.conf
+
+if [ -e ~/dotfiles/devices/$1/i3/_status2_order ]; then
+  cat ~/dotfiles/_fileWarning \
+    <(echo) ~/dotfiles/i3/_status_theme \
+    <(echo) ~/dotfiles/i3/_status_items \
+    <(echo) ~/dotfiles/devices/$1/i3/_status2_order \
+  > ~/.i3/status2.conf
+
+  cat <(echo) ~/dotfiles/i3/i3bar2 >> ~/.i3/config
+fi
+
+i3-msg restart

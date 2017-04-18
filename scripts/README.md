@@ -17,6 +17,13 @@ This script hijacks the caps lock LED and mimmicks the function of a HDD LED
 This script simply provides useful proxy to some handy functions:
 lock | logout | suspend | hibernate | reboot | shutdown
 
-### mySetup
-This script sets up and installs a myriad of things things.
-It is intended to be used on a fresh install.
+### clipd
+This script provides a clipboard manager utilizing dmenu
+
+### wallpaper
+This script provides the getting and setting of wallpapers.
+Run the script with no parameters to see useage.
+
+### gpmdp.js
+This is a node app that is used for talking to the gpmdp application.
+It is very raw and doesnt do much, I just made it when I was bored..

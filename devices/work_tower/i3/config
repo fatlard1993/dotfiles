@@ -1,23 +1,13 @@
-workspace number 1 output DVI-D-0
-workspace number 2 output DVI-D-0
-workspace number 3 output DVI-D-0
-workspace number 4 output DVI-D-0
-workspace number 5 output DVI-D-0
-workspace number 6 output DVI-D-0
-workspace number 7 output DVI-D-0
-workspace number 8 output DVI-D-0
-workspace number 9 output DVI-D-0
-workspace number 10 output DVI-D-0
-workspace number 11 output HDMI-0
-workspace number 12 output HDMI-0
-workspace number 13 output HDMI-0
-workspace number 14 output HDMI-0
-workspace number 15 output HDMI-0
-workspace number 16 output HDMI-0
-workspace number 17 output HDMI-0
-workspace number 18 output HDMI-0
-workspace number 19 output HDMI-0
-workspace number 20 output HDMI-0
+workspace 11 output $secondaryDisplay
+workspace 12 output $secondaryDisplay
+workspace 13 output $secondaryDisplay
+workspace 14 output $secondaryDisplay
+workspace 15 output $secondaryDisplay
+workspace 16 output $secondaryDisplay
+workspace 17 output $secondaryDisplay
+workspace 18 output $secondaryDisplay
+workspace 19 output $secondaryDisplay
+workspace 20 output $secondaryDisplay
 
 bindsym $mod+KP_1 workspace number 11
 bindsym $mod+KP_2 workspace number 12
@@ -42,16 +32,19 @@ bindsym $mod+Shift+KP_9 move container to workspace number 19
 bindsym $mod+Shift+KP_0 move container to workspace number 20
 
 
-for_window [class="Pavucontrol"] exec "i3-msg 'floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20'"
-
-assign [class="Google-chrome"] → workspace number 1
-assign [title="control-server - Visual Studio Code"] → workspace number 2
+assign [class="Google-chrome"]                                  → workspace number 1
+assign [title="control-server - Visual Studio Code"]            → workspace number 2
 assign [title="control-server-mother-hub - Visual Studio Code"] → workspace number 3
-assign [title="symetrix-common - Visual Studio Code"] → workspace number 20
+assign [title="symetrix-common - Visual Studio Code"]           → workspace number 20
 
 
-bindsym $mod+o fullscreen disable, floating enable, border pixel 0, resize set 600 380, sticky enable, move window to position 1080 20
+for_window [class="Pavucontrol"] $overwatch
 
-bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
 
-bindsym $mod+Shift+t workspace number 11, exec gnome-terminal, exec gnome-terminal
+bindsym $mod+o $overwatch
+
+bindsym $mod+Control+u exec ~/dotfiles/devices/work_tower/update
+
+bindsym $mod+Control+n exec notify-send -u low 'Hello world!' 'This is an example notification.'
+
+#bindsym $mod+Shift+w exec --no-startup-id code Projects/control-server, exec --no-startup-id code Projects/control-server-mother-hub, exec --no-startup-id code Projects/symetrix-common
