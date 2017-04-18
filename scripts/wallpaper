@@ -11,7 +11,7 @@ WALLPAPER_DIR=~/Pictures/Wallpapers
 STASH_DIR=$WALLPAPER_DIR/../notWallpapers
 TMP_DIR=/tmp/wallpapers
 
-PREFERRED_SIZE=3200x1800
+#PREFERRED_SIZE=3200x1800
 
 alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 
@@ -51,33 +51,27 @@ if [ "$1" = "get" ]; then
   for LINK in $LINKS
   do
     FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
-    FILE_EXTENSION=$(echo $FILENAME | grep -Po '\..{3}$')
     TMP_FILE=$TMP_DIR/$FILENAME
 
-    if grep -q "$FILENAME" "$WALLPAPER_DIR/.ignore" ; then
-      echo -e "Didnt like: $FILENAME\n"
-    elif [[ $(set -- $WALLPAPER_DIR/**/*$FILENAME; echo $#) -ge 1 ]]; then
-      echo -e "Already have: $FILENAME\n"
+    echo -e "Downloading: $LINK\n"
+
+    wget -qc $LINK -O $TMP_FILE
+
+    FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
+
+    if [[ $(set -- $WALLPAPER_DIR/**/$FILE_SUM.*; echo $#) -ge 1 ]]; then
+      echo -e "Already have: $FILE_SUM\n"
+      rm $TMP_FILE
+    elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
+      echo -e "Didnt like: $FILE_SUM\n"
+      rm $TMP_FILE        
     else
-      echo -e "Downloading: $LINK\n"
+      #convert $TMP_FILE -resize $PREFERRED_SIZE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
+      mv $TMP_FILE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
 
-      wget -qc $LINK -O $TMP_FILE
+      echo -e "Saved: $FILE_SUM\n"
 
-      FILE_SUM=$(crc32 $TMP_FILE)
-      
-      if [[ $(set -- $WALLPAPER_DIR/**/$FILE_SUM$FILE_EXTENSION; echo $#) -ge 1 ]]; then
-        echo -e "Already have: $FILE_SUM\n"
-        rm $TMP_FILE
-      elif grep -q "$FILE_SUM$FILE_EXTENSION" "$WALLPAPER_DIR/.ignore" ; then
-        echo -e "Didnt like: $FILE_SUM\n"
-        rm $TMP_FILE        
-      else
-        convert $TMP_FILE -resize $PREFERRED_SIZE $WALLPAPER_DIR/$FILE_SUM$FILE_EXTENSION
-
-        echo -e "Saved: $FILE_SUM\n"
-
-        ((DOWNLOADED=DOWNLOADED+1))
-      fi
+      (( DOWNLOADED=DOWNLOADED+1 ))
     fi
 
     if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
@@ -94,8 +88,8 @@ if [ "$1" = "get" ]; then
 
   notify-send "Wallpaper" "Downloaded $DOWNLOADED wallpapers from $SUBREDDIT"
 
-  if ((DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD)); then
-    ((NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED))
+  if (( DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD )); then
+    (( NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED ))
 
     $0 get $NUM_IMAGES_TO_DOWNLOAD
   elif (( DOWNLOADED > 0 )); then
@@ -113,7 +107,7 @@ elif [ "$1" = "set" ]; then
   fi
 
   if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
-    notify-send "Wallpaper" "Setting $WALLPAPER"
+    #notify-send "Wallpaper" "Setting $WALLPAPER"
 
     feh --bg-fill $WALLPAPER
 
@@ -127,38 +121,44 @@ elif [ "$1" = "convert" ]; then
 
   for FILE in $FILES
   do
-    FILE_SUM=$(crc32 $FILE)
-    FILE_EXTENSION=$(echo $FILE | grep -Po '\..{3}$')
+    FILE_SUM=$(md5sum "$FILE" | cut -d' ' -f1)
     
-    echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM$FILE_EXTENSION"
-    mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM$FILE_EXTENSION
+    echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
+    mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
   done
 elif [ "$1" = "save" ]; then
   SUBFOLDER=${2:-"saved"}
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
+  FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)  
 
   mkdir -p $WALLPAPER_DIR/$SUBFOLDER
 
-  mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/
+  mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 
   $0 set unsorted
 elif [ "$1" = "delete" ]; then
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-  FILENAME=$(echo $CURRENT_WALLPAPER | grep -Po '(?=\w+\.\w{3,4}$).+')
 
+  if [ ! -e $CURRENT_WALLPAPER ]; then
+    notify-send "Wallpaper" "No wallpaper to delete!"
+    exit 1
+  fi
+ 
+  FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
+  
   if [ "$2" = "stash" ]; then
     mkdir -p $WALLPAPER_DIR/../notWallpapers
 
-    mv $CURRENT_WALLPAPER $STASH_DIR/
+    mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 
-    notify-send "Wallpaper" "Stashed $STASH_DIR/${FILENAME:11}"
+    notify-send "Wallpaper" "Stashed $STASH_DIR/$FILE_SUM"
   else
     rm $CURRENT_WALLPAPER
 
-    notify-send "Wallpaper" "Deleted ${FILENAME:11}"
+    notify-send "Wallpaper" "Deleted $FILE_SUM"
   fi
 
-  echo -e "${FILENAME:11}" >> $WALLPAPER_DIR/.ignore
+  echo -e "$FILE_SUM" >> $WALLPAPER_DIR/.ignore
 
   $0 set unsorted
 else
