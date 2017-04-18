@@ -8,16 +8,30 @@ shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
 STASH_DIR=$WALLPAPER_DIR/../notWallpapers
+TMP_DIR=/tmp/wallpapers
 
 PREFERRED_SIZE=3200x1800
 
-SUBREDDITS=("wallpapers" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
-
 alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 
+touch $WALLPAPER_DIR/.ignore
+
+mkdir -p $TMP_DIR $WALLPAPER_DIR $STASH_DIR
+
 if [ "$1" = "get" ]; then
-  TMP_DIR="/tmp/wallpapers"
   REDDIT="http://www.reddit.com/r/"
+
+  if [ -f $TMP_DIR/subreddits ]; then
+    read -a SUBREDDITS < $TMP_DIR/subreddits
+  else
+    if [ -f $WALLPAPER_DIR/.subreddits ]; then
+      read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
+    else
+      SUBREDDITS=("wallpapers" "earthview" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "WQHD_Wallpaper" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
+    fi
+    
+    echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
+  fi
 
   if [ "$3" = "list" ]; then
     SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
@@ -28,8 +42,6 @@ if [ "$1" = "get" ]; then
   NUM_IMAGES_TO_DOWNLOAD=${2:-3}
 
   notify-send "Wallpaper" "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpapers.."
-
-  mkdir -p $TMP_DIR $WALLPAPER_DIR
 
   LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
 
@@ -61,6 +73,7 @@ if [ "$1" = "get" ]; then
   done
 
   if [ $DOWNLOADED = 0 ]; then
+    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
     $0 get $NUM_IMAGES_TO_DOWNLOAD
     exit 0
   fi

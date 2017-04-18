@@ -2,7 +2,7 @@
     markup = full
     sort = yes
     indicate_hidden = yes
-    stack_duplicates = true
+    stack_duplicates = false
     hide_duplicate_count = false
     show_age_threshold = 60
     sticky_history = yes
