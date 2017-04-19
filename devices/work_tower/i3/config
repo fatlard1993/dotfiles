@@ -32,10 +32,10 @@ bindcode $mod+Shift+$KP_9 move container to workspace number 19, workspace numbe
 bindcode $mod+Shift+$KP_0 move container to workspace number 20, workspace number 20
 
 
-assign [class="Google-chrome"]                                  → workspace 1
-assign [title="control-server - Visual Studio Code"]            → workspace 2
-assign [title="control-server-mother-hub - Visual Studio Code"] → workspace 3
-assign [title="symetrix-common - Visual Studio Code"]           → workspace 20
+assign [class="Google-chrome"]               → workspace 1
+assign [title="control-server\s"]            → workspace 2
+assign [title="control-server-mother-hub\s"] → workspace 3
+assign [title="symetrix-common\s"]           → workspace 20
 
 
 for_window [class="Pavucontrol"] $overwatch
