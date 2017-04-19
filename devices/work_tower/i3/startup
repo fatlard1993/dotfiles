@@ -1,10 +1,12 @@
-$ex_ui sudo /home/chase/.scripts/ledCtl monitor &
+$ex sudo /home/chase/.scripts/ledCtl monitor &
 
-$ex_ui google-chrome-stable
-$ex_ui code Projects/control-server
-$ex_ui code Projects/control-server-mother-hub
-$ex_ui code Projects/symetrix-common
+$ex google-chrome-stable
+$ex code Projects/control-server
+$ex code Projects/control-server-mother-hub
+$ex code Projects/symetrix-common
+$ex gnome-terminal
+$ex gnome-terminal
 
-exec i3-msg "workspace number 11, exec --no-startup-id gnome-terminal, exec --no-startup-id gnome-terminal"
+$ex i3-msg "[class="Gnome-terminal"] move to workspace 20"
 
 $launcher

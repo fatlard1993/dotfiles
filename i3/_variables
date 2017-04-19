@@ -1,8 +1,12 @@
 set $mod Mod4
 
-set $ex_ui exec --no-startup-id
+set $numlock Mod2
 
 set $mainDisplay LVDS-0
+
+set $ex exec --no-startup-id
+
+set $notifyBrightness notify-send "Brightness" $(xbacklight)
 
 set $KP_1 87
 set $KP_2 88

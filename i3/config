@@ -16,19 +16,12 @@ floating_modifier $mod
 
 focus_follows_mouse no
 
-workspace_auto_back_and_forth yes
+#workspace_auto_back_and_forth yes
 
 force_display_urgency_hint 1000 ms
 
-set $ex exec --no-startup-id
-
-
-set $notifyBrightness notify-send "Brightness" $(xbacklight)
-
 
 for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
-
-for_window [class="Thunderbird" window_role="Msgcompose"] floating enable
 
 for_window [class="feh"] fullscreen enable
 
@@ -98,9 +91,6 @@ bindsym $mod+Shift+period  move container to workspace next, workspace next
 bindsym $mod+Shift+comma   move container to workspace prev, workspace prev
 bindsym $mod+Shift+Tab     move container to workspace back_and_forth, workspace back_and_forth
 
-bindsym $mod+grave         scratchpad show
-
-bindsym $mod+Shift+grave   move scratchpad
 
 bindsym $mod+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
 bindsym $mod+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
@@ -114,6 +104,9 @@ bindsym $mod+s             split horizontal
 # child
 bindsym $mod+c             split vertical
 
+bindsym $mod+grave                 scratchpad show
+bindsym $mod+Shift+grave           move scratchpad
+bindsym $mod+Shift+Control+grave   [floating] move scratchpad
 
 bindsym $mod+f floating enable
 # dock
@@ -136,10 +129,14 @@ bindsym $mod+q       kill
 
 bindsym $mod+v       $ex ~/.scripts/clipd menu
 
-bindsym --release $mod+Shift+Print $ex import /tmp/latest-screenshot.png
 
 bindsym $mod+Control+r       reload
 bindsym $mod+Control+Shift+r restart
 
 bindsym $mod+m       $ex i3-input -l 1 -F 'mark %s' -P 'Mark: '
 bindsym $mod+Shift+m $ex i3-input -l 1 -F '[con_mark="%s"] focus' -P 'Go to mark: '
+
+
+#experimental
+
+bindsym --release $mod+Shift+Print $ex import /tmp/latest-screenshot.png
