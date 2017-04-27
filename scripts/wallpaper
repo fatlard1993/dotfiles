@@ -36,7 +36,10 @@ if [ "$1" = "get" ]; then
 
   if [ ! $SUBREDDITS ]; then
     notify-send "Wallpaper" "No subreddits to scan!"
-    exit 0
+
+    $0 set unsorted
+    
+    exit 1
   fi
 
   if [ "$3" = "list" ]; then
@@ -47,7 +50,7 @@ if [ "$1" = "get" ]; then
 
   NUM_IMAGES_TO_DOWNLOAD=${2:-3}
 
-  notify-send "Wallpaper" "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpapers.."
+  #notify-send "Wallpaper" "Downloading $NUM_IMAGES_TO_DOWNLOAD wallpapers.."
 
   LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
 
