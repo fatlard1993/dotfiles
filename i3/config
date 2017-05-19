@@ -41,8 +41,8 @@ bindsym XF86AudioMute         $ex pactl set-sink-mute   0 toggle
 bindsym XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && $notifyBrightness
 bindsym XF86MonBrightnessDown $ex xbacklight -dec 10 -time 10 && $notifyBrightness
 
-bindsym $mod+F11              $ex xbacklight -inc 5 -time 10 && $notifyBrightness
-bindsym $mod+F12              $ex xbacklight -dec 5 -time 10 && $notifyBrightness
+bindsym $mod+F11              $ex xbacklight -dec 5 -time 10 && $notifyBrightness
+bindsym $mod+F12              $ex xbacklight -inc 5 -time 10 && $notifyBrightness
 
 bindsym $mod+ShiftF11         $ex xbacklight -set 10 -time 3000 && $notifyBrightness
 bindsym $mod+ShiftF12         $ex xbacklight -set 90 -time 3000 && $notifyBrightness
