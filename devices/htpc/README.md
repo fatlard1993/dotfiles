@@ -1,0 +1,95 @@
+This directory contains files specific to my htpc (Intel NUC5I3RYK)
+
+Hardware Info
+=============
+
+### Ports
+ * 1 x thunderbolt 3/usb-c
+ * 2 x usb
+ * 1 x headphone/mic
+ * 1 x sd card
+
+### Processor
+i3-5010U CPU @ 2.10GHz (2 Cores w/ Hyper-Threading)
+
+### Graphics
+Intel HD Graphics 5500
+
+### Screen
+Hitiachi 42" TV
+
+### Wifi
+Intel Wireless 7265
+
+### RAM
+???
+
+### SDD
+120Gb m.2 ssd
+500Gb sata > usb 
+
+
+### Setup this device starting from a fresh ubuntu unity install:
+
+1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
+2. cd ~/dotfiles && ./devices/htpc/setup
+3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
+4. sudo shutdown -r now
+5. Extra steps that may or may not be needed are listed below:
+
+
+### gnome-tweak-tool settings
+apperance:
+  global dark theme: on
+  gtk+ theme high contrast
+  icons gnome
+fonts:
+  scaling factor 1.7
+
+### google play music desktop player
+settings
+  enable notifications
+desktop settings
+  uncheck minimize to tray
+  custom dark theme, highlight: #81a2be
+  enable playback api
+
+
+### gnome-terminal
+uncheck "show menubar by default on new terminals"
+Shortcuts>view>"hide and show toolbar" alt+F4
+profile preferences
+  cursor shape ibeam
+  custom font source code pro 12
+colors
+  text C5C8C6
+  bg 1D1F21
+  white FFFFFF
+  black 373B41
+  Dred C04343
+  red CC6666
+  Dgreen A1AA4A
+  green B5BD68
+  Dyellow DE935F
+  yellow F0C674
+  Dblue 608AAD
+  blue 81A2BE
+  Dpurple 9D77A8
+  purple B294BB
+  Dteal 6BADA4
+  teal 8ABEB7
+  Dgrey B4B7B4
+  grey E0E0E0
+
+
+### nvm
+nvm install --lts
+
+### vs code
+ * copy and paste settings and keybindings
+ * install packages
+
+### sudo
+```
+Defaults Insults
+```

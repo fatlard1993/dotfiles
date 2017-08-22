@@ -1,0 +1,11 @@
+#!/bin/bash
+
+sudo cp ~/dotfiles/devices/htpc/etc/grub /etc/default/ && sudo update-grub2
+
+cp ~/dotfiles/devices/htpc/.xinitrc ~/
+
+~/dotfiles/devices/htpc/xorg/update
+
+~/dotfiles/i3/update htpc
+
+cp ~/dotfiles/devices/htpc/.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
