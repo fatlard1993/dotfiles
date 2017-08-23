@@ -1,5 +1,6 @@
 set $fontSize 10
 set $borderSize 2
+set $pactlSink 0
 
 # left
 set $mainDisplay DVI-D-0

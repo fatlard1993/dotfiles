@@ -34,14 +34,14 @@ bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M.png" && notify-sen
 bindsym $mod+i $ex leafpad ~/.ideas
 
 
-bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume 0 +5%
-bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume 0 -5%
-bindsym XF86AudioMute         $ex pactl set-sink-mute   0 toggle
+bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume $pactlSink +5%
+bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
+bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
 
-bindsym $mod+plus         $ex pactl set-sink-volume 0 +5%
-bindsym $mod+minus        $ex pactl set-sink-volume 0 -5%
-bindsym $mod+Shift+plus   $ex pactl set-sink-volume 0 99%
-bindsym $mod+Shift+minus  $ex pactl set-sink-mute   0 toggle
+bindsym $mod+plus         $ex pactl set-sink-volume $pactlSink +5%
+bindsym $mod+minus        $ex pactl set-sink-volume $pactlSink -5%
+bindsym $mod+Shift+plus   $ex pactl set-sink-volume $pactlSink 99%
+bindsym $mod+Shift+minus  $ex pactl set-sink-mute   $pactlSink toggle
 
 
 bindsym XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && $notifyBrightness

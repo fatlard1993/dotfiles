@@ -1,5 +1,6 @@
 set $fontSize 16
 set $borderSize 4
+set $pactlSink 1
 
 # HDMI1 = miniHDMI, HDMI2 = miniDisplayPort
 set $mainDisplay HDMI2
