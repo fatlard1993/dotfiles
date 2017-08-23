@@ -6,5 +6,5 @@ bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
 
 bindsym $mod+o $overwatch
 
-bindsym $mod+Control+u exec ~/dotfiles/i3/update xps_13_9360
-bindsym $mod+Shift+Control+u exec ~/dotfiles/update xps_13_9360
+bindsym $mod+Control+u exec ~/dotfiles/i3/update htpc
+bindsym $mod+Shift+Control+u exec ~/dotfiles/update htpc
