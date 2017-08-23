@@ -39,6 +39,15 @@ Intel Wireless 7265
 5. Extra steps that may or may not be needed are listed below:
 
 
+### External HDD
+Open /etc/fstab and add:
+```
+#Automount rules for 500Gb HDD
+UUID=672B-B041 /media/storage vfat uid=1000,gid=1000,umask=0022,sync,auto,rw 0 0
+```
+
+In the BIOS I had to uncheck "boot USB devices first"
+
 ### gnome-tweak-tool settings
 apperance:
   global dark theme: on
