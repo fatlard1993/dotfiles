@@ -1,4 +1,5 @@
 set $fontSize 16
+set $borderSize 4
 
 # HDMI1 = miniHDMI, HDMI2 = miniDisplayPort
 set $mainDisplay HDMI2

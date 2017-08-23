@@ -1,4 +1,5 @@
 set $fontSize 6
+set $borderSize 2
 
 set $mainDisplay eDP1
 

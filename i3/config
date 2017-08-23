@@ -9,6 +9,9 @@ workspace 8 output $mainDisplay
 workspace 9 output $mainDisplay
 workspace 10 output $mainDisplay
 
+new_window pixel $borderSize
+
+new_float pixel $borderSize
 
 font pango:Source Code Pro, FontAwesome $fontSize
 
