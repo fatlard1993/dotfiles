@@ -94,3 +94,9 @@ nvm install --lts
 ```
 Defaults insults
 ```
+
+### git
+```
+git config --global user.email "fatlard1993@gmail.com"
+git config --global user.name "fatlard1993"
+```
