@@ -5,6 +5,5 @@ Here lie me settings
  * C/C++ Clang
  * Go
  * jshint
- * Paste and Indent
  * material-icon-theme
  * Tomorrow_Night Theme
