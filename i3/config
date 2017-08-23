@@ -37,6 +37,11 @@ bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume 0 +5%
 bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume 0 -5%
 bindsym XF86AudioMute         $ex pactl set-sink-mute   0 toggle
 
+bindsym $mod+plus         $ex pactl set-sink-volume 0 +5%
+bindsym $mod+minus        $ex pactl set-sink-volume 0 -5%
+bindsym $mod+Shift+plus   $ex pactl set-sink-volume 0 99%
+bindsym $mod+Shift+minus  $ex pactl set-sink-mute   0 toggle
+
 
 bindsym XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && $notifyBrightness
 bindsym XF86MonBrightnessDown $ex xbacklight -dec 10 -time 10 && $notifyBrightness
@@ -92,11 +97,11 @@ bindsym $mod+Shift+comma   move container to workspace prev, workspace prev
 bindsym $mod+Shift+Tab     move container to workspace back_and_forth, workspace back_and_forth
 
 
-bindsym $mod+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
-bindsym $mod+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
+bindsym $mod+Control+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
+bindsym $mod+Control+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
 
-bindsym $mod+Shift+minus   resize shrink height 5 px or 5 ppt, resize shrink width 5 px or 5 ppt
-bindsym $mod+Shift+plus    resize grow height 5 px or 5 ppt, resize grow width 5 px or 5 ppt
+bindsym $mod+Control+Shift+minus   resize shrink height 5 px or 5 ppt, resize shrink width 5 px or 5 ppt
+bindsym $mod+Control+Shift+plus    resize grow height 5 px or 5 ppt, resize grow width 5 px or 5 ppt
 
 
 # sibling (default)
