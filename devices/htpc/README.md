@@ -48,6 +48,11 @@ UUID=672B-B041 /media/storage vfat uid=1000,gid=1000,umask=0022,sync,auto,rw 0 0
 
 In the BIOS I had to uncheck "boot USB devices first"
 
+### vlc
+```
+sudo apt install -y vlc && sudo apt purge -y totem*
+```
+
 ### gnome-tweak-tool settings
 apperance:
   global dark theme: on
