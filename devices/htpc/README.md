@@ -63,34 +63,34 @@ profile preferences
   cursor shape ibeam
   custom font source code pro 12
 colors
-  text C5C8C6
-  bg 1D1F21
-  white FFFFFF
-  black 373B41
-  Dred C04343
-  red CC6666
-  Dgreen A1AA4A
-  green B5BD68
+  text    C5C8C6 (bold same as text)
+  bg      1D1F21
+  black   373B41
+  Dgrey   B4B7B4
+  Dred    C04343
+  red     CC6666
+  Dgreen  A1AA4A
+  green   B5BD68
   Dyellow DE935F
-  yellow F0C674
-  Dblue 608AAD
-  blue 81A2BE
+  yellow  F0C674
+  Dblue   608AAD
+  blue    81A2BE
   Dpurple 9D77A8
-  purple B294BB
-  Dteal 6BADA4
-  teal 8ABEB7
-  Dgrey B4B7B4
-  grey E0E0E0
+  purple  B294BB
+  Dteal   6BADA4
+  teal    8ABEB7
+  grey    E0E0E0
+  white   FFFFFF
 
 
 ### nvm
 nvm install --lts
 
 ### vs code
- * copy and paste settings and keybindings
- * install packages
+ * copy and paste settings
+ * install packages (add-ons)
 
 ### sudo
 ```
-Defaults Insults
+Defaults insults
 ```
