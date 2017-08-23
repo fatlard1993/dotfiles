@@ -1,3 +1,1 @@
-exec --no-startup-id sudo /home/chase/.scripts/ledCtl monitor &
-
 $launcher
