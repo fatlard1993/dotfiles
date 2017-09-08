@@ -42,24 +42,20 @@ bindsym $win+t                $ex gnome-terminal
 
 bindsym $win+v                $ex ~/.scripts/clipd menu
 
+bindsym $win+m                mode $modes_menu
+
 bindsym $win+u                exec ~/dotfiles/devices/htpc/update
 
 bindsym $win+space            $launcher
 bindsym XF86Search            $launcher
 
-# Modes
-bindsym $win+s                mode $mode_system
-bindsym XF86PowerOff          mode $mode_system
-
-bindsym $win+w                mode $mode_wallpaper_main
-
 # Window Management
 
 ## Focus
-bindsym $win+Left             focus left
-bindsym $win+Right            focus right
-bindsym $win+Up               focus up
-bindsym $win+Down             focus down
+bindsym $win+w                focus up
+bindsym $win+a                focus left
+bindsym $win+s                focus down
+bindsym $win+d                focus right
 
 bindsym $win+1                workspace number 1
 bindsym $win+2                workspace number 2
@@ -74,10 +70,10 @@ bindsym $win+0                workspace number 10
 bindsym $win+Tab              workspace back_and_forth
 
 ## Move
-bindsym $alt+Left             move left
-bindsym $alt+Right            move right
-bindsym $alt+Up               move up
-bindsym $alt+Down             move down
+bindsym $alt+w                move up
+bindsym $alt+a                move left
+bindsym $alt+s                move down
+bindsym $alt+d                move right
 bindsym $alt+o                $overwatch
 
 bindsym $alt+1                move container to workspace number 1, workspace number 1

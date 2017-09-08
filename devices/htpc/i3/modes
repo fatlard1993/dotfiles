@@ -34,3 +34,12 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Return mode default
   bindsym Escape mode default
 }
+
+set $modes_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <B>W</b>allpaper"
+mode --pango_markup $modes_menu {
+  bindsym s mode $mode_system
+  bindsym w mode $mode_wallpaper_main
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}

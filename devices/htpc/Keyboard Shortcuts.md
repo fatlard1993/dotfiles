@@ -6,12 +6,10 @@
 * Win + Q       = Quit Application
 * Win + T       = Open Terminal
 * Win + V       = Clipboard History
+* Win + M       = Modes Menu
+* Win + U       = Update
 * Win + Space   = Open App Launcher
 * Search        = Open App Launcher
-
-## Modes
-* Win + S       = System Mode
-* Win + W       = Wallpaper Mode
 
 ## Window management
 
