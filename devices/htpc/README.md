@@ -53,6 +53,8 @@ In the BIOS I had to uncheck "boot USB devices first"
 sudo apt install -y vlc && sudo apt purge -y totem*
 ```
 
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0' && gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
+
 ### gnome-tweak-tool settings
 apperance:
   global dark theme: on
