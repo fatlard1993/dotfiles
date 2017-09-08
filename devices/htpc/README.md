@@ -28,6 +28,9 @@ Intel Wireless 7265
 120Gb m.2 ssd
 500Gb sata > usb 
 
+### Keyboard
+Rii mini i8
+
 
 ### Setup this device starting from a fresh ubuntu unity install:
 

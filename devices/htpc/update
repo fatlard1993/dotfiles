@@ -1,11 +1,15 @@
 #!/bin/bash
 
-sudo cp ~/dotfiles/devices/htpc/etc/grub /etc/default/ && sudo update-grub2
+cd ~/dotfiles && git pull
 
-cp ~/dotfiles/devices/htpc/.xinitrc ~/
+if [ "$1" == "full" ]; then
+  sudo cp ~/dotfiles/devices/htpc/etc/grub /etc/default/ && sudo update-grub2
 
-~/dotfiles/devices/htpc/xorg/update
+  cp ~/dotfiles/devices/htpc/.xinitrc ~/
 
-~/dotfiles/i3/update htpc
+  ~/dotfiles/devices/htpc/xorg/update
+  
+  cp ~/dotfiles/devices/htpc/.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
+fi
 
-cp ~/dotfiles/devices/htpc/.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
+~/dotfiles/devices/htpc/i3/update
