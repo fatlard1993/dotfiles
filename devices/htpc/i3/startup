@@ -1,1 +1,5 @@
 $launcher
+
+exec --no-startup-id /home/chase/.scripts/clipd &
+
+exec_always --no-startup-id /home/chase/.scripts/wallpaper get
