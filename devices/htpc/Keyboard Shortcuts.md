@@ -20,22 +20,22 @@
 * Win + Tab     = Focus Last
 
 ### Move
-* AltGr + W     = Move Up
-* AltGr + A     = Move Left
-* AltGr + S     = Move Down
-* AltGr + D     = Move Right
-* AltGr + (1-0) = Move to Desktop 1-10
-* AtlGr + Tab   = Move to Last
+* Alt + W       = Move Up
+* Alt + A       = Move Left
+* Alt + S       = Move Down
+* Alt + D       = Move Right
+* Alt + (1-0)   = Move to Desktop 1-10
+* Alt + Tab     = Move to Last
 
 ### Resize
-* AltGr + Plus  = Increase
-* AltGr + Minus = Decrease
+* Alt + Plus    = Increase
+* Alt + Minus   = Decrease
 
 ### Scratchpad
 * Win + Grave   = Show Scratchpad
-* AltGr + Grave = Move to Scratchpad
+* Alt + Grave   = Move to Scratchpad
 
 ### Other
 * Win + F       = Float Window
 * Win + D       = Dock Window
-* AltGr + F     = Toggle Fullscreen
+* Alt + F       = Toggle Fullscreen
