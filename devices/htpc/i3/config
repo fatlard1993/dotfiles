@@ -17,7 +17,7 @@ mode --pango_markup $mode_system {
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+s   mode $mode_system
+bindsym $win+s   mode $mode_system
 bindsym XF86PowerOff   mode $mode_system
 
 set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
@@ -45,7 +45,7 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+w mode $mode_wallpaper_main
+bindsym $win+w mode $mode_wallpaper_main
 
 # end modes
 
@@ -66,8 +66,6 @@ new_float pixel $borderSize
 
 font pango:Source Code Pro, FontAwesome $fontSize
 
-floating_modifier $mod
-
 focus_follows_mouse no
 
 force_display_urgency_hint 1000 ms
@@ -82,16 +80,16 @@ bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
 bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
 
 
-bindsym $mod+1             workspace number 1
-bindsym $mod+2             workspace number 2
-bindsym $mod+3             workspace number 3
-bindsym $mod+4             workspace number 4
-bindsym $mod+5             workspace number 5
-bindsym $mod+6             workspace number 6
-bindsym $mod+7             workspace number 7
-bindsym $mod+8             workspace number 8
-bindsym $mod+9             workspace number 9
-bindsym $mod+0             workspace number 10
+bindsym $win+1             workspace number 1
+bindsym $win+2             workspace number 2
+bindsym $win+3             workspace number 3
+bindsym $win+4             workspace number 4
+bindsym $win+5             workspace number 5
+bindsym $win+6             workspace number 6
+bindsym $win+7             workspace number 7
+bindsym $win+8             workspace number 8
+bindsym $win+9             workspace number 9
+bindsym $win+0             workspace number 10
 
 bindsym $alt+1       move container to workspace number 1, workspace number 1
 bindsym $alt+2       move container to workspace number 2, workspace number 2
@@ -105,11 +103,11 @@ bindsym $alt+9       move container to workspace number 9, workspace number 9
 bindsym $alt+0       move container to workspace number 10, workspace number 10
 
 
-bindsym $mod+Left          focus left
-bindsym $mod+Right         focus right
-bindsym $mod+Up            focus up
-bindsym $mod+Down          focus down
-bindsym $mod+Tab           workspace back_and_forth
+bindsym $win+Left          focus left
+bindsym $win+Right         focus right
+bindsym $win+Up            focus up
+bindsym $win+Down          focus down
+bindsym $win+Tab           workspace back_and_forth
 
 bindsym $alt+Left    move left
 bindsym $alt+Right   move right
@@ -121,25 +119,25 @@ bindsym $alt+Tab     move container to workspace back_and_forth, workspace back_
 bindsym $alt+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
 bindsym $alt+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
 
-bindsym $mod+grave                 scratchpad show
+bindsym $win+grave                 scratchpad show
 bindsym $alt+grave           move scratchpad
 
-bindsym $mod+f floating enable
-bindsym $mod+d floating disable
+bindsym $win+f floating enable
+bindsym $win+d floating disable
 
 
-bindsym $mod+t  $ex gnome-terminal
+bindsym $win+t  $ex gnome-terminal
 
-bindsym $mod+space   $launcher
+bindsym $win+space   $launcher
 bindsym XF86Search   $launcher
 
 bindsym $alt+f fullscreen
 
-bindsym $mod+q       kill
+bindsym $win+q       kill
 
-bindsym $mod+v       $ex ~/.scripts/clipd menu
+bindsym $win+v       $ex ~/.scripts/clipd menu
 
 
-bindsym $mod+o $overwatch
+bindsym $win+o $overwatch
 
-bindsym $mod+u exec ~/dotfiles/devices/htpc/update
+bindsym $win+u exec ~/dotfiles/devices/htpc/update

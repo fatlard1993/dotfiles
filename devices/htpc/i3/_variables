@@ -6,6 +6,7 @@ set $pactlSink 1
 set $ex exec --no-startup-id
 
 set $alt Mod1
+set $win Mod4
 
 # HDMI1 = miniHDMI, HDMI2 = miniDisplayPort
 set $mainDisplay HDMI1
