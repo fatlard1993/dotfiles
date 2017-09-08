@@ -3,36 +3,41 @@
 ##### i3wm htpc w/ Rii mini i8 keyboard
 
 ## General
-* Win + V       = Clipboard History
 * Win + Q       = Quit Application
 * Win + T       = Open Terminal
+* Win + V       = Clipboard History
 * Win + Space   = Open App Launcher
 * Search        = Open App Launcher
+
+## Modes
+* Win + S       = System Mode
+* Win + W       = Wallpaper Mode
 
 ## Window management
 
 ### Focus
-* Win + W       = Focus Up
-* Win + A       = Focus Left
-* Win + S       = Focus Down
-* Win + D       = Focus Right
-* Win + (1-0)   = Focus Desktop 1-10
-* Win + Tab     = Focus Last
+* Win + W       = Window Focus Up
+* Win + A       = Window Focus Left
+* Win + S       = Window Focus Down
+* Win + D       = Window Focus Right
+* Win + (1-0)   = Desktop Focus 1-10
+* Win + Tab     = Desktop Focus Last
 
 ### Move
-* Alt + W       = Move Up
-* Alt + A       = Move Left
-* Alt + S       = Move Down
-* Alt + D       = Move Right
-* Alt + (1-0)   = Move to Desktop 1-10
-* Alt + Tab     = Move to Last
+* Alt + W       = Window Move Up
+* Alt + A       = Window Move Left
+* Alt + S       = Window Move Down
+* Alt + D       = Window Move Right
+* Alt + O       = Window Move to Overwatch
+* Alt + (1-0)   = Desktop Move to Desktop 1-10
+* Alt + Tab     = Desktop Move to Last
 
 ### Resize
 * Alt + Plus    = Increase
 * Alt + Minus   = Decrease
 
 ### Scratchpad
-* Win + Grave   = Show Scratchpad
+* Win + Grave   = Show Scratchpad / Cycle Scratchpad Windows
 * Alt + Grave   = Move to Scratchpad
 
 ### Other

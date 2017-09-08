@@ -5,6 +5,7 @@ mkdir -p ~/.i3
 cat ~/dotfiles/_fileWarning \
   <(echo) ~/dotfiles/i3/_theme \
   <(echo) ~/dotfiles/devices/htpc/i3/_variables \
+  <(echo) ~/dotfiles/devices/htpc/i3/modes \
   <(echo) ~/dotfiles/devices/htpc/i3/config \
   <(echo) ~/dotfiles/i3/i3bar \
   <(echo) ~/dotfiles/devices/htpc/i3/startup \
