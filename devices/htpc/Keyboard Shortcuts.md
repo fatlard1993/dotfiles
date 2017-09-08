@@ -39,6 +39,4 @@
 * Alt + Grave   = Move to Scratchpad
 
 ### Other
-* Win + F       = Float Window
-* Win + D       = Dock Window
-* Alt + F       = Toggle Fullscreen
+* Alt + F       = Window Float Toggle

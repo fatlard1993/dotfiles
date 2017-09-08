@@ -97,7 +97,4 @@ bindsym $win+grave            scratchpad show
 bindsym $alt+grave            move scratchpad
 
 ## Other
-bindsym $win+f                floating enable
-bindsym $win+d                floating disable
-
-bindsym $alt+f                fullscreen
+bindsym $alt+f                floating toggle
