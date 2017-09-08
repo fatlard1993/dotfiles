@@ -3,6 +3,7 @@
 ##### i3wm htpc w/ Rii mini i8 keyboard
 
 ## General
+* Win + H       = Help (shows this document)
 * Win + Q       = Quit Application
 * Win + T       = Open Terminal
 * Win + V       = Clipboard History

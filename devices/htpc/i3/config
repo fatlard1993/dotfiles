@@ -36,6 +36,8 @@ bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
 bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
 
 # General
+bindsym $win+h                $ex leafpad ~/dotfiles/devices/htpc/Keyboard\ Shortcuts.md
+
 bindsym $win+q                kill
 
 bindsym $win+t                $ex gnome-terminal
