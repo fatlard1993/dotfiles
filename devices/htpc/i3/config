@@ -1,10 +1,145 @@
-for_window [class="Pavucontrol"] $overwatch
+# Special keys on Rii mini i8
+
+# weird lookin play esque button = XF86Tools
+# maginifying glass = XF86Search
+# house icon = XF86Explorer
+# e icon = XF86HomePage
+
+# modes
+
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>S</b>hutdown"
+mode --pango_markup $mode_system {
+  bindsym e exec sudo /home/chase/.scripts/system logout
+  bindsym s exec sudo /home/chase/.scripts/system shutdown
+  bindsym r exec sudo /home/chase/.scripts/system reboot
+  bindsym l mode default, exec /home/chase/.scripts/system lock
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+bindsym $mod+Alt_R+s   mode $mode_system
+bindsym XF86PowerOff   mode $mode_system
+
+set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
+mode --pango_markup $mode_wallpaper_get {
+  bindsym r exec ~/.scripts/wallpaper get, mode $mode_wallpaper_main
+  bindsym l exec ~/.scripts/wallpaper get 3 list, mode $mode_wallpaper_main
+  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main  
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete (Shift)<b>S</b>tash"
+mode --pango_markup $mode_wallpaper_main {
+  bindsym g mode $mode_wallpaper_get
+  bindsym b mode default, exec ~/.scripts/wallpaper set list
+  bindsym r exec ~/.scripts/wallpaper set
+  bindsym t exec ~/.scripts/wallpaper set today
+  bindsym u exec ~/.scripts/wallpaper set unsorted
+  bindsym s exec ~/.scripts/wallpaper save
+  bindsym Shift+s exec ~/.scripts/wallpaper delete stash
+  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
+  bindsym d exec ~/.scripts/wallpaper delete
+  
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+bindsym $mod+Alt_R+w mode $mode_wallpaper_main
+
+# end modes
+
+workspace 1 output $mainDisplay
+workspace 2 output $mainDisplay
+workspace 3 output $mainDisplay
+workspace 4 output $mainDisplay
+workspace 5 output $mainDisplay
+workspace 6 output $mainDisplay
+workspace 7 output $mainDisplay
+workspace 8 output $mainDisplay
+workspace 9 output $mainDisplay
+workspace 10 output $mainDisplay
+
+new_window pixel $borderSize
+
+new_float pixel $borderSize
+
+font pango:Source Code Pro, FontAwesome $fontSize
+
+floating_modifier $mod
+
+focus_follows_mouse no
+
+force_display_urgency_hint 1000 ms
+
+for_window [class="feh"] fullscreen enable
+
+bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M.png" && notify-send "Screenshot!"
 
 
-bindsym $mod+XF86PowerOff       exec sudo /home/chase/.scripts/system reboot
-bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
+bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume $pactlSink +5%
+bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
+bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
+
+
+bindsym $mod+1             workspace number 1
+bindsym $mod+2             workspace number 2
+bindsym $mod+3             workspace number 3
+bindsym $mod+4             workspace number 4
+bindsym $mod+5             workspace number 5
+bindsym $mod+6             workspace number 6
+bindsym $mod+7             workspace number 7
+bindsym $mod+8             workspace number 8
+bindsym $mod+9             workspace number 9
+bindsym $mod+0             workspace number 10
+
+bindsym $mod+Alt_R+1       move container to workspace number 1, workspace number 1
+bindsym $mod+Alt_R+2       move container to workspace number 2, workspace number 2
+bindsym $mod+Alt_R+3       move container to workspace number 3, workspace number 3
+bindsym $mod+Alt_R+4       move container to workspace number 4, workspace number 4
+bindsym $mod+Alt_R+5       move container to workspace number 5, workspace number 5
+bindsym $mod+Alt_R+6       move container to workspace number 6, workspace number 6
+bindsym $mod+Alt_R+7       move container to workspace number 7, workspace number 7
+bindsym $mod+Alt_R+8       move container to workspace number 8, workspace number 8
+bindsym $mod+Alt_R+9       move container to workspace number 9, workspace number 9
+bindsym $mod+Alt_R+0       move container to workspace number 10, workspace number 10
+
+
+bindsym $mod+Left          focus left
+bindsym $mod+Right         focus right
+bindsym $mod+Up            focus up
+bindsym $mod+Down          focus down
+bindsym $mod+Tab           workspace back_and_forth
+
+bindsym $mod+Alt_R+Left    move left
+bindsym $mod+Alt_R+Right   move right
+bindsym $mod+Alt_R+Up      move up
+bindsym $mod+Alt_R+Down    move down
+bindsym $mod+Alt_R+Tab     move container to workspace back_and_forth, workspace back_and_forth
+
+
+bindsym $mod+Alt_R+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
+bindsym $mod+Alt_R+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
+
+bindsym $mod+grave                 scratchpad show
+bindsym $mod+Alt_R+grave           move scratchpad
+
+bindsym $mod+f floating enable
+bindsym $mod+d floating disable
+
+
+bindsym $mod+t  $ex gnome-terminal
+
+bindsym $mod+space   $launcher
+bindsym XF86Search   $launcher
+
+bindsym $mod+Alt_R+f fullscreen
+
+bindsym $mod+q       kill
+
+bindsym $mod+v       $ex ~/.scripts/clipd menu
+
 
 bindsym $mod+o $overwatch
 
-bindsym $mod+Control+u exec ~/dotfiles/i3/update htpc
-bindsym $mod+Shift+Control+u exec ~/dotfiles/update htpc
+bindsym $mod+Control+u exec ~/dotfiles/devices/htpc/update
