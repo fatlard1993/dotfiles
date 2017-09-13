@@ -15,6 +15,7 @@ mode --pango_markup $mode_system {
   bindsym e exec sudo /home/chase/.scripts/system logout
   bindsym s exec sudo /home/chase/.scripts/system shutdown
   bindsym r exec sudo /home/chase/.scripts/system reboot
+  bindsym $mod+r exec sudo /home/chase/.scripts/system update_and_reboot
   bindsym l mode default, exec /home/chase/.scripts/system lock
 
   bindsym Return mode default
