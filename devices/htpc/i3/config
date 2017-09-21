@@ -35,6 +35,9 @@ bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume $pactlSink +5%
 bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
 bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
 
+bindsym $win+plus             $ex pactl set-sink-volume $pactlSink +5%
+bindsym $win+minus            $ex pactl set-sink-volume $pactlSink -5%
+
 # General
 bindsym $win+h                $ex leafpad ~/dotfiles/devices/htpc/Keyboard\ Shortcuts.md
 
