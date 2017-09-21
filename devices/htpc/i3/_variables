@@ -1,6 +1,6 @@
 set $fontSize 16
 set $borderSize 4
-set $pactlSink 1
+set $pactlSink 0
 
 set $ex exec --no-startup-id
 
