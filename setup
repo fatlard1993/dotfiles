@@ -9,7 +9,7 @@ if [ "$1" ]; then
   fi
 fi
 
-sudo apt-get purge -y compiz* unity* lightdm notify-osd*
+sudo apt-get purge -y compiz* unity* lightdm notify-osd* thunderbird*
 
 mkdir -p ~/Projects ~/Pictures/Wallpapers ~/Pictures/Screenshots
 

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Tomorrow_Night
+Comment=A Gnome theme modified/hacked together by fatlard, based on the color scheme Tomorrow Night by chriskempson
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Tomorrow_Night
+MetacityTheme=Tomorrow_Night
+IconTheme=Gnome
+CursorTheme=Hackneyed

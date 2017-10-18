@@ -1,0 +1,17 @@
+[/]
+foreground-color='#c5c8c6'
+visible-name='Tomorrow Night'
+palette=['rgb(44,49,55)', 'rgb(192,67,67)', 'rgb(161,170,74)', 'rgb(222,147,95)', 'rgb(96,138,173)', 'rgb(157,119,168)', 'rgb(107,173,164)', 'rgb(180,183,180)', 'rgb(55,59,65)', 'rgb(204,102,102)', 'rgb(181,189,104)', 'rgb(240,198,116)', 'rgb(129,162,190)', 'rgb(178,148,187)', 'rgb(138,190,183)', 'rgb(224,224,224)']
+cursor-background-color='#c5c8c6'
+cursor-shape='ibeam'
+cursor-colors-set=true
+use-theme-colors=false
+use-system-font=false
+cursor-foreground-color='#1d1f21'
+font='Source Code Pro 12'
+use-theme-transparency=false
+use-theme-background=false
+bold-color-same-as-fg=true
+bold-color='#c5c8c6'
+background-color='#1d1f21'
+audible-bell=true
