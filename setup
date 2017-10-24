@@ -47,6 +47,6 @@ sudo npm install -g gulp jshint
 
 sleep 3s
 
-sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp gpick openssh-server ffmpeg arp-scan cheese scrot
+sudo apt-get update -y && sudo apt-get install -y code default-jre gnome-tweak-tool gimp gpick openssh-server ffmpeg arp-scan scrot zenity youtube-dl gnome-sushi gksu
 
 sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y

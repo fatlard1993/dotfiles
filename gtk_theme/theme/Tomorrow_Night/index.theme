@@ -7,5 +7,5 @@ Encoding=UTF-8
 [X-GNOME-Metatheme]
 GtkTheme=Tomorrow_Night
 MetacityTheme=Tomorrow_Night
-IconTheme=Gnome
+IconTheme=Papirus-Dark
 CursorTheme=Hackneyed
