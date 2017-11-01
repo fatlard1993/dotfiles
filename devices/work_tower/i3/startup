@@ -2,13 +2,8 @@ exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
 
 $ex sudo /home/chase/.scripts/ledCtl monitor &
 
-$ex google-chrome-stable
 $ex code Projects/control-server
 $ex code Projects/control-server-mother-hub
 $ex code Projects/symetrix-common
-$ex gnome-terminal
-$ex gnome-terminal
-
-$ex i3-msg "[class="Gnome-terminal"] move to workspace 20"
 
 $launcher
