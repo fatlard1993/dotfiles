@@ -3,12 +3,10 @@ mode --pango_markup $mode_layout {
   bindsym s layout stacking, mode default
   bindsym t layout tabbed, mode default
   bindsym d layout default, mode default
-  
+
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+Control+l mode $mode_layout
-
 
 set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>S</b>hutdown"
 mode --pango_markup $mode_system {
@@ -21,40 +19,32 @@ mode --pango_markup $mode_system {
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+Control+s mode $mode_system
-bindsym XF86PowerOff   mode $mode_system
-
 
 set $bindsym "bindsym \$mod+"
-
 set $mode_keybindings "<span foreground='#000' weight='bold'>Keybindings</span>  <b>P</b>ermanent <b>T</b>emporary"
 mode --pango_markup $mode_keybindings {
   bindsym p exec notify-send "warning" "Permanent keybindings have yet to be implemented"
   bindsym t exec i3-input -F 'exec echo "\n\n$bindsym%s" >> ~/.i3/config' -P $bindsym && i3-msg reload
- 
+
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+Control+k mode $mode_keybindings
-
 
 set $mode_gpmdp "<span foreground='#000' weight='bold'>GPMDP</span>  <b>I</b>nit <b>S</b>tart"
 mode --pango_markup $mode_gpmdp {
   bindsym i [class="Google Play Music Desktop Player"] focus, exec i3-input -l 4 -F 'exec curl localhost:60061/init/%s' -P 'GPMDP key: ', mode default
   bindsym s exec ~/.scripts/gpmdp.js, mode default
- 
+
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+Control+g mode $mode_gpmdp
-
 
 set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
 mode --pango_markup $mode_wallpaper_get {
   bindsym r exec ~/.scripts/wallpaper get, mode $mode_wallpaper_main
   bindsym l exec ~/.scripts/wallpaper get 3 list, mode $mode_wallpaper_main
-  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main  
-  
+  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main
+
   bindsym Return mode default
   bindsym Escape mode default
 }
@@ -70,8 +60,23 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Shift+s exec ~/.scripts/wallpaper delete stash
   bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
   bindsym d exec ~/.scripts/wallpaper delete
-  
+
   bindsym Return mode default
   bindsym Escape mode default
 }
-bindsym $mod+Control+w mode $mode_wallpaper_main
+
+set $modes_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <B>W</b>allpaper <B>G</b>PMDP <B>K</b>eybindings <B>l</b>ayout"
+mode --pango_markup $modes_menu {
+  bindsym s mode $mode_system
+  bindsym w mode $mode_wallpaper_main
+  bindsym g mode $mode_gpmdp
+  bindsym k mode $mode_keybindings
+  bindsym l mode $mode_layout
+
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+bindsym XF86PowerOff   mode $mode_system
+bindsym $mod+m         mode $modes_menu

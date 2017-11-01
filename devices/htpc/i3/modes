@@ -13,8 +13,8 @@ set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</sp
 mode --pango_markup $mode_wallpaper_get {
   bindsym r exec ~/.scripts/wallpaper get, mode $mode_wallpaper_main
   bindsym l exec ~/.scripts/wallpaper get 3 list, mode $mode_wallpaper_main
-  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main  
-  
+  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main
+
   bindsym Return mode default
   bindsym Escape mode default
 }
@@ -30,7 +30,7 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Shift+s exec ~/.scripts/wallpaper delete stash
   bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
   bindsym d exec ~/.scripts/wallpaper delete
-  
+
   bindsym Return mode default
   bindsym Escape mode default
 }
@@ -39,7 +39,7 @@ set $modes_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>yst
 mode --pango_markup $modes_menu {
   bindsym s mode $mode_system
   bindsym w mode $mode_wallpaper_main
-  
+
   bindsym Return mode default
   bindsym Escape mode default
 }

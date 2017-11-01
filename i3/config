@@ -21,128 +21,102 @@ focus_follows_mouse no
 
 force_display_urgency_hint 1000 ms
 
+for_window [class="(?i)mpv"] floating enable
 
 for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
 
-for_window [class="feh"] fullscreen enable
 
+bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
 
-bindsym $mod+a $ex pavucontrol
+bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +5%
+bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -5%
+bindsym XF86AudioMute               $ex pactl set-sink-mute   $pactlSink toggle
 
-bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M.png" && notify-send "Screenshot!"
+bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10   && $notifyBrightness
+bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10   && $notifyBrightness
 
-bindsym $mod+i $ex leafpad ~/.ideas
+bindsym $mod+F3                     $ex pactl set-sink-volume $pactlSink +5%
+bindsym $mod+F2                     $ex pactl set-sink-volume $pactlSink -5%
+bindsym $mod+Shift+F3               $ex pactl set-sink-volume $pactlSink 99%
+bindsym $mod+Shift+F1               $ex pactl set-sink-mute   $pactlSink toggle
+bindsym $mod+Shift+F2               $ex pactl set-sink-mute   $pactlSink toggle
 
+bindsym $mod+F11                    $ex xbacklight -dec 5  -time 10   && $notifyBrightness
+bindsym $mod+F12                    $ex xbacklight -inc 5  -time 10   && $notifyBrightness
+bindsym $mod+Shift+F11              $ex xbacklight -set 10 -time 3000 && $notifyBrightness
+bindsym $mod+Shift+F12              $ex xbacklight -set 90 -time 3000 && $notifyBrightness
 
-bindsym XF86AudioRaiseVolume  $ex pactl set-sink-volume $pactlSink +5%
-bindsym XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -5%
-bindsym XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
+bindsym $mod+1                      workspace number 1
+bindsym $mod+2                      workspace number 2
+bindsym $mod+3                      workspace number 3
+bindsym $mod+4                      workspace number 4
+bindsym $mod+5                      workspace number 5
+bindsym $mod+6                      workspace number 6
+bindsym $mod+7                      workspace number 7
+bindsym $mod+8                      workspace number 8
+bindsym $mod+9                      workspace number 9
+bindsym $mod+0                      workspace number 10
 
-bindsym $mod+plus         $ex pactl set-sink-volume $pactlSink +5%
-bindsym $mod+minus        $ex pactl set-sink-volume $pactlSink -5%
-bindsym $mod+Shift+plus   $ex pactl set-sink-volume $pactlSink 99%
-bindsym $mod+Shift+minus  $ex pactl set-sink-mute   $pactlSink toggle
+bindsym $mod+period                 workspace next
+bindsym $mod+comma                  workspace prev
+bindsym $mod+Tab                    workspace back_and_forth
 
+bindsym $mod+Control+1              move container to workspace number 1, workspace number 1
+bindsym $mod+Control+2              move container to workspace number 2, workspace number 2
+bindsym $mod+Control+3              move container to workspace number 3, workspace number 3
+bindsym $mod+Control+4              move container to workspace number 4, workspace number 4
+bindsym $mod+Control+5              move container to workspace number 5, workspace number 5
+bindsym $mod+Control+6              move container to workspace number 6, workspace number 6
+bindsym $mod+Control+7              move container to workspace number 7, workspace number 7
+bindsym $mod+Control+8              move container to workspace number 8, workspace number 8
+bindsym $mod+Control+9              move container to workspace number 9, workspace number 9
+bindsym $mod+Control+0              move container to workspace number 10, workspace number 10
 
-bindsym XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && $notifyBrightness
-bindsym XF86MonBrightnessDown $ex xbacklight -dec 10 -time 10 && $notifyBrightness
+bindsym $mod+Left                   focus left
+bindsym $mod+Right                  focus right
+bindsym $mod+Up                     focus up
+bindsym $mod+Down                   focus down
 
-bindsym $mod+F11              $ex xbacklight -dec 5 -time 10 && $notifyBrightness
-bindsym $mod+F12              $ex xbacklight -inc 5 -time 10 && $notifyBrightness
-
-bindsym $mod+ShiftF11         $ex xbacklight -set 10 -time 3000 && $notifyBrightness
-bindsym $mod+ShiftF12         $ex xbacklight -set 90 -time 3000 && $notifyBrightness
-
-
-bindsym $mod+1             workspace number 1
-bindsym $mod+2             workspace number 2
-bindsym $mod+3             workspace number 3
-bindsym $mod+4             workspace number 4
-bindsym $mod+5             workspace number 5
-bindsym $mod+6             workspace number 6
-bindsym $mod+7             workspace number 7
-bindsym $mod+8             workspace number 8
-bindsym $mod+9             workspace number 9
-bindsym $mod+0             workspace number 10
-
-bindsym $mod+Shift+1       move container to workspace number 1, workspace number 1
-bindsym $mod+Shift+2       move container to workspace number 2, workspace number 2
-bindsym $mod+Shift+3       move container to workspace number 3, workspace number 3
-bindsym $mod+Shift+4       move container to workspace number 4, workspace number 4
-bindsym $mod+Shift+5       move container to workspace number 5, workspace number 5
-bindsym $mod+Shift+6       move container to workspace number 6, workspace number 6
-bindsym $mod+Shift+7       move container to workspace number 7, workspace number 7
-bindsym $mod+Shift+8       move container to workspace number 8, workspace number 8
-bindsym $mod+Shift+9       move container to workspace number 9, workspace number 9
-bindsym $mod+Shift+0       move container to workspace number 10, workspace number 10
-
-
-bindsym $mod+Left          focus left
-bindsym $mod+Right         focus right
-bindsym $mod+Up            focus up
-bindsym $mod+Down          focus down
-
-bindsym $mod+p             focus parent
-
-bindsym $mod+Shift+Left    move left
-bindsym $mod+Shift+Right   move right
-bindsym $mod+Shift+Up      move up
-bindsym $mod+Shift+Down    move down
-
-bindsym $mod+period        workspace next
-bindsym $mod+comma         workspace prev
-bindsym $mod+Tab           workspace back_and_forth
-
-bindsym $mod+Shift+period  move container to workspace next, workspace next
-bindsym $mod+Shift+comma   move container to workspace prev, workspace prev
-bindsym $mod+Shift+Tab     move container to workspace back_and_forth, workspace back_and_forth
-
-
-bindsym $mod+Control+minus         resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
-bindsym $mod+Control+plus          resize grow height 10 px or 10 ppt, resize grow width 10 px or 10 ppt
-
-bindsym $mod+Control+Shift+minus   resize shrink height 5 px or 5 ppt, resize shrink width 5 px or 5 ppt
-bindsym $mod+Control+Shift+plus    resize grow height 5 px or 5 ppt, resize grow width 5 px or 5 ppt
-
+bindsym $mod+Control+Left           move left
+bindsym $mod+Control+Right          move right
+bindsym $mod+Control+Up             move up
+bindsym $mod+Control+Down           move down
 
 # sibling (default)
-bindsym $mod+s             split horizontal
+bindsym $mod+Shift+Right            split horizontal
 # child
-bindsym $mod+c             split vertical
-
-bindsym $mod+grave                 scratchpad show
-bindsym $mod+Shift+grave           move scratchpad
-bindsym $mod+Shift+Control+grave   [floating] move scratchpad
-
-bindsym $mod+f floating enable
-# dock
-bindsym $mod+d floating disable
+bindsym $mod+Shift+Down             split vertical
 
 
-bindsym $mod+w          $ex i3-input -F 'workspace %s' -P 'New workspace: '
-bindsym $mod+Shift+w    $ex i3-input -F 'move to workspace %s' -P 'Move to workspace: '
+bindsym $mod+Control+period         move container to workspace next,           workspace next
+bindsym $mod+Control+comma          move container to workspace prev,           workspace prev
+bindsym $mod+Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
 
+# Resize
+bindsym $mod+minus                  resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
+bindsym $mod+plus                   resize grow   height 10 px or 10 ppt, resize grow   width 10 px or 10 ppt
+bindsym $mod+Shift+minus            resize shrink height 5 px or 5 ppt, resize shrink width 5 px or 5 ppt
+bindsym $mod+Shift+plus             resize grow   height 5 px or 5 ppt, resize grow   width 5 px or 5 ppt
 
-bindsym $mod+n  $ex i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
+# Scratchpad
+bindsym $mod+grave                  scratchpad show
+bindsym $mod+Control+grave          move scratchpad
+bindsym $mod+Control+Shift+grave    [floating] move scratchpad
 
-bindsym $mod+Return  $ex gnome-terminal
+bindsym $mod+space                  $launcher
 
-bindsym $mod+space   $launcher
+bindsym $mod+Return                 $ex gnome-terminal
 
-bindsym $mod+Shift+f fullscreen
+bindsym $mod+c                      $ex ~/.scripts/clipd menu
 
-bindsym $mod+q       kill
+bindsym $mod+f                      floating toggle
 
-bindsym $mod+v       $ex ~/.scripts/clipd menu
+bindsym $mod+Control+f              fullscreen
 
+bindsym $mod+q                      kill
 
-bindsym $mod+Control+r       reload
-bindsym $mod+Control+Shift+r restart
+bindsym $mod+n                      $ex i3-input -F 'rename workspace to "%s"' -P 'Name workspace: '
 
-bindsym $mod+m       $ex i3-input -l 1 -F 'mark %s' -P 'Mark: '
-bindsym $mod+Shift+m $ex i3-input -l 1 -F '[con_mark="%s"] focus' -P 'Go to mark: '
+bindsym $mod+i                      $ex leafpad ~/.ideas
 
-
-#experimental
-
-bindsym --release $mod+Shift+Print $ex import /tmp/latest-screenshot.png
+bindsym $mod+w                      $ex $overwatchURL $($getInput"Watch URL")
