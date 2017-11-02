@@ -65,18 +65,17 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Escape mode default
 }
 
-set $modes_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <B>W</b>allpaper <B>G</b>PMDP <B>K</b>eybindings <B>l</b>ayout"
-mode --pango_markup $modes_menu {
+set $mode_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <b>W</b>allpaper <b>G</b>PMDP <b>K</b>eybindings <b>l</b>ayout"
+mode --pango_markup $mode_menu {
   bindsym s mode $mode_system
   bindsym w mode $mode_wallpaper_main
   bindsym g mode $mode_gpmdp
   bindsym k mode $mode_keybindings
   bindsym l mode $mode_layout
 
-
   bindsym Return mode default
   bindsym Escape mode default
 }
 
 bindsym XF86PowerOff   mode $mode_system
-bindsym $mod+m         mode $modes_menu
+bindsym $mod+m         mode $mode_menu
