@@ -120,12 +120,12 @@ if [ "$1" == "work" ]; then
   git config --global user.email "fatlard1993@gmail.com"
 
   cd ~/Projects && \
-    git clone https://github.com/fatlard1993/symetrix-common.git && \
+    git clone https://github.com/fatlard1993/symetrix-web-common.git && \
     git clone https://github.com/fatlard1993/control-server.git && \
     git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
     git clone https://github.com/fatlard1993/unit-status.git
-  
-  cd ~/Projects/symetrix-common && npm install
+
+  cd ~/Projects/symetrix-web-common && npm install
   cd ~/Projects/control-server && npm install
   cd ~/Projects/control-server-mother-hub && npm install
   cd ~/Projects/unit-status && npm install

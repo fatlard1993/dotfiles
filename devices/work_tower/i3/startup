@@ -2,6 +2,6 @@ exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
 
 # $ex sudo /home/chase/.scripts/ledCtl monitor &
 
-# $ex code Projects/control-server Projects/symetrix-common Projects/control-server-mother-hub Projects/unit-status
+# $ex code Projects/control-server Projects/symetrix-web-common Projects/control-server-mother-hub Projects/unit-status
 
 $launcher
