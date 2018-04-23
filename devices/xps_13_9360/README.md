@@ -123,10 +123,10 @@ if [ "$1" == "work" ]; then
     git clone https://github.com/fatlard1993/symetrix-web-common.git && \
     git clone https://github.com/fatlard1993/control-server.git && \
     git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
-    git clone https://github.com/fatlard1993/unit-status.git
+    git clone https://github.com/fatlard1993/dsp-web-interface.git
 
   cd ~/Projects/symetrix-web-common && npm install
   cd ~/Projects/control-server && npm install
   cd ~/Projects/control-server-mother-hub && npm install
-  cd ~/Projects/unit-status && npm install
+  cd ~/Projects/dsp-web-interface && npm install
 fi
