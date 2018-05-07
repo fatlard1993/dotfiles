@@ -1,7 +1,7 @@
 # dotfiles
-my collection of configs, scripts and dotfiles
+my collection of configs, scripts and various dotfiles
 
-All scripts contained assume that this repository was cloned in this fashon:
+All scripts contained assume that this repository was cloned in this fashion:
 ```
 cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
 ```
