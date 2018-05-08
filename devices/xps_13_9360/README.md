@@ -28,6 +28,12 @@ QCA6174 802.11ac Wireless Network Adapter
 ### SDD
 512Gb
 
+#### BIOS Key
+DEL
+
+#### Boot Menu
+F12
+
 
 ## Ubuntu 18.04 LTS setup notes
 
