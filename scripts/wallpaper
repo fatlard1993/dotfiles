@@ -38,7 +38,7 @@ if [ "$1" = "get" ]; then
     notify-send "Wallpaper" "No subreddits to scan!"
 
     $0 set unsorted
-    
+
     exit 1
   fi
 
@@ -75,7 +75,7 @@ if [ "$1" = "get" ]; then
       rm $TMP_FILE
     elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
       echo -e "Didnt like: $FILE_SUM\n"
-      rm $TMP_FILE        
+      rm $TMP_FILE
     else
       #convert $TMP_FILE -resize $PREFERRED_SIZE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
       mv $TMP_FILE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
@@ -96,7 +96,7 @@ if [ "$1" = "get" ]; then
     sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
     $0 get $NUM_IMAGES_TO_DOWNLOAD
-    
+
     exit 0
   fi
 
@@ -105,7 +105,7 @@ if [ "$1" = "get" ]; then
   if (( DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD )); then
     (( NUM_IMAGES_TO_DOWNLOAD=NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED ))
 
-    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits    
+    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
     $0 get $NUM_IMAGES_TO_DOWNLOAD
   elif (( DOWNLOADED > 0 )); then
@@ -138,14 +138,14 @@ elif [ "$1" = "convert" ]; then
   for FILE in $FILES
   do
     FILE_SUM=$(md5sum "$FILE" | cut -d' ' -f1)
-    
+
     echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
     mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
   done
 elif [ "$1" = "save" ]; then
   SUBFOLDER=${2:-"saved"}
   CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-  FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)  
+  FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
   mkdir -p $WALLPAPER_DIR/$SUBFOLDER
 
@@ -159,9 +159,9 @@ elif [ "$1" = "delete" ]; then
     notify-send "Wallpaper" "No wallpaper to delete!"
     exit 0
   fi
- 
+
   FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
-  
+
   if [ "$2" = "stash" ]; then
     mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 

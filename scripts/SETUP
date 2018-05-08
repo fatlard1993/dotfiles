@@ -1,0 +1,7 @@
+#!/bin/bash
+
+mkdir -p ~/.scripts
+
+cp ./* ~/.scripts
+
+(cd ~/.scripts && rm ./README.md ./SETUP)

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+if [ ! -e ~/.config/device ]; then
+  echo "No valid device file!"
+  exit 1
+fi
+
+DEVICE=$(cat ~/.config/device)
+
+mkdir -p ~/.config/i3
+
+cat ../etc/_fileWarning \
+  <(echo) ../i3/_theme \
+  <(echo) ../i3/_variables \
+  <(echo) ../devices/$DEVICE/i3/_variables \
+  <(echo) ../devices/$DEVICE/i3/config \
+  <(echo) ../i3/config \
+  <(echo) ../i3/i3bar \
+  <(echo) ../i3/modes \
+  <(echo) ../i3/startup \
+  <(echo) ../devices/$DEVICE/i3/startup \
+> ~/.config/i3/config
+
+cat ../etc/_fileWarning \
+  <(echo) ../i3/_status_theme \
+  <(echo) ../i3/_status_items \
+  <(echo) ../devices/$DEVICE/i3/_status_order \
+> ~/.config/i3/status.conf
+
+if [ -e ../devices/$DEVICE/i3/_status2_order ]; then
+  cat ../etc/_fileWarning \
+    <(echo) ../i3/_status_theme \
+    <(echo) ../i3/_status_items \
+    <(echo) ../devices/$DEVICE/i3/_status2_order \
+  > ~/.config/i3/status2.conf
+
+  cat <(echo) ../i3/i3bar2 >> ~/.config/i3/config
+fi
+
+i3-msg restart

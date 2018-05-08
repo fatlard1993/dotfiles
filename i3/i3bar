@@ -1,9 +1,9 @@
 bar {
   id bar-0
   output $mainDisplay
-  
+
   position top
-  status_command i3status -c ~/.i3/status.conf
+  status_command i3status -c ~/.config/i3/status.conf
   strip_workspace_numbers yes
   separator_symbol "  "
   #other good separators: 

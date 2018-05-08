@@ -7,7 +7,7 @@ case "$1" in
 
     screenCap=~/.i3/screen_locked.png
     scrot $screenCap && convert $screenCap -blur 8x8 $screenCap
-    i3lock -i  $screenCap 
+    i3lock -i  $screenCap
   ;;
   logout)
     i3-msg exit
