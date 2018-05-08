@@ -87,6 +87,10 @@ gsettings set org.gnome.desktop.interface text-scaling-factor 1.1
 
 gnome-settings-daemon is now split into multipule files in ```/usr/lib/gnome-settings-daemon/```. it seems that the one I care about is ```/usr/lib/gnome-settings-daemon/gsd-xsettings``` and I think putting into ```~/.profile``` will suffice for launching it
 
+
+turns out that the terminal profile loader isnt working anymore.. Odd too, the command fials within the script but if echoed out and ran by hand it is accepted. It, however, still doesnt load the profile..
+
+
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
