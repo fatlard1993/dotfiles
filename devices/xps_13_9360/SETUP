@@ -22,9 +22,11 @@ if [ "$1" == "first" ]; then
 
 	echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> /etc/sudoers.d/sudoers_settings
 
+	# not sure if these ones are necessary anymore
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
-	gsettings set org.gnome.desktop.peripherals.touchpad speed 0.6
+	gsettings set org.gnome.desktop.peripherals.touchpad speed 0.5
+
 	gsettings set org.gnome.desktop.interface scaling-factor 3
 	gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
 	gsettings set org.gnome.desktop.background show-desktop-icons false

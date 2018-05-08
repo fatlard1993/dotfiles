@@ -5,9 +5,9 @@ case "$1" in
     #killall -SIGUSR1 dunst # pause
     #killall -SIGUSR2 dunst # resume
 
-    screenCap=~/.i3/screen_locked.png
+    screenCap=~/.screen_locked.png
     scrot $screenCap && convert $screenCap -blur 8x8 $screenCap
-    i3lock -i  $screenCap
+    i3lock -i $screenCap
   ;;
   logout)
     i3-msg exit
@@ -28,6 +28,6 @@ case "$1" in
     shutdown -h now
     ;;
   *)
-    echo "Usage: $0 {lock|logout|suspend|hibernate|reboot|shutdown}"
+    echo "Usage: $0 {lock|logout|suspend|hibernate|reboot|update_and_reboot|shutdown}"
     exit 2
 esac

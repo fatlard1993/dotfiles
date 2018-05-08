@@ -1,8 +1,12 @@
 #!/bin/bash
 
-if [ "$(whoami)" != "root" ]; then
-    echo "This script must be run with sudo! To quick fix this run: sudo !!"
-    exit 1
+if [[ `whoami` != "root" ]]; then
+  echo "This script needs to be run as root.."
+  echo "Restarting with sudo"
+  SCRIPT="$(dirname $(readlink -f $0))/$(basename $0) $@"
+  echo "$SCRIPT"
+  exec sudo $SCRIPT
+  exit #?
 fi
 
 # check dependencies
