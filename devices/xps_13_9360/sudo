@@ -1,0 +1,2 @@
+Defaults	insults /etc/sudoers
+chase ALL=NOPASSWD: /home/chase/.scripts/* /etc/sudoers
