@@ -2,4 +2,4 @@
 
 mkdir -p ~/.fonts
 
-cp ./fonts/*.* ~/.fonts/ && sudo fc-cache -fv
+cp ./*.* ~/.fonts/ && sudo fc-cache -fv
