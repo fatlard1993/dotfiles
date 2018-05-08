@@ -70,6 +70,13 @@ soo, fuck gdm3.. just all of it.. ugh.. i purged that shit (note it didnt remove
 just apt installed i3status instead of fucking with source
 
 
+okay, well my testing with i3 source didnt go quite as smoothly as I hoped for. back to using the deb package. ```sudo apt install i3```, I suppose I'll keep the login manager now
+
+now for hidpi scaling:
+```
+gsettings set org.gnome.desktop.interface scaling-factor X
+```
+
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
