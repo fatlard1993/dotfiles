@@ -22,8 +22,8 @@ if [ "$1" == "first" ]; then
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
 	gsettings set org.gnome.desktop.peripherals.touchpad speed 0.6
-	gsettings set org.gnome.desktop.interface scaling-factor 2
-	gsettings set org.gnome.desktop.interface text-scaling-factor 1.1
+	gsettings set org.gnome.desktop.interface scaling-factor 3
+	gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
 	gsettings set org.gnome.desktop.background show-desktop-icons false
 
 	sudo gpasswd -a $USER input
@@ -44,6 +44,7 @@ cp ./libinput-gestures.conf ~/.config/
 cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
 
 (cd ../../scripts && ./SETUP)
+(cd ../../dunst && ./SETUP)
 (cd ../../i3 && ./SETUP)
 
 if [ "$1" == "first" ]; then
