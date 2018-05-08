@@ -16,11 +16,11 @@ if [ "$1" == "first" ]; then
 	(cd ../../gnome-terminal && ./SETUP)
 	(cd ../../fonts && ./SETUP)
 
-	(cd ./xorg && ./SETUP)
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
-	echo "Defaults	insults" >> sudo /etc/sudoers
-	echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> sudo /etc/sudoers
+	sudo cp ./etc/sudoers_settings /etc/sudoers.d/
+
+	echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> /etc/sudoers.d/sudoers_settings
 
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
@@ -32,7 +32,7 @@ if [ "$1" == "first" ]; then
 	sudo gpasswd -a $USER input
 
 	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
-	(cd ~/Projects/libinput-gestures && sudo make install && cp /etc/libinput-gestures.conf ~/.config/ && libinput-gestures-setup autostart)
+	(cd ~/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart)
 
 	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
 
@@ -45,6 +45,7 @@ fi
 cp ./.profile ~/
 cp ./libinput-gestures.conf ~/.config/
 cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
+(cd ./xorg && ./SETUP)
 
 (cd ../../scripts && ./SETUP)
 (cd ../../dunst && ./SETUP)

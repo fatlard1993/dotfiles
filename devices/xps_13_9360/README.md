@@ -96,7 +96,7 @@ gnome-settings-daemon is now split into multiple files in ```/usr/lib/gnome-sett
 
 turns out that the terminal profile loader isn't working anymore.. Odd too, the command fails within the script but if echoed out and ran by hand it is accepted. It, however, still doesn't load the profile.. Well, I got it to work by manually creating an entry for "Tomorrow_Night" in the profile edit dialog, and then running the script
 
-okay, so apparently the mouse settings I set up before through gsettings arent being applied anymore. natural scrolling is now gone, and my multi finger click setting isnt working.. I suppose I'll go back to trying out an xorg conf..
+okay, so apparently the mouse settings I set up before through gsettings arent being applied anymore. natural scrolling is now gone, and my multi finger click setting isnt working.. I suppose I'll go back to trying out an xorg conf.. Cant get that to work either... it seems like using xinput to configure the settings may work though
 
 
 ## Setup
@@ -105,6 +105,8 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 ### Git
 ```git config --global user.name "fatlard1993" && git config --global user.email "fatlard1993@gmail.com"```
 
+### Sudoers
+run ```sudo visudo``` and uncomment the last line
 
 ## Old setup stuff
 
