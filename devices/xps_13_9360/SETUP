@@ -13,11 +13,14 @@ if [ "$1" == "first" ]; then
 
 	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl
 
-	# (cd ../../gnome-terminal && ./SETUP)
+	(cd ../../gnome-terminal && ./SETUP)
 	(cd ../../fonts && ./SETUP)
 
 	(cd ./xorg && ./SETUP)
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
+
+	echo "Defaults	insults" >> sudo /etc/sudoers
+	echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> sudo /etc/sudoers
 
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
 	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
