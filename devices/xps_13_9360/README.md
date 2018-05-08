@@ -85,6 +85,8 @@ gsettings set org.gnome.desktop.interface scaling-factor 2
 gsettings set org.gnome.desktop.interface text-scaling-factor 1.1
 ```
 
+gnome-settings-daemon is now split into multipule files in ```/usr/lib/gnome-settings-daemon/```. it seems that the one I care about is ```/usr/lib/gnome-settings-daemon/gsd-xsettings``` and I think putting into ```~/.profile``` will suffice for launching it
+
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
