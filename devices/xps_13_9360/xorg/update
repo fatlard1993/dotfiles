@@ -1,5 +1,0 @@
-#!/bin/bash
-
-sudo mkdir -p /etc/X11/xorg.conf.d
-
-sudo cp ~/dotfiles/devices/xps_13_9360/xorg/*.conf /etc/X11/xorg.conf.d/

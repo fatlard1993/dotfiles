@@ -3,10 +3,10 @@ var fs = require('fs');
 var exec = require('child_process').exec;
 var express = require('express');
 var WebSocketClient = require('websocket').client;
- 
+
 var client = new WebSocketClient();
 var app = express();
- 
+
 app.listen(60061);
 
 
@@ -16,12 +16,12 @@ var connectCommand = {
   arguments: ['GPMDP i3wm nodeProxy']
 };
 
- 
+
 client.on('connectFailed', function(error){
   console.log('Connect Failure: ', error);
   throw error;
 });
- 
+
 client.on('connect', function(connection){
   console.log('WebSocket Client Connected');
 
@@ -36,7 +36,7 @@ client.on('connect', function(connection){
   connection.on('message', function(message){
     if(message.type === 'utf8'){
       if(message.utf8Data.includes('time')) return;
-    
+
       var response = JSON.parse(message.utf8Data);
 
       if(response.channel === 'library' || response.channel === 'playlists' || response.channel === 'queue') return;
@@ -74,7 +74,7 @@ client.on('connect', function(connection){
     };
 
     if(connection.connected) connection.sendUTF(JSON.stringify(command));
-    
+
     res.send('OK!');
   });
 });

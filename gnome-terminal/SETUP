@@ -18,6 +18,6 @@ create_new_profile() {
 
 id=$(create_new_profile Tomorrow_Night)
 
-dconf load $dconfdir/:$id/ < ~/dotfiles/terminal_profiles/Tomorrow_Night.dconf
+dconf load $dconfdir/:$id/ < ./Tomorrow_Night.dconf
 
 dconf write $dconfdir/default "'$id'"

@@ -1,5 +1,0 @@
-#!/bin/bash
-
-mkdir -p ~/.scripts
-
-cp ~/dotfiles/scripts/* ~/.scripts

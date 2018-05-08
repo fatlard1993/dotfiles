@@ -15,7 +15,7 @@
     idle_threshold = 120
     separator_color = frame
     startup_notification = false
-    dmenu = /usr/bin/dmenu -p dunst: 
+    dmenu = /usr/bin/dmenu -p dunst:
     browser = /usr/bin/firefox -new-tab
     font = "Source Code Pro Semibold 20"
     format = "<span weight="bold" font="22">%s</span> %p\n%b"
@@ -47,10 +47,10 @@
 
 [urgency_critical]
     background = "#cc6666"
-    foreground = "#1d1f21"   
+    foreground = "#1d1f21"
     timeout = 0
 
 
-[brightness] 
+[brightness]
     summary = "Brightness"
     timeout = 1

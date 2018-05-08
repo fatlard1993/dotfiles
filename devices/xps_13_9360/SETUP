@@ -1,0 +1,37 @@
+#!/bin/bash
+
+mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
+
+sudo apt update && sudo apt upgrade -y
+
+if [ "$1" == "first" ]; then
+	sudo apt install libinput-tools xdotool wmctrl i3 build-essential cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot zenity youtube-dl
+
+	(cd ../../gnome-terminal && ./SETUP)
+	(cd ../../fonts && ./SETUP)
+
+	(cd ./xorg && ./SETUP)
+	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
+
+	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
+	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
+	gsettings set org.gnome.desktop.peripherals.touchpad speed 0.6
+	gsettings set org.gnome.desktop.interface scaling-factor 2
+	gsettings set org.gnome.desktop.interface text-scaling-factor 1.1
+	gsettings set org.gnome.desktop.background show-desktop-icons false
+
+	sudo gpasswd -a $USER input
+
+	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
+	(cd ~/Projects/libinput-gestures && sudo make install && cp /etc/libinput-gestures.conf ~/.config/ && libinput-gestures-setup autostart)
+
+	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+
+	nvm install --lts
+fi
+
+cp ./.profile ~/
+cp ./libinput-gestures.conf ~/.config/
+cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
+
+(cd ../../scripts && ./SETUP)
