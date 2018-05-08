@@ -97,8 +97,12 @@ gnome-settings-daemon is now split into multiple files in ```/usr/lib/gnome-sett
 turns out that the terminal profile loader isn't working anymore.. Odd too, the command fails within the script but if echoed out and ran by hand it is accepted. It, however, still doesn't load the profile.. Well, I got it to work by manually creating an entry for "Tomorrow_Night" in the profile edit dialog, and then running the script
 
 
-### setup
+## Setup
 ```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && cd ~/Projects/dotfiles && ./SETUP xps_13_9360```
+
+### Git
+```git config --global user.name "fatlard1993" && git config --global user.email "fatlard1993@gmail.com"```
+
 
 ## Old setup stuff
 
