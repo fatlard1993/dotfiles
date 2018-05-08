@@ -42,6 +42,15 @@ There is still the second (dead/dummy) touchpad entry "SynPS/2 Synaptics TouchPa
 I installed libinput-tools to view the possible configuration options for my touchpad. It, however is reporting seemingly wrong information. For example tap to click and natural scrolling are both clearly enabled though reported as disabled. thinking this might be due to gnome taking ove a few things
 
 I created a 10-touchpad-quirks.conf xorg file to ignore the "SynPS/2 Synaptics TouchPad" device, that removed it from the ```xinput list``` results but still shows as using libinput in the syslog and shows up in ```libinput list-devices```
+```sudo mkdir -p /etc/X11/xorg.conf.d```
+```
+Section "InputClass"
+  Identifier "ignore dummy touchpad device"
+  MatchProduct "SynPS/2 Synaptics TouchPad"
+
+  Option "Ignore" "true"
+EndSection
+```
 
 I created a 30-touchpad.conf to disable tap to click which seems to have no effect...
 
@@ -53,6 +62,7 @@ gsettings set org.gnome.desktop.peripherals.touchpad speed 0.6
 ```
 
 Installed xdotool and wmctrl to attempt setting up libinput gestures, which also required installing git and make ([libinput-gestures](https://github.com/bulletmark/libinput-gestures)) okay this works and its awesome, and super easy to customize!
+```sudo apt install libinput-tools xdotool wmctrl```
 
 I actually quite like the new login manager, I think I'll just keep it.
 
@@ -65,16 +75,14 @@ and from AnyEvent-I3 dir ```cpanm .```
 
 after all that I still cant get the make check to pass.. failing to find AnyEvent
 
-soo, fuck gdm3.. just all of it.. ugh.. i purged that shit (note it didnt remove the gmd user or group)
-
 just apt installed i3status instead of fucking with source
 
-
-okay, well my testing with i3 source didnt go quite as smoothly as I hoped for. back to using the deb package. ```sudo apt install i3```, I suppose I'll keep the login manager now
+okay, well my testing with i3 source didnt go quite as smoothly as I hoped for. back to using the deb package. ```sudo apt install i3```
 
 now for hidpi scaling:
 ```
-gsettings set org.gnome.desktop.interface scaling-factor X
+gsettings set org.gnome.desktop.interface scaling-factor 2
+gsettings set org.gnome.desktop.interface text-scaling-factor 1.1
 ```
 
 ## Old setup stuff
