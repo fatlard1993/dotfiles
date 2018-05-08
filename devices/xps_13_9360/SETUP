@@ -5,13 +5,13 @@ mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
 sudo apt update && sudo apt upgrade -y
 
 if [ "$1" == "first" ]; then
-	sudo apt install curl
+	sudo apt install -y curl
 
 	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 
-	sudo apt update && sudo apt install libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot zenity youtube-dl
+	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot zenity youtube-dl
 
 	(cd ../../gnome-terminal && ./SETUP)
 	(cd ../../fonts && ./SETUP)
