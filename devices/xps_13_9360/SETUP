@@ -11,7 +11,7 @@ if [ "$1" == "first" ]; then
 	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 
-	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot zenity youtube-dl
+	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl
 
 	# (cd ../../gnome-terminal && ./SETUP)
 	(cd ../../fonts && ./SETUP)
@@ -33,6 +33,9 @@ if [ "$1" == "first" ]; then
 
 	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
 
+	export NVM_DIR="$HOME/.nvm"
+	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
 	nvm install --lts
 fi
 
@@ -42,3 +45,7 @@ cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
 
 (cd ../../scripts && ./SETUP)
 (cd ../../i3 && ./SETUP)
+
+if [ "$1" == "first" ]; then
+	sudo shutdown -r now
+fi
