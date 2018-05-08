@@ -1,7 +1,6 @@
-This directory contains files specific to my Dell XPS 13 9360 'Devoloper Edition' (laptop)
+This directory contains files specific to my Dell XPS 13 9360 'Developer Edition' (laptop)
 
-Hardware Info
-=============
+## Hardware Info
 
 touchscreen, clickpad
 
@@ -12,15 +11,15 @@ touchscreen, clickpad
  * 1 x sd card
 
 ### Processor
-i7-7500U CPU @ 2.70GHz (4 cores)
+i7-7500U CPU @ 2.70GHz (4 cores w/ hyperthreading capabilities)
 
 ### Graphics
 Iris Graphics 540
 
 ### Screen
-13.3 inch WLED 3200 x 1800
+13.3 inch LED 3200 x 1800
 
-### Wifi
+### Wireless
 QCA6174 802.11ac Wireless Network Adapter
 
 ### RAM
@@ -29,6 +28,49 @@ QCA6174 802.11ac Wireless Network Adapter
 ### SDD
 512Gb
 
+
+## Ubuntu 18.04 LTS setup notes
+
+Installed with the extra options (normal install & download updates & install 3rd party software). The location picker seems to be a bit broken with this version
+
+Getting firmware load errors for ath10k in syslog, but wireless adapter seems to be working fine. I seem to remember the problem was that it would randomly turn off so I will keep an eye out before trying to load in new stuff..
+
+18.04 is using libinput as the default driver. I appear to have the same issue as before where the touchpad gets stuck thinking im using 2 fingers instead of one and wants to scroll when touched..
+
+There is still the second (dead/dummy) touchpad entry "SynPS/2 Synaptics TouchPad", it is loading libinput by default. Verified not receiving data when tested with ```xinput test```
+
+I installed libinput-tools to view the possible configuration options for my touchpad. It, however is reporting seemingly wrong information. For example tap to click and natural scrolling are both clearly enabled though reported as disabled. thinking this might be due to gnome taking ove a few things
+
+I created a 10-touchpad-quirks.conf xorg file to ignore the "SynPS/2 Synaptics TouchPad" device, that removed it from the ```xinput list``` results but still shows as using libinput in the syslog and shows up in ```libinput list-devices```
+
+I created a 30-touchpad.conf to disable tap to click which seems to have no effect...
+
+Okay gnome settings is definitely overriding my xorg config file, I dont know how to get it to not.. so I suppose using this instead of the config file will suffice to get the behavior I desire, the following changes are necessary:
+```
+gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
+gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
+gsettings set org.gnome.desktop.peripherals.touchpad speed 0.6
+```
+
+Installed xdotool and wmctrl to attempt setting up libinput gestures, which also required installing git and make ([libinput-gestures](https://github.com/bulletmark/libinput-gestures)) okay this works and its awesome, and super easy to customize!
+
+I actually quite like the new login manager, I think I'll just keep it.
+
+and now to install i3, this time Im going to try using the github repo instead of the debian repo due to annoying key issues. (using master, theoretically more stable) [detailed here](https://github.com/i3/i3/blob/master/docs/hacking-howto) this requires installing: build-essential cpanminus libx11-xcb-perl libxcb1-dev libxcb-keysyms1-dev libpango1.0-dev libxcb-util0-dev libxcb-icccm4-dev libyajl-dev libstartup-notification0-dev libxcb-randr0-dev libev-dev libxcb-cursor-dev libxcb-xinerama0-dev libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev autoconf libxcb-xrm0 libxcb-xrm-dev automake
+
+it was also necessary to run(FIRST): ```cpanm X11::XCB```
+and ```cpanm inc::Module::Install```
+and from testcases dir ```cpanm .```
+and from AnyEvent-I3 dir ```cpanm .```
+
+after all that I still cant get the make check to pass.. failing to find AnyEvent
+
+soo, fuck gdm3.. just all of it.. ugh.. i purged that shit (note it didnt remove the gmd user or group)
+
+just apt installed i3status instead of fucking with source
+
+
+## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
 
