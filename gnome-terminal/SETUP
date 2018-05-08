@@ -2,17 +2,14 @@
 
 dconfdir=/org/gnome/terminal/legacy/profiles:
 
-profile_ids=($(dconf list $dconfdir/ | grep ^: | sed 's/\///g' | sed 's/://g'))
-profile_ids_old="$(dconf read "$dconfdir"/list | tr -d "]")"
-profile_id="$(uuidgen)"
-delimiter=""
+dconf reset -f $dconfdir/
 
-[ -z "$profile_ids_old" ] && profile_ids_old="["  # if there's no `list` key
-[ ${#profile_ids[@]} -gt 0 ] && delimiter=","  # if the list is empty
+new_id="$(uuidgen)"
+list="['$new_id']"
 
-dconf write $dconfdir/list "${profile_ids_old}${delimiter} '$profile_id']"
-dconf write "$dconfdir/:$profile_id"/visible-name "'Tomorrow_Night'"
+dconf write $dconfdir/list "$list"
+dconf write "$dconfdir/:$new_id"/visible-name "'Tomorrow_Night'"
 
-dconf load $dconfdir/:$profile_id/ < ./Tomorrow_Night.dconf
+dconf load $dconfdir/:$new_id/ < ./Tomorrow_Night.dconf
 
-dconf write $dconfdir/default "'$profile_id'"
+dconf write $dconfdir/default "'$new_id'"
