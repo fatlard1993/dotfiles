@@ -2,22 +2,17 @@
 
 dconfdir=/org/gnome/terminal/legacy/profiles:
 
-create_new_profile() {
-  local profile_ids=($(dconf list $dconfdir/ | grep ^: | sed 's/\///g' | sed 's/://g'))
-  local profile_ids_old="$(dconf read "$dconfdir"/list | tr -d "]")"
-  local profile_id="$(uuidgen)"
+profile_ids=($(dconf list $dconfdir/ | grep ^: | sed 's/\///g' | sed 's/://g'))
+profile_ids_old="$(dconf read "$dconfdir"/list | tr -d "]")"
+profile_id="$(uuidgen)"
+delimiter=""
 
-  [ -z "$profile_ids_old" ] && local lb="["  # if there's no `list` key
-  [ ${#profile_ids[@]} -gt 0 ] && local delimiter=,  # if the list is empty
+[ -z "$profile_ids_old" ] && profile_ids_old="["  # if there's no `list` key
+[ ${#profile_ids[@]} -gt 0 ] && delimiter=","  # if the list is empty
 
-  dconf write $dconfdir/list "${profile_ids_old}${delimiter} '$profile_id']"
-  dconf write "$dconfdir/:$profile_id"/visible-name "'$1'"
+dconf write $dconfdir/list "${profile_ids_old}${delimiter} '$profile_id']"
+dconf write "$dconfdir/:$profile_id"/visible-name "'Tomorrow_Night'"
 
-	echo $profile_id
-}
+dconf load $dconfdir/:$profile_id/ < ./Tomorrow_Night.dconf
 
-id=$(create_new_profile Tomorrow_Night)
-
-dconf load $dconfdir/:$id/ < ./Tomorrow_Night.dconf
-
-dconf write $dconfdir/default "'$id'"
+dconf write $dconfdir/default "'$profile_id'"
