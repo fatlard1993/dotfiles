@@ -91,6 +91,9 @@ gnome-settings-daemon is now split into multipule files in ```/usr/lib/gnome-set
 turns out that the terminal profile loader isnt working anymore.. Odd too, the command fials within the script but if echoed out and ran by hand it is accepted. It, however, still doesnt load the profile..
 
 
+### setup
+```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && cd ~/Projects/dotfiles && ./SETUP xps_13_9360```
+
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
