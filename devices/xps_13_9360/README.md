@@ -108,7 +108,6 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 ### VS code
 Install the settings Sync extension and press ```Shift + Alt + D```
 
-Access token: ```71d08f0f35c851e5c4222004dae987589cbc3d8d```
 Gist ID: ```840e909429cfa3e896568c2ea01ac241```
 
 ## Old setup stuff
