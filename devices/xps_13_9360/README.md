@@ -105,9 +105,6 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 ### Git
 ```git config --global user.name "fatlard1993" && git config --global user.email "fatlard1993@gmail.com"```
 
-### Sudoers
-run ```sudo visudo``` and uncomment the last line
-
 ### VS code
 Install the settings Sync extension and press ```Shift + Alt + D```
 
