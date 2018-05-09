@@ -1,0 +1,7 @@
+#!/bin/bash
+
+match_qstring='"[^"\\]*(\\.[^"\\]*)*"'
+
+class=$(xprop -id $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2) | grep WM_CLASS | sed -nr -e "s/^WM_CLASS\(STRING\) = ($match_qstring), ($match_qstring)$/\3/p")
+
+echo $(sed -e 's/^"//' -e 's/"$//' <<< "$class")
