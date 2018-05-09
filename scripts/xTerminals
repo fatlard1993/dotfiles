@@ -1,0 +1,5 @@
+#!/bin/bash
+
+COUNT=$(zenity --entry --text="Terminal Count:" --entry-text="")
+
+for (( c=1; c<=$COUNT; c++ )); do gnome-terminal; done
