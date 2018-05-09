@@ -32,8 +32,8 @@ bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +5%
 bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -5%
 bindsym XF86AudioMute               $ex pactl set-sink-mute   $pactlSink toggle
 
-bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10   && $notifyBrightness
-bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10   && $notifyBrightness
+bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10 && $notifyBrightness
+bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && $notifyBrightness
 
 bindsym $mod+F3                     $ex pactl set-sink-volume $pactlSink +5%
 bindsym $mod+F2                     $ex pactl set-sink-volume $pactlSink -5%
@@ -107,7 +107,7 @@ bindsym $mod+space                  $launcher
 
 bindsym $mod+Return                 $ex gnome-terminal
 
-bindsym $mod+c                      $ex ~/.scripts/clipd menu
+bindsym $mod+Control+v              $ex ~/.scripts/clipd menu
 
 bindsym $mod+f                      floating toggle
 
