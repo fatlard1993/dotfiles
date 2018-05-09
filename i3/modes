@@ -8,7 +8,7 @@ mode --pango_markup $mode_layout {
   bindsym Escape mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>U</b>pdate & Reboot <b>S</b>hutdown"
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>U</b>pdate-n-Reboot <b>S</b>hutdown"
 mode --pango_markup $mode_system {
   bindsym e exec sudo ~/.scripts/system logout
   bindsym s exec sudo ~/.scripts/system shutdown
@@ -65,13 +65,72 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Escape mode default
 }
 
-set $mode_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <b>W</b>allpaper <b>G</b>PMDP <b>K</b>eybindings <b>l</b>ayout"
+set $mode_mouse "<span foreground='#000' weight='bold'>KB Mouse Control</span>  Shift = slow | Control = fast || Shift = press | Control = Release"
+mode --pango_markup $mode_mouse {
+	set $slow 5
+	set $quick 20
+	set $fast 100
+	set $superFast 200
+
+	bindsym Shift+Left 			exec xdotool mousemove_relative -- -$slow 0
+	bindsym Shift+Down 			exec xdotool mousemove_relative 0 $slow
+	bindsym Shift+Up 				exec xdotool mousemove_relative -- 0 -$slow
+	bindsym Shift+Right 		exec xdotool mousemove_relative $slow 0
+
+	bindsym Left 						exec xdotool mousemove_relative -- -$quick 0
+	bindsym Down 						exec xdotool mousemove_relative 0 $quick
+	bindsym Up 							exec xdotool mousemove_relative -- 0 -$quick
+	bindsym Right 					exec xdotool mousemove_relative $quick 0
+
+	bindsym Control+Left 		exec xdotool mousemove_relative -- -$fast 0
+	bindsym Control+Down 		exec xdotool mousemove_relative 0 $fast
+	bindsym Control+Up 			exec xdotool mousemove_relative -- 0 -$fast
+	bindsym Control+Right 	exec xdotool mousemove_relative $fast 0
+
+	bindsym $mod+Left 			exec xdotool mousemove_relative -- -$superFast 0
+	bindsym $mod+Down 			exec xdotool mousemove_relative 0 $superFast
+	bindsym $mod+Up 				exec xdotool mousemove_relative -- 0 -$superFast
+	bindsym $mod+Right 			exec xdotool mousemove_relative $superFast 0
+
+	# Left Click
+	bindsym 1 exec xdotool click 1
+
+	# Middle Click
+	bindsym 2 exec xdotool click 2
+
+	# Right Click
+	bindsym 3 exec xdotool click 3
+
+	# Left Click-and-drag
+	bindsym Shift+1 exec xdotool mousedown 1
+
+	# Middle Click-and-drag
+	bindsym Shift+2 exec xdotool mousedown 2
+
+	# Right Click-and-drag
+	bindsym Shift+3 exec xdotool mousedown 3
+
+	# Left Drag release
+	bindsym Control+1 exec xdotool mouseup 1
+
+	# Middle Drag release
+	bindsym Control+2 exec xdotool mouseup 2
+
+	# Right Drag release
+	bindsym Control+3 exec xdotool mouseup 3
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <b>W</b>allpaper <b>G</b>PMDP <b>K</b>eybindings <b>L</b>ayout <b>M</b>ouse"
 mode --pango_markup $mode_menu {
   bindsym s mode $mode_system
   bindsym w mode $mode_wallpaper_main
   bindsym g mode $mode_gpmdp
   bindsym k mode $mode_keybindings
   bindsym l mode $mode_layout
+  bindsym m mode $mode_mouse
 
   bindsym Return mode default
   bindsym Escape mode default
