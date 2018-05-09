@@ -3,10 +3,4 @@ bindsym $mod+Shift+XF86PowerOff exec sudo ~/.scripts/system shutdown
 
 bindsym $mod+o                  $overwatch
 
-bindsym $mod+Control+u          exec (cd ~/Projects/dotfiles/i3 && ./SETUP)
-bindsym $mod+Shift+Control+u    exec (cd ~/Projects/dotfiles/$(cat ~/.config/device) && ./SETUP)
-
-bindsym --release $mod+c 				$ex ~/.scripts/copyPasta c
-bindsym --release $mod+v 				$ex ~/.scripts/copyPasta v
-
-bindsym --release $mod+p 				exec sleep 1 && xdotool type --clearmodifiers `xclip -selection c -out`
+bindsym --release $mod+p 				$ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`

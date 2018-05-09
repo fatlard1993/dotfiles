@@ -1,5 +1,1 @@
-#exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
-
-exec --no-startup-id sudo ~/.scripts/ledCtl monitor &
-
 $launcher
