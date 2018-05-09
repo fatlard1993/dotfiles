@@ -1,3 +1,3 @@
-exec --no-startup-id /home/chase/.scripts/clipd &
+exec --no-startup-id ~/.scripts/clipd &
 
-exec_always --no-startup-id /home/chase/.scripts/wallpaper get
+exec_always --no-startup-id ~/.scripts/wallpaper get

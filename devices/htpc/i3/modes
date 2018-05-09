@@ -1,9 +1,9 @@
 set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>S</b>hutdown"
 mode --pango_markup $mode_system {
-  bindsym e exec sudo /home/chase/.scripts/system logout
-  bindsym s exec sudo /home/chase/.scripts/system shutdown
-  bindsym r exec sudo /home/chase/.scripts/system reboot
-  bindsym l mode default, exec /home/chase/.scripts/system lock
+  bindsym e exec sudo ~/.scripts/system logout
+  bindsym s exec sudo ~/.scripts/system shutdown
+  bindsym r exec sudo ~/.scripts/system reboot
+  bindsym l mode default, exec ~/.scripts/system lock
 
   bindsym Return mode default
   bindsym Escape mode default

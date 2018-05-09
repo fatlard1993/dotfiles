@@ -1,5 +1,5 @@
-bindsym $mod+XF86PowerOff       exec sudo /home/chase/.scripts/system reboot
-bindsym $mod+Shift+XF86PowerOff exec sudo /home/chase/.scripts/system shutdown
+bindsym $mod+XF86PowerOff       exec sudo ~/.scripts/system reboot
+bindsym $mod+Shift+XF86PowerOff exec sudo ~/.scripts/system shutdown
 
 bindsym $mod+o                  $overwatch
 
