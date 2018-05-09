@@ -8,32 +8,13 @@ mode --pango_markup $mode_layout {
   bindsym Escape mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>U</b>pdate-n-Reboot <b>S</b>hutdown"
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>U</b>pdate <b>S</b>hutdown"
 mode --pango_markup $mode_system {
-  bindsym e exec sudo ~/.scripts/system logout
-  bindsym s exec sudo ~/.scripts/system shutdown
-  bindsym r exec sudo ~/.scripts/system reboot
-  bindsym u exec sudo ~/.scripts/system update_and_reboot
-  bindsym l mode default, exec ~/.scripts/system lock
-
-  bindsym Return mode default
-  bindsym Escape mode default
-}
-
-set $bindsym "bindsym \$mod+"
-set $mode_keybindings "<span foreground='#000' weight='bold'>Keybindings</span>  <b>P</b>ermanent <b>T</b>emporary"
-mode --pango_markup $mode_keybindings {
-  bindsym p exec notify-send "warning" "Permanent keybindings have yet to be implemented"
-  bindsym t exec i3-input -F 'exec echo "\n\n$bindsym%s" >> ~/.i3/config' -P $bindsym && i3-msg reload
-
-  bindsym Return mode default
-  bindsym Escape mode default
-}
-
-set $mode_gpmdp "<span foreground='#000' weight='bold'>GPMDP</span>  <b>I</b>nit <b>S</b>tart"
-mode --pango_markup $mode_gpmdp {
-  bindsym i [class="Google Play Music Desktop Player"] focus, exec i3-input -l 4 -F 'exec curl localhost:60061/init/%s' -P 'GPMDP key: ', mode default
-  bindsym s exec ~/.scripts/gpmdp.js, mode default
+  bindsym e $ex sudo ~/.scripts/system logout
+  bindsym s $ex sudo ~/.scripts/system shutdown
+  bindsym r $ex sudo ~/.scripts/system reboot
+  bindsym u $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
+  bindsym l mode default, $ex ~/.scripts/system lock
 
   bindsym Return mode default
   bindsym Escape mode default
@@ -49,7 +30,7 @@ mode --pango_markup $mode_wallpaper_get {
   bindsym Escape mode default
 }
 
-set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete (Shift)<b>S</b>tash"
+set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete <b>(Shift)S</b>tash <b>(Control)S</b>ave to subfolder"
 mode --pango_markup $mode_wallpaper_main {
   bindsym g mode $mode_wallpaper_get
   bindsym b mode default, exec ~/.scripts/wallpaper set list
@@ -65,8 +46,8 @@ mode --pango_markup $mode_wallpaper_main {
   bindsym Escape mode default
 }
 
-set $mode_mouse "<span foreground='#000' weight='bold'>KB Mouse Control</span>  Shift = slow | Control = fast || Shift = press | Control = Release"
-mode --pango_markup $mode_mouse {
+set $mode_cursor "<span foreground='#000' weight='bold'>KB Cursor Control</span>  <b>Movement</b> Shift = slow | Control = fast :: <b>Buttons</b> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
+mode --pango_markup $mode_cursor {
 	set $slow 5
 	set $quick 20
 	set $fast 100
@@ -123,14 +104,44 @@ mode --pango_markup $mode_mouse {
   bindsym Escape mode default
 }
 
-set $mode_menu "<span foreground='#000' weight='bold'>Modes</span>  <b>S</b>ystem <b>W</b>allpaper <b>G</b>PMDP <b>K</b>eybindings <b>L</b>ayout <b>M</b>ouse"
+set $mode_kill "<span foreground='#000' weight='bold'>Kill</span>  <b>A</b>ll <b>W</b>orkspace"
+mode --pango_markup $mode_kill {
+	bindsym a [class=".*"] kill, mode default
+  bindsym w exec i3-input -F '[workspace=%s] kill' -P 'Kill workspace: ', mode default
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_i3 "<span foreground='#000' weight='bold'>i3</span>  <b>U</b>pdate <b>R</b>eload <b>(Shift)R</b>estart <b>C</b>ommand"
+mode --pango_markup $mode_i3 {
+  bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
+  bindsym r 			reload
+  bindsym Shift+r restart
+	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_mark "<span foreground='#000' weight='bold'>Mark</span>  <b>W</b>orkspace <b>(Shift)W</b>indow"
+mode --pango_markup $mode_mark {
+	bindsym Shift+w	mode default, $ex ~/.scripts/i3windowMark $borderSize
+	bindsym w 			mode default, $ex ~/.scripts/i3workspaceMark
+
+  bindsym Return mode default
+  bindsym Escape mode default
+}
+
+set $mode_menu "<span foreground='#000' weight='bold'>Mode Menu</span>  <b>S</b>ystem <b>W</b>allpaper <b>K</b>ill <b>M</b>ark <b>L</b>ayout <b>C</b>ursor <b>i</b>3"
 mode --pango_markup $mode_menu {
   bindsym s mode $mode_system
   bindsym w mode $mode_wallpaper_main
-  bindsym g mode $mode_gpmdp
-  bindsym k mode $mode_keybindings
+  bindsym k mode $mode_kill
   bindsym l mode $mode_layout
-  bindsym m mode $mode_mouse
+  bindsym m mode $mode_mark
+  bindsym c mode $mode_cursor
+  bindsym i mode $mode_i3
 
   bindsym Return mode default
   bindsym Escape mode default

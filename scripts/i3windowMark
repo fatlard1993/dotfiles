@@ -1,0 +1,12 @@
+#!/bin/bash
+
+TITLE=$(zenity --entry --text="Window Title: " --entry-text="%title")
+
+if [[ "$TITLE" == "r" ]]; then
+	i3-msg "title_format \"<span>%title</span>\", border pixel $1"
+	exit 1
+fi
+
+COLOR=$(printf "#%02x%02x%02x" $(zenity --color-selection --color='#000' |  sed -e 's/rgb(//' -e 's/,/ /g' -e's/)//'))
+
+i3-msg "title_format \"<span foreground='$COLOR' weight='heavy'>$TITLE</span>\", border normal"
