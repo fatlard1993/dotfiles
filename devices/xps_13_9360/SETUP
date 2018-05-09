@@ -18,7 +18,7 @@ if [ "$1" == "first" ]; then
 
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
-	sudo cp ./etc/sudoers_settings /etc/sudoers.d/
+	# sudo cp ./etc/sudoers_settings /etc/sudoers.d/
 
 	# echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> sudo /etc/sudoers.d/sudoers_settings
 
