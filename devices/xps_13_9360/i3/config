@@ -5,3 +5,5 @@ bindsym $mod+o                  $overwatch
 
 bindsym $mod+Control+u          exec (cd ~/Projects/dotfiles/i3 && ./SETUP)
 bindsym $mod+Shift+Control+u    exec (cd ~/Projects/dotfiles/$(cat ~/.config/device) && ./SETUP)
+
+bindsym $mod+v xclip -o
