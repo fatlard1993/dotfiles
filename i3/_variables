@@ -1,9 +1,6 @@
-set $mod Mod4
-
-set $numlock Mod2
-
-set $alt Mod1
-set $win Mod4
+set $mod			Mod4
+set $numlock	Mod2
+set $alt			Mod1
 
 set $mainDisplay LVDS-0
 
@@ -11,7 +8,7 @@ set $ex exec --no-startup-id
 
 set $notifyBrightness ~/.scripts/pnotify Brightness $(xbacklight)
 
-set $getInput zenity --width=1000 --entry --text=
+set $getText zenity --width=1000 --entry --text=
 
 set $overwatchURL mpv --really-quiet --title="Overwatch URL" --autofit=40% --geometry=98%:2% --ytdl --ytdl-format='mp4[height<=?720]' -ytdl-raw-options=playlist-start=1
 
