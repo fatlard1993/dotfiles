@@ -9,7 +9,7 @@ set $mainDisplay LVDS-0
 
 set $ex exec --no-startup-id
 
-set $notifyBrightness notify-send "Brightness" $(xbacklight)
+set $notifyBrightness ~/.scripts/pnotify Brightness $(xbacklight)
 
 set $getInput zenity --width=1000 --entry --text=
 
