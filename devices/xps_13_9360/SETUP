@@ -18,6 +18,8 @@ if [ "$1" == "first" ]; then
 
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
+	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
+
 	# sudo cp ./etc/sudoers_settings /etc/sudoers.d/
 
 	# echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> sudo /etc/sudoers.d/sudoers_settings
