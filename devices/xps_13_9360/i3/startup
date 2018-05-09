@@ -1,1 +1,14 @@
 $launcher
+
+$ex ~/.scripts/wallpaper get
+
+$ex xautolock -time 10 -locker "~/.scripts/system lock"
+
+$ex /usr/lib/gnome-settings-daemon/gsd-xsettings &
+
+$ex ~/.scripts/clipd &
+
+$ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" 278 0
+$ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" 284 1
+$ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" 292 {0 1}
+$ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" 296 0.5
