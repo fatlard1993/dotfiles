@@ -110,6 +110,8 @@ Install the settings Sync extension and press ```Shift + Alt + D```
 
 Gist ID: ```840e909429cfa3e896568c2ea01ac241```
 
+add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``` and then run ```sudo sysctl -p```
+
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
