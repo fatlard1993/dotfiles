@@ -27,6 +27,8 @@ for_window [instance="gpick"] floating enable
 
 for_window [instance="leafpad"] floating enable
 
+for_window[instance="gnome-calculator"] floating enable
+
 for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
 
 
