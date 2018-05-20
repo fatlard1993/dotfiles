@@ -1,6 +1,2 @@
 bindsym $mod+XF86PowerOff       exec sudo ~/.scripts/system reboot
 bindsym $mod+Shift+XF86PowerOff exec sudo ~/.scripts/system shutdown
-
-bindsym $mod+o                  $overwatch
-
-bindsym --release $mod+p 				$ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
