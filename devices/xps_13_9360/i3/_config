@@ -1,2 +1,0 @@
-bindsym $mod+XF86PowerOff       exec sudo ~/.scripts/system reboot
-bindsym $mod+Shift+XF86PowerOff exec sudo ~/.scripts/system shutdown
