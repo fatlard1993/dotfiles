@@ -13,15 +13,15 @@ cat ../etc/_fileWarning \
   <(echo) ../i3/_theme \
   <(echo) ../i3/_variables \
   <(echo) ../devices/$DEVICE/i3/_variables \
-  <(echo) ../i3/config \
-  <(echo) ../devices/$DEVICE/i3/config \
-  <(echo) ../i3/shortcuts \
-  <(echo) ../devices/$DEVICE/i3/shortcuts \
-  <(echo) ../i3/modes \
-  <(echo) ../devices/$DEVICE/i3/modes \
-  <(echo) ../i3/i3bar \
-  <(echo) ../i3/startup \
-  <(echo) ../devices/$DEVICE/i3/startup \
+  <(echo) ../i3/_config \
+  <(echo) ../devices/$DEVICE/i3/_config \
+  <(echo) ../i3/_shortcuts \
+  <(echo) ../devices/$DEVICE/i3/_shortcuts \
+  <(echo) ../i3/_modes \
+  <(echo) ../devices/$DEVICE/i3/_modes \
+  <(echo) ../i3/_startup \
+  <(echo) ../devices/$DEVICE/i3/_startup \
+  <(echo) ../i3/_i3bar \
 > ~/.config/i3/config
 
 cat ../etc/_fileWarning \
@@ -37,7 +37,7 @@ if [ -e ../devices/$DEVICE/i3/_status2_order ]; then
     <(echo) ../devices/$DEVICE/i3/_status2_order \
   > ~/.config/i3/status2.conf
 
-  cat <(echo) ../i3/i3bar2 >> ~/.config/i3/config
+  cat <(echo) ../i3/_i3bar2 >> ~/.config/i3/config
 fi
 
 i3-msg restart
