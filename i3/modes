@@ -23,7 +23,7 @@ mode --pango_markup $mode_workspaces {
   bindsym space  mode default
 }
 
-set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>ort"
+set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>tash"
 mode --pango_markup $mode_system_wallpaper_sort {
   bindsym d       $ex ~/.scripts/wallpaper delete
   bindsym s       $ex ~/.scripts/wallpaper save
