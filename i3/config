@@ -7,7 +7,6 @@ workspace 6 output $mainDisplay
 workspace 7 output $mainDisplay
 workspace 8 output $mainDisplay
 workspace 9 output $mainDisplay
-workspace 10 output $mainDisplay
 
 new_window pixel $borderSize
 
@@ -21,118 +20,6 @@ focus_follows_mouse no
 
 force_display_urgency_hint 1000 ms
 
-for_window [class="(?i)mpv"] floating enable
+for_window [class="(?i)mpv|gpick|leafpad|gnome-calculator"] floating enable
 
-for_window [instance="gpick"] floating enable
-
-for_window [instance="leafpad"] floating enable
-
-for_window[instance="gnome-calculator"] floating enable
-
-for_window [title="appear.in screen sharing is sharing your screen with appear.in."] floating enable
-
-
-# Containers
-
-## Split
-bindsym $mod+Shift+Down             split vertical
-bindsym $mod+Shift+Right            split horizontal
-
-## Focus within current workspace
-bindsym $mod+Left                   focus left
-bindsym $mod+Right                  focus right
-bindsym $mod+Up                     focus up
-bindsym $mod+Down                   focus down
-
-## Move within current workspace
-bindsym $mod+Control+Left           move left
-bindsym $mod+Control+Right          move right
-bindsym $mod+Control+Up             move up
-bindsym $mod+Control+Down           move down
-
-## Move to workspace
-bindsym $mod+Control+1              move container to workspace number 1, workspace number 1
-bindsym $mod+Control+2              move container to workspace number 2, workspace number 2
-bindsym $mod+Control+3              move container to workspace number 3, workspace number 3
-bindsym $mod+Control+4              move container to workspace number 4, workspace number 4
-bindsym $mod+Control+5              move container to workspace number 5, workspace number 5
-bindsym $mod+Control+6              move container to workspace number 6, workspace number 6
-bindsym $mod+Control+7              move container to workspace number 7, workspace number 7
-bindsym $mod+Control+8              move container to workspace number 8, workspace number 8
-bindsym $mod+Control+9              move container to workspace number 9, workspace number 9
-bindsym $mod+Control+0              move scratchpad, scratchpad show
-bindsym $mod+Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
-bindsym $mod+Control+comma          move container to workspace prev, workspace prev
-bindsym $mod+Control+period         move container to workspace next, workspace next
-
-## Float
-bindsym $mod+f                      floating toggle
-bindsym $mod+s                      sticky toggle
-bindsym $mod+o                      $overwatch
-
-## Resize
-bindsym $mod+plus                   resize grow   height 10 px or 10 ppt, resize grow   width 10 px or 10 ppt
-bindsym $mod+minus                  resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
-bindsym $mod+Shift+plus             resize grow   height 5 px or 5 ppt,   resize grow   width 5 px or 5 ppt
-bindsym $mod+Shift+minus            resize shrink height 5 px or 5 ppt,   resize shrink width 5 px or 5 ppt
-
-## Etc
-
-bindsym $mod+q                      kill
-
-
-# Workspaces
-
-## View
-bindsym $mod+1                      workspace number 1
-bindsym $mod+2                      workspace number 2
-bindsym $mod+3                      workspace number 3
-bindsym $mod+4                      workspace number 4
-bindsym $mod+5                      workspace number 5
-bindsym $mod+6                      workspace number 6
-bindsym $mod+7                      workspace number 7
-bindsym $mod+8                      workspace number 8
-bindsym $mod+9                      workspace number 9
-bindsym $mod+0                      scratchpad show
-bindsym $mod+Tab                    workspace back_and_forth
-bindsym $mod+comma                  workspace prev
-bindsym $mod+period                 workspace next
-
-
-# Etc
-
-bindsym $mod+space                  $launcher
-
-bindsym $mod+grave                  $ex gnome-terminal
-
-bindsym $mod+Control+grave          $ex ~/.scripts/xTerminals
-
-bindsym $mod+Control+o              $ex $overwatchURL $($getText"Overwatch YouTube URL")
-
-bindsym $mod+n                      $ex leafpad ~/.ideas
-
-
-# Function keys
-
-## Volume
-bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +6%
-bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -6%
-bindsym XF86AudioMute               $ex pactl set-sink-mute   $pactlSink toggle
-
-## Backlight
-bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10 && $notifyBrightness
-bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && $notifyBrightness
-
-## Etc
-
-bindsym Print  $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
-
-
-# Experimental
-
-bindsym --release $mod+c 						$ex ~/.scripts/copyPasta c
-bindsym --release $mod+v 						$ex ~/.scripts/copyPasta v
-
-bindsym $mod+Control+v              $ex ~/.scripts/clipd menu
-
-bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
+for_window [title="appear.in.*"] floating enable

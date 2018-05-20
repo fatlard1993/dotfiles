@@ -13,10 +13,13 @@ cat ../etc/_fileWarning \
   <(echo) ../i3/_theme \
   <(echo) ../i3/_variables \
   <(echo) ../devices/$DEVICE/i3/_variables \
-  <(echo) ../devices/$DEVICE/i3/config \
   <(echo) ../i3/config \
-  <(echo) ../i3/i3bar \
+  <(echo) ../devices/$DEVICE/i3/config \
+  <(echo) ../i3/shortcuts \
+  <(echo) ../devices/$DEVICE/i3/shortcuts \
   <(echo) ../i3/modes \
+  <(echo) ../devices/$DEVICE/i3/modes \
+  <(echo) ../i3/i3bar \
   <(echo) ../i3/startup \
   <(echo) ../devices/$DEVICE/i3/startup \
 > ~/.config/i3/config

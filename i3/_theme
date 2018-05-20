@@ -15,13 +15,11 @@ set $base0D #81a2be
 set $base0E #b294bb
 set $base0F #a3685a
 
-
-#       Class            Border  BG      Text    Ind     Child Border
+#Class                   Border  BG      Text    Ind     ChildBorder
 client.focused          $base0D $base0D $base06 $base0E $base0D
 client.focused_inactive $base01 $base01 $base05 $base01 $base01
 client.unfocused        $base00 $base00 $base05 $base00 $base00
 client.urgent           $base08 $base08 $base00 $base08 $base08
 client.placeholder      $base0F $base0F $base06 $base0F $base0F
-
 
 client.background       $base00
