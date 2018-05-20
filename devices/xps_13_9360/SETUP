@@ -11,7 +11,9 @@ if [ "$1" == "first" ]; then
 	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 
-	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake xautolock feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby
+	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake xautolock feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv
+
+	sudo apt purge -y totem
 
 	(cd ../../gnome-terminal && ./SETUP)
 	(cd ../../fonts && ./SETUP)
