@@ -1,53 +1,116 @@
-set $mode_layout "<span foreground='#000' weight='bold'>Layout</span>  <b>D</b>efault <b>S</b>tacking <b>T</b>abbed"
-mode --pango_markup $mode_layout {
-  bindsym s layout stacking, mode default
-  bindsym t layout tabbed, mode default
-  bindsym d layout default, mode default
+set $mode_workspaces_layout "<span foreground='#000' weight='bold'>Layout</span>  <b>D</b>efault <b>S</b>tacking <b>T</b>abbed"
+mode --pango_markup $mode_workspaces_layout {
+  bindsym s      layout stacking, mode default
+  bindsym t      layout tabbed, mode default
+  bindsym d      layout default, mode default
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_workspaces
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>L</b>ock <b>E</b>xit <b>R</b>eboot <b>U</b>pdate <b>S</b>hutdown"
-mode --pango_markup $mode_system {
-  bindsym e $ex sudo ~/.scripts/system logout
-  bindsym s $ex sudo ~/.scripts/system shutdown
-  bindsym r $ex sudo ~/.scripts/system reboot
-  bindsym u $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
-  bindsym l mode default, $ex ~/.scripts/system lock
+set $mode_workspaces "<span foreground='#000' weight='bold'>Workspaces</span>  <b>L</b>ayout <b>M</b>ark"
+mode --pango_markup $mode_workspaces {
+  bindsym l      mode $mode_workspaces_layout
+  bindsym m      mode default, $ex ~/.scripts/i3workspaceMark
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_menu
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_wallpaper_get "<span foreground='#000' weight='bold'>Get Wallpaper</span>  <b>R</b>andom <b>L</b>ist <b>S</b>pecific"
-mode --pango_markup $mode_wallpaper_get {
-  bindsym r exec ~/.scripts/wallpaper get, mode $mode_wallpaper_main
-  bindsym l exec ~/.scripts/wallpaper get 3 list, mode $mode_wallpaper_main
-  bindsym s exec i3-input -F 'exec ~/.scripts/wallpaper get "%s"' -P 'NUM SUBREDDIT: ', mode $mode_wallpaper_main
+set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>ort"
+mode --pango_markup $mode_system_wallpaper_sort {
+  bindsym d       $ex ~/.scripts/wallpaper delete
+  bindsym s       $ex ~/.scripts/wallpaper save
+  bindsym Shift+s $ex ~/.scripts/wallpaper delete stash
 
-  bindsym Return mode default
+# funky..
+  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Stash to subfolder: (default:saved)'
+
+	bindsym BackSpace mode $mode_system
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_wallpaper_main "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>G</b>et <b>B</b>rowse <b>R</b>andom <b>T</b>oday <b>U</b>nsorted <b>S</b>ave <b>D</b>elete <b>(Shift)S</b>tash <b>(Control)S</b>ave to subfolder"
-mode --pango_markup $mode_wallpaper_main {
-  bindsym g mode $mode_wallpaper_get
-  bindsym b mode default, exec ~/.scripts/wallpaper set list
-  bindsym r exec ~/.scripts/wallpaper set
-  bindsym t exec ~/.scripts/wallpaper set today
-  bindsym u exec ~/.scripts/wallpaper set unsorted
-  bindsym s exec ~/.scripts/wallpaper save
-  bindsym Shift+s exec ~/.scripts/wallpaper delete stash
-  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Subfolder: (default:saved)'
-  bindsym d exec ~/.scripts/wallpaper delete
+set $mode_system_wallpaper_change "<span foreground='#000' weight='bold'>Change Wallpaper</span>  <b>S</b>aved <b>U</b>nsorted"
+mode --pango_markup $mode_system_wallpaper_change {
+  bindsym s      exec ~/.scripts/wallpaper set
+  bindsym u      exec ~/.scripts/wallpaper set unsorted
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_system
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_cursor "<span foreground='#000' weight='bold'>KB Cursor Control</span>  <b>Movement</b> Shift = slow | Control = fast :: <b>Buttons</b> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
-mode --pango_markup $mode_cursor {
+set $mode_system_wallpaper "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>C</b>hange <b>G</b>et <b>S</b>ort"
+mode --pango_markup $mode_system_wallpaper {
+	bindsym c      mode $mode_system_wallpaper_change
+  bindsym g      mode $mode_wallpaper_get
+	bindsym s      mode $mode_system_wallpaper_sort
+
+	bindsym BackSpace mode $mode_system
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_system_volume "<span foreground='#000' weight='bold'>Volume</span>  <b>[Shift|Control]UP</b> <b>[Shift|Control]DOWN</b> <b>M</b>ute"
+mode --pango_markup $mode_system_volume {
+	bindsym up           $ex pactl set-sink-volume $pactlSink +6%
+	bindsym down         $ex pactl set-sink-volume $pactlSink -6%
+	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3%
+	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3%
+	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90%
+	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10%
+	bindsym m            $ex pactl set-sink-mute   $pactlSink toggle
+
+	bindsym BackSpace mode $mode_system
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_system_leave "<span foreground='#000' weight='bold'>Leave</span>  <b>E</b>xit <b>L</b>ock <b>R</b>eboot <b>S</b>hutdown"
+mode --pango_markup $mode_system_leave {
+  bindsym e      $ex sudo ~/.scripts/system logout
+  bindsym l      mode default, $ex ~/.scripts/system lock
+  bindsym r      $ex sudo ~/.scripts/system reboot
+  bindsym s      $ex sudo ~/.scripts/system shutdown
+
+	bindsym BackSpace mode $mode_system
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_system_i3 "<span foreground='#000' weight='bold'>i3</span>  <b>C</b>ommand <b>R</b>eload <b>(Shift)R</b>estart <b>U</b>pdate"
+mode --pango_markup $mode_system_i3 {
+	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
+  bindsym r 			reload
+  bindsym Shift+r restart
+  bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
+
+	bindsym BackSpace mode $mode_system
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_system_cursor "<span foreground='#000' weight='bold'>KB Cursor Control</span>  <b>Movement</b> Shift = slow | Control = fast :: <b>Buttons</b> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
+mode --pango_markup $mode_system_cursor {
 	set $slow 5
 	set $quick 20
 	set $fast 100
@@ -104,48 +167,76 @@ mode --pango_markup $mode_cursor {
   bindsym Escape mode default
 }
 
-set $mode_kill "<span foreground='#000' weight='bold'>Kill</span>  <b>A</b>ll <b>W</b>orkspace"
-mode --pango_markup $mode_kill {
-	bindsym a [class=".*"] kill, mode default
-  bindsym w exec i3-input -F '[workspace=%s] kill' -P 'Kill workspace: ', mode default
+set $mode_system_backlight "<span foreground='#000' weight='bold'>Backlight</span>  <b>[Shift]UP</b> <b>[Shift]DOWN</b> <b>M</b>ax <b>(Shift)M</b>in"
+mode --pango_markup $mode_system_backlight {
+	bindsym up         $ex xbacklight -inc 10 -time 20   && $notifyBrightness
+	bindsym down       $ex xbacklight -dec 10 -time 20   && $notifyBrightness
+	bindsym Shift+up   $ex xbacklight -inc 5  -time 20   && $notifyBrightness
+	bindsym Shift+down $ex xbacklight -dec 5  -time 20   && $notifyBrightness
+	bindsym m          $ex xbacklight -set 90 -time 2000 && $notifyBrightness
+	bindsym Shift+m    $ex xbacklight -set 10 -time 2000 && $notifyBrightness
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_system
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_i3 "<span foreground='#000' weight='bold'>i3</span>  <b>U</b>pdate <b>R</b>eload <b>(Shift)R</b>estart <b>C</b>ommand"
-mode --pango_markup $mode_i3 {
-  bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
-  bindsym r 			reload
-  bindsym Shift+r restart
-	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>V</b>olume <b>W</b>allpaper"
+mode --pango_markup $mode_system {
+	bindsym b      mode $mode_system_backlight
+	bindsym c      mode $mode_system_cursor
+	bindsym u      $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
+	bindsym i      mode $mode_system_i3
+	bindsym l      mode $mode_system_leave
+	bindsym v      mode $mode_system_volume
+	bindsym w      mode $mode_system_wallpaper
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_menu
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_mark "<span foreground='#000' weight='bold'>Mark</span>  <b>W</b>orkspace <b>(Shift)W</b>indow"
-mode --pango_markup $mode_mark {
-	bindsym Shift+w	mode default, $ex ~/.scripts/i3windowMark $borderSize
-	bindsym w 			mode default, $ex ~/.scripts/i3workspaceMark
+set $mode_containers_kill "<span foreground='#000' weight='bold'>Kill Containers</span>  <b>A</b>ll <b>W</b>orkspace"
+mode --pango_markup $mode_containers_kill {
+	bindsym a      [class=".*"] kill, mode default
+  bindsym w      exec i3-input -F '[workspace=%s] kill' -P 'Kill containers in workspace: ', mode default
 
-  bindsym Return mode default
+	bindsym BackSpace mode $mode_containers
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-set $mode_menu "<span foreground='#000' weight='bold'>Mode Menu</span>  <b>S</b>ystem <b>W</b>allpaper <b>K</b>ill <b>M</b>ark <b>L</b>ayout <b>C</b>ursor <b>i</b>3"
+set $mode_containers "<span foreground='#000' weight='bold'>Containers</span>  <b>F</b>ullscreen <b>K</b>ill <b>M</b>ark"
+mode --pango_markup $mode_containers {
+	bindsym f      fullscreen
+	bindsym k      mode $mode_containers_kill
+	bindsym m      mode default, $ex ~/.scripts/i3windowMark $borderSize
+
+	bindsym BackSpace mode $mode_menu
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_menu "<span foreground='#000' weight='bold'>Mode Menu</span>  <b>C</b>ontainers <b>S</b>ystem <b>W</b>orkspaces"
 mode --pango_markup $mode_menu {
-  bindsym s mode $mode_system
-  bindsym w mode $mode_wallpaper_main
-  bindsym k mode $mode_kill
-  bindsym l mode $mode_layout
-  bindsym m mode $mode_mark
-  bindsym c mode $mode_cursor
-  bindsym i mode $mode_i3
+  bindsym c      mode $mode_containers
+  bindsym s      mode $mode_system
+  bindsym w      mode $mode_workspaces
 
-  bindsym Return mode default
+  bindsym BackSpace mode default
+
   bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
 }
 
-bindsym XF86PowerOff   mode $mode_system
-bindsym $mod+m         mode $mode_menu
+bindsym $mod+m       mode $mode_menu
+bindsym XF86PowerOff mode $mode_system_leave
