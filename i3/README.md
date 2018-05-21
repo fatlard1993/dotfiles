@@ -48,6 +48,7 @@ sudo nano /etc/X11/Xresources/x11-common
 			* lock (l)
 			* reboot (r)
 			* shutdown (s)
+		* clear ram-cache and swap (r)
 		* volume (v)
 			* up by 6 (up)
 			* down by 6 (down)
