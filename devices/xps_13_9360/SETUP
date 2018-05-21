@@ -2,7 +2,7 @@
 
 mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
 
-sudo apt update && sudo apt upgrade -y
+sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
 if [ "$1" == "first" ]; then
 	sudo apt install -y curl
@@ -23,6 +23,8 @@ if [ "$1" == "first" ]; then
 	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
 
 	cat ./.bashrc >> ~/.bashrc
+
+	sudo cp ./sudo.conf /etc/
 
 	# sudo cp ./etc/sudoers_settings /etc/sudoers.d/
 
