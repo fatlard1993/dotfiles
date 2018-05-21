@@ -10,6 +10,8 @@ set $notifyBrightness ~/.scripts/pnotify Brightness $(xbacklight)
 
 set $getText zenity --width=1000 --entry --text=
 
+set $dialog zenity --width=1000 --info --text=
+
 set $overwatchYouTubeURL mpv --really-quiet --title="Overwatch YouTube URL" --autofit=40% --geometry=98%:2% --ytdl --ytdl-format='mp4[height<=?720]' -ytdl-raw-options=playlist-start=1
 
 set $KP_1 87
