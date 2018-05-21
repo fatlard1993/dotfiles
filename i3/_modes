@@ -183,13 +183,14 @@ mode --pango_markup $mode_system_backlight {
   bindsym space  mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>V</b>olume <b>W</b>allpaper"
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>R</b>am clear <b>V</b>olume <b>W</b>allpaper"
 mode --pango_markup $mode_system {
 	bindsym b      mode $mode_system_backlight
 	bindsym c      mode $mode_system_cursor
-	bindsym u      $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
+	bindsym u      mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
 	bindsym i      mode $mode_system_i3
 	bindsym l      mode $mode_system_leave
+	bindsym r      mode default, $ex sudo ~/.scripts/clear_ram
 	bindsym v      mode $mode_system_volume
 	bindsym w      mode $mode_system_wallpaper
 
