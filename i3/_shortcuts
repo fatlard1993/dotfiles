@@ -102,3 +102,12 @@ bindsym --release $mod+v 						$ex ~/.scripts/copyPasta v
 bindsym $mod+Control+v              $ex ~/.scripts/clipd menu
 
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
+
+bindsym $mod+g                      $ex ~/.scripts/getActiveWindowClass gui
+
+
+# Mouse shortcuts
+
+bindsym --whole-window $mod+button2 kill
+
+bindsym --whole-window $mod+button3 floating toggle
