@@ -23,16 +23,16 @@ mode --pango_markup $mode_workspaces {
   bindsym space  mode default
 }
 
-set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>tash"
+set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>C</b>hange <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>tash"
 mode --pango_markup $mode_system_wallpaper_sort {
-  bindsym d       $ex ~/.scripts/wallpaper delete
-  bindsym s       $ex ~/.scripts/wallpaper save
-  bindsym Shift+s $ex ~/.scripts/wallpaper delete stash
+  bindsym c       $ex ~/.scripts/wallpaper change unsorted
+  bindsym d       $ex ~/.scripts/wallpaper sort delete
+  bindsym s       $ex ~/.scripts/wallpaper sort save
+  bindsym Shift+s $ex ~/.scripts/wallpaper sort stash
 
-# funky..
-  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper save "%s"' -P 'Stash to subfolder: (default:saved)'
+  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
 
-	bindsym BackSpace mode $mode_system
+	bindsym BackSpace mode $mode_system_wallpaper
 
   bindsym Escape mode default
   bindsym Return mode default
@@ -41,10 +41,10 @@ mode --pango_markup $mode_system_wallpaper_sort {
 
 set $mode_system_wallpaper_change "<span foreground='#000' weight='bold'>Change Wallpaper</span>  <b>S</b>aved <b>U</b>nsorted"
 mode --pango_markup $mode_system_wallpaper_change {
-  bindsym s      exec ~/.scripts/wallpaper set
-  bindsym u      exec ~/.scripts/wallpaper set unsorted
+  bindsym s      exec ~/.scripts/wallpaper change saved
+  bindsym u      exec ~/.scripts/wallpaper change unsorted
 
-	bindsym BackSpace mode $mode_system
+	bindsym BackSpace mode $mode_system_wallpaper
 
   bindsym Escape mode default
   bindsym Return mode default
@@ -54,7 +54,7 @@ mode --pango_markup $mode_system_wallpaper_change {
 set $mode_system_wallpaper "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>C</b>hange <b>G</b>et <b>S</b>ort"
 mode --pango_markup $mode_system_wallpaper {
 	bindsym c      mode $mode_system_wallpaper_change
-  bindsym g      mode $mode_wallpaper_get
+  bindsym g      exec ~/.scripts/wallpaper get
 	bindsym s      mode $mode_system_wallpaper_sort
 
 	bindsym BackSpace mode $mode_system
