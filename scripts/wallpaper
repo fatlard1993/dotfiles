@@ -158,8 +158,8 @@ elif [ "$COMMAND" = "sort" ]; then
 
 		$0 change unsorted
 	fi
-elif [ "$OPTION" = "convert" ]; then
-  SUBFOLDER=${3:-"saved"}
+elif [ "$COMMAND" = "convert" ]; then
+  SUBFOLDER=${2:-"saved"}
   FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
 
   for FILE in $FILES
