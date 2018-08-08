@@ -41,6 +41,9 @@ if [ "$1" == "first" ]; then
 
 	sudo gpasswd -a $USER input
 
+	git config --global credential.helper cache
+	git config --global credential.helper 'cache --timeout=3600'
+
 	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
 	(cd ~/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart)
 
