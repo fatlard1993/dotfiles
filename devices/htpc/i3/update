@@ -7,7 +7,6 @@ cat ~/dotfiles/_fileWarning \
   <(echo) ~/dotfiles/devices/htpc/i3/_variables \
   <(echo) ~/dotfiles/devices/htpc/i3/modes \
   <(echo) ~/dotfiles/devices/htpc/i3/config \
-  <(echo) ~/dotfiles/i3/_shortcuts \
   <(echo) ~/dotfiles/i3/_i3bar \
   <(echo) ~/dotfiles/devices/htpc/i3/startup \
 > ~/.i3/config
