@@ -5,3 +5,5 @@ $ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" "libinput Click Method Enabl
 $ex xinput set-prop "DLL075B:01 06CB:76AF Touchpad" "libinput Accel Speed" 0.5
 
 exec_always libinput-gestures-setup stop && libinput-gestures-setup start
+
+$ex /usr/lib/gnome-settings-daemon/gsd-xsettings &

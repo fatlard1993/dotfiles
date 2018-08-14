@@ -3,8 +3,6 @@ $ex ~/.scripts/wallpaper change unsorted
 
 $ex xautolock -time 10 -locker "~/.scripts/system lock"
 
-$ex /usr/lib/gnome-settings-daemon/gsd-xsettings &
-
 $ex ~/.scripts/clipd &
 
 $launcher
