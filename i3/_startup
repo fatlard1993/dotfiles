@@ -1,8 +1,6 @@
 $ex ~/.scripts/wallpaper get
 $ex ~/.scripts/wallpaper change unsorted
 
-$ex xautolock -time 10 -locker "~/.scripts/system lock"
-
 $ex ~/.scripts/clipd &
 
 $launcher
