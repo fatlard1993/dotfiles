@@ -26,15 +26,15 @@ Intel Wireless 7265
 
 ### SDD
 120Gb m.2 ssd
-500Gb sata > usb 
+500Gb sata > usb
 
 ### Keyboard
-Rii mini i8
+AMBOLOVE
 
 
 ### Setup this device starting from a fresh ubuntu unity install:
 
-1. sudo apt update && sudo apt install openssh-server <- so I can do all this crap from the comfort of the couch
+1. sudo apt update && sudo apt install openssh-server <- so I can do all this crap from the comfort of my laptop
 1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
 2. cd ~/dotfiles && ./devices/htpc/setup
 3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
@@ -66,15 +66,6 @@ apperance:
 fonts:
   scaling factor 1.7
 
-### google play music desktop player
-settings
-  enable notifications
-desktop settings
-  uncheck minimize to tray
-  custom dark theme, highlight: #81a2be
-  enable playback api
-
-
 ### gnome-terminal
 uncheck "show menubar by default on new terminals"
 Shortcuts>view>"hide and show toolbar" alt+F4
@@ -100,22 +91,3 @@ colors
   teal    8ABEB7
   grey    E0E0E0
   white   FFFFFF
-
-
-### nvm
-nvm install --lts
-
-### vs code
- * copy and paste settings
- * install packages (add-ons)
-
-### sudo
-```
-Defaults insults
-```
-
-### git
-```
-git config --global user.email "fatlard1993@gmail.com"
-git config --global user.name "fatlard1993"
-```

@@ -2,10 +2,7 @@ set $fontSize 16
 set $borderSize 4
 set $pactlSink 0
 
-set $ex exec --no-startup-id
-
-set $alt Mod4
-set $win Mod1
+set $mod			Mod1
 
 # HDMI1 = miniHDMI, HDMI2 = miniDisplayPort
 set $mainDisplay HDMI1

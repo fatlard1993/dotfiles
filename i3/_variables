@@ -1,6 +1,4 @@
-set $mod			Mod4
 set $numlock	Mod2
-set $alt			Mod1
 
 set $mainDisplay LVDS-0
 
