@@ -1,5 +1,0 @@
-#!/bin/bash
-
-~/dotfiles/setup
-
-~/dotfiles/devices/htpc/update full
