@@ -3,10 +3,6 @@
 if [ "$1" == "first" ]; then
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
-	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
-
-	cat ./.bashrc >> ~/.bashrc
-
 	# not sure if these ones are necessary anymore
 	# gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
 	# gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
@@ -22,7 +18,6 @@ fi
 
 cp ./libinput-gestures.conf ~/.config/
 (cd ./xorg && ./SETUP)
-
 
 if [ "$1" == "first" ]; then
 	sudo shutdown -r now
