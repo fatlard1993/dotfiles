@@ -32,16 +32,6 @@ Intel Wireless 7265
 AMBOLOVE
 
 
-### Setup this device starting from a fresh ubuntu unity install:
-
-1. sudo apt update && sudo apt install openssh-server <- so I can do all this crap from the comfort of my laptop
-1. sudo apt install -y git && cd ~ && git clone https://github.com/fatlard1993/dotfiles.git
-2. cd ~/dotfiles && ./devices/htpc/setup
-3. add "username ALL=NOPASSWD: /home/username/.scripts/*" to the end of your sudoers file via "sudo visudo"
-4. sudo shutdown -r now
-5. Extra steps that may or may not be needed are listed below:
-
-
 ### External HDD
 Open /etc/fstab and add:
 ```
