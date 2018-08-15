@@ -7,12 +7,67 @@ if [ ! -e ~/.config/device ]; then
 		else
 			DEVICE=$1
 			echo $DEVICE > ~/.config/device
-			(cd ./devices/$DEVICE && ./SETUP first)
+			FIRST=first
 		fi
 	else
 		echo "No device defined"
 	fi
 else
 	DEVICE=$(cat ~/.config/device)
-  (cd ./devices/$DEVICE && ./SETUP)
 fi
+
+sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
+
+if [ "$FIRST" == "first" ]; then
+	mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
+
+	sudo apt install -y curl
+
+	# Install vscode prerequisites
+	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+
+	# Install base apps
+	sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake xautolock feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv
+
+	# Purge unused apps
+	sudo apt purge -y totem
+
+	# Install nvm
+	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+
+	export NVM_DIR="$HOME/.nvm"
+	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+	nvm install --lts
+
+	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
+	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
+
+	# Install global npm packages
+	npm i -g eslint gulp
+
+	sudo gpasswd -a $USER input
+
+	git config --global credential.helper cache
+	git config --global credential.helper 'cache --timeout=3600'
+
+	(cd ../../gnome-terminal && ./SETUP)
+	(cd ../../fonts && ./SETUP)
+
+	cat ./etc/.bashrc >> ~/.bashrc
+fi
+
+sudo cp ./etc/sudo.conf /etc/
+
+(cd ./devices/$DEVICE && cp ./.profile ~/)
+(cd ./devices/$DEVICE && cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits)
+
+(cd ./scripts && ./SETUP)
+(cd ./dunst && ./SETUP)
+(cd ./i3 && ./SETUP)
+
+
+
+(cd ./devices/$DEVICE && ./SETUP $FIRST)

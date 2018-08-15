@@ -1,73 +1,28 @@
 #!/bin/bash
 
-mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
-
-sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
-
 if [ "$1" == "first" ]; then
-	sudo apt install -y curl
-
-	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
-	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
-
-	sudo apt update && sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake xautolock feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv
-
-	sudo apt purge -y totem
-
-	(cd ../../gnome-terminal && ./SETUP)
-	(cd ../../fonts && ./SETUP)
-
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
 	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
 
 	cat ./.bashrc >> ~/.bashrc
 
-	sudo cp ./sudo.conf /etc/
-
-	# sudo cp ./etc/sudoers_settings /etc/sudoers.d/
-
-	# echo "$USER ALL=NOPASSWD: /home/$USER/.scripts/*" >> sudo /etc/sudoers.d/sudoers_settings
-
 	# not sure if these ones are necessary anymore
-	gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
-	gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
-	gsettings set org.gnome.desktop.peripherals.touchpad speed 0.5
+	# gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
+	# gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
+	# gsettings set org.gnome.desktop.peripherals.touchpad speed 0.5
 
-	gsettings set org.gnome.desktop.interface scaling-factor 3
-	gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
-	gsettings set org.gnome.desktop.background show-desktop-icons false
-
-	sudo gpasswd -a $USER input
-
-	git config --global credential.helper cache
-	git config --global credential.helper 'cache --timeout=3600'
+	# gsettings set org.gnome.desktop.interface scaling-factor 3
+	# gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
+	# gsettings set org.gnome.desktop.background show-desktop-icons false
 
 	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
 	(cd ~/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart)
-
-	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-
-	export NVM_DIR="$HOME/.nvm"
-	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-
-	nvm install --lts
-
-	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
-	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
-
-	npm i -g eslint gulp
 fi
 
-cp ./.profile ~/
 cp ./libinput-gestures.conf ~/.config/
-cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits
 (cd ./xorg && ./SETUP)
 
-(cd ../../scripts && ./SETUP)
-(cd ../../dunst && ./SETUP)
-(cd ../../i3 && ./SETUP)
 
 if [ "$1" == "first" ]; then
 	sudo shutdown -r now
