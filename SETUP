@@ -53,10 +53,12 @@ if [ "$FIRST" == "first" ]; then
 	git config --global credential.helper cache
 	git config --global credential.helper 'cache --timeout=3600'
 
-	(cd ../../gnome-terminal && ./SETUP)
-	(cd ../../fonts && ./SETUP)
+	(cd ./gnome-terminal && ./SETUP)
+	(cd ./fonts && ./SETUP)
 
 	cat ./etc/.bashrc >> ~/.bashrc
+
+	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
 fi
 
 sudo cp ./etc/sudo.conf /etc/
