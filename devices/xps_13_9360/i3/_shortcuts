@@ -1,2 +1,4 @@
 bindsym $mod+XF86PowerOff         exec sudo ~/.scripts/system reboot
 bindsym $mod+Control+XF86PowerOff exec sudo ~/.scripts/system shutdown
+
+bindsym Mod1+Shift+1 $ex $notifyBrightness
