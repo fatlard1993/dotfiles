@@ -63,14 +63,12 @@ if [ "$FIRST" == "first" ]; then
 	# setup dnsmasq caching server
 	sudo cp ./etc/dnsmasq.conf /etc/
 	sudo cp ./etc/resolv.personal /etc/
+	sudo cp ./etc/resolv.conf /etc/
 	sudo cp ./etc/hosts.adblock /etc/
 
 	sudo cp ./etc/NetworkManager.conf /etc/NetworkManager/
 
 	sudo service dnsmasq restart
-
-	sudo rm -f /etc/resolv.conf
-	echo 'nameserver 127.0.0.1' > sudo /etc/resolv.conf
 
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
