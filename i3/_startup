@@ -4,6 +4,3 @@ $ex ~/.scripts/wallpaper change unsorted
 $ex ~/.scripts/clipd &
 
 $launcher
-
-$ex rm -f /etc/resolv.conf
-$ex echo 'nameserver 127.0.0.1' > /etc/resolv.conf
