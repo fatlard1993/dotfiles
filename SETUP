@@ -65,9 +65,6 @@ if [ "$FIRST" == "first" ]; then
 	cp ./resolv.personal /etc/
 	cp ./hosts.adblock /etc/
 
-	rm -f /etc/resolv.conf
-	echo 'nameserver 127.0.0.1' > /etc/resolv.conf
-
 	service dnsmasq restart
 
 	# install sudo config
