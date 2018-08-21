@@ -1,21 +1,21 @@
 # Special keys on AMBOLOVE
 
 ## circle play
-bindsym XF86Tools             $launcher
+bindsym XF86Tools             $ex google-play-music-desktop-player
 
 
 ## magnifying glass
 bindsym XF86Search            $launcher
 
 ## mail
-bindsym XF86Mail              $launcher
+bindsym XF86Mail              $ex nautilus
 
 
 ## house
 bindsym XF86Explorer          $launcher
 
 ## e
-bindsym XF86HomePage          $launcher
+bindsym XF86HomePage          $ex google-chrome "localhost:8080"
 
 
 
