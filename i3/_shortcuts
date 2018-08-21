@@ -23,16 +23,12 @@ bindsym $mod+Control+3              move container to workspace number 3, worksp
 bindsym $mod+Control+4              move container to workspace number 4, workspace number 4
 bindsym $mod+Control+5              move container to workspace number 5, workspace number 5
 bindsym $mod+Control+6              move container to workspace number 6, workspace number 6
-bindsym $mod+Control+7              move container to workspace number 7, workspace number 7
-bindsym $mod+Control+8              move container to workspace number 8, workspace number 8
-bindsym $mod+Control+9              move container to workspace number 9, workspace number 9
-bindsym $mod+Control+0              move scratchpad, scratchpad show
 bindsym $mod+Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
 bindsym $mod+Control+comma          $ex CMD="move prev" node ~/.scripts/i3node.js
 bindsym $mod+Control+period         $ex CMD="move next" node ~/.scripts/i3node.js
 
 ## Float
-bindsym $mod+f                      floating toggle
+bindsym $mod+f                      unmark, floating toggle
 bindsym $mod+s                      sticky toggle
 bindsym $mod+o                      $overwatch
 
@@ -56,13 +52,26 @@ bindsym $mod+3                      workspace number 3
 bindsym $mod+4                      workspace number 4
 bindsym $mod+5                      workspace number 5
 bindsym $mod+6                      workspace number 6
-bindsym $mod+7                      workspace number 7
-bindsym $mod+8                      workspace number 8
-bindsym $mod+9                      workspace number 9
-bindsym $mod+0                      scratchpad show
 bindsym $mod+Tab                    workspace back_and_forth
 bindsym $mod+comma                  workspace prev
 bindsym $mod+period                 workspace next
+
+
+# Scratchpads
+
+## Move
+bindsym $mod+Control+7            $ex CMD="scratchpad move_to 7" node ~/.scripts/i3node.js
+bindsym $mod+Control+8            $ex CMD="scratchpad move_to 8" node ~/.scripts/i3node.js
+bindsym $mod+Control+9            $ex CMD="scratchpad move_to 9" node ~/.scripts/i3node.js
+
+## View
+bindsym $mod+7                    [con_mark="sp*"] move scratchpad, [con_mark="sp_7"] scratchpad show
+bindsym $mod+8                    [con_mark="sp*"] move scratchpad, [con_mark="sp_8"] scratchpad show
+bindsym $mod+9                    [con_mark="sp*"] move scratchpad, [con_mark="sp_9"] scratchpad show
+
+## Etc
+bindsym $mod+0                    [con_mark="sp*"] move scratchpad
+bindsym $mod+Mod1+0               [con_mark="sp*"] move to workspace "scratchpad dump", [con_mark="sp*"] floating disable, [con_mark="sp*"] unmark, workspace "scratchpad dump"
 
 
 # Etc

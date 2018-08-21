@@ -69,7 +69,7 @@ function filterWindows(nodes, scratchpad_state){
 		windows.push(nodes[x]);
 
 		// console.log(JSON.stringify(nodes[x], null, '  '));
-		console.log(`\n${nodes[x].window_properties.instance} : ${nodes[x].scratchpad_state !== 'none' ? 'SCRATCHPAD' : 'WORKSPACE'}`);
+		console.log(`\n${nodes[x].window_properties.instance} : ${nodes[x].scratchpad_state !== 'none' ? 'SCRATCHPAD' : 'WORKSPACE'} : ${nodes[x].marks && nodes[x].marks.length ? nodes[x].marks : 'no marks'}`);
 	}
 
 	return windows;
@@ -116,7 +116,7 @@ updateInfo(function(err){
 
 			else if(CMD[1] === 'prev') newWorkspaceNumber = Math.max(0, workspace.num - 1);
 
-			exec(`i3-msg "move container to workspace number ${newWorkspaceNumber}", workspace number ${newWorkspaceNumber}`, function(){
+			exec(`i3-msg "move container to workspace number ${newWorkspaceNumber}, workspace number ${newWorkspaceNumber}"`, function(){
 				console.log('moved container | ', arguments);
 			});
 		});
@@ -126,7 +126,21 @@ updateInfo(function(err){
 		getScratchpads(function(err, scratchpads){
 			if(err) return console.error(err);
 
-			return console.log('\nscratchpad count: ', scratchpads.length);
+			var scratchpadNum;
+
+			if(CMD[1] === 'move_to') scratchpadNum = CMD[2];
+
+			exec(`i3-msg '[con_mark="sp_${scratchpadNum}"] mark "!sp", [con_mark="sp_${scratchpadNum}"] unmark'`, function(){
+				console.log('sp move step 1 ', arguments);
+
+				exec(`sleep .1s && i3-msg 'mark "sp_${scratchpadNum}", [con_mark="sp*"] move scratchpad, [con_mark="sp_${scratchpadNum}"] scratchpad show'`, function(){
+					console.log('sp move step 2 ', arguments);
+
+					exec(`sleep .1s && i3-msg '[con_mark="!sp"] move to workspace "scratchpad dump", [con_mark="!sp"] floating disable, [con_mark="!sp"] unmark'`, function(){
+						console.log('sp move step 3 ', arguments);
+					});
+				});
+			});
 		});
 	}
 
