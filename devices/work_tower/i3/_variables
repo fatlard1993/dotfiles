@@ -1,11 +1,13 @@
-set $fontSize 10
+set $fontSize   10
 set $borderSize 2
-set $pactlSink 0
+set $pactlSink  0
+
+set $mod        Mod4
 
 # left
-set $mainDisplay DVI-D-0
+set $mainDisplay VGA-1
 # right
-set $secondaryDisplay HDMI-0
+set $secondaryDisplay HDMI-1
 
 set $overwatch floating enable, sticky enable, resize set 1280 720, move window to position 1926 32
 
