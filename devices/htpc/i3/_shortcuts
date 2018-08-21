@@ -8,11 +8,11 @@ bindsym XF86Tools             $ex google-play-music-desktop-player
 bindsym XF86Search            $launcher
 
 ## mail
-bindsym XF86Mail              $ex nautilus
+bindsym XF86Mail              kill
 
 
 ## house
-bindsym XF86Explorer          $launcher
+bindsym XF86Explorer          $ex nautilus
 
 ## e
 bindsym XF86HomePage          $ex google-chrome "localhost:8080"
