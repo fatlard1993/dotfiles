@@ -71,7 +71,7 @@ bindsym $mod+9                    [con_mark="sp*"] move scratchpad, [con_mark="s
 
 ## Etc
 bindsym $mod+0                    [con_mark="sp*"] move scratchpad
-bindsym $mod+Mod1+0               [con_mark="sp*"] move to workspace "scratchpad dump", [con_mark="sp*"] floating disable, [con_mark="sp*"] unmark, workspace "scratchpad dump"
+bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad dump", [con_mark="sp*"] floating disable, [con_mark="sp*"] unmark, workspace "scratchpad dump"
 
 
 # Etc
