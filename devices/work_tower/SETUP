@@ -3,18 +3,6 @@
 if [ "$1" == "first" ]; then
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
-	# not sure if these ones are necessary anymore
-	# gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
-	# gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
-	# gsettings set org.gnome.desktop.peripherals.touchpad speed 0.5
-
-	# gsettings set org.gnome.desktop.interface scaling-factor 3
-	# gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
-	# gsettings set org.gnome.desktop.background show-desktop-icons false
-
-	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
-	(cd ~/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart)
-
   git config --global user.name  "fatlard1993"
   git config --global user.email "fatlard1993@gmail.com"
 
@@ -34,9 +22,6 @@ if [ "$1" == "first" ]; then
   cd ~/Projects/control-server-mother-hub && ./SETUP
   cd ~/Projects/dsp-web-interface && ./SETUP
 fi
-
-cp ./libinput-gestures.conf ~/.config/
-(cd ./xorg && ./SETUP)
 
 if [ "$1" == "first" ]; then
 	sudo shutdown -r now

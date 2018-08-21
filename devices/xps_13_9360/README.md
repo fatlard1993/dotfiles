@@ -102,9 +102,6 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 ## Setup
 ```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && cd ~/Projects/dotfiles && ./SETUP xps_13_9360```
 
-### Git
-```git config --global user.name "fatlard1993" && git config --global user.email "fatlard1993@gmail.com"```
-
 ### VS code
 Install the settings Sync extension and press ```Shift + Alt + D```
 
@@ -125,7 +122,7 @@ I like the font size set to 12
 5. Extra steps that may or may not be needed are listed below:
 
 
-### To fix touchscreen not behaving like a touch device in chrome
+### To fix touchscreen not behaving like a touch device in chrome (dont think this is needed anymore (8/21))
 * chrome://flags
 * Search for "Enable touch events"
 * change from "automatic" to "enabled"
@@ -136,14 +133,6 @@ I like the font size set to 12
 ```
 echo "blacklist psmouse" > /etc/modprobe.d/xps-9360.config
 ```
-
-### gnome-tweak-tool settings
-apperance:
-  global dark theme: on
-  gtk+ theme high contrast
-  icons gnome
-fonts:
-  scaling factor 1.7
 
 ### google play music desktop player
 settings
@@ -160,59 +149,3 @@ Shortcuts>view>"hide and show toolbar" alt+F4
 profile preferences
   cursor shape ibeam
   custom font source code pro 12
-colors
-  text C5C8C6
-  bg 1D1F21
-  white FFFFFF
-  black 373B41
-  Dred C04343
-  red CC6666
-  Dgreen A1AA4A
-  green B5BD68
-  Dyellow DE935F
-  yellow F0C674
-  Dblue 608AAD
-  blue 81A2BE
-  Dpurple 9D77A8
-  purple B294BB
-  Dteal 6BADA4
-  teal 8ABEB7
-  Dgrey B4B7B4
-  grey E0E0E0
-
-
-### nvm
-nvm install --lts
-
-### vs code
- * copy and paste settings and keybindings
- * install packages
-
-### sudo
-```
-Defaults Insults
-```
-
-### stuff
-cd ~/Projects && \
-  git clone https://github.com/imaustink/game.git && \
-  git clone https://github.com/fatlard1993/copyPasta.git
-
-cd ~/Projects/game && npm install
-cd ~/Projects/copyPasta && npm install
-
-if [ "$1" == "work" ]; then
-  git config --global user.name  "fatlard1993"
-  git config --global user.email "fatlard1993@gmail.com"
-
-  cd ~/Projects && \
-    git clone https://github.com/fatlard1993/symetrix-web-common.git && \
-    git clone https://github.com/fatlard1993/control-server.git && \
-    git clone https://github.com/fatlard1993/control-server-mother-hub.git && \
-    git clone https://github.com/fatlard1993/dsp-web-interface.git
-
-  cd ~/Projects/symetrix-web-common && npm install
-  cd ~/Projects/control-server && npm install
-  cd ~/Projects/control-server-mother-hub && npm install
-  cd ~/Projects/dsp-web-interface && npm install
-fi
