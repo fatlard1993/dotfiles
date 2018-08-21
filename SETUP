@@ -16,7 +16,7 @@ else
 	DEVICE=$(cat ~/.config/device)
 fi
 
-sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
+sudo notify-send "Updating apt packages, may take a while..." && sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
 if [ "$FIRST" == "first" ]; then
 	mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
@@ -69,9 +69,10 @@ if [ "$FIRST" == "first" ]; then
 	echo 'nameserver 127.0.0.1' > /etc/resolv.conf
 
 	service dnsmasq restart
-fi
 
-sudo cp ./etc/sudo.conf /etc/
+	# install sudo config
+	sudo cp ./etc/sudo.conf /etc/
+fi
 
 (cd ./devices/$DEVICE && cp ./.profile ~/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits)
