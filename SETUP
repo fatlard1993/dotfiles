@@ -61,11 +61,16 @@ if [ "$FIRST" == "first" ]; then
 	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
 
 	# setup dnsmasq caching server
-	cp ./dnsmasq.conf /etc/
-	cp ./resolv.personal /etc/
-	cp ./hosts.adblock /etc/
+	sudo cp ./etc/dnsmasq.conf /etc/
+	sudo cp ./etc/resolv.personal /etc/
+	sudo cp ./etc/hosts.adblock /etc/
 
-	service dnsmasq restart
+	sudo cp ./etc/NetworkManager.conf /etc/NetworkManager/
+
+	sudo service dnsmasq restart
+
+	sudo rm -f /etc/resolv.conf
+	echo 'nameserver 127.0.0.1' > sudo /etc/resolv.conf
 
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
