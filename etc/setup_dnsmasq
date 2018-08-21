@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [[ `whoami` != "root" ]]; then
+  echo "This script needs to be run as root.."
+  echo "Restarting with sudo"
+  SCRIPT="$(dirname $(readlink -f $0))/$(basename $0) $@"
+  echo "$SCRIPT"
+  exec sudo $SCRIPT
+  exit #?
+fi
+
+cp ./etc/dnsmasq.conf /etc/
+cp ./etc/resolv.personal /etc/
+cp ./etc/resolv.conf /etc/
+cp ./etc/hosts.adblock /etc/
+
+cp ./etc/NetworkManager.conf /etc/NetworkManager/
+
+service dnsmasq restart
