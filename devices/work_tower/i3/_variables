@@ -5,7 +5,7 @@ set $pactlSink  0
 set $mod        Mod4
 
 # left
-set $mainDisplay VGA-1
+set $mainDisplay DVI-D-1
 # right
 set $secondaryDisplay HDMI-1
 
