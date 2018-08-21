@@ -1,5 +1,0 @@
-$launcher
-
-exec --no-startup-id ~/.scripts/clipd &
-
-exec_always --no-startup-id ~/.scripts/wallpaper get

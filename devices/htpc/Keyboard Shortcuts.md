@@ -1,43 +1,39 @@
 # Keyboard Shortcuts
 
-##### i3wm htpc w/ Rii mini i8 keyboard
+##### i3wm htpc w/ AMBOLOVE keyboard
 
 ## General
-* Win + H       = Help (shows this document)
-* Win + Q       = Quit Application
-* Win + T       = Open Terminal
-* Win + V       = Clipboard History
-* Win + M       = Modes Menu
-* Win + U       = Update
-* Win + Space   = Open App Launcher
+* Alt + H       = Help (shows this document)
+* Alt + Q       = Quit Application
+* Alt + ~       = Open Terminal
+* Alt + M       = Modes Menu
+* Alt + Space   = Open App Launcher
 * Search        = Open App Launcher
 
 ## Window management
 
 ### Focus
-* Win + W       = Window Focus Up
-* Win + A       = Window Focus Left
-* Win + S       = Window Focus Down
-* Win + D       = Window Focus Right
-* Win + (1-0)   = Desktop Focus 1-10
-* Win + Tab     = Desktop Focus Last
+* Alt + UP      = Window Focus Up
+* Alt + LEFT    = Window Focus Left
+* Alt + DOWN    = Window Focus Down
+* Alt + RIGHT   = Window Focus Right
+* Alt + (1-7)   = Desktop Focus 1-7
+* Alt + Tab     = Desktop Focus Last
 
 ### Move
-* Alt + W       = Window Move Up
-* Alt + A       = Window Move Left
-* Alt + S       = Window Move Down
-* Alt + D       = Window Move Right
-* Alt + O       = Window Move to Overwatch
-* Alt + (1-0)   = Desktop Move to Desktop 1-10
-* Alt + Tab     = Desktop Move to Last
+* Control + UP      = Window Move Up
+* Control + LEFT    = Window Move Left
+* Control + DOWN    = Window Move Down
+* Control + RIGHT   = Window Move Right
+* Control + O       = Window Move to Overwatch
+* Control + (1-7)   = Desktop Move to Desktop 1-7
+* Control + Tab     = Desktop Move to Last
 
 ### Resize
 * Alt + Plus    = Increase
 * Alt + Minus   = Decrease
 
 ### Scratchpad
-* Win + Grave   = Show Scratchpad / Cycle Scratchpad Windows
-* Alt + Grave   = Move to Scratchpad
 
 ### Other
 * Alt + F       = Window Float Toggle

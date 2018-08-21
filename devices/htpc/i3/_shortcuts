@@ -1,1 +1,55 @@
+# Special keys on AMBOLOVE
+
+## circle play
+bindsym XF86Tools             $launcher
+
+
+## magnifying glass
 bindsym XF86Search            $launcher
+
+## mail
+bindsym XF86Mail              $launcher
+
+
+## house
+bindsym XF86Explorer          $launcher
+
+## e
+bindsym XF86HomePage          $launcher
+
+
+
+bindsym $win+h                $ex leafpad ~/Projects/dotfiles/devices/htpc/Keyboard\ Shortcuts.md, fullscreen enable
+
+bindsym Control+o             $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
+
+
+# Containers
+
+## Move within current workspace
+bindsym Control+Left           move left
+bindsym Control+Right          move right
+bindsym Control+Up             move up
+bindsym Control+Down           move down
+
+## Move to workspace
+bindsym Control+1              move container to workspace number 1, workspace number 1
+bindsym Control+2              move container to workspace number 2, workspace number 2
+bindsym Control+3              move container to workspace number 3, workspace number 3
+bindsym Control+4              move container to workspace number 4, workspace number 4
+bindsym Control+5              move container to workspace number 5, workspace number 5
+bindsym Control+6              move container to workspace number 6, workspace number 6
+bindsym Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
+bindsym Control+comma          $ex CMD="move prev" node ~/.scripts/i3node.js
+bindsym Control+period         $ex CMD="move next" node ~/.scripts/i3node.js
+
+
+# Scratchpads
+
+## Move
+bindsym Control+7            $ex CMD="scratchpad move_to 7" node ~/.scripts/i3node.js
+bindsym Control+8            $ex CMD="scratchpad move_to 8" node ~/.scripts/i3node.js
+bindsym Control+9            $ex CMD="scratchpad move_to 9" node ~/.scripts/i3node.js
+
+## Etc
+bindsym Control+0            [con_mark="sp*"] move to workspace "scratchpad dump", [con_mark="sp*"] floating disable, [con_mark="sp*"] unmark, workspace "scratchpad dump"
