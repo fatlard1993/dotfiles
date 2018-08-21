@@ -102,15 +102,6 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 ## Setup
 ```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && cd ~/Projects/dotfiles && ./SETUP xps_13_9360```
 
-### VS code
-Install the settings Sync extension and press ```Shift + Alt + D```
-
-Gist ID: ```840e909429cfa3e896568c2ea01ac241```
-
-add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``` and then run ```sudo sysctl -p```
-
-I like the font size set to 12
-
 ## Old setup stuff
 
 ### Setup this device starting from a fresh ubuntu unity install:
