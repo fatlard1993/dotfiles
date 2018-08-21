@@ -41,20 +41,8 @@ UUID=672B-B041 /media/storage vfat uid=1000,gid=1000,umask=0022,sync,auto,rw 0 0
 
 In the BIOS I had to uncheck "boot USB devices first"
 
-### vlc
-```
-sudo apt install -y vlc && sudo apt purge -y totem*
-```
-
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0' && gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
 
-### gnome-tweak-tool settings
-apperance:
-  global dark theme: on
-  gtk+ theme high contrast
-  icons gnome
-fonts:
-  scaling factor 1.7
 
 ### gnome-terminal
 uncheck "show menubar by default on new terminals"
@@ -62,22 +50,3 @@ Shortcuts>view>"hide and show toolbar" alt+F4
 profile preferences
   cursor shape ibeam
   custom font source code pro 12
-colors
-  text    C5C8C6 (bold same as text)
-  bg      1D1F21
-  black   373B41
-  Dgrey   B4B7B4
-  Dred    C04343
-  red     CC6666
-  Dgreen  A1AA4A
-  green   B5BD68
-  Dyellow DE935F
-  yellow  F0C674
-  Dblue   608AAD
-  blue    81A2BE
-  Dpurple 9D77A8
-  purple  B294BB
-  Dteal   6BADA4
-  teal    8ABEB7
-  grey    E0E0E0
-  white   FFFFFF
