@@ -21,15 +21,13 @@ sudo notify-send "Updating apt packages, may take a while..." && sudo apt update
 if [ "$FIRST" == "first" ]; then
 	mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
 
-	sudo apt install -y curl
+	# Install base apps
+	sudo apt install -y curl i3 feh
 
 	# Install vscode prerequisites
 	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
-
-	# Install base apps
-	sudo apt install -y libinput-tools xdotool wmctrl i3 build-essential make cpanminus autoconf automake xautolock feh pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb
 
 	# Purge unused apps
 	sudo apt purge -y totem
@@ -63,6 +61,9 @@ if [ "$FIRST" == "first" ]; then
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
 fi
+
+# Install apps
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb
 
 (cd ./devices/$DEVICE && cp ./.profile ~/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits)
