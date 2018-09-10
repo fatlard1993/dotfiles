@@ -228,20 +228,25 @@ mode --pango_markup $mode_containers {
 
 set $mode_launch "<span foreground='#000' weight='bold'>Launch</span>  <b>C</b>ode <b>F</b>iles <b>M</b>usic <b>T</b>erminal <b>W</b>eb"
 mode --pango_markup $mode_launch {
-	bindsym c      $ex code, mode default
-	bindsym f      $ex nautilus
-	bindsym m      $ex google-play-music-desktop-player, mode default
-	bindsym t      $ex gnome-terminal
-	bindsym w      $ex google-chrome, mode default
+	bindsym c          $ex code, mode default
+	bindsym f          $ex nautilus
+	bindsym m          $ex google-play-music-desktop-player, mode default
+	bindsym t          $ex gnome-terminal
+	bindsym w          $ex google-chrome, mode default
 
-	bindsym Down   split vertical
-	bindsym Right  split horizontal
+	bindsym $mod+Left  focus left
+	bindsym $mod+Right focus right
+	bindsym $mod+Up    focus up
+	bindsym $mod+Down  focus down
 
-	bindsym BackSpace mode $mode_menu
+	bindsym Down       split vertical
+	bindsym Right      split horizontal
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym BackSpace  mode $mode_menu
+
+  bindsym Escape     mode default
+  bindsym Return     mode default
+  bindsym space      mode default
 }
 
 set $mode_menu "<span foreground='#000' weight='bold'>Mode Menu</span>  <b>C</b>ontainers <b>L</b>aunch <b>S</b>ystem <b>W</b>orkspaces"
