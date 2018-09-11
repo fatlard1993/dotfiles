@@ -54,13 +54,13 @@ if [ "$FIRST" == "first" ]; then
 	(cd ./gnome-terminal && ./SETUP)
 	(cd ./fonts && ./SETUP)
 
-	cat ./etc/.bashrc >> ~/.bashrc
-
 	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
 
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
 fi
+
+cat ./etc/.bashrc >> ~/.bashrc
 
 # Install apps
 sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb
