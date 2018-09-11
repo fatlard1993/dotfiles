@@ -78,9 +78,7 @@ bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad
 
 bindsym $mod+space                  $launcher
 
-bindsym $mod+grave                  $ex gnome-terminal
-
-bindsym $mod+Control+grave          $ex ~/.scripts/xTerminals
+bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
 
 bindsym $mod+Control+o              $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
@@ -103,6 +101,13 @@ bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && $notifyBr
 bindsym Print                       $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
 
 
+# Mouse shortcuts
+
+bindsym --whole-window $mod+button2 kill
+
+bindsym --whole-window $mod+button3 floating toggle
+
+
 # Experimental
 
 bindsym --release $mod+c 						$ex ~/.scripts/copyPasta c
@@ -113,10 +118,3 @@ bindsym $mod+Control+v              $ex ~/.scripts/clipd menu
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 
 bindsym $mod+g                      $ex ~/.scripts/getActiveWindowClass gui
-
-
-# Mouse shortcuts
-
-bindsym --whole-window $mod+button2 kill
-
-bindsym --whole-window $mod+button3 floating toggle
