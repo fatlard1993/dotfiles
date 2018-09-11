@@ -126,14 +126,14 @@ updateInfo(function(err){
 		getScratchpads(function(err, scratchpads){
 			if(err) return console.error(err);
 
-			var scratchpadNum;
+			var scratchpadName;
 
-			if(CMD[1] === 'move_to') scratchpadNum = CMD[2];
+			if(CMD[1] === 'move_to') scratchpadName = CMD[2];
 
-			exec(`i3-msg '[con_mark="sp_${scratchpadNum}"] mark "!sp", [con_mark="sp_${scratchpadNum}"] unmark'`, function(){
+			exec(`i3-msg '[con_mark="sp_${scratchpadName}"] mark "!sp", [con_mark="sp_${scratchpadName}"] unmark'`, function(){
 				console.log('sp move step 1 ', arguments);
 
-				exec(`sleep .1s && i3-msg 'mark "sp_${scratchpadNum}", [con_mark="sp*"] move scratchpad, [con_mark="sp_${scratchpadNum}"] scratchpad show'`, function(){
+				exec(`sleep .1s && i3-msg 'mark "sp_${scratchpadName}", [con_mark="sp*"] move scratchpad, [con_mark="sp_${scratchpadName}"] scratchpad show'`, function(){
 					console.log('sp move step 2 ', arguments);
 
 					exec(`sleep .1s && i3-msg '[con_mark="!sp"] move to workspace "scratchpad dump", [con_mark="!sp"] floating disable, [con_mark="!sp"] unmark'`, function(){
