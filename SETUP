@@ -58,12 +58,14 @@ if [ "$FIRST" == "first" ]; then
 
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
+
+	sudo adduser $USER dialout
 fi
 
 cat ./etc/.bashrc >> ~/.bashrc
 
 # Install apps
-sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb cu
 
 (cd ./devices/$DEVICE && cp ./.profile ~/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits)
