@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if [ "$1" == "first" ]; then
+	sudo shutdown -r now
+fi
