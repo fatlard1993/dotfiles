@@ -22,7 +22,7 @@ if [ "$FIRST" == "first" ]; then
 	mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
 
 	# Install base apps
-	sudo apt install -y curl xinit xserver-xorg i3 feh
+	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime
 
 	# Install vscode prerequisites
 	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
