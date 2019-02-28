@@ -1,8 +1,8 @@
 #!/bin/bash
 
-mkdir -p /etc/systemd/system/getty@tty1.service.d && cp ./autologin.conf /etc/systemd/system/getty@tty1.service.d/
+mkdir -p /etc/systemd/system/getty@tty1.service.d
 
-cp ./.profile ~/
+cp ./autologin.conf /etc/systemd/system/getty@tty1.service.d/
 
 if [ "$1" == "first" ]; then
 	sudo shutdown -r now
