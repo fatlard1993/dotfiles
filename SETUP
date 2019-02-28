@@ -1,15 +1,16 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$1
+USER_FOLDER=/home/$USER
 
 if [ ! -e $USER_FOLDER/.config/device ]; then
-  if [ $2 ]; then
-		if [ ! -e ./devices/$2 ]; then
-			echo "$2 is not a valid device"
+  if [ $1 ]; then
+		if [ ! -e ./devices/$1 ]; then
+			echo "$1 is not a valid device"
 		else
-			DEVICE=$2
-			echo $DEVICE > $USER_FOLDER/.config/device
+			DEVICE=$1
 			FIRST=first
+
+			echo $DEVICE > $USER_FOLDER/.config/device
 		fi
 	else
 		echo "No device defined"
@@ -18,7 +19,7 @@ else
 	DEVICE=$(cat $USER_FOLDER/.config/device)
 fi
 
-sudo notify-send "Updating apt packages, may take a while..."
+notify-send "Updating apt packages, may take a while..."
 
 sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
@@ -28,15 +29,15 @@ if [ "$FIRST" == "first" ]; then
 	# Install base apps
 	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime gnome-terminal libnotify-bin
 
+	# Purge unused apps
+	sudo apt purge -y totem
+
 	if [ ! -e /etc/apt/sources.list.d/vscode.list ]; then
 		# Install vscode prerequisites
 		curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 		sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 		sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 	fi
-
-	# Purge unused apps
-	sudo apt purge -y totem
 
 	export NVM_DIR="$HOME/.nvm"
 
@@ -52,7 +53,7 @@ if [ "$FIRST" == "first" ]; then
 		sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
 	fi
 
-	sudo gpasswd -a $1 input
+	sudo gpasswd -a $USER input
 
 	git config --global credential.helper cache
 	git config --global credential.helper 'cache --timeout=3600'
@@ -65,7 +66,7 @@ if [ "$FIRST" == "first" ]; then
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
 
-	sudo adduser $1 dialout
+	sudo adduser $USER dialout
 fi
 
 cat ./etc/.bashrc >> $USER_FOLDER/.bashrc
@@ -76,11 +77,11 @@ sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus
 (cd ./devices/$DEVICE && cp ./.profile $USER_FOLDER/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits $USER_FOLDER/Pictures/Wallpapers/.subreddits)
 
-(cd ./scripts && ./SETUP $1)
-(cd ./dunst && ./SETUP $1)
-(cd ./i3 && ./SETUP $1)
+(cd ./scripts && ./SETUP)
+(cd ./dunst && ./SETUP)
+(cd ./i3 && ./SETUP)
 
-(cd ./devices/$DEVICE && ./SETUP $1 $FIRST)
+(cd ./devices/$DEVICE && ./SETUP $FIRST)
 
 if [ "$FIRST" == "first" ]; then
 	echo -e "\nReady to reboot. [enter] to continue."
