@@ -32,4 +32,5 @@ profile preferences
 4. usermod -m -d /home/newname newname
 5. logout. login as newname
 6. passwd
-7. sudo apt update && sudo apt upgrade -y && sudo apt install
+7. sudo raspi-config
+7. sudo apt update && sudo apt upgrade -y && sudo apt install git
