@@ -1,5 +1,7 @@
 #!/bin/bash
 
-mkdir -p ~/.fonts
+USER_FOLDER=/home/$1
 
-cp ./*.* ~/.fonts/ && sudo fc-cache -fv
+mkdir -p $USER_FOLDER/.fonts
+
+cp ./*.* $USER_FOLDER/.fonts/ && sudo fc-cache -fv

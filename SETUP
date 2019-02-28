@@ -1,25 +1,27 @@
 #!/bin/bash
 
-if [ ! -e ~/.config/device ]; then
-  if [ $1 ]; then
-		if [ ! -e ./devices/$1 ]; then
-			echo "$1 is not a valid device"
+USER_FOLDER=/home/$1
+
+if [ ! -e $USER_FOLDER/.config/device ]; then
+  if [ $2 ]; then
+		if [ ! -e ./devices/$2 ]; then
+			echo "$2 is not a valid device"
 		else
-			DEVICE=$1
-			echo $DEVICE > ~/.config/device
+			DEVICE=$2
+			echo $DEVICE > $USER_FOLDER/.config/device
 			FIRST=first
 		fi
 	else
 		echo "No device defined"
 	fi
 else
-	DEVICE=$(cat ~/.config/device)
+	DEVICE=$(cat $USER_FOLDER/.config/device)
 fi
 
 sudo notify-send "Updating apt packages, may take a while..." && sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
 if [ "$FIRST" == "first" ]; then
-	mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots ~/Projects
+	mkdir -p $USER_FOLDER/Pictures/Wallpapers $USER_FOLDER/Pictures/Screenshots $USER_FOLDER/Projects
 
 	# Install base apps
 	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime
@@ -46,7 +48,7 @@ if [ "$FIRST" == "first" ]; then
 	# Install global npm packages
 	npm i -g eslint gulp
 
-	sudo gpasswd -a $USER input
+	sudo gpasswd -a $1 input
 
 	git config --global credential.helper cache
 	git config --global credential.helper 'cache --timeout=3600'
@@ -54,24 +56,24 @@ if [ "$FIRST" == "first" ]; then
 	(cd ./gnome-terminal && ./SETUP)
 	(cd ./fonts && ./SETUP)
 
-	cp ./etc/gtk_dark_preference ~/.config/gtk-3.0/settings.ini
+	cp ./etc/gtk_dark_preference $USER_FOLDER/.config/gtk-3.0/settings.ini
 
 	# install sudo config
 	sudo cp ./etc/sudo.conf /etc/
 
-	sudo adduser $USER dialout
+	sudo adduser $1 dialout
 fi
 
-cat ./etc/.bashrc >> ~/.bashrc
+cat ./etc/.bashrc >> $USER_FOLDER/.bashrc
 
 # Install apps
 sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip code default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby vlc mpv dnsmasq mongodb cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
-(cd ./devices/$DEVICE && cp ./.profile ~/)
-(cd ./devices/$DEVICE && cp ./.wallpaper_subreddits ~/Pictures/Wallpapers/.subreddits)
+(cd ./devices/$DEVICE && cp ./.profile $USER_FOLDER/)
+(cd ./devices/$DEVICE && cp ./.wallpaper_subreddits $USER_FOLDER/Pictures/Wallpapers/.subreddits)
 
-(cd ./scripts && ./SETUP)
-(cd ./dunst && ./SETUP)
-(cd ./i3 && ./SETUP)
+(cd ./scripts && ./SETUP $1)
+(cd ./dunst && ./SETUP $1)
+(cd ./i3 && ./SETUP $1)
 
-(cd ./devices/$DEVICE && ./SETUP $FIRST)
+(cd ./devices/$DEVICE && ./SETUP $1 $FIRST)

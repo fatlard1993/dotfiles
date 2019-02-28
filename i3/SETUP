@@ -1,6 +1,6 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$USER
+USER_FOLDER=/home/$1
 
 if [ ! -e $USER_FOLDER/.config/device ]; then
   echo "No valid device file!"

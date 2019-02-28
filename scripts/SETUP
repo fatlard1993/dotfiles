@@ -1,7 +1,9 @@
 #!/bin/bash
 
-mkdir -p ~/.scripts
+USER_FOLDER=/home/$1
 
-cp ./* ~/.scripts
+mkdir -p $USER_FOLDER/.scripts
 
-(cd ~/.scripts && rm ./README.md ./SETUP)
+cp ./* $USER_FOLDER/.scripts
+
+(cd $USER_FOLDER/.scripts && rm ./README.md ./SETUP)
