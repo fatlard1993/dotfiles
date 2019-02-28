@@ -18,35 +18,39 @@ else
 	DEVICE=$(cat $USER_FOLDER/.config/device)
 fi
 
-sudo notify-send "Updating apt packages, may take a while..." && sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
+sudo notify-send "Updating apt packages, may take a while..."
+
+sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
 if [ "$FIRST" == "first" ]; then
 	mkdir -p $USER_FOLDER/Pictures/Wallpapers $USER_FOLDER/Pictures/Screenshots $USER_FOLDER/Projects
 
 	# Install base apps
-	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime
+	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime gnome-terminal libnotify-bin
 
-	# Install vscode prerequisites
-	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
-	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+	if [ ! -e /etc/apt/sources.list.d/vscode.list ]; then
+		# Install vscode prerequisites
+		curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+		sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+		sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+	fi
 
 	# Purge unused apps
 	sudo apt purge -y totem
 
-	# Install nvm
-	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-
 	export NVM_DIR="$HOME/.nvm"
-	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
-	nvm install --lts
+	if [ ! -e $NVM_DIR ]; then
+		# Install nvm
+		curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
 
-	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
-	sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
+		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
-	# Install global npm packages
-	npm i -g eslint gulp
+		nvm install --lts
+
+		sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
+		sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
+	fi
 
 	sudo gpasswd -a $1 input
 
@@ -77,3 +81,11 @@ sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus
 (cd ./i3 && ./SETUP $1)
 
 (cd ./devices/$DEVICE && ./SETUP $1 $FIRST)
+
+if [ "$FIRST" == "first" ]; then
+	echo -e "\nReady to reboot. [enter] to continue."
+
+	read -p ""
+
+	sudo shutdown -r now
+fi
