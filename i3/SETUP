@@ -1,13 +1,15 @@
 #!/bin/bash
 
-if [ ! -e ~/.config/device ]; then
+USER_FOLDER=/home/$USER
+
+if [ ! -e $USER_FOLDER/.config/device ]; then
   echo "No valid device file!"
   exit 1
 fi
 
-DEVICE=$(cat ~/.config/device)
+DEVICE=$(cat $USER_FOLDER/.config/device)
 
-mkdir -p ~/.config/i3
+mkdir -p $USER_FOLDER/.config/i3
 
 cat ../etc/_fileWarning \
   <(echo) ../i3/_theme \
@@ -22,22 +24,22 @@ cat ../etc/_fileWarning \
   <(echo) ../i3/_startup \
   <(echo) ../devices/$DEVICE/i3/_startup \
   <(echo) ../i3/_i3bar \
-> ~/.config/i3/config
+> $USER_FOLDER/.config/i3/config
 
 cat ../etc/_fileWarning \
   <(echo) ../i3/_status_theme \
   <(echo) ../i3/_status_items \
   <(echo) ../devices/$DEVICE/i3/_status_order \
-> ~/.config/i3/status.conf
+> $USER_FOLDER/.config/i3/status.conf
 
 if [ -e ../devices/$DEVICE/i3/_status2_order ]; then
   cat ../etc/_fileWarning \
     <(echo) ../i3/_status_theme \
     <(echo) ../i3/_status_items \
     <(echo) ../devices/$DEVICE/i3/_status2_order \
-  > ~/.config/i3/status2.conf
+  > $USER_FOLDER/.config/i3/status2.conf
 
-  cat <(echo) ../i3/_i3bar2 >> ~/.config/i3/config
+  cat <(echo) ../i3/_i3bar2 >> $USER_FOLDER/.config/i3/config
 fi
 
 i3-msg restart
