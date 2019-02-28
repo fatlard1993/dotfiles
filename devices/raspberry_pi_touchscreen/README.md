@@ -26,11 +26,11 @@ profile preferences
 
 ### Fresh install
 
-1. sudo passwd root
-2. logout. login as root
-3. usermod -l newname pi
-4. usermod -m -d /home/newname newname
-5. logout. login as newname
-6. passwd
+1. passwd
+2. sudo passwd root
+3. logout. login as root
+4. usermod -l newname pi
+5. usermod -m -d /home/newname newname
+6. logout. login as newname
 7. sudo raspi-config
-7. sudo apt update && sudo apt upgrade -y && sudo apt install git
+8. sudo apt update && sudo apt install git -y
