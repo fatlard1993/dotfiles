@@ -41,7 +41,7 @@ if [ "$1" == "first" ]; then
 		sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 	fi
 
-	sudo apt install -y code vlc mpv
+	sudo apt install -y gimp gpick code vlc mpv mongodb
 fi
 
 cp ./libinput-gestures.conf ~/.config/

@@ -65,7 +65,7 @@ fi
 cat ./etc/.bashrc >> $USER_FOLDER/.bashrc
 
 # Install apps
-sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre gimp gpick openssh-server ffmpeg arp-scan scrot youtube-dl ruby dnsmasq mongodb cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby dnsmasq cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
 (cd ./devices/$DEVICE && cp ./.profile $USER_FOLDER/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits $USER_FOLDER/Pictures/Wallpapers/.subreddits)
