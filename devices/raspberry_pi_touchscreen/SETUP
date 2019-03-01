@@ -2,6 +2,6 @@
 
 USER_FOLDER=/home/$USER
 
-mkdir -p /etc/systemd/system/getty@tty1.service.d
+# sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
 
-cp ./autologin.conf /etc/systemd/system/getty@tty1.service.d/
+# sudo cp ./autologin.conf /etc/systemd/system/getty@tty1.service.d/
