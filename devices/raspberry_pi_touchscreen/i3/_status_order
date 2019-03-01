@@ -1,5 +1,4 @@
 order += "wireless _first_"
 order += "load"
 order += "disk /"
-order += "volume master"
 order += "time"

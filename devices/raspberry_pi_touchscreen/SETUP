@@ -2,6 +2,4 @@
 
 USER_FOLDER=/home/$USER
 
-# sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
-
-# sudo cp ./autologin.conf /etc/systemd/system/getty@tty1.service.d/
+sudo apt install chromium-browser
