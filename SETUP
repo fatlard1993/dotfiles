@@ -27,7 +27,7 @@ if [ "$FIRST" == "first" ]; then
 	mkdir -p $USER_FOLDER/Pictures/Wallpapers $USER_FOLDER/Pictures/Screenshots $USER_FOLDER/Projects
 
 	# Install base apps
-	sudo apt install -y curl xinit xserver-xorg i3 feh dconf uuid-runtime gnome-terminal libnotify-bin
+	sudo apt install -y curl xinit xserver-xorg i3 feh dconf-tools uuid-runtime gnome-terminal libnotify-bin
 
 	# Purge unused apps
 	sudo apt purge -y totem
