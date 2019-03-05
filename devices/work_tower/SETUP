@@ -3,7 +3,7 @@
 if [ "$1" == "first" ]; then
 	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
 
-	cd ./vscode && ./SETUP
+	cd ~/Projects/dotfiles/vscode && ./SETUP
 
   git config --global user.name  "fatlard1993"
   git config --global user.email "fatlard1993@gmail.com"
