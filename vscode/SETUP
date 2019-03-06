@@ -10,4 +10,4 @@ if [ ! -e /etc/apt/sources.list.d/vscode.list ]; then
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 fi
 
-sudo apt install -y code
+sudo apt update && sudo apt install -y code
