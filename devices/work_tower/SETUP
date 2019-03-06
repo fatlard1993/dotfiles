@@ -1,9 +1,10 @@
 #!/bin/bash
 
 dotfiles_folder=$HOME/Projects/dotfiles
+device=$(cat $HOME/.config/device)
 
 if [ "$1" == "first" ]; then
-	sudo cp $dotfiles_folder/etc/grub /etc/default/ && sudo update-grub2
+	sudo cp $dotfiles_folder/devices/$device/etc/grub /etc/default/ && sudo update-grub2
 
 	$dotfiles_folder/vscode/SETUP
 
