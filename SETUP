@@ -27,7 +27,7 @@ if [ "$FIRST" == "first" ]; then
 	mkdir -p $USER_FOLDER/Pictures/Wallpapers $USER_FOLDER/Pictures/Screenshots $USER_FOLDER/Projects
 
 	# Install base apps
-	sudo apt install -y curl xinit xserver-xorg i3 feh dconf-tools uuid-runtime gnome-terminal libnotify-bin
+	sudo apt install -y curl xinit xserver-xorg i3 feh dconf-tools uuid-runtime gnome-terminal libnotify-bin dnsmasq
 
 	# Purge unused apps
 	sudo apt purge -y totem
@@ -53,6 +53,7 @@ if [ "$FIRST" == "first" ]; then
 
 	(cd ./gnome-terminal && ./SETUP)
 	(cd ./fonts && ./SETUP)
+	(cd ./dnsmasq && ./SETUP)
 
 	cp ./etc/gtk_dark_preference $USER_FOLDER/.config/gtk-3.0/settings.ini
 
@@ -60,12 +61,15 @@ if [ "$FIRST" == "first" ]; then
 	sudo cp ./etc/sudo.conf /etc/
 
 	sudo adduser $USER dialout
+
+	ulimit -Sn unlimited
+	ulimit -Sl unlimited
 fi
 
 cat ./etc/.bashrc >> $USER_FOLDER/.bashrc
 
 # Install apps
-sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby dnsmasq cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
 (cd ./devices/$DEVICE && cp ./.profile $USER_FOLDER/)
 (cd ./devices/$DEVICE && cp ./.wallpaper_subreddits $USER_FOLDER/Pictures/Wallpapers/.subreddits)
