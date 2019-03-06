@@ -1,8 +1,10 @@
 #!/bin/bash
 
-mkdir -p ~/.themes ~/.icons
+dotfiles_folder=$HOME/Projects/dotfiles
 
-cp -r ./theme/Tomorrow_Night ~/.themes/
-cp -r ./cursor/Hackneyed ~/.icons/
+mkdir -p $HOME/.themes $HOME/.icons
+
+cp -r $dotfiles_folder/gtk_theme/theme/Tomorrow_Night $HOME/.themes/
+cp -r $dotfiles_folder/gtk_theme/cursor/Hackneyed $HOME/.icons/
 
 gsettings set org.gnome.desktop.interface gtk-theme "Tomorrow_Night"
