@@ -7,11 +7,13 @@ if [[ `whoami` != "root" ]]; then
 	exit #?
 fi
 
-cp ./etc/dnsmasq.conf /etc/
-cp ./etc/resolv.personal /etc/
-cp ./etc/resolv.conf /etc/
-cp ./etc/hosts.adblock /etc/
+cp ./dnsmasq.conf /etc/
+cp ./resolv.personal /etc/
+cp ./resolv.conf /etc/
+cp ./hosts.adblock /etc/
 
-cp ./etc/NetworkManager.conf /etc/NetworkManager/
+cp ./NetworkManager.conf /etc/NetworkManager/
+
+service network-manager restart
 
 service dnsmasq restart
