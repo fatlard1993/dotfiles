@@ -1,22 +1,22 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$USER
+dotfiles_folder=$HOME/Projects/dotfiles
 
-if [ ! -e $USER_FOLDER/.config/device ]; then
+if [ ! -e $HOME/.config/device ]; then
   if [ $1 ]; then
-		if [ ! -e ./devices/$1 ]; then
+		if [ ! -e $dotfiles_folder/devices/$1 ]; then
 			echo "$1 is not a valid device"
 		else
 			DEVICE=$1
 			FIRST=first
 
-			echo $DEVICE > $USER_FOLDER/.config/device
+			echo $DEVICE > $HOME/.config/device
 		fi
 	else
 		echo "No device defined"
 	fi
 else
-	DEVICE=$(cat $USER_FOLDER/.config/device)
+	DEVICE=$(cat $HOME/.config/device)
 fi
 
 notify-send "Updating apt packages, may take a while..."
@@ -24,7 +24,7 @@ notify-send "Updating apt packages, may take a while..."
 sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
 
 if [ "$FIRST" == "first" ]; then
-	mkdir -p $USER_FOLDER/Pictures/Wallpapers $USER_FOLDER/Pictures/Screenshots $USER_FOLDER/Projects
+	mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
 	# Install base apps
 	sudo apt install -y curl xinit xserver-xorg i3 feh dconf-tools uuid-runtime gnome-terminal libnotify-bin dnsmasq
@@ -32,53 +32,41 @@ if [ "$FIRST" == "first" ]; then
 	# Purge unused apps
 	sudo apt purge -y totem
 
-	export NVM_DIR="$HOME/.nvm"
-
-	if [ ! -e $NVM_DIR ]; then
-		# Install nvm
-		curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-
-		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-
-		nvm install --lts
-
-		sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
-		sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
-	fi
-
 	sudo gpasswd -a $USER input
 
 	git config --global credential.helper cache
 	git config --global credential.helper 'cache --timeout=3600'
 
-	(cd ./gnome-terminal && ./SETUP)
-	(cd ./fonts && ./SETUP)
-	(cd ./dnsmasq && ./SETUP)
+	$dotfiles_folder/gnome-terminal/SETUP
+	$dotfiles_folder/fonts/SETUP
+	$dotfiles_folder/dnsmasq/SETUP
+	$dotfiles_folder/nvm/SETUP
 
-	cp ./etc/gtk_dark_preference $USER_FOLDER/.config/gtk-3.0/settings.ini
+	# Install dark theme preference
+	cp $dotfiles_folder/etc/gtk_dark_preference $HOME/.config/gtk-3.0/settings.ini
 
-	# install sudo config
-	sudo cp ./etc/sudo.conf /etc/
+	# Install sudo config
+	sudo cp $dotfiles_folder/etc/sudo.conf /etc/
 
 	sudo adduser $USER dialout
 
 	ulimit -Sn unlimited
 	ulimit -Sl unlimited
-fi
 
-cat ./etc/.bashrc >> $USER_FOLDER/.bashrc
+	cat $dotfiles_folder/etc/.bashrc >> $HOME/.bashrc
+fi
 
 # Install apps
 sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
-(cd ./devices/$DEVICE && cp ./.profile $USER_FOLDER/)
-(cd ./devices/$DEVICE && cp ./.wallpaper_subreddits $USER_FOLDER/Pictures/Wallpapers/.subreddits)
+cp $dotfiles_folder/devices/$DEVICE/.profile $HOME/
+cp $dotfiles_folder/devices/$DEVICE/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
 
-(cd ./scripts && ./SETUP)
-(cd ./dunst && ./SETUP)
-(cd ./i3 && ./SETUP)
+$dotfiles_folder/scripts/SETUP
+$dotfiles_folder/dunst/SETUP
+$dotfiles_folder/i3/SETUP
 
-(cd ./devices/$DEVICE && ./SETUP $FIRST)
+$dotfiles_folder/devices/$DEVICE/SETUP $FIRST
 
 if [ "$FIRST" == "first" ]; then
 	echo -e "\nReady to reboot. [enter] to continue."

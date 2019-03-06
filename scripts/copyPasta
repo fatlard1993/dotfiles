@@ -1,6 +1,6 @@
 #!/bin/bash
 
-activeWindowClass=$(~/.scripts/getActiveWindowClass)
+activeWindowClass=$($HOME/.scripts/getActiveWindowClass)
 terminalApp="gnome-terminal-server"
 
 if [ $activeWindowClass == $terminalApp ]; then

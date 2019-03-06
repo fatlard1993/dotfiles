@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -e /tmp/$1 ]; then
-	~/.scripts/notify -p -r `cat /tmp/$1` $1 $2 > /tmp/$1
+	$HOME/.scripts/notify -p -r `cat /tmp/$1` $1 $2 > /tmp/$1
 else
-	~/.scripts/notify -p $1 $2 > /tmp/$1
+	$HOME/.scripts/notify -p $1 $2 > /tmp/$1
 fi

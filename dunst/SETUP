@@ -1,7 +1,7 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$USER
+dotfiles_folder=$HOME/Projects/dotfiles
 
-mkdir -p $USER_FOLDER/.config/dunst
+mkdir -p $HOME/.config/dunst
 
-cp ./dunstrc $USER_FOLDER/.config/dunst/ && pkill dunst
+cp $dotfiles_folder/dunstrc $HOME/.config/dunst/ && pkill dunst

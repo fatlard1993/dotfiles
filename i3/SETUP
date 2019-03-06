@@ -1,45 +1,47 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$USER
-
-if [ ! -e $USER_FOLDER/.config/device ]; then
+if [ ! -e $HOME/.config/device ]; then
   echo "No valid device file!"
   exit 1
 fi
 
-DEVICE=$(cat $USER_FOLDER/.config/device)
+device=$(cat $HOME/.config/device)
+dotfiles_folder=$HOME/Projects/dotfiles
+device_folder=$dotfiles_folder/devices/$device
+i3_folder=$dotfiles_folder/i3
+device_i3_folder=$device_folder/i3
 
-mkdir -p $USER_FOLDER/.config/i3
+mkdir -p $HOME/.config/i3
 
-cat ../etc/_fileWarning \
-  <(echo) ../i3/_theme \
-  <(echo) ../i3/_variables \
-  <(echo) ../devices/$DEVICE/i3/_variables \
-  <(echo) ../i3/_config \
-  <(echo) ../devices/$DEVICE/i3/_config \
-  <(echo) ../i3/_shortcuts \
-  <(echo) ../devices/$DEVICE/i3/_shortcuts \
-  <(echo) ../i3/_modes \
-  <(echo) ../devices/$DEVICE/i3/_modes \
-  <(echo) ../i3/_startup \
-  <(echo) ../devices/$DEVICE/i3/_startup \
-  <(echo) ../i3/_i3bar \
-> $USER_FOLDER/.config/i3/config
+cat $dotfiles_folder/etc/_fileWarning \
+  <(echo) $i3_folder/_theme \
+  <(echo) $i3_folder/_variables \
+  <(echo) $device_i3_folder/_variables \
+  <(echo) $i3_folder/_config \
+  <(echo) $device_i3_folder/_config \
+  <(echo) $i3_folder/_shortcuts \
+  <(echo) $device_i3_folder/_shortcuts \
+  <(echo) $i3_folder/_modes \
+  <(echo) $device_i3_folder/_modes \
+  <(echo) $i3_folder/_startup \
+  <(echo) $device_i3_folder/_startup \
+  <(echo) $i3_folder/_i3bar \
+> $HOME/.config/i3/config
 
-cat ../etc/_fileWarning \
-  <(echo) ../i3/_status_theme \
-  <(echo) ../i3/_status_items \
-  <(echo) ../devices/$DEVICE/i3/_status_order \
-> $USER_FOLDER/.config/i3/status.conf
+cat $dotfiles_folder/etc/_fileWarning \
+  <(echo) $i3_folder/_status_theme \
+  <(echo) $i3_folder/_status_items \
+  <(echo) $device_i3_folder/_status_order \
+> $HOME/.config/i3/status.conf
 
-if [ -e ../devices/$DEVICE/i3/_status2_order ]; then
-  cat ../etc/_fileWarning \
-    <(echo) ../i3/_status_theme \
-    <(echo) ../i3/_status_items \
-    <(echo) ../devices/$DEVICE/i3/_status2_order \
-  > $USER_FOLDER/.config/i3/status2.conf
+if [ -e $device_i3_folder/_status2_order ]; then
+  cat $dotfiles_folder/etc/_fileWarning \
+    <(echo) $i3_folder/_status_theme \
+    <(echo) $i3_folder/_status_items \
+    <(echo) $device_i3_folder/_status2_order \
+  > $HOME/.config/i3/status2.conf
 
-  cat <(echo) ../i3/_i3bar2 >> $USER_FOLDER/.config/i3/config
+  cat <(echo) $i3_folder/_i3bar2 >> $HOME/.config/i3/config
 fi
 
 i3-msg restart

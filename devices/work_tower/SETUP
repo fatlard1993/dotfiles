@@ -1,14 +1,16 @@
 #!/bin/bash
 
-if [ "$1" == "first" ]; then
-	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
+dotfiles_folder=$HOME/Projects/dotfiles
 
-	cd ./vscode && ./SETUP
+if [ "$1" == "first" ]; then
+	sudo cp $dotfiles_folder/etc/grub /etc/default/ && sudo update-grub2
+
+	$dotfiles_folder/vscode/SETUP
 
   git config --global user.name  "fatlard1993"
   git config --global user.email "fatlard1993@gmail.com"
 
-  cd ~/Projects
+  cd $HOME/Projects
 
 	git clone https://github.com/fatlard1993/swiss-army-knife
 	git clone https://github.com/fatlard1993/symetrix-web-common
@@ -16,11 +18,11 @@ if [ "$1" == "first" ]; then
 	git clone https://github.com/fatlard1993/control-server
 	git clone https://github.com/fatlard1993/dsp-web-interface
 
-  cd ~/Projects/swiss-army-knife && ./SETUP
-  cd ~/Projects/symetrix-web-common && ./SETUP
-  cd ~/Projects/touch-panel && ./SETUP
-  cd ~/Projects/control-server && ./SETUP
-  cd ~/Projects/dsp-web-interface && ./SETUP
+  cd $HOME/Projects/swiss-army-knife && ./SETUP
+  cd $HOME/Projects/symetrix-web-common && ./SETUP
+  cd $HOME/Projects/touch-panel && ./SETUP
+  cd $HOME/Projects/control-server && ./SETUP
+  cd $HOME/Projects/dsp-web-interface && ./SETUP
 fi
 
 sudo apt install -y gimp gpick vlc mpv mongodb

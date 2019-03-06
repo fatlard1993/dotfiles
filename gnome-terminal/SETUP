@@ -1,15 +1,16 @@
 #!/bin/bash
 
-dconfdir=/org/gnome/terminal/legacy/profiles:
+dotfiles_folder=$HOME/Projects/dotfiles
+dconf_folder=/org/gnome/terminal/legacy/profiles:
 
-dconf reset -f $dconfdir/
+dconf reset -f $dconf_folder/
 
 new_id="$(uuidgen)"
 list="['$new_id']"
 
-dconf write $dconfdir/list "$list"
-dconf write "$dconfdir/:$new_id"/visible-name "'Tomorrow_Night'"
+dconf write $dconf_folder/list "$list"
+dconf write "$dconf_folder/:$new_id"/visible-name "'Tomorrow_Night'"
 
-dconf load $dconfdir/:$new_id/ < ./Tomorrow_Night.dconf
+dconf load $dconf_folder/:$new_id/ < $dotfiles_folder/gnome-terminal/Tomorrow_Night.dconf
 
-dconf write $dconfdir/default "'$new_id'"
+dconf write $dconf_folder/default "'$new_id'"

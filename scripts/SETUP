@@ -1,9 +1,9 @@
 #!/bin/bash
 
-USER_FOLDER=/home/$USER
+dotfiles_folder=$HOME/Projects/dotfiles
 
-mkdir -p $USER_FOLDER/.scripts
+mkdir -p $HOME/.scripts
 
-cp ./* $USER_FOLDER/.scripts
+cp $dotfiles_folder/scripts/* $HOME/.scripts
 
-(cd $USER_FOLDER/.scripts && rm ./README.md ./SETUP)
+(cd $HOME/.scripts && rm -f ./README.md ./SETUP)
