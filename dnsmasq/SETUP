@@ -9,6 +9,8 @@ fi
 
 dotfiles_folder=$HOME/Projects/dotfiles
 
+systemctl disable systemd-resolved
+
 cp $dotfiles_folder/dnsmasq/dnsmasq.conf /etc/
 cp $dotfiles_folder/dnsmasq/resolv.personal /etc/
 cp $dotfiles_folder/dnsmasq/resolv.conf /etc/
