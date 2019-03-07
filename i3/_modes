@@ -30,7 +30,7 @@ mode --pango_markup $mode_system_wallpaper_sort {
   bindsym s       $ex ~/.scripts/wallpaper sort save
   bindsym Shift+s $ex ~/.scripts/wallpaper sort stash
 
-  bindsym Control+s exec i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
+  bindsym Control+s $ex i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -41,8 +41,8 @@ mode --pango_markup $mode_system_wallpaper_sort {
 
 set $mode_system_wallpaper_change "<span foreground='#000' weight='bold'>Change Wallpaper</span>  <b>S</b>aved <b>U</b>nsorted"
 mode --pango_markup $mode_system_wallpaper_change {
-  bindsym s      exec ~/.scripts/wallpaper change saved
-  bindsym u      exec ~/.scripts/wallpaper change unsorted
+  bindsym s      $ex ~/.scripts/wallpaper change saved
+  bindsym u      $ex ~/.scripts/wallpaper change unsorted
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -54,7 +54,7 @@ mode --pango_markup $mode_system_wallpaper_change {
 set $mode_system_wallpaper "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>C</b>hange <b>G</b>et <b>S</b>ort"
 mode --pango_markup $mode_system_wallpaper {
 	bindsym c      mode $mode_system_wallpaper_change
-  bindsym g      exec ~/.scripts/wallpaper get
+  bindsym g      $ex ~/.scripts/wallpaper get
 	bindsym s      mode $mode_system_wallpaper_sort
 
 	bindsym BackSpace mode $mode_system
@@ -116,55 +116,56 @@ mode --pango_markup $mode_system_cursor {
 	set $fast 100
 	set $superFast 200
 
-	bindsym Shift+Left 			exec xdotool mousemove_relative -- -$slow 0
-	bindsym Shift+Down 			exec xdotool mousemove_relative 0 $slow
-	bindsym Shift+Up 				exec xdotool mousemove_relative -- 0 -$slow
-	bindsym Shift+Right 		exec xdotool mousemove_relative $slow 0
+	bindsym Shift+Left 			$ex xdotool mousemove_relative -- -$slow 0
+	bindsym Shift+Down 			$ex xdotool mousemove_relative 0 $slow
+	bindsym Shift+Up 				$ex xdotool mousemove_relative -- 0 -$slow
+	bindsym Shift+Right 		$ex xdotool mousemove_relative $slow 0
 
-	bindsym Left 						exec xdotool mousemove_relative -- -$quick 0
-	bindsym Down 						exec xdotool mousemove_relative 0 $quick
-	bindsym Up 							exec xdotool mousemove_relative -- 0 -$quick
-	bindsym Right 					exec xdotool mousemove_relative $quick 0
+	bindsym Left 						$ex xdotool mousemove_relative -- -$quick 0
+	bindsym Down 						$ex xdotool mousemove_relative 0 $quick
+	bindsym Up 							$ex xdotool mousemove_relative -- 0 -$quick
+	bindsym Right 					$ex xdotool mousemove_relative $quick 0
 
-	bindsym Control+Left 		exec xdotool mousemove_relative -- -$fast 0
-	bindsym Control+Down 		exec xdotool mousemove_relative 0 $fast
-	bindsym Control+Up 			exec xdotool mousemove_relative -- 0 -$fast
-	bindsym Control+Right 	exec xdotool mousemove_relative $fast 0
+	bindsym Control+Left 		$ex xdotool mousemove_relative -- -$fast 0
+	bindsym Control+Down 		$ex xdotool mousemove_relative 0 $fast
+	bindsym Control+Up 			$ex xdotool mousemove_relative -- 0 -$fast
+	bindsym Control+Right 	$ex xdotool mousemove_relative $fast 0
 
-	bindsym $mod+Left 			exec xdotool mousemove_relative -- -$superFast 0
-	bindsym $mod+Down 			exec xdotool mousemove_relative 0 $superFast
-	bindsym $mod+Up 				exec xdotool mousemove_relative -- 0 -$superFast
-	bindsym $mod+Right 			exec xdotool mousemove_relative $superFast 0
+	bindsym $mod+Left 			$ex xdotool mousemove_relative -- -$superFast 0
+	bindsym $mod+Down 			$ex xdotool mousemove_relative 0 $superFast
+	bindsym $mod+Up 				$ex xdotool mousemove_relative -- 0 -$superFast
+	bindsym $mod+Right 			$ex xdotool mousemove_relative $superFast 0
 
 	# Left Click
-	bindsym 1 exec xdotool click 1
+	bindsym 1               $ex xdotool click 1
 
 	# Middle Click
-	bindsym 2 exec xdotool click 2
+	bindsym 2               $ex xdotool click 2
 
 	# Right Click
-	bindsym 3 exec xdotool click 3
+	bindsym 3               $ex xdotool click 3
 
 	# Left Click-and-drag
-	bindsym Shift+1 exec xdotool mousedown 1
+	bindsym Shift+1         $ex xdotool mousedown 1
 
 	# Middle Click-and-drag
-	bindsym Shift+2 exec xdotool mousedown 2
+	bindsym Shift+2         $ex xdotool mousedown 2
 
 	# Right Click-and-drag
-	bindsym Shift+3 exec xdotool mousedown 3
+	bindsym Shift+3         $ex xdotool mousedown 3
 
 	# Left Drag release
-	bindsym Control+1 exec xdotool mouseup 1
+	bindsym Control+1       $ex xdotool mouseup 1
 
 	# Middle Drag release
-	bindsym Control+2 exec xdotool mouseup 2
+	bindsym Control+2       $ex xdotool mouseup 2
 
 	# Right Drag release
-	bindsym Control+3 exec xdotool mouseup 3
+	bindsym Control+3       $ex xdotool mouseup 3
 
-  bindsym Return mode default
-  bindsym Escape mode default
+  bindsym Return          mode default
+  bindsym Escape          mode default
+  bindsym space           mode default
 }
 
 set $mode_system_backlight "<span foreground='#000' weight='bold'>Backlight</span>  <b>[Shift]UP</b> <b>[Shift]DOWN</b> <b>M</b>ax <b>(Shift)M</b>in"
@@ -183,8 +184,21 @@ mode --pango_markup $mode_system_backlight {
   bindsym space  mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>R</b>am clear <b>V</b>olume <b>W</b>allpaper"
+set $mode_system_autolock "<span foreground='#000' weight='bold'>Autolock</span>  <b>D</b>isable <b>E</b>nable"
+mode --pango_markup $mode_system_autolock {
+	bindsym d       mode default, $ex pkill xautolock
+	bindsym e       mode default, $startAutolock
+
+	bindsym BackSpace mode $mode_system
+
+  bindsym Escape mode default
+  bindsym Return mode default
+  bindsym space  mode default
+}
+
+set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>A</b>utolock <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>R</b>am clear <b>V</b>olume <b>W</b>allpaper"
 mode --pango_markup $mode_system {
+	bindsym a      mode $mode_system_autolock
 	bindsym b      mode $mode_system_backlight
 	bindsym c      mode $mode_system_cursor
 	bindsym u      mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
@@ -204,7 +218,7 @@ mode --pango_markup $mode_system {
 set $mode_containers_kill "<span foreground='#000' weight='bold'>Kill Containers</span>  <b>A</b>ll <b>W</b>orkspace"
 mode --pango_markup $mode_containers_kill {
 	bindsym a      [class=".*"] kill, mode default
-  bindsym w      exec i3-input -F '[workspace=%s] kill' -P 'Kill containers in workspace: ', mode default
+  bindsym w      $ex i3-input -F '[workspace=%s] kill' -P 'Kill containers in workspace: ', mode default
 
 	bindsym BackSpace mode $mode_containers
 

@@ -8,4 +8,4 @@ set $mainDisplay eDP1
 
 set $overwatch floating enable, sticky enable, resize set 1280 720, move window to position 1926 32
 
-set $launcher exec --no-startup-id i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
+set $startLauncher exec --no-startup-id i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"

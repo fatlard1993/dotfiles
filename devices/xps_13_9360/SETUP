@@ -1,52 +1,43 @@
 #!/bin/bash
 
+if [ ! -e $HOME/.config/device ]; then
+  echo "No valid device file!"
+  exit 1
+fi
+
+device=$(cat $HOME/.config/device)
+dotfiles_folder=$HOME/Projects/dotfiles
+device_folder=$dotfiles_folder/devices/$device
+
 if [ "$1" == "first" ]; then
-	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
-
-	# not sure if these ones are necessary anymore
-	# gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click false
-	# gsettings set org.gnome.desktop.peripherals.touchpad tap-and-drag false
-	# gsettings set org.gnome.desktop.peripherals.touchpad speed 0.5
-
-	# gsettings set org.gnome.desktop.interface scaling-factor 3
-	# gsettings set org.gnome.desktop.interface text-scaling-factor 1.8
-	# gsettings set org.gnome.desktop.background show-desktop-icons false
-
-	(cd ~/Projects && git clone https://github.com/bulletmark/libinput-gestures.git)
-	(cd ~/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart)
+	sudo cp $device_folder/etc/grub /etc/default/ && sudo update-grub2
 
   git config --global user.name  "fatlard1993"
   git config --global user.email "fatlard1993@gmail.com"
 
-  cd ~/Projects && \
-    git clone https://github.com/fatlard1993/swiss-army-knife && \
-    git clone https://github.com/fatlard1993/symetrix-web-common && \
-    git clone https://github.com/fatlard1993/touch-panel && \
-    git clone https://github.com/fatlard1993/control-server && \
-    git clone https://github.com/fatlard1993/control-server-mother-hub && \
-    git clone https://github.com/fatlard1993/dsp-web-interface
+  cd $HOME/Projects
 
+	git clone https://github.com/fatlard1993/swiss-army-knife
+	git clone https://github.com/fatlard1993/symetrix-web-common
+	git clone https://github.com/fatlard1993/touch-panel
+	git clone https://github.com/fatlard1993/control-server
+	git clone https://github.com/fatlard1993/control-server-mother-hub
+	git clone https://github.com/fatlard1993/dsp-web-interface
+	git clone https://github.com/bulletmark/libinput-gestures.git
 
-  cd ~/Projects/swiss-army-knife && ./SETUP
-  cd ~/Projects/symetrix-web-common && ./SETUP
-  cd ~/Projects/touch-panel && ./SETUP
-  cd ~/Projects/control-server && ./SETUP
-  cd ~/Projects/control-server-mother-hub && ./SETUP
-  cd ~/Projects/dsp-web-interface && ./SETUP
+  $HOME/Projects/swiss-army-knife/SETUP
+  $HOME/Projects/symetrix-web-common/SETUP
+  $HOME/Projects/touch-panel/SETUP
+  $HOME/Projects/control-server/SETUP
+  $HOME/Projects/control-server-mother-hub/SETUP
+  $HOME/Projects/dsp-web-interface/SETUP
+	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
 
-	if [ ! -e /etc/apt/sources.list.d/vscode.list ]; then
-		# Install vscode prerequisites
-		curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-		sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
-		sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
-	fi
-
-	sudo apt install -y gimp gpick code vlc mpv mongodb
+	$dotfiles_folder/vscode/SETUP
 fi
 
-cp ./libinput-gestures.conf ~/.config/
-(cd ./xorg && ./SETUP)
+sudo apt install -y gimp gpick code vlc mpv mongodb
 
-if [ "$1" == "first" ]; then
-	sudo shutdown -r now
-fi
+cp $device_folder/libinput-gestures.conf $HOME/.config/
+
+$device_folder/xorg/SETUP

@@ -19,11 +19,11 @@ if [ "$1" == "first" ]; then
 	git clone https://github.com/fatlard1993/control-server
 	git clone https://github.com/fatlard1993/dsp-web-interface
 
-  cd $HOME/Projects/swiss-army-knife && ./SETUP
-  cd $HOME/Projects/symetrix-web-common && ./SETUP
-  cd $HOME/Projects/touch-panel && ./SETUP
-  cd $HOME/Projects/control-server && ./SETUP
-  cd $HOME/Projects/dsp-web-interface && ./SETUP
+  $HOME/Projects/swiss-army-knife/SETUP
+  $HOME/Projects/symetrix-web-common/SETUP
+  $HOME/Projects/touch-panel/SETUP
+  $HOME/Projects/control-server/SETUP
+  $HOME/Projects/dsp-web-interface/SETUP
 fi
 
 sudo apt install -y gimp gpick vlc mpv mongodb
