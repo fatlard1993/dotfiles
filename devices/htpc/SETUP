@@ -1,9 +1,13 @@
 #!/bin/bash
-
-if [ "$1" == "first" ]; then
-	sudo cp ./etc/grub /etc/default/ && sudo update-grub2
+if [ ! -e $HOME/.config/device ]; then
+  echo "No valid device file!"
+  exit 1
 fi
 
+device=$(cat $HOME/.config/device)
+dotfiles_folder=$HOME/Projects/dotfiles
+device_folder=$dotfiles_folder/devices/$device
+
 if [ "$1" == "first" ]; then
-	sudo shutdown -r now
+	sudo cp $device_folder/etc/grub /etc/default/ && sudo update-grub2
 fi

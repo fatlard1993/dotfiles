@@ -5,7 +5,7 @@ bindsym XF86Tools             $ex google-play-music-desktop-player
 
 
 ## magnifying glass
-bindsym XF86Search            $launcher
+bindsym XF86Search            $startLauncher
 
 ## mail
 bindsym XF86Mail              kill

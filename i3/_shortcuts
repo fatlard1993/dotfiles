@@ -76,13 +76,13 @@ bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad
 
 # Etc
 
-bindsym $mod+space                  $launcher
+bindsym $mod+space                  $startLauncher
 
 bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
 
 bindsym $mod+Control+o              $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
-bindsym $mod+n                      $ex leafpad ~/.ideas
+bindsym $mod+n                      $ex leafpad ~/.notes
 
 
 # Function keys
