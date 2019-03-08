@@ -163,6 +163,8 @@ mode --pango_markup $mode_system_cursor {
 	# Right Drag release
 	bindsym Control+3       $ex xdotool mouseup 3
 
+	bindsym BackSpace mode $mode_system
+
 	bindsym Return          mode default
 	bindsym Escape          mode default
 	bindsym space           mode default
