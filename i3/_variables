@@ -8,7 +8,9 @@ set $exa exec_always
 
 set $notifyBrightness ~/.scripts/pnotify Brightness $(xbacklight)
 
-set $startAutolock exec xautolock -time 10 -locker "~/.scripts/system lock"
+set $initWorkspaces exec --no-startup-id ~/.scripts/initWorkspaces
+
+set $startAutolock exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
 
 set $startLauncher exec --no-startup-id i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 

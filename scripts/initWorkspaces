@@ -1,0 +1,82 @@
+#!/bin/bash
+
+if [ ! -e $HOME/.config/device ]; then
+	echo "No valid device file!"
+	exit 1
+fi
+
+device=$(cat $HOME/.config/device)
+dotfiles_folder=$HOME/Projects/dotfiles
+device_folder=$dotfiles_folder/devices/$device
+
+if [ $device == "work_tower" ]; then
+	apps=(
+		"nautilus"
+		"nautilus"
+		"gnome-terminal"
+		"gnome-terminal"
+		"gnome-terminal"
+		"code"
+		"google-chrome"
+	)
+
+	workspaces=(
+		"3"
+		"3"
+		"11"
+		"11"
+		"11"
+		"2"
+		"1"
+	)
+elif [ $device == "xps_13_9360" ]; then
+	apps=(
+		"nautilus"
+		"nautilus"
+		"gnome-terminal"
+		"gnome-terminal"
+		"code"
+		"google-chrome"
+	)
+
+	workspaces=(
+		"4"
+		"4"
+		"3"
+		"3"
+		"2"
+		"1"
+	)
+elif [ $device == "htpc" ]; then
+	apps=(
+		"nautilus"
+		"google-chrome"
+	)
+
+	workspaces=(
+		"2"
+		"1"
+	)
+else
+	apps=(
+		"gnome-terminal"
+	)
+
+	workspaces=(
+		"1"
+	)
+fi
+
+openedWindows=0
+
+for x in ${!apps[*]}; do
+	while [ "$openedWindows" -lt "$x" ]; do
+		openedWindows=$(wmctrl -l | wc -l)
+
+		sleep 0.5s
+	done
+
+	i3-msg workspace ${workspaces[$x]}
+
+	${apps[$x]} &
+done
