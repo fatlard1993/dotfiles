@@ -1,70 +1,70 @@
-set $mode_workspaces_layout "<span foreground='#000' weight='bold'>Layout</span>  <b>D</b>efault <b>S</b>tacking <b>T</b>abbed"
+set $mode_workspaces_layout "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Layout </span>  <span weight='heavy' size='large'>D</span>efault <span weight='heavy' size='large'>S</span>tacking <span weight='heavy' size='large'>T</span>abbed"
 mode --pango_markup $mode_workspaces_layout {
-  bindsym s      layout stacking, mode default
-  bindsym t      layout tabbed, mode default
-  bindsym d      layout default, mode default
+	bindsym s      layout stacking, mode default
+	bindsym t      layout tabbed, mode default
+	bindsym d      layout default, mode default
 
 	bindsym BackSpace mode $mode_workspaces
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_workspaces "<span foreground='#000' weight='bold'>Workspaces</span>  <b>L</b>ayout <b>M</b>ark"
+set $mode_workspaces "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Workspaces </span>  <span weight='heavy' size='large'>L</span>ayout <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_workspaces {
-  bindsym l      mode $mode_workspaces_layout
-  bindsym m      mode default, $ex ~/.scripts/i3workspaceMark
+	bindsym l      mode $mode_workspaces_layout
+	bindsym m      mode default, $ex ~/.scripts/i3workspaceMark
 
 	bindsym BackSpace mode $mode_menu
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_wallpaper_sort "<span foreground='#000' weight='bold'>Sort Wallpapers</span>  <b>C</b>hange <b>D</b>elete <b>S</b>ave <b>(Shift)S</b>tash"
+set $mode_system_wallpaper_sort "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Sort Wallpapers </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>D</span>elete <span weight='heavy' size='large'>S</span>ave <span weight='heavy' size='large'>(Shift)S</span>tash"
 mode --pango_markup $mode_system_wallpaper_sort {
-  bindsym c       $ex ~/.scripts/wallpaper change unsorted
-  bindsym d       $ex ~/.scripts/wallpaper sort delete
-  bindsym s       $ex ~/.scripts/wallpaper sort save
-  bindsym Shift+s $ex ~/.scripts/wallpaper sort stash
+	bindsym c       $ex ~/.scripts/wallpaper change unsorted
+	bindsym d       $ex ~/.scripts/wallpaper sort delete
+	bindsym s       $ex ~/.scripts/wallpaper sort save
+	bindsym Shift+s $ex ~/.scripts/wallpaper sort stash
 
-  bindsym Control+s $ex i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
+	bindsym Control+s $ex i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_wallpaper_change "<span foreground='#000' weight='bold'>Change Wallpaper</span>  <b>S</b>aved <b>U</b>nsorted"
+set $mode_system_wallpaper_change "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Change Wallpaper </span>  <span weight='heavy' size='large'>S</span>aved <span weight='heavy' size='large'>U</span>nsorted"
 mode --pango_markup $mode_system_wallpaper_change {
-  bindsym s      $ex ~/.scripts/wallpaper change saved
-  bindsym u      $ex ~/.scripts/wallpaper change unsorted
+	bindsym s      $ex ~/.scripts/wallpaper change saved
+	bindsym u      $ex ~/.scripts/wallpaper change unsorted
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_wallpaper "<span foreground='#000' weight='bold'>Wallpaper</span>  <b>C</b>hange <b>G</b>et <b>S</b>ort"
+set $mode_system_wallpaper "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Wallpaper </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>G</span>et <span weight='heavy' size='large'>S</span>ort"
 mode --pango_markup $mode_system_wallpaper {
 	bindsym c      mode $mode_system_wallpaper_change
-  bindsym g      $ex ~/.scripts/wallpaper get
+	bindsym g      $ex ~/.scripts/wallpaper get
 	bindsym s      mode $mode_system_wallpaper_sort
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_volume "<span foreground='#000' weight='bold'>Volume</span>  <b>[Shift|Control]UP</b> <b>[Shift|Control]DOWN</b> <b>M</b>ute"
+set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Control]UP</span> <span weight='heavy' size='large'>[Shift|Control]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
 mode --pango_markup $mode_system_volume {
 	bindsym up           $ex pactl set-sink-volume $pactlSink +6%
 	bindsym down         $ex pactl set-sink-volume $pactlSink -6%
@@ -76,40 +76,40 @@ mode --pango_markup $mode_system_volume {
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_leave "<span foreground='#000' weight='bold'>Leave</span>  <b>E</b>xit <b>L</b>ock <b>R</b>eboot <b>S</b>hutdown"
+set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown <span weight='heavy' size='large'>U</span>pdate and shutdown"
 mode --pango_markup $mode_system_leave {
-  bindsym e      $ex sudo ~/.scripts/system logout
-  bindsym l      mode default, $ex ~/.scripts/system lock
-  bindsym r      $ex sudo ~/.scripts/system reboot
-  bindsym s      $ex sudo ~/.scripts/system shutdown
+	bindsym e      $ex sudo ~/.scripts/system logout
+	bindsym l      mode default, $ex ~/.scripts/system lock
+	bindsym s      $ex sudo ~/.scripts/system shutdown
+	bindsym u 		 $ex (cd ~/Projects/dotfiles/i3 && ./SETUP && sudo ~/.scripts/system shutdown)
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_i3 "<span foreground='#000' weight='bold'>i3</span>  <b>C</b>ommand <b>R</b>eload <b>(Shift)R</b>estart <b>U</b>pdate"
+set $mode_system_i3 "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> i3 </span>  <span weight='heavy' size='large'>C</span>ommand <span weight='heavy' size='large'>R</span>eload <span weight='heavy' size='large'>(Shift)R</span>estart <span weight='heavy' size='large'>U</span>pdate"
 mode --pango_markup $mode_system_i3 {
 	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
-  bindsym r 			reload
-  bindsym Shift+r restart
-  bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
+	bindsym r 			reload
+	bindsym Shift+r restart
+	bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_cursor "<span foreground='#000' weight='bold'>KB Cursor Control</span>  <b>Movement</b> Shift = slow | Control = fast :: <b>Buttons</b> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
+set $mode_system_cursor "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> KB Cursor Control </span>  <span weight='heavy' size='large'>Movement</span> Shift = slow | Control = fast :: <span weight='heavy' size='large'>Buttons</span> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
 mode --pango_markup $mode_system_cursor {
 	set $slow 5
 	set $quick 20
@@ -163,12 +163,12 @@ mode --pango_markup $mode_system_cursor {
 	# Right Drag release
 	bindsym Control+3       $ex xdotool mouseup 3
 
-  bindsym Return          mode default
-  bindsym Escape          mode default
-  bindsym space           mode default
+	bindsym Return          mode default
+	bindsym Escape          mode default
+	bindsym space           mode default
 }
 
-set $mode_system_backlight "<span foreground='#000' weight='bold'>Backlight</span>  <b>[Shift]UP</b> <b>[Shift]DOWN</b> <b>M</b>ax <b>(Shift)M</b>in"
+set $mode_system_backlight "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Backlight </span>  <span weight='heavy' size='large'>[Shift]UP</span> <span weight='heavy' size='large'>[Shift]DOWN</span> <span weight='heavy' size='large'>M</span>ax <span weight='heavy' size='large'>(Shift)M</span>in"
 mode --pango_markup $mode_system_backlight {
 	bindsym up         $ex xbacklight -inc 10 -time 20   && $notifyBrightness
 	bindsym down       $ex xbacklight -dec 10 -time 20   && $notifyBrightness
@@ -179,55 +179,57 @@ mode --pango_markup $mode_system_backlight {
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system_autolock "<span foreground='#000' weight='bold'>Autolock</span>  <b>D</b>isable <b>E</b>nable"
+set $mode_system_autolock "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Autolock </span>  <span weight='heavy' size='large'>D</span>isable <span weight='heavy' size='large'>E</span>nable"
 mode --pango_markup $mode_system_autolock {
 	bindsym d       mode default, $ex pkill xautolock
 	bindsym e       mode default, $startAutolock
 
 	bindsym BackSpace mode $mode_system
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_system "<span foreground='#000' weight='bold'>System</span>  <b>A</b>utolock <b>B</b>acklight <b>C</b>ursor <b>U</b>pdate <b>i</b>3 <b>L</b>eave <b>R</b>am clear <b>V</b>olume <b>W</b>allpaper"
+set $mode_system "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> System </span>  <span weight='heavy' size='large'>A</span>utolock <span weight='heavy' size='large'>B</span>acklight <span weight='heavy' size='large'>C</span>ursor <span weight='heavy' size='large'>F</span>ree RAM <span weight='heavy' size='large'>U</span>pdate <span weight='heavy' size='large'>(Shift)U</span>pdate and reboot <span weight='heavy' size='large'>i</span>3 <span weight='heavy' size='large'>L</span>eave <span weight='heavy' size='large'>R</span>eboot <span weight='heavy' size='large'>V</span>olume <span weight='heavy' size='large'>W</span>allpaper"
 mode --pango_markup $mode_system {
-	bindsym a      mode $mode_system_autolock
-	bindsym b      mode $mode_system_backlight
-	bindsym c      mode $mode_system_cursor
-	bindsym u      mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
-	bindsym i      mode $mode_system_i3
-	bindsym l      mode $mode_system_leave
-	bindsym r      mode default, $ex sudo ~/.scripts/clear_ram
-	bindsym v      mode $mode_system_volume
-	bindsym w      mode $mode_system_wallpaper
+	bindsym a       mode $mode_system_autolock
+	bindsym b       mode $mode_system_backlight
+	bindsym c       mode $mode_system_cursor
+	bindsym f       mode default, $ex sudo ~/.scripts/clear_ram
+	bindsym u       mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
+	bindsym Shift+u mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP && sudo ~/.scripts/system reboot)
+	bindsym i       mode $mode_system_i3
+	bindsym l       mode $mode_system_leave
+	bindsym r       $ex sudo ~/.scripts/system reboot
+	bindsym v       mode $mode_system_volume
+	bindsym w       mode $mode_system_wallpaper
 
 	bindsym BackSpace mode $mode_menu
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape  mode default
+	bindsym Return  mode default
+	bindsym space   mode default
 }
 
-set $mode_containers_kill "<span foreground='#000' weight='bold'>Kill Containers</span>  <b>A</b>ll <b>W</b>orkspace"
+set $mode_containers_kill "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Kill Containers </span>  <span weight='heavy' size='large'>A</span>ll <span weight='heavy' size='large'>W</span>orkspace"
 mode --pango_markup $mode_containers_kill {
 	bindsym a      [class=".*"] kill, mode default
-  bindsym w      $ex i3-input -F '[workspace=%s] kill' -P 'Kill containers in workspace: ', mode default
+	bindsym w      $ex i3-input -F '[workspace=%s] kill' -P 'Kill containers in workspace: ', mode default
 
 	bindsym BackSpace mode $mode_containers
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_containers "<span foreground='#000' weight='bold'>Containers</span>  <b>F</b>ullscreen <b>K</b>ill <b>M</b>ark"
+set $mode_containers "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Containers </span>  <span weight='heavy' size='large'>F</span>ullscreen <span weight='heavy' size='large'>K</span>ill <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_containers {
 	bindsym f      fullscreen
 	bindsym k      mode $mode_containers_kill
@@ -235,12 +237,12 @@ mode --pango_markup $mode_containers {
 
 	bindsym BackSpace mode $mode_menu
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
-set $mode_launch "<span foreground='#000' weight='bold'>Launch</span>  <b>C</b>ode <b>F</b>iles <b>M</b>usic <b>T</b>erminal <b>W</b>eb"
+set $mode_launch "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Launch </span>  <span weight='heavy' size='large'>C</span>ode <span weight='heavy' size='large'>F</span>iles <span weight='heavy' size='large'>M</span>usic <span weight='heavy' size='large'>T</span>erminal <span weight='heavy' size='large'>W</span>eb"
 mode --pango_markup $mode_launch {
 	bindsym c          $ex code, mode default
 	bindsym f          $ex nautilus
@@ -258,23 +260,23 @@ mode --pango_markup $mode_launch {
 
 	bindsym BackSpace  mode $mode_menu
 
-  bindsym Escape     mode default
-  bindsym Return     mode default
-  bindsym space      mode default
+	bindsym Escape     mode default
+	bindsym Return     mode default
+	bindsym space      mode default
 }
 
-set $mode_menu "<span foreground='#000' weight='bold'>Mode Menu</span>  <b>C</b>ontainers <b>L</b>aunch <b>S</b>ystem <b>W</b>orkspaces"
+set $mode_menu "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Mode Menu </span>  <span weight='heavy' size='large'>C</span>ontainers <span weight='heavy' size='large'>L</span>aunch <span weight='heavy' size='large'>S</span>ystem <span weight='heavy' size='large'>W</span>orkspaces"
 mode --pango_markup $mode_menu {
-  bindsym c      mode $mode_containers
-  bindsym l      mode $mode_launch
-  bindsym s      mode $mode_system
-  bindsym w      mode $mode_workspaces
+	bindsym c      mode $mode_containers
+	bindsym l      mode $mode_launch
+	bindsym s      mode $mode_system
+	bindsym w      mode $mode_workspaces
 
-  bindsym BackSpace mode default
+	bindsym BackSpace mode default
 
-  bindsym Escape mode default
-  bindsym Return mode default
-  bindsym space  mode default
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
 }
 
 bindsym $mod+m       mode $mode_menu
