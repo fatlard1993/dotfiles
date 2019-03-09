@@ -21,7 +21,7 @@ NVIDIA GK208 [GeForce GT 635]
 Qualcomm Atheros AR9485
 
 ### RAM
-8Gb
+16Gb
 
 ### HDD
 1Tb spinning
