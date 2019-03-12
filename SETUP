@@ -39,7 +39,6 @@ if [ "$FIRST" == "first" ]; then
 
 	$dotfiles_folder/gnome-terminal/SETUP
 	$dotfiles_folder/fonts/SETUP
-	$dotfiles_folder/dnsmasq/SETUP
 	$dotfiles_folder/nvm/SETUP
 
 	# Install dark theme preference
@@ -69,6 +68,8 @@ $dotfiles_folder/i3/SETUP
 $dotfiles_folder/devices/$DEVICE/SETUP $FIRST
 
 if [ "$FIRST" == "first" ]; then
+	$dotfiles_folder/dnsmasq/SETUP
+
 	echo -e "\nReady to reboot. [enter] to continue."
 
 	read -p ""
