@@ -4,8 +4,8 @@ set $pactlSink 0
 
 set $mod			Mod1
 
-# HDMI1 = miniHDMI, HDMI2 = miniDisplayPort
-set $mainDisplay HDMI1
+# HDMI-1 = miniHDMI
+set $mainDisplay HDMI-1
 
 set $overwatch floating enable, sticky enable, resize set 1280 720, move window to position 1926 32
 
