@@ -11,12 +11,11 @@ dotfiles_folder=$HOME/Projects/dotfiles
 
 systemctl disable systemd-resolved
 
-cp $dotfiles_folder/dnsmasq/dnsmasq.conf /etc/
-cp $dotfiles_folder/dnsmasq/resolv.personal /etc/
-cp $dotfiles_folder/dnsmasq/resolv.conf /etc/
-cp $dotfiles_folder/dnsmasq/hosts.adblock /etc/
-
-cp $dotfiles_folder/dnsmasq/NetworkManager.conf /etc/NetworkManager/
+cp --remove-destination $dotfiles_folder/dnsmasq/dnsmasq.conf /etc/
+cp --remove-destination $dotfiles_folder/dnsmasq/resolv.personal /etc/
+cp --remove-destination $dotfiles_folder/dnsmasq/resolv.conf /etc/
+cp --remove-destination $dotfiles_folder/dnsmasq/hosts.adblock /etc/
+cp --remove-destination $dotfiles_folder/dnsmasq/NetworkManager.conf /etc/NetworkManager/
 
 service network-manager restart
 
