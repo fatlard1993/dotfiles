@@ -19,7 +19,7 @@ bindsym XF86HomePage          $ex google-chrome "localhost:8080"
 
 
 
-bindsym $win+h                $ex leafpad ~/Projects/dotfiles/devices/htpc/Keyboard\ Shortcuts.md, fullscreen enable
+bindsym $mod+h                $ex leafpad ~/Projects/dotfiles/devices/htpc/Keyboard\ Shortcuts.md, fullscreen enable
 
 bindsym Control+o             $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
