@@ -1,7 +1,5 @@
 set $numlock	Mod2
 
-set $mainDisplay LVDS-0
-
 set $ex exec --no-startup-id
 
 set $exa exec_always
