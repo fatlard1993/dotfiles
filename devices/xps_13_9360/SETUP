@@ -17,21 +17,21 @@ if [ "$1" == "first" ]; then
 
   cd $HOME/Projects
 
-	git clone https://github.com/fatlard1993/swiss-army-knife
-	git clone https://github.com/fatlard1993/symetrix-web-common
-	git clone https://github.com/fatlard1993/touch-panel
-	git clone https://github.com/fatlard1993/control-server
-	git clone https://github.com/fatlard1993/control-server-mother-hub
-	git clone https://github.com/fatlard1993/dsp-web-interface
+	$dotfiles_folder/scripts/cloneProjects Medeina zelda home-page wallpaper-manager
+
 	git clone https://github.com/bulletmark/libinput-gestures.git
 
-  $HOME/Projects/swiss-army-knife/SETUP
-  $HOME/Projects/symetrix-web-common/SETUP
-  $HOME/Projects/touch-panel/SETUP
-  $HOME/Projects/control-server/SETUP
-  $HOME/Projects/control-server-mother-hub/SETUP
-  $HOME/Projects/dsp-web-interface/SETUP
 	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
+
+	mkdir -p $HOME/Projects/symetrix
+
+	cd $HOME/Projects/symetrix
+
+	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue mixer config-parser symetrix-web-common voip-webadmin symetrix-tcp-tester
+
+	cd $HOME/Projects/lib
+
+	$dotfiles_folder/scripts/cloneProjects eslint-config-rules log js-util dom config-manager fs-extended socket-client xml dialog websocket-server menu notify http-server color-picker
 
 	$dotfiles_folder/vscode/SETUP
 fi
