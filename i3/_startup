@@ -3,6 +3,4 @@ $ex ~/.scripts/wallpaper change unsorted
 
 $ex ~/.scripts/clipd &
 
-$ex sleep 1s && i3-msg mode $mode_menu
-
 $initWorkspaces
