@@ -1,4 +1,4 @@
 
 for file in ~/.bashrc.d/*; do
-	source “$file”
+	source "$file"
 done
