@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [ ! -e $HOME/.config/device ]; then
-  echo "No valid device file!"
-  exit 1
+	echo "No valid device file!"
+	exit 1
 fi
 
 device=$(cat $HOME/.config/device)
@@ -12,10 +12,10 @@ device_folder=$dotfiles_folder/devices/$device
 if [ "$1" == "first" ]; then
 	sudo cp $device_folder/etc/grub /etc/default/ && sudo update-grub2
 
-  git config --global user.name  "fatlard1993"
-  git config --global user.email "fatlard1993@gmail.com"
+	git config --global user.name "fatlard1993"
+	git config --global user.email "fatlard1993@gmail.com"
 
-  cd $HOME/Projects
+	cd $HOME/Projects
 
 	$dotfiles_folder/scripts/cloneProjects Medeina zelda home-page wallpaper-manager
 
@@ -27,7 +27,7 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects/symetrix
 
-	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue mixer config-parser symetrix-web-common voip-webadmin symetrix-tcp-tester
+	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue mixer config-parser symetrix-web-common voip-webadmin symetrix-tcp-tester symetrix-theme
 
 	cd $HOME/Projects/lib
 
