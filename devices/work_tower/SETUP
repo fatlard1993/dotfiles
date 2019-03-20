@@ -26,4 +26,4 @@ if [ "$1" == "first" ]; then
   $HOME/Projects/dsp-web-interface/SETUP
 fi
 
-sudo apt install -y gimp gpick vlc mpv mongodb
+sudo apt install -y gimp gpick vlc mpv mongodb smbclient samba cifs-utils
