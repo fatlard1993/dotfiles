@@ -88,8 +88,8 @@ bindsym $mod+n                      $ex leafpad ~/.notes
 # Function keys
 
 ## Volume
-bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +6%
-bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -6%
+bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +6% && $notifyVolume
+bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -6% && $notifyVolume
 bindsym XF86AudioMute               $ex pactl set-sink-mute   $pactlSink toggle
 
 ## Backlight
