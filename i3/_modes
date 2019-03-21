@@ -66,12 +66,12 @@ mode --pango_markup $mode_system_wallpaper {
 
 set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Control]UP</span> <span weight='heavy' size='large'>[Shift|Control]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
 mode --pango_markup $mode_system_volume {
-	bindsym up           $ex pactl set-sink-volume $pactlSink +6%
-	bindsym down         $ex pactl set-sink-volume $pactlSink -6%
-	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3%
-	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3%
-	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90%
-	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10%
+	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && $notifyVolume
+	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && $notifyVolume
+	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && $notifyVolume
+	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && $notifyVolume
+	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && $notifyVolume
+	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && $notifyVolume
 	bindsym m            $ex pactl set-sink-mute   $pactlSink toggle
 
 	bindsym BackSpace mode $mode_system

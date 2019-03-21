@@ -6,6 +6,8 @@ set $exa exec_always
 
 set $notifyBrightness ~/.scripts/pnotify Brightness $(xbacklight)
 
+set $notifyVolume ~/.scripts/pnotify Volume $(amixer -D pulse get Master | awk '$2== "Left:" {print $5}')
+
 set $initWorkspaces exec --no-startup-id ~/.scripts/initWorkspaces
 
 set $startAutolock exec --no-startup-id xautolock -time 10 -locker "~/.scripts/system lock"
