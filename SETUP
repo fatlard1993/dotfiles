@@ -49,6 +49,8 @@ if [ "$FIRST" == "first" ]; then
 
 	sudo adduser $USER dialout
 
+	sudo setcap 'cap_net_bind_service=+ep' `which node`
+
 	ulimit -Sn unlimited
 	ulimit -Sl unlimited
 
