@@ -1,5 +1,5 @@
-$ex cd ~/Projects/htpc-remote && ./server/index.js --port 80 &
+$ex ~/Projects/htpc-remote/server/index.js --port 80 &
 
-$ex cd ~/Projects/home-page && ./server/index.js --port 8080 &
+$ex ~/Projects/home-page/server/index.js --port 8080 &
 
 $ex /usr/lib/gnome-settings-daemon/gsd-xsettings &
