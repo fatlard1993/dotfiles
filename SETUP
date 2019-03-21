@@ -61,7 +61,10 @@ fi
 sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
 cp $dotfiles_folder/devices/$DEVICE/.profile $HOME/
+
 cp $dotfiles_folder/devices/$DEVICE/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+
+cp $dotfiles_folder/bashrc/* $HOME/.bashrc.d/
 
 $dotfiles_folder/scripts/SETUP
 $dotfiles_folder/dunst/SETUP
