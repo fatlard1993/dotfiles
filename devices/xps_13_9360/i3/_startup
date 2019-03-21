@@ -9,3 +9,5 @@ $exa libinput-gestures-setup stop && libinput-gestures-setup start
 $ex /usr/lib/gnome-settings-daemon/gsd-xsettings &
 
 $startAutolock
+
+$ex ~/Projects/home-page/server/index.js --port 8080 &
