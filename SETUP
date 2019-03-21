@@ -55,6 +55,8 @@ if [ "$FIRST" == "first" ]; then
 	ulimit -Sl unlimited
 
 	cat $dotfiles_folder/etc/.bashrc >> $HOME/.bashrc
+
+	mkdir -p $HOME/.bashrc.d
 fi
 
 # Install apps
