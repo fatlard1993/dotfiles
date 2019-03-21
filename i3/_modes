@@ -86,7 +86,7 @@ mode --pango_markup $mode_system_leave {
 	bindsym e      $ex sudo ~/.scripts/system logout
 	bindsym l      mode default, $ex ~/.scripts/system lock
 	bindsym s      $ex sudo ~/.scripts/system shutdown
-	bindsym u 		 $ex (cd ~/Projects/dotfiles/i3 && ./SETUP && sudo ~/.scripts/system shutdown)
+	bindsym u 		 $ex (cd ~/Projects/dotfiles && git pull && ./SETUP && sudo ~/.scripts/system shutdown)
 
 	bindsym BackSpace mode $mode_system
 
