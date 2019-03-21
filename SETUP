@@ -66,6 +66,8 @@ cp $dotfiles_folder/devices/$DEVICE/.profile $HOME/
 
 cp $dotfiles_folder/devices/$DEVICE/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
 
+cp $dotfiles_folder/etc/.bash_profile $HOME/
+
 cp $dotfiles_folder/bashrc/* $HOME/.bashrc.d/
 
 $dotfiles_folder/scripts/SETUP
