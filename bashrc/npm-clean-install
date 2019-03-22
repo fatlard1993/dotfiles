@@ -1,0 +1,3 @@
+#!/bin/bash
+
+alias npm-clean-install="rm -rf ./node_modules && npm i --only=prod"

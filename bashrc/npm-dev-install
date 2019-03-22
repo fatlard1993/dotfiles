@@ -1,0 +1,3 @@
+#!/bin/bash
+
+alias npm-dev-install="rm -rf ./node_modules && rm -f ./package-lock.json && npm i"
