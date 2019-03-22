@@ -68,6 +68,8 @@ cp $dotfiles_folder/devices/$DEVICE/.wallpaper_subreddits $HOME/Pictures/Wallpap
 
 cp $dotfiles_folder/etc/.bash_profile $HOME/
 
+rm -f $HOME/.bashrc.d/*
+
 cp $dotfiles_folder/bashrc/* $HOME/.bashrc.d/
 
 $dotfiles_folder/scripts/SETUP
