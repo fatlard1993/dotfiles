@@ -41,3 +41,5 @@ sudo apt install -y gimp gpick code vlc mpv mongodb
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
 $device_folder/xorg/SETUP
+
+cd $HOME/Projects/home-page && git pull && rm -rf node_modules && npm i
