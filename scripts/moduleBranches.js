@@ -42,9 +42,8 @@ folders.forEach((folder) => {
 
 			if(!remoteBranchMatch) return console.log(`${logColor.red}Could not read branches for folder: ${folder}${logColor.reset}\n`);
 
-			currentBranch = logColor[currentBranch === remoteBranchMatch[1] ? 'green' : 'red'] + currentBranch + logColor.reset;
-
-			console.log(`${folder} : ${currentBranch}\n${remoteBranches.replace(/.*HEAD\s->\s.*\n/, '').replace(new RegExp(`.*${remoteBranchMatch[1]}\n`), '')}`);
+			console.log(`${folder} : ${logColor[currentBranch === remoteBranchMatch[1] ? 'green' : 'red']}${currentBranch}${logColor.reset}`);
+			console.log(`${remoteBranches.replace(/.*HEAD\s->\s.*\n/, '').replace(new RegExp(`.*${currentBranch}\n`), '')}`);
 		});
 	});
 });
