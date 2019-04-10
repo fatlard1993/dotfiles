@@ -87,3 +87,5 @@ if [ "$FIRST" == "first" ]; then
 
 	sudo shutdown -r now
 fi
+
+notify-send "Done updating system!"
