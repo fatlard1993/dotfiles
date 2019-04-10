@@ -27,3 +27,9 @@ Run the script with no parameters to see usage.
 ### gpmdp.js
 This is a node app that is used for talking to the gpmdp application.
 It is very raw and doesn't do much, I just made it when I was bored..
+
+### initWorkspaces
+
+This script runs at login and sets up a base set of windows in workspaces.
+
+* vs code automatically reopens a new window with the most recent thing used. To disable this behavior you must set the "window.restoreWindows" to "none".
