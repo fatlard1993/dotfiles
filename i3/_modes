@@ -83,7 +83,7 @@ mode --pango_markup $mode_system_volume {
 
 set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown <span weight='heavy' size='large'>U</span>pdate and shutdown"
 mode --pango_markup $mode_system_leave {
-	bindsym e      $ex sudo ~/.scripts/system logout
+	bindsym e      $ex sudo ~/.scripts/system exit
 	bindsym l      mode default, $ex ~/.scripts/system lock
 	bindsym s      $ex sudo ~/.scripts/system shutdown
 	bindsym u 		 $ex (cd ~/Projects/dotfiles && git pull && ./SETUP && sudo ~/.scripts/system shutdown)

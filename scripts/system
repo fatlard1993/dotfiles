@@ -9,25 +9,22 @@ case "$1" in
     scrot $screenCap && convert $screenCap -blur 8x8 $screenCap
     i3lock -i $screenCap
   ;;
-  logout)
+  exit)
+		i3-msg [class=".*"] kill
+
     i3-msg exit
     ;;
-  suspend)
-    pm-suspend
-    ;;
-  hibernate)
-    pm-hibernate
-    ;;
   reboot)
+		i3-msg [class=".*"] kill
+
     shutdown -r now
     ;;
-  update_and_reboot)
-    apt update -y && apt upgrade -y && shutdown -r now
-    ;;
   shutdown)
+		i3-msg [class=".*"] kill
+
     shutdown -h now
     ;;
   *)
-    echo "Usage: $0 {lock|logout|suspend|hibernate|reboot|update_and_reboot|shutdown}"
+    echo "Usage: $0 {lock|exit|reboot|shutdown}"
     exit 2
 esac
