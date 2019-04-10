@@ -15,7 +15,7 @@ This script hijacks the caps lock LED and mimics the function of a HDD LED
 
 ### system
 This script simply provides useful proxy to some handy functions:
-lock | logout | suspend | hibernate | reboot | shutdown
+lock | exit | suspend | hibernate | reboot | shutdown
 
 ### clipd
 This script provides a clipboard manager utilizing dmenu
