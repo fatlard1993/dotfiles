@@ -11,57 +11,135 @@ device_folder=$dotfiles_folder/devices/$device
 
 if [ $device == "work_tower" ]; then
 	apps=(
-		"nautilus"
-		"gnome-terminal"
-		"gnome-terminal"
-		"gnome-terminal"
-		"code ~/Projects/lib.code-workspace"
-		"code ~/Projects/werk.code-workspace"
-		"google-chrome"
+		"nautilus -w"
+		"nautilus -w"
+		"nautilus -w /home/chase/Downloads"
+		"gnome-terminal --working-directory /home/chase"
+		"gnome-terminal --working-directory /home/chase/Projects"
+		"gnome-terminal --working-directory /home/chase/Projects"
+		"code -n Projects/lib.code-workspace"
+		"code -n Projects/werk.code-workspace"
+		"google-chrome -d https://outlook.office365.com/owa/#path=/mail http://localhost:8080"
 	)
 
 	workspaces=(
-		"4"
+		"12"
+		"12"
+		"12"
 		"11"
 		"11"
 		"11"
 		"3"
 		"2"
 		"1"
+	)
+
+	workspaceNames=(
+		"12 Files"
+		"12 Files"
+		"12 Files"
+		"11 Term"
+		"11 Term"
+		"11 Term"
+		"3 Lib"
+		"2 Werk"
+		"1 Web"
+	)
+
+	workspaceColors=(
+		"#8abeb7"
+		"#8abeb7"
+		"#8abeb7"
+		"#b5bd68"
+		"#b5bd68"
+		"#b5bd68"
+		"#b294bb"
+		"#f0c674"
+		"#cc6666"
 	)
 elif [ $device == "xps_13_9360" ]; then
 	apps=(
-		"nautilus"
-		"gnome-terminal"
-		"gnome-terminal"
-		"code -n"
-		"google-chrome"
+		"nautilus -w"
+		"nautilus -w /home/chase/Downloads"
+		"gnome-terminal --working-directory /home/chase"
+		"gnome-terminal --working-directory /home/chase/Projects"
+		"code -n Projects/lib.code-workspace"
+		"code -n Projects/werk.code-workspace"
+		"google-chrome -d https://outlook.office365.com/owa/#path=/mail http://localhost:8080"
 	)
 
 	workspaces=(
+		"5"
+		"5"
 		"4"
-		"3"
+		"4"
 		"3"
 		"2"
 		"1"
+	)
+
+	workspaceNames=(
+		"5 Files"
+		"5 Files"
+		"4 Term"
+		"4 Term"
+		"3 Lib"
+		"2 Werk"
+		"1 Web"
+	)
+
+	workspaceColors=(
+		"#8abeb7"
+		"#8abeb7"
+		"#b5bd68"
+		"#b5bd68"
+		"#b294bb"
+		"#f0c674"
+		"#cc6666"
 	)
 elif [ $device == "htpc" ]; then
 	apps=(
-		"nautilus"
+		"gnome-terminal"
+		"nautilus -w /home/htpc/Downloads"
 		"google-chrome"
+	)
+
+	workspaces=(
+		"3"
+		"2"
+		"1"
+	)
+
+	workspaceNames=(
+		"3 Term"
+		"2 Files"
+		"1 Web"
+	)
+
+	workspaceColors=(
+		"#b5bd68"
+		"#8abeb7"
+		"#cc6666"
+	)
+else
+	apps=(
+		"nautilus -w"
+		"gnome-terminal"
 	)
 
 	workspaces=(
 		"2"
 		"1"
 	)
-else
-	apps=(
-		"gnome-terminal"
+
+	workspaceNames=(
+		"2 Files"
+		"1 Term"
 	)
 
-	workspaces=(
-		"1"
+	workspaceColors=(
+		"#8abeb7"
+		"#b5bd68"
 	)
 fi
 
@@ -74,7 +152,9 @@ for x in ${!apps[*]}; do
 		sleep 1s
 	done
 
-	i3-msg workspace ${workspaces[$x]}
+	i3-msg workspace number ${workspaces[$x]}
+
+	i3-msg "rename workspace \"$(i3-msg -t 'get_workspaces' | sed -e 's/{"num/\n{"num/g' | grep \"focused\":true | sed -e 's/,"/\n/g' | grep name | cut -d\" -f 3)\" to \"${workspaces[$x]}<span foreground='${workspaceColors[$x]}' weight='heavy'>${workspaceNames[$x]}</span>\""
 
 	${apps[$x]} &
 done
