@@ -53,8 +53,8 @@ if [ $device == "work_tower" ]; then
 		"#b5bd68"
 		"#b5bd68"
 		"#b5bd68"
-		"#b294bb"
 		"#f0c674"
+		"#de935f"
 		"#cc6666"
 	)
 elif [ $device == "xps_13_9360" ]; then
@@ -93,8 +93,8 @@ elif [ $device == "xps_13_9360" ]; then
 		"#8abeb7"
 		"#b5bd68"
 		"#b5bd68"
-		"#b294bb"
 		"#f0c674"
+		"#de935f"
 		"#cc6666"
 	)
 elif [ $device == "htpc" ]; then
