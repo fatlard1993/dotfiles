@@ -1,6 +1,6 @@
 set $fontSize 16
 set $borderSize 4
-set $pactlSink 5
+set $pactlSink 0
 
 set $mod			Mod4
 
