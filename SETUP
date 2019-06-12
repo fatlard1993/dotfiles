@@ -32,6 +32,12 @@ if [ "$FIRST" == "first" ]; then
 	# Purge unused apps
 	sudo apt purge -y totem
 
+	sudo add-apt-repository ppa:maarten-baert/simplescreenrecorder
+
+	sudo apt update
+
+	sudo apt install -y simplescreenrecorder
+
 	sudo gpasswd -a $USER input
 
 	git config --global credential.helper cache
