@@ -1,3 +1,5 @@
+for_window [class="quakeTerm"]  floating enable, resize set 1280 480, move window to position 0 0
+
 workspace 11 output $secondaryDisplay
 workspace 12 output $secondaryDisplay
 workspace 13 output $secondaryDisplay
