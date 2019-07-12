@@ -5,6 +5,7 @@ set $pactlSink 0
 set $mod			Mod4
 
 set $mainDisplay eDP1
+set $secondaryDisplay DP1
 
 set $overwatch floating enable, sticky enable, resize set 1280 720, move window to position 1926 32
 
