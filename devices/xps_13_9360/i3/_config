@@ -1,1 +1,14 @@
-for_window [class="quakeTerm"] floating enable, resize set 3206 480, move window to position 0 0
+for_window [class="quakeTerm"]  floating enable, resize set 3206 480, move window to position 0 0
+
+workspace F1 output             $secondaryDisplay
+workspace F2 output             $secondaryDisplay
+workspace F3 output             $secondaryDisplay
+workspace F4 output             $secondaryDisplay
+workspace F5 output             $secondaryDisplay
+workspace F6 output             $secondaryDisplay
+workspace F7 output             $secondaryDisplay
+workspace F8 output             $secondaryDisplay
+workspace F9 output             $secondaryDisplay
+workspace F10 output            $secondaryDisplay
+workspace F11 output            $secondaryDisplay
+workspace F12 output            $secondaryDisplay
