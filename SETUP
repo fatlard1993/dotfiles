@@ -30,7 +30,7 @@ if [ "$FIRST" == "first" ]; then
 	sudo apt install -y curl xinit xserver-xorg i3 feh dconf-tools uuid-runtime gnome-terminal libnotify-bin dnsmasq fonts-font-awesome pasystray
 
 	# Purge unused apps
-	sudo apt purge -y totem
+	sudo apt purge -y totem* thunderbird*
 
 	sudo add-apt-repository ppa:maarten-baert/simplescreenrecorder
 
@@ -66,7 +66,7 @@ if [ "$FIRST" == "first" ]; then
 fi
 
 # Install apps
-sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module git-lfs
 
 cp $dotfiles_folder/devices/$DEVICE/.profile $HOME/
 
