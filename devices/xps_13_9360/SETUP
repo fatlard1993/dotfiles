@@ -17,7 +17,7 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects
 
-	$dotfiles_folder/scripts/cloneProjects Medeina zelda home-page wallpaper-manager
+	$dotfiles_folder/scripts/cloneProjects Medeina zelda home-page wallpaper-manager byod-game-engine htpc-remote skel party-game
 
 	git clone https://github.com/bulletmark/libinput-gestures.git
 
@@ -27,11 +27,11 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects/symetrix
 
-	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue mixer config-parser symetrix-web-common voip-webadmin symetrix-tcp-tester symetrix-theme
+	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue-app mixer-app config-parser voip-webadmin symetrix-theme
 
 	cd $HOME/Projects/lib
 
-	$dotfiles_folder/scripts/cloneProjects eslint-config-rules log js-util dom config-manager fs-extended socket-client xml dialog websocket-server menu notify http-server color-picker
+	$dotfiles_folder/scripts/cloneProjects eslint-config-rules log js-util dom config-manager fs-extended socket-client xml dialog websocket-server menu notify http-server color-picker page-compiler
 
 	$dotfiles_folder/vscode/SETUP
 fi
