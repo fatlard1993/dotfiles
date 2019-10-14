@@ -27,7 +27,7 @@ if [ "$FIRST" == "first" ]; then
 	mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
 	# Install base apps
-	sudo apt install -y dconf-tools
+	sudo apt install -y dconf-tools default-jre
 	sudo apt install -y curl xinit xserver-xorg i3 feh uuid-runtime gnome-terminal libnotify-bin dnsmasq fonts-font-awesome pasystray software-properties-common nautilus
 
 	# Purge unused apps
@@ -67,7 +67,7 @@ if [ "$FIRST" == "first" ]; then
 fi
 
 # Install apps
-sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip default-jre openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
+sudo apt install -y libinput-tools xdotool wmctrl build-essential make cpanminus autoconf automake xautolock pavucontrol leafpad xbacklight speedtest-cli xclip openssh-server ffmpeg arp-scan scrot youtube-dl ruby cu net-tools libcanberra-gtk-module libcanberra-gtk3-module
 
 cp $dotfiles_folder/devices/$DEVICE/.profile $HOME/
 
