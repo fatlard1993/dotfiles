@@ -88,6 +88,8 @@ $dotfiles_folder/devices/$DEVICE/SETUP $FIRST
 if [ "$FIRST" == "first" ]; then
 	$dotfiles_folder/dnsmasq/SETUP
 
+	sudo apt autoremove -y
+
 	echo -e "\nReady to reboot. [enter] to continue."
 
 	read -p ""
