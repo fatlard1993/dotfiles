@@ -2,6 +2,10 @@ bar {
   id bar-0
   output $mainDisplay
 
+	bindsym button3 $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
+	bindsym button4 nop
+	bindsym button5 nop
+
   position top
   status_command i3status -c ~/.config/i3/status.conf
   strip_workspace_numbers yes
