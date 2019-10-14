@@ -1,3 +1,21 @@
 #!/bin/bash
 
-sudo apt install chromium-browser
+if [ ! -e $HOME/.config/device ]; then
+	echo "No valid device file!"
+	exit 1
+fi
+
+device=$(cat $HOME/.config/device)
+dotfiles_folder=$HOME/Projects/dotfiles
+device_folder=$dotfiles_folder/devices/$device
+
+if [ "$1" == "first" ]; then
+	git config --global user.name "fatlard1993"
+	git config --global user.email "fatlard1993@gmail.com"
+
+	cd $HOME/Projects
+
+	$dotfiles_folder/scripts/cloneProjects Medeina home-page htpc-remote
+fi
+
+sudo apt install -y chromium-browser
