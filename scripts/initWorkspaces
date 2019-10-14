@@ -101,6 +101,31 @@ elif [ $device == "xps_13_9360" ]; then
 		"#de935f"
 		"#cc6666"
 	)
+elif [ $device == "raspberry_pi_touchscreen" ]; then
+	apps=(
+		"gnome-terminal"
+		"nautilus -w /home/pi/Downloads"
+		"chromium-browser"
+	)
+
+	workspaces=(
+		"3"
+		"2"
+		"1"
+	)
+
+	workspaceNames=(
+		"3 Term"
+		"2 Files"
+		"1 Web"
+	)
+
+	workspaceColors=(
+		"#b5bd68"
+		"#8abeb7"
+		"#cc6666"
+	)
+
 elif [ $device == "htpc" ]; then
 	apps=(
 		"gnome-terminal"

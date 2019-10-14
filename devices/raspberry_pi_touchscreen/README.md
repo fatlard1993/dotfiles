@@ -44,6 +44,10 @@ Hardware Info
 10. cd dotfiles && ./SETUP raspberry_pi_touchscreen
 11. update-alternatives --config x-window-manager
 
+In ~/.config/lxsession/LXDE/desktop.conf, change window_manager=openbox-lxde to window_manager=i3
+
+empty this file: ~/.config/lxsession/LXDE-pi/autostart
+
 ## Creating sd cards
 
 [link](https://www.raspberrypi.org/documentation/installation/installing-images/linux.md)
