@@ -24,4 +24,4 @@ fi
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
-sudo apt install -y chromium-browser
+sudo apt install -y chromium-browser onboard
