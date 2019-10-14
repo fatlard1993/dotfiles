@@ -16,6 +16,12 @@ if [ "$1" == "first" ]; then
 	cd $HOME/Projects
 
 	$dotfiles_folder/scripts/cloneProjects Medeina home-page htpc-remote
+
+	git clone https://github.com/bulletmark/libinput-gestures.git
+
+	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
 fi
+
+cp $device_folder/libinput-gestures.conf $HOME/.config/
 
 sudo apt install -y chromium-browser
