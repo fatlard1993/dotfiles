@@ -51,6 +51,8 @@ Hardware Info
 
 ## Creating sd cards
 
+`sudo dd bs=4M if=./Downloads/2019-09-26-raspbian-buster.img of=/dev/mmcblk0 conv=fsync`
+
 [link](https://www.raspberrypi.org/documentation/installation/installing-images/linux.md)
 
 ## Interesting stuff
