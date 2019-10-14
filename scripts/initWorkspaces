@@ -69,7 +69,7 @@ elif [ $device == "xps_13_9360" ]; then
 		"gnome-terminal --working-directory /home/chase/Projects"
 		"code -n Projects/lib.code-workspace"
 		"code -n Projects/werk.code-workspace"
-		"google-chrome -d https://outlook.office365.com/owa/#path=/mail http://localhost:8080"
+		"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
 	)
 
 	workspaces=(
@@ -104,8 +104,8 @@ elif [ $device == "xps_13_9360" ]; then
 elif [ $device == "raspberry_pi_touchscreen" ]; then
 	apps=(
 		"gnome-terminal"
-		"nautilus -w /home/pi/Downloads"
-		"chromium-browser"
+		"nautilus -w /home/chase/Downloads"
+		"chromium-browser -d http://localhost"
 	)
 
 	workspaces=(
