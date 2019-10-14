@@ -1,3 +1,4 @@
-order += "wireless _first_"
+order += "ethernet_simple _first_"
+order += "wireless_simple _first_"
 order += "load"
 order += "time"
