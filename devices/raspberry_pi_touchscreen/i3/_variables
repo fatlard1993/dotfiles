@@ -1,4 +1,4 @@
-set $fontSize 20
+set $fontSize 16
 set $borderSize 4
 set $pactlSink 0
 
