@@ -3,7 +3,7 @@ ethernet _first_ {
   format_down = " down"
 }
 
-ethernet_simple _first_ {
+ethernet eth0 {
   format_up = " %ip"
   format_down = ""
 }
@@ -13,7 +13,7 @@ wireless _first_ {
   format_down = " down"
 }
 
-wireless_simple _first_ {
+wireless wlan0 {
   format_up = " %ip"
   format_down = ""
 }
