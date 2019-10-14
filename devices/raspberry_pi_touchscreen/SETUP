@@ -20,6 +20,8 @@ if [ "$1" == "first" ]; then
 	git clone https://github.com/bulletmark/libinput-gestures.git
 
 	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
+
+	> $HOME/.config/lxsession/LXDE-pi/autostart
 fi
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
