@@ -1,5 +1,7 @@
 This directory contains files specific to my raspberry pi touchscreen
 
+Currently running raspbian buster
+
 Hardware Info
 =============
 
