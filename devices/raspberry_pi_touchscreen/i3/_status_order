@@ -1,4 +1,4 @@
-order += "ethernet_simple _first_"
-order += "wireless_simple _first_"
+order += "ethernet eth0"
+order += "wireless wlan0"
 order += "load"
 order += "time"
