@@ -17,14 +17,13 @@ Hardware Info
 
 ### SDD
 
-### gnome-terminal
-uncheck "show menubar by default on new terminals"
-Shortcuts>view>"hide and show toolbar" alt+F4
-profile preferences
-  cursor shape ibeam
-  custom font source code pro 12
+## gnome-terminal
 
-### Fresh install
+profile preferences
+  * cursor shape ibeam
+  * custom font source code pro 12
+
+## Fresh install
 
 1. passwd
 2. sudo passwd root
@@ -34,3 +33,7 @@ profile preferences
 6. logout. login as newname
 7. sudo raspi-config
 8. sudo apt update && sudo apt install git -y
+
+## Creating sd cards
+
+[link](https://www.raspberrypi.org/documentation/installation/installing-images/linux.md)
