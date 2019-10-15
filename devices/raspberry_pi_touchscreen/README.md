@@ -37,16 +37,7 @@ Hardware Info
 
 ## Fresh install
 
-1. passwd
-2. sudo passwd root
-3. logout. login as root
-4. usermod -l newname pi
-5. usermod -m -d /home/newname newname
-6. logout. login as newname
-8. sudo apt update && sudo apt install git -y
-9. DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git
-10. cd dotfiles && ./SETUP raspberry_pi_touchscreen
-11. update-alternatives --config x-window-manager
+`DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git & cd dotfiles && ./SETUP raspberry_pi_touchscreen`
 
 ## Creating sd cards
 
