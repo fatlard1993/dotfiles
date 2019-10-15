@@ -104,25 +104,21 @@ elif [ $device == "xps_13_9360" ]; then
 elif [ $device == "raspberry_pi_touchscreen" ]; then
 	apps=(
 		"gnome-terminal"
-		"nautilus -w /home/chase/Downloads"
 		"chromium-browser -d http://localhost"
 	)
 
 	workspaces=(
-		"3"
 		"2"
 		"1"
 	)
 
 	workspaceNames=(
-		"3 Term"
-		"2 Files"
+		"2 Term"
 		"1 Web"
 	)
 
 	workspaceColors=(
 		"#b5bd68"
-		"#8abeb7"
 		"#cc6666"
 	)
 
