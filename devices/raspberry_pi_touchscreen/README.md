@@ -1,30 +1,15 @@
+# Raspberry pi w/ touchscreen
+
 This directory contains files specific to my raspberry pi touchscreen
 
 Currently running raspbian buster
-
-Hardware Info
-=============
-
-### Ports
-
-### Processor
-
-### Graphics
-
-### Screen
-
-### Wifi
-
-### RAM
-
-### SDD
-
 
 ## gnome-terminal
 
 * profile preferences
   * cursor shape ibeam
   * custom font source code pro 12
+
 
 ## onboard
 
@@ -35,15 +20,31 @@ Hardware Info
 * theme
 	* nightshade
 
+
 ## Fresh install
 
 `DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git & cd dotfiles && ./SETUP raspberry_pi_touchscreen`
+
+Set session manager to lxsession and window manager to i3. After reboot run: `cd ~/Projects/dotfiles && ./devices/raspberry_pi_touchscreen/fixLxSession`
+
+### Touchscreen calibration
+
+`xinput-calibrator`
+
+### Startup node apps
+
+1. `npm i -g pm2`
+2. `cd app`
+3. `pm2 start index.js`
+4. `pm2 startup`
+5. `pm2 save`
 
 ## Creating sd cards
 
 `sudo dd bs=4M if=./Downloads/2019-09-26-raspbian-buster.img of=/dev/mmcblk0 conv=fsync`
 
 [link](https://www.raspberrypi.org/documentation/installation/installing-images/linux.md)
+
 
 ## Interesting stuff
 

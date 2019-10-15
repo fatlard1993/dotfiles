@@ -21,13 +21,10 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
 
-	> $HOME/.config/lxsession/LXDE/autostart
-
-	sed -i "s/openbox-lxde/i3/" $HOME/.config/lxsession/LXDE/desktop.conf
-
+	update-alternatives --config x-session-manager
 	update-alternatives --config x-window-manager
 fi
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
-sudo apt install -y chromium-browser onboard
+sudo apt install -y chromium-browser onboard xinput-calibrator
