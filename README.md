@@ -47,3 +47,7 @@ add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``
 [ps1 generator](http://bashrcgenerator.com/)
 
 https://wiki.archlinux.org/index.php/Bash/Prompt_customization
+
+## wifi audio streaming
+
+http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
