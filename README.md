@@ -37,3 +37,11 @@ add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``
 ## Sudo settings
 * ```Defaults   insults```
 * ```$USER   ALL=NOPASSWD: /home/$USER/.scripts/*```
+
+## LXTerm
+
+[theme](https://askubuntu.com/questions/442887/changing-the-colors-of-lxterminal)
+
+## bashrc
+
+[ps1 generator](http://bashrcgenerator.com/)
