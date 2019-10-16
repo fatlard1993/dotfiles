@@ -17,8 +17,6 @@ Currently running raspbian buster
 	* check auto show when editing text
 * window
 	* check dock screen to edge
-* theme
-	* nightshade
 
 
 ## Fresh install
