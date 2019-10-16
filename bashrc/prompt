@@ -1,0 +1,85 @@
+#!/bin/bash
+
+function checkExitStatus {
+  local status="$?"
+  local signal=""
+  local COLOR1="\033[0;0;33m"     #First color
+  local COLOR2="\033[0;0;36m"     #Second color
+  local NO_COLOR="\033[0m"        #Transparent - don't change
+
+  if [ ${status} -ne 0 -a ${status} != 128 ]; then
+    # If process exited by a signal, determine name of signal.
+    if [ ${status} -gt 128 ]; then
+      signal="$(builtin kill -l $((${status} - 128)) 2>/dev/null)"
+      if [ "$signal" ]; then
+        signal="$signal"
+      fi
+    fi
+    echo -e "${COLOR1}[Exit ${COLOR2}${status} ${signal}${COLOR1}]${NO_COLOR}" 1>&2
+    #echo -ne "${COLOR1}[Exit ${COLOR2}${status}${COLOR1} ${COLOR2}${signal}${COLOR1}]${NO_COLOR} " 1>&2
+    fi
+  return 0
+}
+
+function promptCommand {
+	c0="\[\e[0m\]"
+	cdef="\[\e[39m\]"
+	ccyan="\[\e[36m\]"
+	clcyan="\[\e[96m\]"
+	cpurp="\[\e[35m\]"
+	clpurp="\[\e[95m\]"
+	cblu="\[\e[34m\]"
+	clblu="\[\e[94m\]"
+	cyel="\[\e[33m\]"
+	clyel="\[\e[93m\]"
+	cgrn="\[\e[32m\]"
+	clgrn="\[\e[92m\]"
+	cred="\[\e[31m\]"
+	clred="\[\e[91m\]"
+	cblk="\[\e[30m\]"
+	clgrey="\[\e[37m\]"
+	cgrey="\[\e[90m\]"
+
+	promptReset="\e(B\e[m"
+
+	hostname="\H"
+	username="\u"
+	directory="\w"
+	tty="${clpurp}[${cpurp}tty\l${clpurp}]"
+	expandingPipe="\e7\e[1A┣\e8┗"
+	prePrompt="\$"
+	lastCommand=$(history | tail -n1 | sed 's/^[[:space:]][0-9]*[[:space:]]*//g')
+	gitBranch=`[ -d .git ] && git name-rev --name-only @`
+
+	local maxLength=25 # todo an automatic size would be nice
+	local trunSsymbol="..."
+	local dir=${PWD##*/}
+
+	maxLength=$(( ( maxLength < ${#dir} ) ? ${#dir} : maxLength ))
+	shortPwd=${PWD/#$HOME/\~}
+
+	local pwdOffset=$(( ${#shortPwd} - maxLength ))
+
+	if [ ${pwdOffset} -gt "0" ]; then
+		shortPwd=${shortPwd:$pwdOffset:$maxLength}
+		shortPwd=${truncSymbol}/${shortPwd#*/}
+	fi
+
+	trap 'tput sgr0' DEBUG
+
+	if [[ `whoami` == "root" ]]; then
+		PS1="${c0}${cred}┏${clpurp}${tty}${clyel}[${cyel}${username}${clyel}@${cyel}${hostname}${clyel}] ${cblu}${shortPwd} ${ccyan}${gitBranch} \n${cred}┗ ${prePrompt} ${cred}"
+
+		PS2="${c0}${cred}${expandingPipe} > ${cred}"
+	else
+		PS1="${c0}${cdef}┏${clpurp}${tty}${clgrn}[${cgrn}${username}${clgrn}@${cgrn}${hostname}${clgrn}] ${cblu}${shortPwd} ${ccyan}${gitBranch} \n${cdef}┗ ${prePrompt} ${cdef}"
+
+		PS2="${c0}${cdef}${expandingPipe} > ${cdef}"
+	fi
+
+	printf "$promptReset%*s\r" $(tput cols) "[$(date '+%T')]"
+
+	checkExitStatus
+}
+
+PROMPT_COMMAND=promptCommand
