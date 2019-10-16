@@ -21,6 +21,16 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
 
+	cd $HOME/Projects/Medeina && npm i
+	cd $HOME/Projects/home-page && npm i
+
+	npm i -g pm2
+
+	gsettings set org.onboard start-minimized true
+	gsettings set org.onboard show-status-icon true
+	gsettings set org.onboard xembed-onboard true
+	gsettings set org.onboard theme /usr/share/onboard/themes/Nightshade.theme
+
 	update-alternatives --config x-session-manager
 	update-alternatives --config x-window-manager
 fi
