@@ -36,7 +36,7 @@ if [ "$1" == "first" ]; then
 	$dotfiles_folder/vscode/SETUP
 fi
 
-sudo apt install -y gimp gpick code vlc mpv mongodb onboard
+sudo apt install -y gimp gpick code vlc mpv mongodb onboard android-tools-adb
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
