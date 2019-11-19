@@ -20,43 +20,28 @@ function promptCommand {
 	cgrey="\[\e[90m\]"
 
 	promptReset="\e(B\e[m"
-
-	hostname="\H"
-	username="\u"
-	directory="\w"
-	tty="${clpurp}[${cpurp}tty\l${clpurp}]"
-	expandingPipe="\e7\e[1A┣\e8┗"
-	prePrompt="\$"
 	lastCommand=$(history | tail -n1 | sed 's/^[[:space:]][0-9]*[[:space:]]*//g')
-	gitBranch=`[ -d .git ] && git name-rev --name-only @`
-
-	local maxLength=25 # todo an automatic size would be nice
-	local trunSsymbol="..."
-	local dir=${PWD##*/}
-
-	maxLength=$(( ( maxLength < ${#dir} ) ? ${#dir} : maxLength ))
-	shortPwd=${PWD/#$HOME/\~}
-
-	local pwdOffset=$(( ${#shortPwd} - maxLength ))
-
-	if [ ${pwdOffset} -gt "0" ]; then
-		shortPwd=${shortPwd:$pwdOffset:$maxLength}
-		shortPwd=${truncSymbol}/${shortPwd#*/}
-	fi
+	expandingPipe="\e7\e[1A┣\e8┗"
+	prePrompt=" \$ "
+	hostname="\H"
+	gitBranch=`[ -d .git ] && echo "${clcyan}[${ccyan}$(git name-rev --name-only @)${clcyan}]"`
+	user="${clgrn}[${cgrn}\u${clgrn}@${cgrn}${hostname}${clgrn}]"
+	adminUser="${clyel}[${cyel}\u${clyel}@${cyel}${hostname}${clyel}]"
+	directory="${clblu}[${cblu}\w${clblu}]"
+	tty="${clpurp}[${cpurp}tty\l${clpurp}]"
+	time="${cdef}[${clgrey}$(date '+%T')${cdef}]"
 
 	trap 'tput sgr0' DEBUG
 
 	if [[ `whoami` == "root" ]]; then
-		PS1="${c0}${cred}┏${clpurp}${tty}${clyel}[${cyel}${username}${clyel}@${cyel}${hostname}${clyel}] ${cblu}${shortPwd} ${ccyan}${gitBranch} \n${cred}┗ ${prePrompt} ${cred}"
+		PS1="${c0}${cred}┏${time}${tty}${adminUser}${directory}${gitBranch}\n${cred}┗${prePrompt}"
 
-		PS2="${c0}${cred}${expandingPipe} > ${cred}"
+		PS2="${c0}${cred}${expandingPipe}${prePrompt}"
 	else
-		PS1="${c0}${cdef}┏${clpurp}${tty}${clgrn}[${cgrn}${username}${clgrn}@${cgrn}${hostname}${clgrn}] ${cblu}${shortPwd} ${ccyan}${gitBranch} \n${cdef}┗ ${prePrompt} ${cdef}"
+		PS1="${c0}${cdef}┏${time}${tty}${user}${directory}${gitBranch}\n${cdef}┗${prePrompt}"
 
-		PS2="${c0}${cdef}${expandingPipe} > ${cdef}"
+		PS2="${c0}${cdef}${expandingPipe}${prePrompt}"
 	fi
-
-	printf "$promptReset%*s\r" $(tput cols) "[$(date '+%T')]"
 }
 
 PROMPT_COMMAND=promptCommand
