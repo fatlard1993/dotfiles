@@ -66,6 +66,8 @@ if [ "$FIRST" == "first" ]; then
 
 	mkdir -p $HOME/.bashrc.d
 	mkdir -p ~root/.bashrc.d
+
+	sudo ubuntu-drivers autoinstall
 fi
 
 # Install apps
