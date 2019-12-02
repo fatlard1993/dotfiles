@@ -28,7 +28,7 @@ function promptCommand {
 	user="${clgrn}[${cgrn}\u${clgrn}@${cgrn}${hostname}${clgrn}]"
 	adminUser="${clyel}[${cyel}\u${clyel}@${cyel}${hostname}${clyel}]"
 	directory="${clblu}[${cblu}\w${clblu}]"
-	tty="${clpurp}[${cpurp}tty\l${clpurp}]"
+	tty="${clpurp}[${cpurp}\l${clpurp}]"
 	time="${cdef}[${clgrey}$(date '+%T')${cdef}]"
 
 	trap 'tput sgr0' DEBUG
