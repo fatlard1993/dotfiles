@@ -42,4 +42,7 @@ cp $device_folder/libinput-gestures.conf $HOME/.config/
 
 $device_folder/xorg/SETUP
 
-cd $HOME/Projects/home-page && git pull && rm -rf node_modules && npm i
+fwupdmgr get-devices
+fwupdmgr refresh
+fwupdmgr get-updates
+fwupdmgr update
