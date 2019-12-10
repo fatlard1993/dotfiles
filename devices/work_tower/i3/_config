@@ -1,12 +1,25 @@
 for_window [class="quakeTerm"]  floating enable, resize set 1280 480, move window to position 0 0
 
-workspace 10 output $secondaryDisplay
-workspace 11 output $secondaryDisplay
-workspace 12 output $secondaryDisplay
-workspace 13 output $secondaryDisplay
-workspace 14 output $secondaryDisplay
-workspace 15 output $secondaryDisplay
-workspace 16 output $secondaryDisplay
-workspace 17 output $secondaryDisplay
-workspace 18 output $secondaryDisplay
-workspace 19 output $secondaryDisplay
+workspace 10 output             $secondaryDisplay
+workspace 11 output             $secondaryDisplay
+workspace 12 output             $secondaryDisplay
+workspace 13 output             $secondaryDisplay
+workspace 14 output             $secondaryDisplay
+workspace 15 output             $secondaryDisplay
+workspace 16 output             $secondaryDisplay
+workspace 17 output             $secondaryDisplay
+workspace 18 output             $secondaryDisplay
+workspace 19 output             $secondaryDisplay
+
+workspace F1 output             $thirdDisplay
+workspace F2 output             $thirdDisplay
+workspace F3 output             $thirdDisplay
+workspace F4 output             $thirdDisplay
+workspace F5 output             $thirdDisplay
+workspace F6 output             $thirdDisplay
+workspace F7 output             $thirdDisplay
+workspace F8 output             $thirdDisplay
+workspace F9 output             $thirdDisplay
+workspace F10 output            $thirdDisplay
+workspace F11 output            $thirdDisplay
+workspace F12 output            $thirdDisplay
