@@ -3,4 +3,6 @@ $ex ~/.scripts/wallpaper change unsorted
 
 $ex ~/.scripts/clipd &
 
+$ex caffeine-indicator &
+
 $initWorkspaces

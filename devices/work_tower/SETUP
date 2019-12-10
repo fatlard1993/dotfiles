@@ -27,5 +27,3 @@ if [ "$1" == "first" ]; then
 fi
 
 sudo apt install -y gimp gpick vlc mpv mongodb smbclient samba cifs-utils
-
-cd $HOME/Projects/home-page && git pull && rm -rf node_modules && npm i
