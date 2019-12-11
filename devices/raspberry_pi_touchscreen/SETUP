@@ -24,8 +24,6 @@ if [ "$1" == "first" ]; then
 	cd $HOME/Projects/Medeina && npm i
 	cd $HOME/Projects/home-page && npm i
 
-	npm i -g pm2
-
 	gsettings set org.onboard start-minimized true
 	gsettings set org.onboard show-status-icon true
 	gsettings set org.onboard xembed-onboard true
