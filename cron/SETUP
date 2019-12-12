@@ -1,0 +1,7 @@
+#!/bin/bash
+
+dotfiles_folder=$HOME/Projects/dotfiles
+
+cp $dotfiles_folder/cron/crontab /etc/
+cp $dotfiles_folder/cron/hourly/* /etc/cron.hourly/
+cp $dotfiles_folder/cron/daily/* /etc/cron.daily/
