@@ -89,6 +89,8 @@ $dotfiles_folder/scripts/SETUP
 $dotfiles_folder/dunst/SETUP
 $dotfiles_folder/i3/SETUP
 
+sudo $dotfiles_folder/cron/SETUP
+
 $dotfiles_folder/devices/$DEVICE/SETUP $FIRST
 
 if [ "$FIRST" == "first" ]; then
