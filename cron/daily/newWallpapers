@@ -2,5 +2,5 @@
 
 DISPLAY=:0
 
-~/.scripts/wallpaper get
-~/.scripts/wallpaper change unsorted
+/home/chase/.scripts/wallpaper get
+/home/chase/.scripts/wallpaper change unsorted
