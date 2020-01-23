@@ -103,7 +103,7 @@ elif [ $device == "xps_13_9360" ]; then
 	)
 elif [ $device == "raspberry_pi_touchscreen" ]; then
 	apps=(
-		"chromium-browser --enable-touch-events http://localhost"
+		"chromium-browser --enable-touch-events http://192.168.1.37"
 	)
 
 	workspaces=(
