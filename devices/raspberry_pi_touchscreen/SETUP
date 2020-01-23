@@ -15,13 +15,12 @@ if [ "$1" == "first" ]; then
 
 	cd $HOME/Projects
 
-	$dotfiles_folder/scripts/cloneProjects Medeina home-page htpc-remote
+	$dotfiles_folder/scripts/cloneProjects home-page
 
 	git clone https://github.com/bulletmark/libinput-gestures.git
 
 	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
 
-	cd $HOME/Projects/Medeina && npm i
 	cd $HOME/Projects/home-page && npm i
 
 	gsettings set org.onboard start-minimized true
