@@ -103,22 +103,18 @@ elif [ $device == "xps_13_9360" ]; then
 	)
 elif [ $device == "raspberry_pi_touchscreen" ]; then
 	apps=(
-		"gnome-terminal"
 		"chromium-browser --enable-touch-events http://localhost"
 	)
 
 	workspaces=(
-		"2"
 		"1"
 	)
 
 	workspaceNames=(
-		"2 Term"
 		"1 Web"
 	)
 
 	workspaceColors=(
-		"#b5bd68"
 		"#cc6666"
 	)
 
