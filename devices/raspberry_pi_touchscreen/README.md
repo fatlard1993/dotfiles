@@ -25,6 +25,17 @@ Currently running raspbian buster
 
 Set session manager to lxsession and window manager to i3. After reboot run: `cd ~/Projects/dotfiles && ./devices/raspberry_pi_touchscreen/fixLxSession`
 
+### User change
+
+1. $`sudo passwd root`
+2. $`logout`
+3. login as root
+4. #`usermod -l newname pi`
+5. #`usermod -m -d /home/newname newname`
+6. #`logout`
+7. login as newname
+8. $`passwd`
+
 ### Touchscreen calibration
 
 `xinput-calibrator`
