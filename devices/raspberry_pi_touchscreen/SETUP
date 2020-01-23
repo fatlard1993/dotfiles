@@ -28,8 +28,7 @@ if [ "$1" == "first" ]; then
 	gsettings set org.onboard xembed-onboard true
 	gsettings set org.onboard theme /usr/share/onboard/themes/Nightshade.theme
 
-	update-alternatives --config x-session-manager
-	update-alternatives --config x-window-manager
+	sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
 fi
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
