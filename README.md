@@ -51,3 +51,11 @@ https://wiki.archlinux.org/index.php/Bash/Prompt_customization
 ## wifi audio streaming
 
 http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
+
+## Startup node apps
+
+1. `npm i -g pm2`
+2. `cd app`
+3. `pm2 start index.js`
+4. `pm2 startup`
+5. `pm2 save`

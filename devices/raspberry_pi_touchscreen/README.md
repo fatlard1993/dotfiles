@@ -40,14 +40,6 @@ Set session manager to lxsession and window manager to i3. After reboot run: `cd
 
 `xinput-calibrator`
 
-### Startup node apps
-
-1. `npm i -g pm2`
-2. `cd app`
-3. `pm2 start index.js`
-4. `pm2 startup`
-5. `pm2 save`
-
 ## Creating sd cards
 
 `sudo dd bs=4M if=./Downloads/2019-09-26-raspbian-buster.img of=/dev/mmcblk0 conv=fsync`
