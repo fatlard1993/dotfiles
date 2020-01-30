@@ -8,10 +8,10 @@ if [ "$1" == "first" ]; then
 
 	$dotfiles_folder/vscode/SETUP
 
-  git config --global user.name  "fatlard1993"
-  git config --global user.email "fatlard1993@gmail.com"
+	git config --global user.name	"fatlard1993"
+	git config --global user.email "fatlard1993@gmail.com"
 
-  cd $HOME/Projects
+	cd $HOME/Projects
 
 	git clone https://github.com/fatlard1993/swiss-army-knife
 	git clone https://github.com/fatlard1993/symetrix-web-common
@@ -19,11 +19,11 @@ if [ "$1" == "first" ]; then
 	git clone https://github.com/fatlard1993/control-server
 	git clone https://github.com/fatlard1993/dsp-web-interface
 
-  $HOME/Projects/swiss-army-knife/SETUP
-  $HOME/Projects/symetrix-web-common/SETUP
-  $HOME/Projects/touch-panel/SETUP
-  $HOME/Projects/control-server/SETUP
-  $HOME/Projects/dsp-web-interface/SETUP
+	$HOME/Projects/swiss-army-knife/SETUP
+	$HOME/Projects/symetrix-web-common/SETUP
+	$HOME/Projects/touch-panel/SETUP
+	$HOME/Projects/control-server/SETUP
+	$HOME/Projects/dsp-web-interface/SETUP
 fi
 
 sudo apt install -y gimp gpick vlc mpv mongodb smbclient samba cifs-utils

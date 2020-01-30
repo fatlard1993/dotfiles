@@ -168,5 +168,5 @@
 @import url("gnome-applications.css");
 
 GtkBox {
-  background-color: transparent;
+	background-color: transparent;
 }
