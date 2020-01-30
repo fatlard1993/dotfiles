@@ -7,6 +7,6 @@ if [[ "$TITLE" == "r" ]]; then
 	exit 1
 fi
 
-COLOR=$(printf "#%02x%02x%02x" $(zenity --color-selection --color='#000' |  sed -e 's/rgb(//' -e 's/,/ /g' -e's/)//'))
+COLOR=$(printf "#%02x%02x%02x" $(zenity --color-selection --color='#000' | sed -e 's/rgb(//' -e 's/,/ /g' -e's/)//'))
 
 i3-msg "title_format \"<span foreground='$COLOR' weight='heavy'>$TITLE</span>\", border normal"

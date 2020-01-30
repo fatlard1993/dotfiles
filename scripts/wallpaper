@@ -22,104 +22,104 @@ OPTION=$2
 if [ "$COMMAND" = "get" ]; then
 	REDDIT="http://www.reddit.com/r/"
 
-  if [ -f $TMP_DIR/subreddits ]; then
-    read -a SUBREDDITS < $TMP_DIR/subreddits
-  else
-    if [ -f $WALLPAPER_DIR/.subreddits ]; then
-      read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
-    else
-      SUBREDDITS=("wallpapers" "earthview" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
-    fi
+	if [ -f $TMP_DIR/subreddits ]; then
+		read -a SUBREDDITS < $TMP_DIR/subreddits
+	else
+		if [ -f $WALLPAPER_DIR/.subreddits ]; then
+			read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
+		else
+			SUBREDDITS=("wallpapers" "earthview" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
+		fi
 
-    echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
-  fi
+		echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
+	fi
 
-  if [ ! $SUBREDDITS ]; then
-    notify-send "Wallpaper" "No subreddits to scan!"
+	if [ ! $SUBREDDITS ]; then
+		notify-send "Wallpaper" "No subreddits to scan!"
 
-    exit 1
-  fi
+		exit 1
+	fi
 
-  if [ "$3" = "list" ]; then
-    SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
-  else
-    SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
-  fi
+	if [ "$3" = "list" ]; then
+		SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
+	else
+		SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
+	fi
 
-  NUM_IMAGES_TO_DOWNLOAD=${2:-3}
+	NUM_IMAGES_TO_DOWNLOAD=${2:-3}
 
-  LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
+	LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
 
-  DOWNLOADED=0
+	DOWNLOADED=0
 
-  for LINK in $LINKS
-  do
-    FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
-    TMP_FILE=$TMP_DIR/$FILENAME
+	for LINK in $LINKS
+	do
+		FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
+		TMP_FILE=$TMP_DIR/$FILENAME
 
-    echo -e "Downloading: $LINK\n"
+		echo -e "Downloading: $LINK\n"
 
-    wget -qc $LINK -O $TMP_FILE
+		wget -qc $LINK -O $TMP_FILE
 
-    FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
+		FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
 
-    if stat -t $WALLPAPER_DIR/**/$FILE_SUM.* >/dev/null 2>&1 ; then
-      echo -e "Already have: $FILE_SUM\n"
-      rm $TMP_FILE
-    elif stat -t $WALLPAPER_DIR/../**/$FILE_SUM.* >/dev/null 2>&1 ; then
-      echo -e "Already have: $FILE_SUM\n"
-      rm $TMP_FILE
-    elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
-      echo -e "Didnt like: $FILE_SUM\n"
-      rm $TMP_FILE
-    else
-      mv $TMP_FILE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
+		if stat -t $WALLPAPER_DIR/**/$FILE_SUM.* >/dev/null 2>&1 ; then
+			echo -e "Already have: $FILE_SUM\n"
+			rm $TMP_FILE
+		elif stat -t $WALLPAPER_DIR/../**/$FILE_SUM.* >/dev/null 2>&1 ; then
+			echo -e "Already have: $FILE_SUM\n"
+			rm $TMP_FILE
+		elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
+			echo -e "Didnt like: $FILE_SUM\n"
+			rm $TMP_FILE
+		else
+			mv $TMP_FILE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
 
-      echo -e "Saved: $FILE_SUM\n"
+			echo -e "Saved: $FILE_SUM\n"
 
-      (( DOWNLOADED = DOWNLOADED + 1 ))
-    fi
+			(( DOWNLOADED = DOWNLOADED + 1 ))
+		fi
 
-    if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
-      break
-    fi
-  done
+		if [ $DOWNLOADED = $NUM_IMAGES_TO_DOWNLOAD ]; then
+			break
+		fi
+	done
 
-  if [ $DOWNLOADED = 0 ]; then
-    notify-send "Wallpaper" "No new images from $SUBREDDIT today"
+	if [ $DOWNLOADED = 0 ]; then
+		notify-send "Wallpaper" "No new images from $SUBREDDIT today"
 
-    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+		sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
-    exit 0
-  fi
+		exit 0
+	fi
 
-  notify-send "Wallpaper" "Downloaded $DOWNLOADED wallpapers from $SUBREDDIT"
+	notify-send "Wallpaper" "Downloaded $DOWNLOADED wallpapers from $SUBREDDIT"
 
-  if (( DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD )); then
-    (( NUM_IMAGES_TO_DOWNLOAD = NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED ))
+	if (( DOWNLOADED < NUM_IMAGES_TO_DOWNLOAD )); then
+		(( NUM_IMAGES_TO_DOWNLOAD = NUM_IMAGES_TO_DOWNLOAD-DOWNLOADED ))
 
-    sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+		sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
-    $0 get $NUM_IMAGES_TO_DOWNLOAD
-  elif (( DOWNLOADED > 0 )); then
-    sleep 1s
+		$0 get $NUM_IMAGES_TO_DOWNLOAD
+	elif (( DOWNLOADED > 0 )); then
+		sleep 1s
 
-    $0 set unsorted
-  fi
+		$0 set unsorted
+	fi
 elif [ "$COMMAND" = "change" ]; then
 	if [ "$OPTION" = "saved" ]; then
-    WALLPAPER=$(ls $WALLPAPER_DIR/saved/*.* | shuf -n 1)
+		WALLPAPER=$(ls $WALLPAPER_DIR/saved/*.* | shuf -n 1)
 	elif [ "$OPTION" = "unsorted" ]; then
-    WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
+		WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
 	fi
 
 	if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
-    feh --bg-fill $WALLPAPER
+		feh --bg-fill $WALLPAPER
 
-    echo $WALLPAPER > $WALLPAPER_DIR/.current
-  else
+		echo $WALLPAPER > $WALLPAPER_DIR/.current
+	else
 		$0 change saved
-  fi
+	fi
 elif [ "$COMMAND" = "sort" ]; then
 	if [ "$OPTION" = "delete" ]; then
 		CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
@@ -131,7 +131,7 @@ elif [ "$COMMAND" = "sort" ]; then
 
 		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
-    rm $CURRENT_WALLPAPER
+		rm $CURRENT_WALLPAPER
 
 		$0 change unsorted
 	elif [ "$OPTION" = "save" ]; then
@@ -154,27 +154,27 @@ elif [ "$COMMAND" = "sort" ]; then
 
 		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
-    mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
+		mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 
 		$0 change unsorted
 	fi
 elif [ "$COMMAND" = "convert" ]; then
-  SUBFOLDER=${2:-"saved"}
-  FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
+	SUBFOLDER=${2:-"saved"}
+	FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
 
-  for FILE in $FILES
-  do
-    FILE_SUM=$(md5sum "$FILE" | cut -d' ' -f1)
+	for FILE in $FILES
+	do
+		FILE_SUM=$(md5sum "$FILE" | cut -d' ' -f1)
 
-    echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
-    mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
-  done
+		echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
+		mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
+	done
 else
-  echo -e "Useage: PATH/wallpaper [command] [option]\n\
-  get     |NUM_IMAGES_TO_DOWNLOAD|\n\
-  change  |saved|unsorted|\n\
-  sort    |delete|save|stash|\n\
-  convert |SUBFOLDER|"
+	echo -e "Useage: PATH/wallpaper [command] [option]\n\
+	get     |NUM_IMAGES_TO_DOWNLOAD|\n\
+	change  |saved|unsorted|\n\
+	sort    |delete|save|stash|\n\
+	convert |SUBFOLDER|"
 fi
 
 unalias dmenu_styled

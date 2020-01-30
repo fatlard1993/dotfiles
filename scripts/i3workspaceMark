@@ -19,6 +19,6 @@ if [[ $NEW_LABEL =~ $NUM_REGEX ]]; then
 	exit 1
 fi
 
-COLOR=$(printf "#%02x%02x%02x" $(zenity --color-selection --color='#000' |  sed -e 's/rgb(//' -e 's/,/ /g' -e's/)//'))
+COLOR=$(printf "#%02x%02x%02x" $(zenity --color-selection --color='#000' |sed -e 's/rgb(//' -e 's/,/ /g' -e's/)//'))
 
 i3-msg "rename workspace \"$OLD_LABEL\" to \"$WORKSPACE_NUM<span foreground='$COLOR' weight='heavy'>$NEW_LABEL</span>\""
