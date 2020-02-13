@@ -1,0 +1,7 @@
+#!/bin/bash
+
+function git-check-func(){
+	find . -type d -name '.git' | while read dir ; do sh -c "cd $dir/../ && echo -e \"\nGIT STATUS IN ${dir//\.git/}\" && git status -s" ; done
+}
+
+alias git-check=git-check-func
