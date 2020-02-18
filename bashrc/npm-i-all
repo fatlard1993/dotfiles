@@ -1,3 +1,0 @@
-#!/bin/bash
-
-alias npm-i-all="find . -maxdepth 3 -name .git -type d | rev | cut -c 6- | rev | xargs -I {} npm -C {} i"
