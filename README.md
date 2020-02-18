@@ -63,3 +63,4 @@ http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
 # ToDo
 
 * make scripts for ubuntu based vs raspbian based and for headless vs i3
+* make things into symlinks or directly change references to files instead of copying them all over
