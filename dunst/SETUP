@@ -4,4 +4,4 @@ dotfiles_folder=$HOME/Projects/dotfiles
 
 mkdir -p $HOME/.config/dunst
 
-cp $dotfiles_folder/dunst/dunstrc $HOME/.config/dunst/ && pkill dunst
+cp $dotfiles_folder/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
