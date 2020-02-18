@@ -59,3 +59,7 @@ http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
 3. `pm2 start index.js`
 4. `pm2 startup`
 5. `pm2 save`
+
+# ToDo
+
+* make scripts for ubuntu based vs raspbian based and for headless vs i3
