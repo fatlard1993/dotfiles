@@ -21,14 +21,16 @@ fi
 
 notify-send "Updating apt packages, may take a while..."
 
-sudo apt update && sudo apt upgrade -y && notify-send "Success!" "Updated apt packages"
+sudo dpkg --configure -a
+
+sudo apt update && sudo apt upgrade -y && sudo apt install --fix-broken --fix-missing -y && notify-send "Updated apt packages"
 
 if [ "$FIRST" == "first" ]; then
 	mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
 	# Install base apps
 	sudo apt install -y dconf-tools default-jre
-	sudo apt install -y curl xinit xserver-xorg i3 feh uuid-runtime gnome-terminal libnotify-bin dnsmasq fonts-font-awesome pasystray software-properties-common nautilus
+	sudo apt install -y curl xinit xserver-xorg i3 feh uuid-runtime gnome-terminal libnotify-bin dnsmasq fonts-font-awesome pasystray software-properties-common nautilus whois
 
 	# Purge unused apps
 	sudo apt purge -y totem* thunderbird*
