@@ -1,0 +1,131 @@
+#!/bin/bash
+
+if [ ! "$DOTFILES" ]; then
+	DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
+
+	if [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
+		DOTFILES_DEVICE=$1
+	else
+		echo -e "\n$1 is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
+
+		read -p "Enter the device type: " deviceType; exec $(dirname $(readlink -f $0))/$(basename $0) $deviceType
+
+		exit #?
+	fi
+
+	PATH="$DOTFILES/scripts:$PATH"
+fi
+
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
+
+update-dotfiles-bashrc
+
+groupsToAdd="input dialout"
+
+echo "Adding $USER to groups: $groupsToAdd"
+
+for group in $groupsToAdd; do
+	sudo adduser $USER $group
+done
+
+echo "Expanding file limits"
+
+ulimit -Sn unlimited
+ulimit -Sl unlimited
+
+if [ ! "$DOTFILES/temp/.cronSetup" ]; then
+	echo "Setting up cron"
+
+	sudo ln -sf $DOTFILES/cron/crontab /etc/crontab
+
+	files=$(find $DOTFILES/cron/hourly/* -type f)
+
+	for file in $files; do
+		sudo ln -sf $file /etc/cron.hourly/$(basename $file)
+	done
+
+	files=$(find $DOTFILES/cron/daily/* -type f)
+
+	for file in $files; do
+		sudo ln -sf $file /etc/cron.daily/$(basename $file)
+	done
+
+	echo "1" > $DOTFILES/temp/.cronSetup
+fi
+
+if [ ! "$DOTFILES/temp/.gitSetup" ]; then
+	echo "Setting up git"
+
+	read -p "Enter your git user.name: " username; git config --global user.name $username
+	read -p "Enter your git user.email: " email; git config --global user.email $email
+
+	git config --global credential.helper cache
+	git config --global credential.helper 'cache --timeout=3600'
+
+	echo "1" > $DOTFILES/temp/.gitSetup
+fi
+
+apt-update-all
+
+echo "Installing apt packages"
+
+aptPackages="curl dnsmasq whois software-properties-common build-essential make cpanminus autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix uuid-runtime"
+
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
+
+if [ ! "$HOME/.nvm" ]; then
+	echo "Installing NVM"
+
+	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+
+	export NVM_DIR="$HOME/.nvm"
+
+	[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+	nvm install --lts
+
+	sudo ln -sf "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
+	sudo ln -sf "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
+
+	npm=/usr/local/bin/npm
+
+	sudo setcap 'cap_net_bind_service=+ep' "/usr/local/bin/node"
+fi
+
+echo "Installing global npm packages"
+
+NPM_PACKAGES="pm2 ncu fatlard1993/zelda fatlard1993/skel"
+
+for package in $NPM_PACKAGES; do
+	npm list -g | grep $package || npm i -g $package
+done
+
+echo "Running device setup"
+
+$DOTFILES/devices/$DOTFILES_DEVICE/SETUP
+
+if [ ! "$DOTFILES/temp/.dnsmasqSetup" ]; then
+	echo "Setting up dnsmasq"
+
+	sudo systemctl disable systemd-resolved
+
+	sudo ln -sf $DOTFILES/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
+	sudo ln -sf $DOTFILES/dnsmasq/resolv.personal /etc/resolv.personal
+	sudo ln -sf $DOTFILES/dnsmasq/resolv.conf /etc/resolv.conf
+	sudo ln -sf $DOTFILES/dnsmasq/hosts.adblock /etc/hosts.adblock
+	sudo ln -sf $DOTFILES/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+
+	sudo service network-manager restart
+
+	sudo service dnsmasq restart
+
+	echo "1" > $DOTFILES/temp/.dnsmasqSetup
+fi
+
+echo "Cleaning apt packages"
+
+sudo apt autoremove -y
+
+notify-send "Done updating system!"
