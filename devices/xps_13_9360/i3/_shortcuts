@@ -1,5 +1,5 @@
-bindsym $mod+XF86PowerOff          $ex sudo ~/.scripts/system reboot
-bindsym $mod+Control+XF86PowerOff  $ex sudo ~/.scripts/system shutdown
+bindsym $mod+XF86PowerOff          $ex sudo $dotfilesFolder/scripts/system reboot
+bindsym $mod+Control+XF86PowerOff  $ex sudo $dotfilesFolder/scripts/system shutdown
 
 bindsym Mod1+Shift+1               $ex $notifyBrightness
 

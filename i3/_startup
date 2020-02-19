@@ -1,7 +1,7 @@
-$ex ~/.scripts/wallpaper get
-$ex ~/.scripts/wallpaper change unsorted
+$ex $dotfilesFolder/scripts/wallpaper get
+$ex $dotfilesFolder/scripts/wallpaper change unsorted
 
-$ex ~/.scripts/clipd &
+$ex $dotfilesFolder/scripts/clipd &
 
 $ex caffeine-indicator &
 

@@ -14,7 +14,7 @@ mode --pango_markup $mode_workspaces_layout {
 set $mode_workspaces "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Workspaces </span>  <span weight='heavy' size='large'>L</span>ayout <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_workspaces {
 	bindsym l      mode $mode_workspaces_layout
-	bindsym m      mode default, $ex ~/.scripts/i3workspaceMark
+	bindsym m      mode default, $ex $dotfilesFolder/scripts/i3workspaceMark
 
 	bindsym BackSpace mode $mode_menu
 
@@ -25,12 +25,12 @@ mode --pango_markup $mode_workspaces {
 
 set $mode_system_wallpaper_sort "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Sort Wallpapers </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>D</span>elete <span weight='heavy' size='large'>S</span>ave <span weight='heavy' size='large'>(Shift)S</span>tash"
 mode --pango_markup $mode_system_wallpaper_sort {
-	bindsym c       $ex ~/.scripts/wallpaper change unsorted
-	bindsym d       $ex ~/.scripts/wallpaper sort delete
-	bindsym s       $ex ~/.scripts/wallpaper sort save
-	bindsym Shift+s $ex ~/.scripts/wallpaper sort stash
+	bindsym c       $ex $dotfilesFolder/scripts/wallpaper change unsorted
+	bindsym d       $ex $dotfilesFolder/scripts/wallpaper sort delete
+	bindsym s       $ex $dotfilesFolder/scripts/wallpaper sort save
+	bindsym Shift+s $ex $dotfilesFolder/scripts/wallpaper sort stash
 
-	bindsym Control+s $ex i3-input -F 'exec ~/.scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
+	bindsym Control+s $ex i3-input -F 'exec $dotfilesFolder/scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -41,8 +41,8 @@ mode --pango_markup $mode_system_wallpaper_sort {
 
 set $mode_system_wallpaper_change "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Change Wallpaper </span>  <span weight='heavy' size='large'>S</span>aved <span weight='heavy' size='large'>U</span>nsorted"
 mode --pango_markup $mode_system_wallpaper_change {
-	bindsym s      $ex ~/.scripts/wallpaper change saved
-	bindsym u      $ex ~/.scripts/wallpaper change unsorted
+	bindsym s      $ex $dotfilesFolder/scripts/wallpaper change saved
+	bindsym u      $ex $dotfilesFolder/scripts/wallpaper change unsorted
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -54,7 +54,7 @@ mode --pango_markup $mode_system_wallpaper_change {
 set $mode_system_wallpaper "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Wallpaper </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>G</span>et <span weight='heavy' size='large'>S</span>ort"
 mode --pango_markup $mode_system_wallpaper {
 	bindsym c      mode $mode_system_wallpaper_change
-	bindsym g      $ex ~/.scripts/wallpaper get
+	bindsym g      $ex $dotfilesFolder/scripts/wallpaper get
 	bindsym s      mode $mode_system_wallpaper_sort
 
 	bindsym BackSpace mode $mode_system
@@ -81,12 +81,11 @@ mode --pango_markup $mode_system_volume {
 	bindsym space  mode default
 }
 
-set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown <span weight='heavy' size='large'>U</span>pdate and shutdown"
+set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown"
 mode --pango_markup $mode_system_leave {
-	bindsym e      $ex sudo ~/.scripts/system exit
-	bindsym l      mode default, $ex ~/.scripts/system lock
-	bindsym s      $ex sudo ~/.scripts/system shutdown
-	bindsym u 		 $ex (cd ~/Projects/dotfiles && git pull && ./SETUP && sudo ~/.scripts/system shutdown)
+	bindsym e      $ex sudo $dotfilesFolder/scripts/system exit
+	bindsym l      mode default, $ex $dotfilesFolder/scripts/system lock
+	bindsym s      $ex sudo $dotfilesFolder/scripts/system shutdown
 
 	bindsym BackSpace mode $mode_system
 
@@ -100,7 +99,7 @@ mode --pango_markup $mode_system_i3 {
 	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
 	bindsym r 			reload
 	bindsym Shift+r restart
-	bindsym u 			$ex (cd ~/Projects/dotfiles/i3 && ./SETUP)
+	bindsym u 			$ex $dotfilesFolder/scripts/update-dotfiles-i3
 
 	bindsym BackSpace mode $mode_system
 
@@ -198,17 +197,16 @@ mode --pango_markup $mode_system_autolock {
 	bindsym space  mode default
 }
 
-set $mode_system "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> System </span>  <span weight='heavy' size='large'>A</span>utolock <span weight='heavy' size='large'>B</span>acklight <span weight='heavy' size='large'>C</span>ursor <span weight='heavy' size='large'>F</span>ree RAM <span weight='heavy' size='large'>U</span>pdate <span weight='heavy' size='large'>(Shift)U</span>pdate and reboot <span weight='heavy' size='large'>i</span>3 <span weight='heavy' size='large'>L</span>eave <span weight='heavy' size='large'>R</span>eboot <span weight='heavy' size='large'>V</span>olume <span weight='heavy' size='large'>W</span>allpaper"
+set $mode_system "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> System </span>  <span weight='heavy' size='large'>A</span>utolock <span weight='heavy' size='large'>B</span>acklight <span weight='heavy' size='large'>C</span>ursor <span weight='heavy' size='large'>F</span>ree RAM <span weight='heavy' size='large'>U</span>pdate <span weight='heavy' size='large'>i</span>3 <span weight='heavy' size='large'>L</span>eave <span weight='heavy' size='large'>R</span>eboot <span weight='heavy' size='large'>V</span>olume <span weight='heavy' size='large'>W</span>allpaper"
 mode --pango_markup $mode_system {
 	bindsym a       mode $mode_system_autolock
 	bindsym b       mode $mode_system_backlight
 	bindsym c       mode $mode_system_cursor
-	bindsym f       mode default, $ex sudo ~/.scripts/clear_ram
-	bindsym u       mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP)
-	bindsym Shift+u mode default, $ex (cd ~/Projects/dotfiles && git pull && ./SETUP && sudo ~/.scripts/system reboot)
+	bindsym f       mode default, $ex sudo $dotfilesFolder/scripts/clear_ram
+	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- update-dotfiles)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
-	bindsym r       $ex sudo ~/.scripts/system reboot
+	bindsym r       $ex sudo $dotfilesFolder/scripts/system reboot
 	bindsym v       mode $mode_system_volume
 	bindsym w       mode $mode_system_wallpaper
 
@@ -235,7 +233,7 @@ set $mode_containers "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' si
 mode --pango_markup $mode_containers {
 	bindsym f      fullscreen
 	bindsym k      mode $mode_containers_kill
-	bindsym m      mode default, $ex ~/.scripts/i3windowMark $borderSize
+	bindsym m      mode default, $ex $dotfilesFolder/scripts/i3windowMark $borderSize
 
 	bindsym BackSpace mode $mode_menu
 
