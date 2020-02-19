@@ -2,6 +2,8 @@
 
 source enforceSudo
 
+echo "Updating apt packages"
+
 notify-send "Updating apt packages, may take a while..."
 
 dpkg --configure -a
