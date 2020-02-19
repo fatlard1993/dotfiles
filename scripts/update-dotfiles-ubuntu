@@ -1,0 +1,96 @@
+#!/bin/bash
+
+echo "Adding apt repositories"
+
+aptRepos="maarten-baert/simplescreenrecorder"
+
+for repo in $aptRepos; do
+	if [ ! "/etc/apt/sources.list.d/$repo.list" ]; then sudo add-apt-repository -y ppa:$repo; fi
+done
+
+if [ ! "/etc/apt/sources.list.d/vscode.list" ]; then
+	# Install vscode prerequisites
+	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+
+	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/
+
+	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+fi
+
+sudo apt update -y
+
+echo "Installing apt packages for ubuntu"
+
+aptPackages="xinit xserver-xorg fonts-font-awesome pasystray libnotify-bin dconf-tools default-jre simplescreenrecorder code gnome-terminal nautilus feh xdotool wmctrl libinput-tools xautolock pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module caffeine ffmpeg"
+
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
+
+echo "Autoinstalling drivers"
+
+sudo ubuntu-drivers autoinstall
+
+echo "Purgeing apt packages"
+
+sudo apt purge -y -qq totem* thunderbird*
+
+if [ ! "$DOTFILES/temp/.gtkSetup" ]; then
+	echo "Setting gtk dark preference"
+
+	echo -e "[Settings]\ngtk-application-prefer-dark-theme=1" > $HOME/.config/gtk-3.0/settings.ini
+
+	echo "1" > $DOTFILES/temp/.gtkSetup
+fi
+
+if [ ! /etc/sudo.conf ]; then
+	echo "Generating sudo.conf"
+
+	echo "Path askpass $DOTFILES/scripts/askpass" | sudo tee /etc/sudo.conf
+fi
+
+if [ ! "$DOTFILES/temp/.terminalSetup" ]; then
+	echo "Setting up gnome-terminal"
+
+	dconf_folder=/org/gnome/terminal/legacy/profiles:
+
+	dconf reset -f $dconf_folder/
+
+	new_id="$(uuidgen)"
+	list="['$new_id']"
+
+	dconf write $dconf_folder/list "$list"
+	dconf write "$dconf_folder/:$new_id"/visible-name "'Tomorrow_Night'"
+
+	dconf load $dconf_folder/:$new_id/ < $DOTFILES/etc/Tomorrow_Night.dconf
+
+	dconf write $dconf_folder/default "'$new_id'"
+
+	echo "1" > $DOTFILES/temp/.terminalSetup
+fi
+
+if [ ! "$DOTFILES/temp/.dunstSetup" ]; then
+	echo "Setting up dunst"
+
+	mkdir -p $HOME/.config/dunst
+
+	ln -sf $DOTFILES/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
+fi
+
+if [ ! "$HOME/Projects/libinput-gestures" ]; then
+	echo "Installing libinput-gestures"
+
+	(
+		cd $HOME/Projects
+
+		git clone https://github.com/bulletmark/libinput-gestures.git
+
+		cd ./libinput-gestures
+
+		sudo make install
+
+		libinput-gestures-setup autostart
+	)
+fi
+
+update-dotfiles-fonts
