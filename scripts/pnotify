@@ -1,7 +1,13 @@
 #!/bin/bash
 
+if [ -z $1 ]; then
+	echo "Cannot notify without a message"
+
+	exit 1
+fi
+
 if [ -e /tmp/$1 ]; then
-	$HOME/.scripts/notify -p -r `cat /tmp/$1` $1 $2 > /tmp/$1
+	notify -p -r `cat /tmp/$1` $1 $2 > /tmp/$1
 else
-	$HOME/.scripts/notify -p $1 $2 > /tmp/$1
+	notify -p $1 $2 > /tmp/$1
 fi

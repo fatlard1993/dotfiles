@@ -1,4 +1,3 @@
-
-for file in ~/.bashrc.d/*; do
-	source "$file"
+for file in $HOME/.bashrc.d/*; do
+	if [ -f $file ]; then source $file; fi
 done
