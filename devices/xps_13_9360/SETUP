@@ -1,46 +1,39 @@
 #!/bin/bash
 
-if [ ! -e $HOME/.config/device ]; then
-	echo "No valid device file!"
-	exit 1
-fi
+device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-device=$(cat $HOME/.config/device)
-dotfiles_folder=$HOME/Projects/dotfiles
-device_folder=$dotfiles_folder/devices/$device
+update-dotfiles-ubuntu
+update-dotfiles-i3
 
-if [ "$1" == "first" ]; then
-	sudo cp $device_folder/etc/grub /etc/default/ && sudo update-grub2
+echo "Updating grub"
 
-	git config --global user.name "fatlard1993"
-	git config --global user.email "fatlard1993@gmail.com"
+sudo ln -sf $device_folder/etc/grub /etc/default/grub
 
-	cd $HOME/Projects
+sudo update-grub2
 
-	$dotfiles_folder/scripts/cloneProjects Medeina zelda home-page wallpaper-manager byod-game-engine htpc-remote skel party-game
+echo "Installing apt packages for $DOTFILES_DEVICE"
 
-	git clone https://github.com/bulletmark/libinput-gestures.git
+aptPackages="gimp gpick code vlc mpv mongodb onboard android-tools-adb"
 
-	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
-
-	mkdir -p $HOME/Projects/symetrix
-
-	cd $HOME/Projects/symetrix
-
-	$dotfiles_folder/scripts/cloneProjects control-server touch-panel control control-net control-app dsp-web-interface control-server-mother-hub font-manager event-scheduler symvue-app mixer-app config-parser voip-webadmin symetrix-theme
-
-	cd $HOME/Projects/lib
-
-	$dotfiles_folder/scripts/cloneProjects eslint-config-rules log js-util dom config-manager fs-extended socket-client xml dialog websocket-server menu notify http-server color-picker page-compiler
-
-	$dotfiles_folder/vscode/SETUP
-fi
-
-sudo apt install -y gimp gpick code vlc mpv mongodb onboard android-tools-adb
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
-$device_folder/xorg/SETUP
+sudo mkdir -p /etc/X11/xorg.conf.d
+
+files=$(find $DOTFILES/devices/$DOTFILES_DEVICE/xorg/* -type f)
+
+for file in $files; do
+	sudo ln -sf $file /etc/X11/xorg.conf.d/$(basename $file)
+done
+
+ln -sf $device_folder/.profile $HOME/.profile
+
+ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+
+# sudo snap remove fwupd; sudo apt purge fwupd; sudo snap install fwupd --classic
 
 fwupdmgr get-devices
 fwupdmgr refresh
