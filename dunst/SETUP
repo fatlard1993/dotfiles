@@ -1,7 +1,0 @@
-#!/bin/bash
-
-dotfiles_folder=$HOME/Projects/dotfiles
-
-mkdir -p $HOME/.config/dunst
-
-cp $dotfiles_folder/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
