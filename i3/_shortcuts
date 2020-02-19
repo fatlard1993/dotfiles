@@ -24,8 +24,8 @@ bindsym $mod+Control+4              move container to workspace number 4, worksp
 bindsym $mod+Control+5              move container to workspace number 5, workspace number 5
 bindsym $mod+Control+6              move container to workspace number 6, workspace number 6
 bindsym $mod+Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
-bindsym $mod+Control+comma          $ex CMD="move prev" node ~/.scripts/i3node.js
-bindsym $mod+Control+period         $ex CMD="move next" node ~/.scripts/i3node.js
+bindsym $mod+Control+comma          $ex CMD="move prev" node $dotfilesFolder/scripts/i3node.js
+bindsym $mod+Control+period         $ex CMD="move next" node $dotfilesFolder/scripts/i3node.js
 
 ## Float
 bindsym $mod+f                      unmark, floating toggle
@@ -60,9 +60,9 @@ bindsym $mod+period                 workspace next
 # Scratchpads
 
 ## Move
-bindsym $mod+Control+7            $ex CMD="scratchpad move_to 7" node ~/.scripts/i3node.js
-bindsym $mod+Control+8            $ex CMD="scratchpad move_to 8" node ~/.scripts/i3node.js
-bindsym $mod+Control+9            $ex CMD="scratchpad move_to 9" node ~/.scripts/i3node.js
+bindsym $mod+Control+7            $ex CMD="scratchpad move_to 7" node $dotfilesFolder/scripts/i3node.js
+bindsym $mod+Control+8            $ex CMD="scratchpad move_to 8" node $dotfilesFolder/scripts/i3node.js
+bindsym $mod+Control+9            $ex CMD="scratchpad move_to 9" node $dotfilesFolder/scripts/i3node.js
 
 ## View
 bindsym $mod+7                    [con_mark="sp*"] move scratchpad, [con_mark="sp_7"] scratchpad show
@@ -82,7 +82,7 @@ bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
 
 bindsym $mod+Control+o              $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
-bindsym $mod+n                      $ex leafpad ~/.notes
+bindsym $mod+n                      $ex leafpad $dotfilesFolder/temp/notes
 
 
 # Function keys
@@ -110,11 +110,11 @@ bindsym --whole-window $mod+button3 floating toggle
 
 # Experimental
 
-bindsym --release $mod+c 						$ex ~/.scripts/copyPasta c
-bindsym --release $mod+v 						$ex ~/.scripts/copyPasta v
+bindsym --release $mod+c 						$ex $dotfilesFolder/scripts/copyPasta c
+bindsym --release $mod+v 						$ex $dotfilesFolder/scripts/copyPasta v
 
-bindsym $mod+Control+v              $ex ~/.scripts/clipd menu
+bindsym $mod+Control+v              $ex $dotfilesFolder/scripts/clipd menu
 
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 
-bindsym $mod+g                      $ex ~/.scripts/getActiveWindowClass gui
+bindsym $mod+g                      $ex $dotfilesFolder/scripts/i3getActiveWindowClass gui

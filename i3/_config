@@ -23,3 +23,5 @@ force_display_urgency_hint 1000 ms
 for_window [class="(?i)mpv|gpick|leafpad|gnome-calculator"] floating enable
 
 for_window [title="appear.in.*"] floating enable
+
+for_window [window_role="update"] floating enable
