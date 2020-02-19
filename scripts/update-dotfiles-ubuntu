@@ -46,7 +46,7 @@ fi
 if [ ! /etc/sudo.conf ]; then
 	echo "Generating sudo.conf"
 
-	echo "Path askpass $DOTFILES/scripts/askpass" | sudo tee /etc/sudo.conf
+	echo "Path askpass $DOTFILES/scripts/zenity-askpass" | sudo tee /etc/sudo.conf
 fi
 
 if [ ! "$DOTFILES/temp/.terminalSetup" ]; then
