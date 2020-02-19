@@ -3,7 +3,7 @@
 activeWindowClass=`getActiveWindowClass`
 terminalApp="gnome-terminal-server"
 
-if [ $activeWindowClass == $terminalApp ]; then
+if [ "$activeWindowClass" == "$terminalApp" ]; then
 	xdotool key --clearmodifiers "ctrl+shift+$1"
 else
 	xdotool key --clearmodifiers "ctrl+$1"
