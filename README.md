@@ -77,7 +77,7 @@ http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
 Add this line to the end of your sudoers file:
 username ALL=(ALL) NOPASSWD: /home/username/.scripts/*
 
-### getWindowCriteria
+### i3getWindowCriteria
 
 This script outputs xwininfo in an "easy to use with i3" format
 
