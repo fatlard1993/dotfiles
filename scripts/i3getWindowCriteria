@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# getWindowCriteria - Get criteria for use with i3 config commands
+# i3getWindowCriteria - Get criteria for use with i3 config commands
 
 # To use, run this script, then click on a window.
 # Output is in the format: [<name>=<value> <name>=<value> ...]
