@@ -1,20 +1,25 @@
 #!/bin/bash
 
-if [ ! -e $HOME/.config/device ]; then
-  echo "No valid device file!"
-  exit 1
-fi
+echo "Installing apt packages for i3"
 
-device=$(cat $HOME/.config/device)
-dotfiles_folder=$HOME/Projects/dotfiles
-device_folder=$dotfiles_folder/devices/$device
-i3_folder=$dotfiles_folder/i3
-device_i3_folder=$device_folder/i3
+aptPackages="i3"
+
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
+
+echo "Generating i3 config"
+
+i3_folder=$DOTFILES/i3
+device_i3_folder=$DOTFILES/devices/$DOTFILES_DEVICE/i3
 
 mkdir -p $HOME/.config/i3
 
-cat $dotfiles_folder/etc/_fileWarning \
+echo "set \$dotfilesFolder $DOTFILES" > /tmp/i3SysVars
+
+cat $DOTFILES/etc/_fileWarning \
   <(echo) $i3_folder/_theme \
+	<(echo) /tmp/i3SysVars \
   <(echo) $i3_folder/_variables \
   <(echo) $device_i3_folder/_variables \
   <(echo) $i3_folder/_config \
@@ -28,14 +33,14 @@ cat $dotfiles_folder/etc/_fileWarning \
   <(echo) $i3_folder/_i3bar \
 > $HOME/.config/i3/config
 
-cat $dotfiles_folder/etc/_fileWarning \
+cat $DOTFILES/etc/_fileWarning \
   <(echo) $i3_folder/_status_theme \
   <(echo) $i3_folder/_status_items \
   <(echo) $device_i3_folder/_status_order \
 > $HOME/.config/i3/status.conf
 
-if [ -e $device_i3_folder/_status2_order ]; then
-  cat $dotfiles_folder/etc/_fileWarning \
+if [ -s "$device_i3_folder/_status2_order" ]; then
+  cat $DOTFILES/etc/_fileWarning \
     <(echo) $i3_folder/_status_theme \
     <(echo) $i3_folder/_status_items \
     <(echo) $device_i3_folder/_status2_order \
