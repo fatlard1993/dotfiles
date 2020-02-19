@@ -1,7 +1,0 @@
-#!/bin/bash
-
-projects=("$@")
-
-for x in ${!projects[*]}; do
-	git clone https://github.com/fatlard1993/${projects[$x]} && (cd ${projects[$x]} || npm i)
-done
