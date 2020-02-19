@@ -1,7 +1,0 @@
-#!/bin/bash
-
-dotfiles_folder=$HOME/Projects/dotfiles
-
-mkdir -p $HOME/.fonts
-
-cp $dotfiles_folder/fonts/*.* $HOME/.fonts/ && sudo fc-cache -fv

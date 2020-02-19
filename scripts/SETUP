@@ -1,9 +1,0 @@
-#!/bin/bash
-
-dotfiles_folder=$HOME/Projects/dotfiles
-
-mkdir -p $HOME/.scripts
-
-cp $dotfiles_folder/scripts/* $HOME/.scripts
-
-(cd $HOME/.scripts && rm -f ./README.md ./SETUP)
