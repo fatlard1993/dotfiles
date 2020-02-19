@@ -9,7 +9,7 @@ command -v setleds >/dev/null 2>&1 || { echo >&2 "Script requires setleds but it
 CONSOLE=/dev/console
 
 # indicator LED to use: caps | num | scroll
-INDICATOR=caps
+INDICATOR=$1
 
 getVmstat(){
 	egrep "pgpgin|pgpgout" /proc/vmstat
@@ -23,11 +23,11 @@ function led_off(){
 	setleds -L -${INDICATOR} < ${CONSOLE} >/dev/null 2>&1
 }
 
-if [ "$1" = "0" ]; then
+if [ "$2" = "0" ]; then
 	led_off
-elif [ "$1" = "1" ]; then
+elif [ "$2" = "1" ]; then
 	led_on
-elif [ "$1" = "monitor" ]; then
+elif [ "$2" = "monitor" ]; then
 	CHECKINTERVAL=0.1
 	NEW=$(getVmstat)
 	OLD=$(getVmstat)
@@ -43,5 +43,5 @@ elif [ "$1" = "monitor" ]; then
 		OLD=$NEW
 	done
 else
-	echo -e "\nUseage:\nledCtl 1\nledCtl 0\nledCtl monitor\n"
+	echo -e "\nUseage:\nledCtl num 1\nledCtl scroll 0\nledCtl caps monitor\n"
 fi
