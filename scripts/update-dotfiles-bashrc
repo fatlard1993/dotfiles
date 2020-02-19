@@ -31,6 +31,6 @@ sudo chown root:root /root/.bashrc.d/variables
 files=$(find $DOTFILES/bashrc/* -type f)
 
 for file in $files; do
-	ln -sf $DOTFILES/bashrc/* $HOME/.bashrc.d/$(basename $file)
-	sudo ln -sf $DOTFILES/bashrc/* /root/.bashrc.d/$(basename $file)
+	ln -sf $DOTFILES/bashrc/$file $HOME/.bashrc.d/$(basename $file)
+	sudo ln -sf $DOTFILES/bashrc/$file /root/.bashrc.d/$(basename $file)
 done
