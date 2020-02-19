@@ -1,6 +1,6 @@
 #!/bin/bash
 
-activeWindowClass=`getActiveWindowClass`
+activeWindowClass=`i3getActiveWindowClass`
 terminalApp="gnome-terminal-server"
 
 if [ "$activeWindowClass" == "$terminalApp" ]; then
