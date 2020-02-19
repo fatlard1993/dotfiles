@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ ! "$HOME/.bashrc.bkup" ]; then
+	echo "Extending .bashrc"
+
+	cp $HOME/.bashrc $HOME/.bashrc.bkup
+	sudo cp /root/.bashrc /root/.bashrc.bkup
+
+	cat $DOTFILES/etc/.bashrc >> $HOME/.bashrc
+	cat $DOTFILES/etc/.bashrc | sudo tee -a /root/.bashrc
+
+	echo "source $HOME/.bashrc" > $HOME/.bash_profile
+	echo "source /root/.bashrc" | sudo tee /root/.bash_profile
+fi
+
+echo "Updating bashrc.d"
+
+mkdir -p $HOME/.bashrc.d
+sudo mkdir -p /root/.bashrc.d
+
+echo -e "#!/bin/bash\n\nexport PATH=$PATH" > $HOME/.bashrc.d/variables
+echo "export DOTFILES=$DOTFILES" >> $HOME/.bashrc.d/variables
+echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc.d/variables
+
+sudo chmod a+x $HOME/.bashrc.d/variables
+
+sudo cp $HOME/.bashrc.d/variables /root/.bashrc.d/
+
+sudo chown root:root /root/.bashrc.d/variables
+
+files=$(find $DOTFILES/bashrc/* -type f)
+
+for file in $files; do
+	ln -sf $DOTFILES/bashrc/* $HOME/.bashrc.d/$(basename $file)
+	sudo ln -sf $DOTFILES/bashrc/* /root/.bashrc.d/$(basename $file)
+done
