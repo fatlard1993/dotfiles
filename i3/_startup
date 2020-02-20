@@ -8,4 +8,4 @@ $ex $dotfilesFolder/scripts/ledCtl caps monitor &
 
 $ex caffeine-indicator &
 
-$ex $dotfilesFolder/scripts/initWorkspaces
+$ex DOTFILES=$dotfilesFolder $dotfilesFolder/scripts/initWorkspaces

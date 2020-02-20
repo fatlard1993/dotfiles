@@ -83,9 +83,9 @@ mode --pango_markup $mode_system_volume {
 
 set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown"
 mode --pango_markup $mode_system_leave {
-	bindsym e      $ex sudo $dotfilesFolder/scripts/system exit
-	bindsym l      mode default, $ex $dotfilesFolder/scripts/system lock
-	bindsym s      $ex sudo $dotfilesFolder/scripts/system shutdown
+	bindsym e      $ex i3-msg [class=".*"] kill && sleep 1 && i3-msg exit
+	bindsym l      mode default, $ex $dotfilesFolder/scripts/system-lock
+	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && sudo shutdown
 
 	bindsym BackSpace mode $mode_system
 
@@ -188,7 +188,7 @@ mode --pango_markup $mode_system_backlight {
 set $mode_system_autolock "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Autolock </span>  <span weight='heavy' size='large'>D</span>isable <span weight='heavy' size='large'>E</span>nable"
 mode --pango_markup $mode_system_autolock {
 	bindsym d       mode default, $ex pkill xautolock
-	bindsym e       mode default, $ex xautolock -time 10 -locker "$dotfilesFolder/scripts/system lock"
+	bindsym e       mode default, $ex xautolock -time 10 -locker "$dotfilesFolder/scripts/system-lock"
 
 	bindsym BackSpace mode $mode_system
 
@@ -206,7 +206,7 @@ mode --pango_markup $mode_system {
 	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- $dotfilesFolder/scripts/update-dotfiles)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
-	bindsym r       $ex sudo $dotfilesFolder/scripts/system reboot
+	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && sudo reboot
 	bindsym v       mode $mode_system_volume
 	bindsym w       mode $mode_system_wallpaper
 
