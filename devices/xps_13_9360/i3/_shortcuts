@@ -1,8 +1,6 @@
 bindsym $mod+XF86PowerOff          $ex sudo $dotfilesFolder/scripts/system reboot
 bindsym $mod+Control+XF86PowerOff  $ex sudo $dotfilesFolder/scripts/system shutdown
 
-bindsym Mod1+Shift+1               $ex $notifyBrightness
-
 bindsym $mod+F1                    workspace F1
 bindsym $mod+F2                    workspace F2
 bindsym $mod+F3                    workspace F3

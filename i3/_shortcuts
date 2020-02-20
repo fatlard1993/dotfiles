@@ -76,7 +76,7 @@ bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad
 
 # Etc
 
-bindsym $mod+space                  $startLauncher
+bindsym $mod+space                  $ex i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 
 bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
 
@@ -88,13 +88,13 @@ bindsym $mod+n                      $ex leafpad $dotfilesFolder/temp/notes
 # Function keys
 
 ## Volume
-bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +6% && $notifyVolume
-bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -6% && $notifyVolume
+bindsym XF86AudioRaiseVolume        $ex pactl set-sink-volume $pactlSink +6% && $dotfilesFolder/scripts/pnotify-volume
+bindsym XF86AudioLowerVolume        $ex pactl set-sink-volume $pactlSink -6% && $dotfilesFolder/scripts/pnotify-volume
 bindsym XF86AudioMute               $ex pactl set-sink-mute   $pactlSink toggle
 
 ## Backlight
-bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10 && $notifyBrightness
-bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && $notifyBrightness
+bindsym XF86MonBrightnessUp         $ex xbacklight -inc 10 -time 10 && $dotfilesFolder/scripts/pnotify-brightness
+bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && $dotfilesFolder/scripts/pnotify-brightness
 
 ## Etc
 
