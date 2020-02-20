@@ -5,19 +5,27 @@ echo "Adding apt repositories"
 aptRepos="maarten-baert/simplescreenrecorder"
 
 for repo in $aptRepos; do
-	if [ ! "/etc/apt/sources.list.d/$repo.list" ]; then sudo add-apt-repository -y ppa:$repo; fi
+	if [ ! -s "/etc/apt/sources.list.d/$repo.list" ]; then
+		echo "Adding repository: $repo"
+
+		sudo add-apt-repository -y ppa:$repo
+
+		addedRepo=true
+	fi
 done
 
-if [ ! "/etc/apt/sources.list.d/vscode.list" ]; then
+if [ ! -s /etc/apt/sources.list.d/vscode.list ]; then
 	# Install vscode prerequisites
 	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 
 	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/
 
 	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+
+	addedRepo=true
 fi
 
-sudo apt update -y
+if [ "$addedRepo" ]; then sudo apt update -y; fi
 
 echo "Installing apt packages for ubuntu"
 
@@ -35,7 +43,7 @@ echo "Purgeing apt packages"
 
 sudo apt purge -y -qq totem* thunderbird*
 
-if [ ! "$DOTFILES/temp/.gtkSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.gtkSetup" ]; then
 	echo "Setting gtk dark preference"
 
 	echo -e "[Settings]\ngtk-application-prefer-dark-theme=1" > $HOME/.config/gtk-3.0/settings.ini
@@ -43,13 +51,13 @@ if [ ! "$DOTFILES/temp/.gtkSetup" ]; then
 	echo "1" > $DOTFILES/temp/.gtkSetup
 fi
 
-if [ ! /etc/sudo.conf ]; then
+if [ ! -s /etc/sudo.conf ]; then
 	echo "Generating sudo.conf"
 
 	echo "Path askpass $DOTFILES/scripts/zenity-askpass" | sudo tee /etc/sudo.conf
 fi
 
-if [ ! "$DOTFILES/temp/.terminalSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.terminalSetup" ]; then
 	echo "Setting up gnome-terminal"
 
 	dconf_folder=/org/gnome/terminal/legacy/profiles:
@@ -69,7 +77,7 @@ if [ ! "$DOTFILES/temp/.terminalSetup" ]; then
 	echo "1" > $DOTFILES/temp/.terminalSetup
 fi
 
-if [ ! "$DOTFILES/temp/.dunstSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.dunstSetup" ]; then
 	echo "Setting up dunst"
 
 	mkdir -p $HOME/.config/dunst
@@ -77,7 +85,7 @@ if [ ! "$DOTFILES/temp/.dunstSetup" ]; then
 	ln -sf $DOTFILES/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
 fi
 
-if [ ! "$HOME/Projects/libinput-gestures" ]; then
+if [ ! -d "$HOME/Projects/libinput-gestures" ]; then
 	echo "Installing libinput-gestures"
 
 	(
