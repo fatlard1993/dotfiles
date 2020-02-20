@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ ! "$HOME/.bashrc.bkup" ]; then
+if [ ! -s "$HOME/.bashrc.bkup" ]; then
 	echo "Extending .bashrc"
 
 	cp $HOME/.bashrc $HOME/.bashrc.bkup
@@ -18,19 +18,19 @@ echo "Updating bashrc.d"
 mkdir -p $HOME/.bashrc.d
 sudo mkdir -p /root/.bashrc.d
 
-echo -e "#!/bin/bash\n\nexport PATH=$PATH" > $HOME/.bashrc.d/variables
-echo "export DOTFILES=$DOTFILES" >> $HOME/.bashrc.d/variables
-echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc.d/variables
+echo -e "#!/bin/bash\n\nexport PATH=$PATH" > $HOME/.bashrc.d/0_variables
+echo "export DOTFILES=$DOTFILES" >> $HOME/.bashrc.d/0_variables
+echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc.d/0_variables
 
-sudo chmod a+x $HOME/.bashrc.d/variables
+sudo chmod a+x $HOME/.bashrc.d/0_variables
 
-sudo cp $HOME/.bashrc.d/variables /root/.bashrc.d/
+sudo cp $HOME/.bashrc.d/0_variables /root/.bashrc.d/
 
-sudo chown root:root /root/.bashrc.d/variables
+sudo chown root:root /root/.bashrc.d/0_variables
 
 files=$(find $DOTFILES/bashrc/* -type f)
 
 for file in $files; do
-	ln -sf $DOTFILES/bashrc/$file $HOME/.bashrc.d/$(basename $file)
-	sudo ln -sf $DOTFILES/bashrc/$file /root/.bashrc.d/$(basename $file)
+	ln -sf $file $HOME/.bashrc.d/$(basename $file)
+	sudo ln -sf $file /root/.bashrc.d/$(basename $file)
 done
