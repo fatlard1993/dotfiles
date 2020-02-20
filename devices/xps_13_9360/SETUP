@@ -33,9 +33,13 @@ ln -sf $device_folder/.profile $HOME/.profile
 
 ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
 
-# sudo snap remove fwupd; sudo apt purge fwupd; sudo snap install fwupd --classic
+if [ ! "$DOTFILES/temp/.fwupdSetup" ]; then
+	sudo snap remove fwupd; sudo apt purge fwupd; sudo snap install fwupd --classic
 
-fwupdmgr get-devices
-fwupdmgr refresh
-fwupdmgr get-updates
-fwupdmgr update
+	echo "1" > $DOTFILES/temp/.fwupdSetup
+fi
+
+fwupd.fwupdmgr get-devices
+fwupd.fwupdmgr refresh
+fwupd.fwupdmgr get-updates
+fwupd.fwupdmgr update
