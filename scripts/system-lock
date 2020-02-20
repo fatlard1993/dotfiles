@@ -1,0 +1,7 @@
+#!/bin/sh
+
+screenCap=$HOME/.config/i3/.screen_locked.png
+
+scrot $screenCap && convert $screenCap -blur 8x8 $screenCap
+
+i3lock -i $screenCap
