@@ -6,7 +6,7 @@ if [ ! "$1" ]; then
 	exit 1
 fi
 
-if [ "/tmp/$1" ]; then
+if [ -s "/tmp/$1" ]; then
 	notify -p -r `cat /tmp/$1` $1 $2 > /tmp/$1
 else
 	notify -p $1 $2 > /tmp/$1
