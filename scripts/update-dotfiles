@@ -5,6 +5,8 @@ if [ ! "$DOTFILES" ]; then
 
 	if [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
 		DOTFILES_DEVICE=$1
+	elif [ -s "$DOTFILES/temp/deviceType" ]; then
+		echo "Found deviceType: $(cat $DOTFILES/temp/deviceType)"
 	else
 		echo -e "\n$1 is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
 
@@ -15,6 +17,8 @@ if [ ! "$DOTFILES" ]; then
 
 	PATH="$DOTFILES/scripts:$PATH"
 fi
+
+if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILES/temp/deviceType; fi
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
@@ -33,7 +37,7 @@ echo "Expanding file limits"
 ulimit -Sn unlimited
 ulimit -Sl unlimited
 
-if [ ! "$DOTFILES/temp/.cronSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.cronSetup" ]; then
 	echo "Setting up cron"
 
 	sudo ln -sf $DOTFILES/cron/crontab /etc/crontab
@@ -53,7 +57,7 @@ if [ ! "$DOTFILES/temp/.cronSetup" ]; then
 	echo "1" > $DOTFILES/temp/.cronSetup
 fi
 
-if [ ! "$DOTFILES/temp/.gitSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.gitSetup" ]; then
 	echo "Setting up git"
 
 	read -p "Enter your git user.name: " username; git config --global user.name $username
@@ -75,7 +79,7 @@ for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
 done
 
-if [ ! "$HOME/.nvm" ]; then
+if [ ! -s "$HOME/.nvm" ]; then
 	echo "Installing NVM"
 
 	curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
@@ -106,20 +110,33 @@ echo "Running device setup"
 
 $DOTFILES/devices/$DOTFILES_DEVICE/SETUP
 
-if [ ! "$DOTFILES/temp/.dnsmasqSetup" ]; then
+if [ ! -s "$DOTFILES/temp/.dnsmasqSetup" ]; then
 	echo "Setting up dnsmasq"
 
+	sudo groupadd -r dnsmasq
+
+	sudo service resolvconf stop
+
+	sudo update-rc.d resolvconf remove
+
+	sudo systemctl stop systemd-resolved
 	sudo systemctl disable systemd-resolved
 
 	sudo ln -sf $DOTFILES/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
 	sudo ln -sf $DOTFILES/dnsmasq/resolv.personal /etc/resolv.personal
-	sudo ln -sf $DOTFILES/dnsmasq/resolv.conf /etc/resolv.conf
 	sudo ln -sf $DOTFILES/dnsmasq/hosts.adblock /etc/hosts.adblock
 	sudo ln -sf $DOTFILES/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+	sudo ln -sf $DOTFILES/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
+
+	sudo systemctl enable dnsmasq
 
 	sudo service network-manager restart
 
 	sudo service dnsmasq restart
+
+	sudo systemctl restart dnsmasq
+
+	sudo ln -sf /var/run/NetworkManager/resolv.conf /etc/resolv.conf
 
 	echo "1" > $DOTFILES/temp/.dnsmasqSetup
 fi
@@ -129,3 +146,9 @@ echo "Cleaning apt packages"
 sudo apt autoremove -y
 
 notify-send "Done updating system!"
+
+echo -e "\nPress enter to reboot now OR Press Ctrl+c to quit and reboot later\n"
+
+read -p ""
+
+sudo reboot
