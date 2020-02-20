@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pnotify Volume $(amixer -D pulse get Master | awk '$2== "Left:" {print $5}')
