@@ -66,12 +66,12 @@ mode --pango_markup $mode_system_wallpaper {
 
 set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Control]UP</span> <span weight='heavy' size='large'>[Shift|Control]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
 mode --pango_markup $mode_system_volume {
-	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && $notifyVolume
-	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && $notifyVolume
-	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && $notifyVolume
-	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && $notifyVolume
-	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && $notifyVolume
-	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && $notifyVolume
+	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && $dotfilesFolder/scripts/pnotify-volume
 	bindsym m            $ex pactl set-sink-mute   $pactlSink toggle
 
 	bindsym BackSpace mode $mode_system
@@ -171,12 +171,12 @@ mode --pango_markup $mode_system_cursor {
 
 set $mode_system_backlight "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Backlight </span>  <span weight='heavy' size='large'>[Shift]UP</span> <span weight='heavy' size='large'>[Shift]DOWN</span> <span weight='heavy' size='large'>M</span>ax <span weight='heavy' size='large'>(Shift)M</span>in"
 mode --pango_markup $mode_system_backlight {
-	bindsym up         $ex xbacklight -inc 10 -time 20   && $notifyBrightness
-	bindsym down       $ex xbacklight -dec 10 -time 20   && $notifyBrightness
-	bindsym Shift+up   $ex xbacklight -inc 5  -time 20   && $notifyBrightness
-	bindsym Shift+down $ex xbacklight -dec 5  -time 20   && $notifyBrightness
-	bindsym m          $ex xbacklight -set 90 -time 2000 && $notifyBrightness
-	bindsym Shift+m    $ex xbacklight -set 10 -time 2000 && $notifyBrightness
+	bindsym up         $ex xbacklight -inc 10 -time 20   && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym down       $ex xbacklight -dec 10 -time 20   && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym Shift+up   $ex xbacklight -inc 5  -time 20   && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym Shift+down $ex xbacklight -dec 5  -time 20   && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym m          $ex xbacklight -set 90 -time 2000 && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym Shift+m    $ex xbacklight -set 10 -time 2000 && $dotfilesFolder/scripts/pnotify-brightness
 
 	bindsym BackSpace mode $mode_system
 
@@ -188,7 +188,7 @@ mode --pango_markup $mode_system_backlight {
 set $mode_system_autolock "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Autolock </span>  <span weight='heavy' size='large'>D</span>isable <span weight='heavy' size='large'>E</span>nable"
 mode --pango_markup $mode_system_autolock {
 	bindsym d       mode default, $ex pkill xautolock
-	bindsym e       mode default, $startAutolock
+	bindsym e       mode default, $ex xautolock -time 10 -locker "$dotfilesFolder/scripts/system lock"
 
 	bindsym BackSpace mode $mode_system
 
@@ -202,8 +202,8 @@ mode --pango_markup $mode_system {
 	bindsym a       mode $mode_system_autolock
 	bindsym b       mode $mode_system_backlight
 	bindsym c       mode $mode_system_cursor
-	bindsym f       mode default, $ex sudo $dotfilesFolder/scripts/clear_ram
-	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- update-dotfiles)
+	bindsym f       mode default, $ex $dotfilesFolder/scripts/clear_ram
+	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- $dotfilesFolder/scripts/update-dotfiles)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
 	bindsym r       $ex sudo $dotfilesFolder/scripts/system reboot

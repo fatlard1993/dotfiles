@@ -4,16 +4,6 @@ set $ex exec --no-startup-id
 
 set $exa exec_always
 
-set $notifyBrightness $dotfilesFolder/scripts/pnotify Brightness $(xbacklight)
-
-set $notifyVolume $dotfilesFolder/scripts/pnotify Volume $(amixer -D pulse get Master | awk '$2== "Left:" {print $5}')
-
-set $initWorkspaces exec --no-startup-id $dotfilesFolder/scripts/initWorkspaces
-
-set $startAutolock exec --no-startup-id xautolock -time 10 -locker "$dotfilesFolder/scripts/system lock"
-
-set $startLauncher exec --no-startup-id i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
-
 set $getText zenity --width=1000 --entry --text=
 
 set $dialog zenity --width=1000 --info --text=

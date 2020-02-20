@@ -1,8 +1,11 @@
-$ex $dotfilesFolder/scripts/wallpaper get
 $ex $dotfilesFolder/scripts/wallpaper change unsorted
+
+$ex $dotfilesFolder/scripts/wallpaper get
 
 $ex $dotfilesFolder/scripts/clipd &
 
+$ex $dotfilesFolder/scripts/ledCtl caps monitor &
+
 $ex caffeine-indicator &
 
-$initWorkspaces
+$ex $dotfilesFolder/scripts/initWorkspaces
