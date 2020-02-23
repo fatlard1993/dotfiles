@@ -8,25 +8,12 @@ if [ ! -s "$HOME/.bashrc.bkup" ]; then
 
 	cat $DOTFILES/etc/.bashrc >> $HOME/.bashrc
 	cat $DOTFILES/etc/.bashrc | sudo tee -a /root/.bashrc
-
-	echo "source $HOME/.bashrc" > $HOME/.bash_profile
-	echo "source /root/.bashrc" | sudo tee /root/.bash_profile
 fi
 
 echo "Updating bashrc.d"
 
 mkdir -p $HOME/.bashrc.d
 sudo mkdir -p /root/.bashrc.d
-
-echo -e "#!/bin/bash\n\nexport PATH=$PATH" > $HOME/.bashrc.d/0_variables
-echo "export DOTFILES=$DOTFILES" >> $HOME/.bashrc.d/0_variables
-echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc.d/0_variables
-
-sudo chmod a+x $HOME/.bashrc.d/0_variables
-
-sudo cp $HOME/.bashrc.d/0_variables /root/.bashrc.d/
-
-sudo chown root:root /root/.bashrc.d/0_variables
 
 files=$(find $DOTFILES/bashrc/* -type f)
 
