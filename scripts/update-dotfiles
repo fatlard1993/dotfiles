@@ -16,6 +16,16 @@ if [ ! "$DOTFILES" ]; then
 	fi
 
 	PATH="$DOTFILES/scripts:$PATH"
+
+	echo -e "#!/bin/bash\n\nPATH=$PATH" > $HOME/.bash_profile
+	echo "export DOTFILES=$DOTFILES" >> $HOME/.bash_profile
+	echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bash_profile
+
+	sudo chmod a+x $HOME/.bash_profile
+
+	sudo cp $HOME/.bash_profile /root/
+
+	sudo chown root:root /root/.bash_profile
 fi
 
 if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILES/temp/deviceType; fi
@@ -144,6 +154,8 @@ fi
 echo "Cleaning apt packages"
 
 sudo apt autoremove -y
+
+sudo apt clean
 
 notify-send "Done updating system!"
 
