@@ -1,23 +1,18 @@
 #!/bin/bash
 
-if [ ! -e $HOME/.config/device ]; then
-	echo "No valid device file!"
-	exit 1
-fi
+if [ ! "$DOTFILES_DEVICE" ]; then DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType); fi
 
-device=$(cat $HOME/.config/device)
-dotfiles_folder=$HOME/Projects/dotfiles
-device_folder=$dotfiles_folder/devices/$device
+device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-if [ $device == "work_tower" ]; then
+if [ "$DOTFILES_DEVICE" == "work_tower" ]; then
 	apps=(
 		"nautilus -w"
 		"nautilus -w"
-		"nautilus -w /home/chase/Downloads"
-		"gnome-terminal --working-directory /home/chase"
-		"gnome-terminal --working-directory /home/chase/Projects"
-		"gnome-terminal --working-directory /home/chase/Projects"
-		"gnome-terminal --working-directory /home/chase/Projects"
+		"nautilus -w $HOME/Downloads"
+		"gnome-terminal --working-directory $HOME"
+		"gnome-terminal --working-directory $HOME/Projects"
+		"gnome-terminal --working-directory $HOME/Projects"
+		"gnome-terminal --working-directory $HOME/Projects"
 		"code -n Projects/lib.code-workspace"
 		"code -n Projects/werk.code-workspace"
 		"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
@@ -61,12 +56,12 @@ if [ $device == "work_tower" ]; then
 		"#de935f"
 		"#cc6666"
 	)
-elif [ $device == "xps_13_9360" ]; then
+elif [ "$DOTFILES_DEVICE" == "xps_13_9360" ]; then
 	apps=(
 		"nautilus -w"
-		"nautilus -w /home/chase/Downloads"
-		"gnome-terminal --working-directory /home/chase"
-		"gnome-terminal --working-directory /home/chase/Projects"
+		"nautilus -w $HOME/Downloads"
+		"gnome-terminal --working-directory $HOME"
+		"gnome-terminal --working-directory $HOME/Projects"
 		"code -n Projects/lib.code-workspace"
 		"code -n Projects/werk.code-workspace"
 		"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
@@ -101,7 +96,7 @@ elif [ $device == "xps_13_9360" ]; then
 		"#de935f"
 		"#cc6666"
 	)
-elif [ $device == "raspberry_pi_touchscreen" ]; then
+elif [ "$DOTFILES_DEVICE" == "raspberry_pi_touchscreen" ]; then
 	apps=(
 		"chromium-browser --enable-touch-events http://192.168.1.37"
 	)
@@ -118,10 +113,10 @@ elif [ $device == "raspberry_pi_touchscreen" ]; then
 		"#cc6666"
 	)
 
-elif [ $device == "htpc" ]; then
+elif [ "$DOTFILES_DEVICE" == "htpc" ]; then
 	apps=(
 		"gnome-terminal"
-		"nautilus -w /home/htpc/Downloads"
+		"nautilus -w $HOME/Downloads"
 		"google-chrome"
 	)
 
