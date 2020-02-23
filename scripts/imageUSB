@@ -1,0 +1,22 @@
+#!/bin/bash
+
+source enforceSudo
+
+device=$2
+image=`readlink -f $1`
+
+if [ ! "$device" ]; then
+	device="/dev/$(lsblk -o NAME | grep mmc | head -n 1)";
+fi
+
+lsblk | grep -v snap
+
+echo -e "\nYou are about to write the image '$image' to the device '$device'\nPress enter to continue .. or Ctrl+c to cancel\n"
+
+read -p ""
+
+umount $device
+
+dd bs=4M if=$image of=$device conv=fdatasync status=progress
+
+sync
