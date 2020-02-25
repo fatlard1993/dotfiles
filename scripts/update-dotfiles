@@ -110,7 +110,7 @@ fi
 
 echo "Installing global npm packages"
 
-NPM_PACKAGES="pm2 ncu fatlard1993/zelda fatlard1993/skel"
+NPM_PACKAGES="pm2 npm-check-updates fatlard1993/zelda fatlard1993/skel"
 
 for package in $NPM_PACKAGES; do
 	npm list -g | grep $package || npm i -g $package
