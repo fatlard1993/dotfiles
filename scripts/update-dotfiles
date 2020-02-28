@@ -105,7 +105,7 @@ if [ ! -s "$HOME/.nvm" ]; then
 
 	npm=/usr/local/bin/npm
 
-	sudo setcap 'cap_net_bind_service=+ep' "/usr/local/bin/node"
+	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
 fi
 
 echo "Installing global npm packages"
