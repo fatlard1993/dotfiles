@@ -2,7 +2,7 @@
 
 echo "Installing apt packages for i3"
 
-aptPackages="i3"
+aptPackages="i3 fonts-font-awesome"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
