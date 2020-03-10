@@ -2,7 +2,7 @@
 
 echo "Installing apt packages for i3"
 
-aptPackages="i3 libnotify-bin fonts-font-awesome"
+aptPackages="i3 libnotify-bin fonts-font-awesome feh xdotool wmctrl xautolock caffeine"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
