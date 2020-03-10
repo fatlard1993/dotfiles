@@ -83,7 +83,7 @@ apt-update-all
 
 echo "Installing apt packages"
 
-aptPackages="curl dnsmasq whois software-properties-common build-essential make cpanminus autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix uuid-runtime"
+aptPackages="curl dnsmasq whois software-properties-common build-essential make cpanminus autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
@@ -110,9 +110,9 @@ fi
 
 echo "Installing global npm packages"
 
-NPM_PACKAGES="pm2 npm-check-updates fatlard1993/zelda fatlard1993/skel"
+globalNpmPackages="pm2 npm-check-updates fatlard1993/zelda fatlard1993/skel"
 
-for package in $NPM_PACKAGES; do
+for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
 done
 
