@@ -28,8 +28,9 @@ if [ ! "$DOTFILES/temp/.xSetup" ]; then
 	echo "1" > $DOTFILES/temp/.xSetup
 fi
 
-mkdir -p $HOME/.config/lxsession/LXDE
+mkdir -p $HOME/.config/lxsession/LXDE $HOME/.matchbox
 
+ln -sf $device_folder/keyboard.xml $HOME/.matchbox/keyboard.xml
 ln -sf $device_folder/autostart $HOME/.config/lxsession/LXDE/autostart
 ln -sf $device_folder/desktop.conf $HOME/.config/lxsession/LXDE/desktop.conf
 
