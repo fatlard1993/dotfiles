@@ -1,36 +1,23 @@
 #!/bin/bash
 
-if [ ! -e $HOME/.config/device ]; then
-	echo "No valid device file!"
-	exit 1
-fi
+device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-device=$(cat $HOME/.config/device)
-dotfiles_folder=$HOME/Projects/dotfiles
-device_folder=$dotfiles_folder/devices/$device
+update-dotfiles-i3
 
-if [ "$1" == "first" ]; then
-	git config --global user.name "fatlard1993"
-	git config --global user.email "fatlard1993@gmail.com"
+echo "Installing apt packages for $DOTFILES_DEVICE"
 
-	cd $HOME/Projects
+aptPackages="xinput-calibrator matchbox-keyboard"
 
-	$dotfiles_folder/scripts/cloneProjects home-page
-
-	git clone https://github.com/bulletmark/libinput-gestures.git
-
-	cd $HOME/Projects/libinput-gestures && sudo make install && libinput-gestures-setup autostart
-
-	cd $HOME/Projects/home-page && npm i
-
-	gsettings set org.onboard start-minimized true
-	gsettings set org.onboard show-status-icon true
-	gsettings set org.onboard xembed-onboard true
-	gsettings set org.onboard theme /usr/share/onboard/themes/Nightshade.theme
-
-	sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
-fi
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
-sudo apt install -y chromium-browser onboard xinput-calibrator
+ln -sf $device_folder/.profile $HOME/.profile
+
+ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+
+sudo ln -sf $device_folder/config.txt /boot/config.txt
+
+sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
