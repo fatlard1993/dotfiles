@@ -2,8 +2,8 @@
 
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-update-dotfiles-ubuntu
-update-dotfiles-i3
+DOTFILES=$DOTFILES update-dotfiles-ubuntu
+DOTFILES=$DOTFILES update-dotfiles-i3
 
 echo "Updating grub"
 
