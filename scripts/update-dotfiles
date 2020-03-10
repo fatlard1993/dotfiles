@@ -118,7 +118,7 @@ done
 
 echo "Running device setup"
 
-$DOTFILES/devices/$DOTFILES_DEVICE/SETUP
+DOTFILES=$DOTFILES DOTFILES_DEVICE=$DOTFILES_DEVICE $DOTFILES/devices/$DOTFILES_DEVICE/SETUP
 
 if [ ! -s "$DOTFILES/temp/.dnsmasqSetup" ]; then
 	echo "Setting up dnsmasq"
