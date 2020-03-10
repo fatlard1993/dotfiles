@@ -43,6 +43,14 @@ echo "Purgeing apt packages"
 
 sudo apt purge -y -qq totem* thunderbird*
 
+echo "Installing global npm packages"
+
+globalNpmPackages="npm-check-updates fatlard1993/zelda fatlard1993/skel"
+
+for package in $globalNpmPackages; do
+	npm list -g | grep $package || npm i -g $package
+done
+
 if [ ! -s "$DOTFILES/temp/.gtkSetup" ]; then
 	echo "Setting gtk dark preference"
 
