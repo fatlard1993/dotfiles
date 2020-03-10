@@ -16,8 +16,8 @@ device_i3_folder=$DOTFILES/devices/$DOTFILES_DEVICE/i3
 mkdir -p $HOME/.config/i3
 
 echo "set \$dotfilesFolder $DOTFILES" > /tmp/i3SysVars
-echo "set \$dotfilesDevice $DOTFILES_DEVICE" > /tmp/i3SysVars
-echo "set \$deviceFolder $DOTFILES/devices/$DOTFILES_DEVICE" > /tmp/i3SysVars
+echo "set \$dotfilesDevice $DOTFILES_DEVICE" >> /tmp/i3SysVars
+echo "set \$deviceFolder $DOTFILES/devices/$DOTFILES_DEVICE" >> /tmp/i3SysVars
 
 cat $DOTFILES/etc/_fileWarning \
   <(echo) $i3_folder/_theme \
