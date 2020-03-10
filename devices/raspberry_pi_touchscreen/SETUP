@@ -22,6 +22,8 @@ sudo ln -sf $device_folder/config.txt /boot/config.txt
 
 sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
 
+sleep 10
+
 mkdir -p $HOME/.config/lxsession/LXDE
 
 ln -sf $device_folder/autostart $HOME/.config/lxsession/LXDE/autostart
