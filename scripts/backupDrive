@@ -1,0 +1,28 @@
+#!/bin/bash
+
+source enforceSudo
+
+device=$2
+image=`readlink -f $1`
+
+if [ ! "$device" ]; then
+	device="/dev/$(lsblk -o NAME | grep mmc | head -n 1)";
+fi
+
+if [ ! "$image" ]; then
+	image=`readlink -f ./temp.backup`
+fi
+
+lsblk | grep -v snap
+
+echo -e "\nYou are about to backup the device '$device' to the image '$image'\nPress enter to continue .. or Ctrl+c to cancel\n"
+
+read -p ""
+
+set -x
+
+umount $device
+
+dd bs=4M if=$device of=$image conv=fdatasync status=progress
+
+sync
