@@ -21,3 +21,18 @@ ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddit
 sudo ln -sf $device_folder/config.txt /boot/config.txt
 
 sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
+
+if [ ! "$DOTFILES/temp/.lxSetup" ]; then
+	mkdir -p $HOME/.config/lxsession/LXDE
+
+	ln -sf $device_folder/autostart $HOME/.config/lxsession/LXDE/autostart
+	ln -sf $device_folder/desktop.conf $HOME/.config/lxsession/LXDE/desktop.conf
+
+	echo "1" > $DOTFILES/temp/.lxSetup
+fi
+
+if [ ! "$DOTFILES/temp/.sshSetup" ]; then
+	sudo touch /boot/ssh
+
+	echo "1" > $DOTFILES/temp/.sshSetup
+fi

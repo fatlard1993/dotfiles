@@ -1,5 +1,0 @@
-#!/bin/bash
-
-> $HOME/.config/lxsession/LXDE/autostart
-
-sed -i "s/openbox-lxde/i3/" $HOME/.config/lxsession/LXDE/desktop.conf
