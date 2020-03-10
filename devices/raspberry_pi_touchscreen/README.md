@@ -22,7 +22,7 @@ This directory contains files specific to my raspberry pi 3A+ touchscreen
 	6. Reboot - (skip)
 6. Open terminal
 	1: `pi@raspberrypi:~ $ git clone https://github.com/fatlard1993/dotfiles`
-	2: `pi@raspberrypi:~ $ ./dotfiles/scripts/update-dotfiles raspberry_pi_touchscreen`
+	2: `pi@raspberrypi:~ $ ./dotfiles/scripts/update-dotfiles raspberry_pi_touchscreen 2>&1 | logger -t setup`
 
 Set session manager to lxsession and window manager to i3.
 
