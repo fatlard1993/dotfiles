@@ -17,7 +17,7 @@ This directory contains files specific to my raspberry pi 3A+ touchscreen
 	1. Country setup
 	2. Change password
 	3. Setup screen
-	4. Wifi - (skip)
+	4. Wifi
 	5. Update software - (skip)
 	6. Reboot - (skip)
 6. Open terminal
