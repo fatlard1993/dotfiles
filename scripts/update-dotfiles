@@ -83,7 +83,7 @@ apt-update-all
 
 echo "Installing apt packages"
 
-aptPackages="curl dnsmasq whois software-properties-common build-essential make cpanminus autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime"
+aptPackages="curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
