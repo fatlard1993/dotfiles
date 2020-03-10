@@ -32,7 +32,7 @@ if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILE
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
-update-dotfiles-bashrc
+DOTFILES=$DOTFILES update-dotfiles-bashrc
 
 groupsToAdd="input dialout"
 
