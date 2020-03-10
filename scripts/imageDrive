@@ -19,6 +19,6 @@ set -x
 
 umount $device
 
-dd bs=4M if=$image of=$device conv=fdatasync status=progress
+time dd bs=4M if=$image of=$device conv=fdatasync status=progress
 
 sync
