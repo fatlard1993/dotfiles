@@ -20,9 +20,13 @@ ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddit
 
 sudo ln -sf $device_folder/config.txt /boot/config.txt
 
-sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
+if [ ! "$DOTFILES/temp/.xSetup" ]; then
+	sudo update-alternatives --config x-session-manager && update-alternatives --config x-window-manager
 
-sleep 10
+	sleep 10
+
+	echo "1" > $DOTFILES/temp/.xSetup
+fi
 
 mkdir -p $HOME/.config/lxsession/LXDE
 
