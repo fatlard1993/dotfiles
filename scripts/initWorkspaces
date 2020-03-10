@@ -1,6 +1,7 @@
 #!/bin/bash
 
-if [ ! "$DOTFILES_DEVICE" ]; then DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType); fi
+DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
+DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
 
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
