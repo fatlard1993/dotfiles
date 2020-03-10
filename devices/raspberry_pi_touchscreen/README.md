@@ -10,10 +10,21 @@ This directory contains files specific to my raspberry pi 3A+ touchscreen
 
 ## Fresh install
 
-* `pi@raspberrypi:~ $ DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git`
-* `pi@raspberrypi:~ $ cd dotfiles && ./scripts/update-dotfiles raspberry_pi_touchscreen`
+1. [Download](https://downloads.raspberrypi.org/raspbian_latest)
+2. Write the image to a usb drive
+3. Boot the pi
+4. Complete the "Welcome to Raspberry Pi" setup dialog
+	1. Country setup
+	2. Change password
+	3. Setup screen
+	4. Wifi - (skip)
+	5. Update software - (skip)
+	6. Reboot - (skip)
+6. Open terminal
+	1: `pi@raspberrypi:~ $ git clone https://github.com/fatlard1993/dotfiles`
+	2: `pi@raspberrypi:~ $ ./dotfiles/scripts/update-dotfiles raspberry_pi_touchscreen`
 
-Set session manager to lxsession and window manager to i3. After reboot run: `cd ~/Projects/dotfiles && ./devices/raspberry_pi_touchscreen/fixLxSession`
+Set session manager to lxsession and window manager to i3.
 
 ### Touchscreen calibration
 
