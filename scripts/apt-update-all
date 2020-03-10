@@ -6,12 +6,12 @@ echo "Updating apt packages"
 
 notify-send "Updating apt packages, may take a while..."
 
-dpkg --configure -a
+apt update --fix-missing
 
-apt update
+dpkg --configure -a
 
 apt upgrade -y
 
-apt install --fix-broken --fix-missing -y
+apt install --fix-broken -y
 
 notify-send "Updated apt packages"
