@@ -34,11 +34,11 @@ function promptCommand {
 	trap 'tput sgr0' DEBUG
 
 	if [[ `whoami` == "root" ]]; then
-		PS1="${c0}${cred}┏${time}${tty}${adminUser}${directory}${gitBranch}\n${cred}┗${prePrompt}"
+		PS1="\n${c0}${cred}┏${time}${tty}${adminUser}${directory}${gitBranch}\n${cred}┗${prePrompt}"
 
 		PS2="${c0}${cred}${expandingPipe}${prePrompt}"
 	else
-		PS1="${c0}${cdef}┏${time}${tty}${user}${directory}${gitBranch}\n${cdef}┗${prePrompt}"
+		PS1="\n${c0}${cdef}┏${time}${tty}${user}${directory}${gitBranch}\n${cdef}┗${prePrompt}"
 
 		PS2="${c0}${cdef}${expandingPipe}${prePrompt}"
 	fi
