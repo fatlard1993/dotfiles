@@ -1,0 +1,9 @@
+#!/bin/bash
+
+ncu
+
+echo -e "\nPress enter to automatically update all deps OR Press Ctrl+c to quit and proceed manually\n"
+
+read -p ""
+
+ncu -u ; npm i ; git add . ; git commit -m "update deps" ; npm version patch ; git push
