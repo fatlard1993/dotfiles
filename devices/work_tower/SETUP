@@ -1,29 +1,24 @@
 #!/bin/bash
 
-dotfiles_folder=$HOME/Projects/dotfiles
-device=$(cat $HOME/.config/device)
+device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-if [ "$1" == "first" ]; then
-	sudo cp $dotfiles_folder/devices/$device/etc/grub /etc/default/ && sudo update-grub2
+DOTFILES=$DOTFILES update-dotfiles-ubuntu
+DOTFILES=$DOTFILES update-dotfiles-i3
 
-	$dotfiles_folder/vscode/SETUP
+echo "Updating grub"
 
-	git config --global user.name	"fatlard1993"
-	git config --global user.email "fatlard1993@gmail.com"
+sudo ln -sf $device_folder/etc/grub /etc/default/grub
 
-	cd $HOME/Projects
+sudo update-grub2
 
-	git clone https://github.com/fatlard1993/swiss-army-knife
-	git clone https://github.com/fatlard1993/symetrix-web-common
-	git clone https://github.com/fatlard1993/touch-panel
-	git clone https://github.com/fatlard1993/control-server
-	git clone https://github.com/fatlard1993/dsp-web-interface
+echo "Installing apt packages for $DOTFILES_DEVICE"
 
-	$HOME/Projects/swiss-army-knife/SETUP
-	$HOME/Projects/symetrix-web-common/SETUP
-	$HOME/Projects/touch-panel/SETUP
-	$HOME/Projects/control-server/SETUP
-	$HOME/Projects/dsp-web-interface/SETUP
-fi
+aptPackages="gimp gpick code vlc mpv mongodb onboard android-tools-adb smbclient samba cifs-utils"
 
-sudo apt install -y gimp gpick vlc mpv mongodb smbclient samba cifs-utils
+for package in $aptPackages; do
+	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
+done
+
+ln -sf $device_folder/.profile $HOME/.profile
+
+ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
