@@ -29,7 +29,7 @@ if [ "$addedRepo" ]; then sudo apt update -y; fi
 
 echo "Installing apt packages for ubuntu"
 
-aptPackages="xinit xserver-xorg pasystray dconf-tools default-jre simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg"
+aptPackages="xinit xserver-xorg pasystray default-jre dconf-tools simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
