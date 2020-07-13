@@ -7,7 +7,7 @@ set $mod        Mod4
 # left
 set $mainDisplay DP-0
 # right
-set $secondaryDisplay DP-1
+set $secondaryDisplay DP-2
 # Extra
 #set $thirdDisplay VGA-1
 
