@@ -11,15 +11,15 @@ workspace 17 output             $secondaryDisplay
 workspace 18 output             $secondaryDisplay
 workspace 19 output             $secondaryDisplay
 
-workspace F1 output             $thirdDisplay
-workspace F2 output             $thirdDisplay
-workspace F3 output             $thirdDisplay
-workspace F4 output             $thirdDisplay
-workspace F5 output             $thirdDisplay
-workspace F6 output             $thirdDisplay
-workspace F7 output             $thirdDisplay
-workspace F8 output             $thirdDisplay
-workspace F9 output             $thirdDisplay
-workspace F10 output            $thirdDisplay
-workspace F11 output            $thirdDisplay
-workspace F12 output            $thirdDisplay
+#workspace F1 output             $thirdDisplay
+#workspace F2 output             $thirdDisplay
+#workspace F3 output             $thirdDisplay
+#workspace F4 output             $thirdDisplay
+#workspace F5 output             $thirdDisplay
+#workspace F6 output             $thirdDisplay
+#workspace F7 output             $thirdDisplay
+#workspace F8 output             $thirdDisplay
+#workspace F9 output             $thirdDisplay
+#workspace F10 output            $thirdDisplay
+#workspace F11 output            $thirdDisplay
+#workspace F12 output            $thirdDisplay
