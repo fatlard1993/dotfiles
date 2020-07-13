@@ -11,7 +11,7 @@
 #
 
 # Internal properties
-GITHUB_PREFIX=git@github.com:
+GITHUB_PREFIX=https://github.com/
 GITHUB_USERNAME=$(git config --global github.user)
 
 function main {
@@ -67,12 +67,12 @@ function find_repos {
 		# If a user provides the parameter username/repo pull in that specific repository.
 		if [ `awk -v repo="$repo" -v delimit="/" 'BEGIN{print index(repo,delimit)}'` -ne 0 ]; then
 			echo "Pulling in $repo";
-			git clone $GITHUB_PREFIX$repo.git
+			git clone $GITHUB_PREFIX$repo
 
 		# Default to you.
 		else
 			echo "Pulling in $USERNAME/$repo";
-			git clone $GITHUB_PREFIX$USERNAME/$repo.git
+			git clone $GITHUB_PREFIX$USERNAME/$repo
 		fi
 	done
 }
