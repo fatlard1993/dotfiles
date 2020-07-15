@@ -1,7 +1,14 @@
 #!/bin/bash
 
+if [ -s "$HOME/.bashrc.bkup" ]; then
+	echo "Restoring default bashrc"
+
+	mv $HOME/.bashrc.bkup $HOME/.bashrc
+	sudo mv /root/.bashrc.bkup /root/.bashrc
+fi
+
 if [ ! -s "$HOME/.bashrc.bkup" ]; then
-	echo "Extending .bashrc"
+	echo "Backing up and extending .bashrc"
 
 	cp $HOME/.bashrc $HOME/.bashrc.bkup
 	sudo cp /root/.bashrc /root/.bashrc.bkup
