@@ -32,8 +32,6 @@ if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILE
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
-DOTFILES=$DOTFILES update-dotfiles-bashrc
-
 groupsToAdd="input dialout"
 
 echo "Adding $USER to groups: $groupsToAdd"
@@ -107,6 +105,8 @@ if [ ! -s "$HOME/.nvm" ]; then
 
 	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
 fi
+
+DOTFILES=$DOTFILES update-dotfiles-bashrc
 
 echo "Installing global npm packages"
 
