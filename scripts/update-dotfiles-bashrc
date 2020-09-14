@@ -41,6 +41,9 @@ if [ ! -s "$HOME/.bashrc.bkup" ]; then
 	echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc
 fi
 
+export DOTFILES=$DOTFILES
+export DOTFILES_DEVICE=$DOTFILES_DEVICE
+
 echo -e "\nUpdating .bash_profile"
 
 echo -e "!#/bin/bash\n\nsource $HOME/.bashrc" > $HOME/.bash_profile

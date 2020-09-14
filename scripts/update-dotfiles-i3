@@ -1,5 +1,8 @@
 #!/bin/bash
 
+DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
+DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
+
 echo "Installing apt packages for i3"
 
 aptPackages="i3 libnotify-bin fonts-font-awesome feh imagemagick xdotool wmctrl xautolock caffeine"
@@ -9,6 +12,13 @@ for package in $aptPackages; do
 done
 
 echo "Generating i3 config"
+
+if [ ! "$DOTFILES" ]; then
+	echo "error"
+	notify-send "$(pwd)"
+
+	exit 1
+fi
 
 i3_folder=$DOTFILES/i3
 device_i3_folder=$DOTFILES/devices/$DOTFILES_DEVICE/i3
