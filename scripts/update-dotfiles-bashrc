@@ -44,9 +44,18 @@ fi
 export DOTFILES=$DOTFILES
 export DOTFILES_DEVICE=$DOTFILES_DEVICE
 
-echo -e "\nUpdating .bash_profile"
+echo -e "\nUpdating .bash_profile and .profile"
 
-echo -e "!#/bin/bash\n\nsource $HOME/.bashrc" > $HOME/.bash_profile
+rm -rf $HOME/.bash_profile $HOME/.profile
+
+echo '#!/bin/bash' > $HOME/.bash_profile
+echo '#!/bin/bash' > $HOME/.profile
+echo -e "\nsource $HOME/.bashrc" >> $HOME/.bash_profile
+echo -e "\nsource $HOME/.bashrc" >> $HOME/.profile
+
+if [ -s $DOTFILES/devices/$DOTFILES_DEVICE/.profile ]; then
+	cat $DOTFILES/devices/$DOTFILES_DEVICE/.profile >> $HOME/.profile
+fi
 
 echo -e "\nUpdating bashrc.d"
 
