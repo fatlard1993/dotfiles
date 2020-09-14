@@ -85,7 +85,7 @@ set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' 
 mode --pango_markup $mode_system_leave {
 	bindsym e      $ex i3-msg [class=".*"] kill && sleep 1 && i3-msg exit
 	bindsym l      mode default, $ex $dotfilesFolder/scripts/system-lock
-	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && sudo shutdown
+	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
 
 	bindsym BackSpace mode $mode_system
 
@@ -206,7 +206,7 @@ mode --pango_markup $mode_system {
 	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- $dotfilesFolder/scripts/update-dotfiles)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
-	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && sudo reboot
+	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && reboot
 	bindsym v       mode $mode_system_volume
 	bindsym w       mode $mode_system_wallpaper
 
