@@ -8,7 +8,7 @@ if [ -s "$HOME/.bashrc.bkup" ]; then
 fi
 
 if [ ! -s "$HOME/.bashrc.bkup" ]; then
-	echo "Backing up and extending .bashrc"
+	echo -e "Backing up and extending .bashrc\n"
 
 	cp $HOME/.bashrc $HOME/.bashrc.bkup
 	sudo cp /root/.bashrc /root/.bashrc.bkup
@@ -17,7 +17,7 @@ if [ ! -s "$HOME/.bashrc.bkup" ]; then
 	cat $DOTFILES/etc/.bashrc | sudo tee -a /root/.bashrc
 fi
 
-echo "Updating bashrc.d"
+echo -e "\nUpdating bashrc.d"
 
 mkdir -p $HOME/.bashrc.d
 sudo mkdir -p /root/.bashrc.d
