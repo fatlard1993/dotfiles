@@ -109,4 +109,4 @@ if [ ! -d "$HOME/Projects/libinput-gestures" ]; then
 	)
 fi
 
-DOTFILES=$DOTFILES update-dotfiles-fonts
+update-dotfiles-fonts

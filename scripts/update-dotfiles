@@ -1,35 +1,5 @@
 #!/bin/bash
 
-if [ ! "$DOTFILES" ]; then
-	DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-
-	if [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
-		DOTFILES_DEVICE=$1
-	elif [ -s "$DOTFILES/temp/deviceType" ]; then
-		echo "Found deviceType: $(cat $DOTFILES/temp/deviceType)"
-	else
-		echo -e "\n$1 is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
-
-		read -p "Enter the device type: " deviceType; exec $(dirname $(readlink -f $0))/$(basename $0) $deviceType
-
-		exit #?
-	fi
-
-	PATH="$DOTFILES/scripts:$PATH"
-
-	echo -e "#!/bin/bash\n\nPATH=$PATH" > $HOME/.bash_profile
-	echo "export DOTFILES=$DOTFILES" >> $HOME/.bash_profile
-	echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bash_profile
-
-	sudo chmod a+x $HOME/.bash_profile
-
-	sudo cp $HOME/.bash_profile /root/
-
-	sudo chown root:root /root/.bash_profile
-fi
-
-if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILES/temp/deviceType; fi
-
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
 groupsToAdd="input dialout"
@@ -106,7 +76,7 @@ if [ ! -s "$HOME/.nvm" ]; then
 	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
 fi
 
-DOTFILES=$DOTFILES update-dotfiles-bashrc
+update-dotfiles-bashrc
 
 echo "Installing global npm packages"
 
@@ -118,7 +88,7 @@ done
 
 echo "Running device setup"
 
-DOTFILES=$DOTFILES DOTFILES_DEVICE=$DOTFILES_DEVICE $DOTFILES/devices/$DOTFILES_DEVICE/SETUP
+$DOTFILES/devices/$DOTFILES_DEVICE/SETUP
 
 if [ ! -s "$DOTFILES/temp/.dnsmasqSetup" ]; then
 	echo "Setting up dnsmasq"
