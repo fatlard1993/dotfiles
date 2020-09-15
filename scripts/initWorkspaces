@@ -60,6 +60,8 @@ elif [ "$DOTFILES_DEVICE" == "xps_13_9360" ]; then
 		"nautilus -w $HOME/Downloads"
 		"gnome-terminal --working-directory $HOME"
 		"gnome-terminal --working-directory $HOME/Projects"
+		"i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
+		"i3-msg focus left && i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
 		"code -n Projects/lib.code-workspace"
 		"code -n Projects/werk.code-workspace"
 		"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
@@ -68,6 +70,8 @@ elif [ "$DOTFILES_DEVICE" == "xps_13_9360" ]; then
 	workspaces=(
 		"5"
 		"5"
+		"4"
+		"4"
 		"4"
 		"4"
 		"3"
@@ -80,6 +84,8 @@ elif [ "$DOTFILES_DEVICE" == "xps_13_9360" ]; then
 		"5 Files"
 		"4 Term"
 		"4 Term"
+		"4 Term"
+		"4 Term"
 		"3 Lib"
 		"2 Werk"
 		"1 Web"
@@ -88,6 +94,8 @@ elif [ "$DOTFILES_DEVICE" == "xps_13_9360" ]; then
 	workspaceColors=(
 		"#8abeb7"
 		"#8abeb7"
+		"#b5bd68"
+		"#b5bd68"
 		"#b5bd68"
 		"#b5bd68"
 		"#f0c674"
@@ -163,12 +171,12 @@ for x in ${!apps[*]}; do
 	while [ "$openedWindows" -lt "$x" ]; do
 		openedWindows=$(wmctrl -l | wc -l)
 
-		sleep 1s
+		sleep 0.3s
 	done
 
 	i3-msg workspace number ${workspaces[$x]}
 
 	i3-msg "rename workspace \"$(i3-msg -t 'get_workspaces' | sed -e 's/{"num/\n{"num/g' | grep \"focused\":true | sed -e 's/,"/\n/g' | grep name | cut -d\" -f 3)\" to \"${workspaces[$x]}<span foreground='${workspaceColors[$x]}' weight='heavy'>${workspaceNames[$x]}</span>\""
 
-	${apps[$x]} &
+	eval ${apps[$x]} &
 done
