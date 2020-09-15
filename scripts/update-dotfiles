@@ -70,15 +70,11 @@ if [ ! -s "$DOTFILES/temp/.gitSetup" ]; then
 	echo "1" > $DOTFILES/temp/.gitSetup
 fi
 
-apt-update-all
+apt-autoupdate
 
 echo "Installing apt packages"
 
-aptPackages="curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools"
-
-for package in $aptPackages; do
-	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
-done
+apt-autoinstall curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools
 
 sudo pip3 install thefuck
 

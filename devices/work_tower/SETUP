@@ -13,11 +13,7 @@ sudo update-grub2
 
 echo "Installing apt packages for $DOTFILES_DEVICE"
 
-aptPackages="gimp gpick code vlc mpv mongodb onboard android-tools-adb smbclient samba cifs-utils"
-
-for package in $aptPackages; do
-	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
-done
+apt-autoinstall gimp gpick code vlc mpv mongodb onboard android-tools-adb smbclient samba cifs-utils
 
 ln -sf $device_folder/.profile $HOME/.profile
 

@@ -29,11 +29,7 @@ if [ "$addedRepo" ]; then sudo apt update -y; fi
 
 echo "Installing apt packages for ubuntu"
 
-aptPackages="xinit xserver-xorg pasystray default-jre dconf-tools simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg"
-
-for package in $aptPackages; do
-	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
-done
+apt-autoinstall xinit xserver-xorg pasystray default-jre dconf-tools simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg
 
 echo "Autoinstalling drivers"
 
@@ -41,9 +37,7 @@ sudo ubuntu-drivers autoinstall
 
 echo "Purgeing apt packages"
 
-for package in totem thunderbird; do
-	if [ "$(dpkg -s $package | grep Status)" == "Status: install ok installed" ]; then sudo apt purge -y $package; fi
-done
+apt-autopurge totem thunderbird
 
 echo "Installing global npm packages"
 
