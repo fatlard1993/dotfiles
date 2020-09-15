@@ -29,8 +29,6 @@ for file in $files; do
 	sudo ln -sf $file /etc/X11/xorg.conf.d/$(basename $file)
 done
 
-ln -sf $device_folder/.profile $HOME/.profile
-
 ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
 
 if [ ! "$DOTFILES/temp/.fwupdSetup" ]; then
@@ -39,7 +37,7 @@ if [ ! "$DOTFILES/temp/.fwupdSetup" ]; then
 	echo "1" > $DOTFILES/temp/.fwupdSetup
 fi
 
-fwupd.fwupdmgr get-devices
-fwupd.fwupdmgr refresh
-fwupd.fwupdmgr get-updates
-fwupd.fwupdmgr update
+# fwupd.fwupdmgr get-devices
+# fwupd.fwupdmgr refresh
+# fwupd.fwupdmgr get-updates
+# fwupd.fwupdmgr update
