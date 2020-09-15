@@ -6,11 +6,7 @@ update-dotfiles-i3
 
 echo "Installing apt packages for $DOTFILES_DEVICE"
 
-aptPackages="xinput-calibrator matchbox-keyboard"
-
-for package in $aptPackages; do
-	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
-done
+apt-autoinstall xinput-calibrator matchbox-keyboard
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
