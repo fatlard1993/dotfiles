@@ -1,8 +1,5 @@
 #!/bin/bash
 
-DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
-
 echo "Setting up fonts"
 
 mkdir -p $HOME/.fonts

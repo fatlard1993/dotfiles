@@ -10,46 +10,20 @@ fi
 if [ ! -s "$HOME/.bashrc.bkup" ]; then
 	echo -e "Backing up and extending .bashrc\n"
 
-	DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-
 	cp $HOME/.bashrc $HOME/.bashrc.bkup
 	sudo cp /root/.bashrc /root/.bashrc.bkup
 
 	cat $DOTFILES/etc/.bashrc >> $HOME/.bashrc
 	cat $DOTFILES/etc/.bashrc | sudo tee -a /root/.bashrc
-
-	PATH="$DOTFILES/scripts:$PATH"
-
-	if [ -s "$DOTFILES/temp/deviceType" ]; then
-		DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
-
-		echo "Found deviceType: $DOTFILES_DEVICE"
-	elif [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
-		DOTFILES_DEVICE=$1
-	else
-		echo -e "\n$1 is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
-
-		read -p "Enter the device type: " deviceType; exec $(dirname $(readlink -f $0))/$(basename $0) $deviceType
-
-		exit #?
-	fi
-
-	if [ ! -s "$DOTFILES/temp/deviceType" ]; then echo "$DOTFILES_DEVICE" > $DOTFILES/temp/deviceType; fi
-
-	echo -e "\nPATH=$PATH" >> $HOME/.bashrc
-	echo "export DOTFILES=$DOTFILES" >> $HOME/.bashrc
-	echo "export DOTFILES_DEVICE=$DOTFILES_DEVICE" >> $HOME/.bashrc
 fi
-
-export DOTFILES=$DOTFILES
-export DOTFILES_DEVICE=$DOTFILES_DEVICE
 
 echo -e "\nUpdating .bash_profile and .profile"
 
 rm -rf $HOME/.bash_profile $HOME/.profile
 
-echo '#!/bin/bash' > $HOME/.bash_profile
-echo '#!/bin/bash' > $HOME/.profile
+cp $DOTFILES/etc/.bash_profile $HOME/.bash_profile
+cp $DOTFILES/etc/.bash_profile $HOME/.profile
+
 echo -e "\nsource $HOME/.bashrc" >> $HOME/.bash_profile
 echo -e "\nsource $HOME/.bashrc" >> $HOME/.profile
 
