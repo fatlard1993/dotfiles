@@ -1,8 +1,5 @@
 #!/bin/bash
 
-DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
-
 echo "Adding apt repositories"
 
 aptRepos="maarten-baert/simplescreenrecorder"
@@ -44,7 +41,9 @@ sudo ubuntu-drivers autoinstall
 
 echo "Purgeing apt packages"
 
-sudo apt purge -y -qq totem* thunderbird*
+for package in totem thunderbird; do
+	if [ "$(dpkg -s $package | grep Status)" == "Status: install ok installed" ]; then sudo apt purge -y $package; fi
+done
 
 echo "Installing global npm packages"
 

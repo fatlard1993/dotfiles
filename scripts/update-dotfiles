@@ -1,7 +1,27 @@
 #!/bin/bash
 
-DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
+export DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
+
+if [ "$DOTFILES_DEVICE" ]; then
+	echo "DEVICE: $DOTFILES_DEVICE"
+elif [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
+	DOTFILES_DEVICE=$1
+else
+	echo -e "\n\"$1\" is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
+
+	read -p "Enter the device type: " deviceType; exec $(dirname $(readlink -f $0))/$(basename $0) $deviceType
+
+	exit #?
+fi
+
+echo "Setting up system variables"
+
+export DOTFILES_DEVICE
+export PATH=$PATH:$DOTFILES/scripts/
+
+echo -e "\nexport PATH=\"$PATH\"" | sudo tee /etc/profile.d/02_env.sh
+echo -e "\nexport DOTFILES=$DOTFILES" | sudo tee -a /etc/profile.d/02_env.sh
+echo -e "\nexport DOTFILES_DEVICE=$DOTFILES_DEVICE" | sudo tee -a /etc/profile.d/02_env.sh
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
@@ -54,11 +74,13 @@ apt-update-all
 
 echo "Installing apt packages"
 
-aptPackages="curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime gparted pv"
+aptPackages="curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl ruby cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools"
 
 for package in $aptPackages; do
 	if [ "$(dpkg -s $package | grep Status)" != "Status: install ok installed" ]; then sudo apt install -y $package; fi
 done
+
+sudo pip3 install thefuck
 
 if [ ! -s "$HOME/.nvm" ]; then
 	echo "Installing NVM"

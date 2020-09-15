@@ -1,8 +1,5 @@
 #!/bin/bash
 
-DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
-DOTFILES_DEVICE=$(cat $DOTFILES/temp/deviceType)
-
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
 if [ "$DOTFILES_DEVICE" == "work_tower" ]; then
