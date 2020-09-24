@@ -11,6 +11,10 @@ sudo ln -sf $device_folder/etc/grub /etc/default/grub
 
 sudo update-grub2
 
+echo "Setting up lockscreen"
+
+sudo ln -sf $device_folder/lock.png $HOME/.config/i3/lock.png
+
 echo "Installing apt packages for $DOTFILES_DEVICE"
 
 apt-autoinstall gimp gpick code vlc mpv mongodb onboard android-tools-adb
