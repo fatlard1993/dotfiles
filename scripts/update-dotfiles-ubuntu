@@ -89,11 +89,13 @@ if [ ! -s "$DOTFILES/temp/.dunstSetup" ]; then
 	ln -sf $DOTFILES/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
 fi
 
-if [ ! -d "$HOME/Projects/libinput-gestures" ]; then
+mkdir -p $HOME/Projects/external
+
+if [ ! -d "$HOME/Projects/external/libinput-gestures" ]; then
 	echo "Installing libinput-gestures"
 
 	(
-		cd $HOME/Projects
+		cd $HOME/Projects/external
 
 		git clone https://github.com/bulletmark/libinput-gestures.git
 
