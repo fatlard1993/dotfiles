@@ -29,7 +29,7 @@ if [ "$addedRepo" ]; then sudo apt update -y; fi
 
 echo "Installing apt packages for ubuntu"
 
-apt-autoinstall xinit xserver-xorg pasystray default-jre dconf-tools simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg
+apt-autoinstall xinit xserver-xorg pasystray default-jre dconf-tools simplescreenrecorder code gnome-terminal nautilus libinput-tools pavucontrol leafpad xbacklight xclip scrot libcanberra-gtk-module libcanberra-gtk3-module ffmpeg rofi
 
 echo "Autoinstalling drivers"
 
@@ -53,6 +53,14 @@ if [ ! -s "$DOTFILES/temp/.gtkSetup" ]; then
 	echo -e "[Settings]\ngtk-application-prefer-dark-theme=1" > $HOME/.config/gtk-3.0/settings.ini
 
 	echo "1" > $DOTFILES/temp/.gtkSetup
+fi
+
+if [ ! -s "$DOTFILES/temp/.rofiSetup" ]; then
+	echo "Setting up rofi"
+
+	ln -sf $DOTFILES/rofi/config $HOME/.config/rofi/config
+
+	echo "1" > $DOTFILES/temp/.rofiSetup
 fi
 
 if [ ! -s /etc/sudo.conf ]; then
