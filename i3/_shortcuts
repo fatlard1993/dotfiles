@@ -76,7 +76,6 @@ bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad
 
 # Etc
 
-# bindsym $mod+space                  $ex i3-dmenu-desktop --dmenu="dmenu -i -l 5 -p 'Launch' -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
 bindsym $mod+space                  $ex rofi -show drun
 
 bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm

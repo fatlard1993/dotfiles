@@ -1,0 +1,8 @@
+rofi.modi:                           window,run,drun,ssh
+rofi.font:                           mono 12
+rofi.dpi:                            0
+rofi.width:                          60
+rofi.lines:                          9
+rofi.kb-cancel:                      Escape,Super_L
+rofi.show-icons:                     true
+rofi.theme:                          ~/Projects/dotfiles/rofi/theme.rasi
