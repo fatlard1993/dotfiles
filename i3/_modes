@@ -14,7 +14,7 @@ mode --pango_markup $mode_workspaces_layout {
 set $mode_workspaces "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Workspaces </span>  <span weight='heavy' size='large'>L</span>ayout <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_workspaces {
 	bindsym l      mode $mode_workspaces_layout
-	bindsym m      mode default, $ex $dotfilesFolder/scripts/i3workspaceMark
+	bindsym m      mode default, $ex i3workspaceMark
 
 	bindsym BackSpace mode $mode_menu
 
@@ -25,12 +25,12 @@ mode --pango_markup $mode_workspaces {
 
 set $mode_system_wallpaper_sort "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Sort Wallpapers </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>D</span>elete <span weight='heavy' size='large'>S</span>ave <span weight='heavy' size='large'>(Shift)S</span>tash"
 mode --pango_markup $mode_system_wallpaper_sort {
-	bindsym c       $ex $dotfilesFolder/scripts/wallpaper change unsorted
-	bindsym d       $ex $dotfilesFolder/scripts/wallpaper sort delete
-	bindsym s       $ex $dotfilesFolder/scripts/wallpaper sort save
-	bindsym Shift+s $ex $dotfilesFolder/scripts/wallpaper sort stash
+	bindsym c       $ex wallpaper change unsorted
+	bindsym d       $ex wallpaper sort delete
+	bindsym s       $ex wallpaper sort save
+	bindsym Shift+s $ex i3-input -F 'exec wallpaper sort stash "%s"' -P 'Stash to subfolder: (default:stashed)'
 
-	bindsym Control+s $ex i3-input -F 'exec $dotfilesFolder/scripts/wallpaper sort save "%s"' -P 'Save to subfolder: (default:saved)'
+	#list: printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From'
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -41,8 +41,8 @@ mode --pango_markup $mode_system_wallpaper_sort {
 
 set $mode_system_wallpaper_change "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Change Wallpaper </span>  <span weight='heavy' size='large'>S</span>aved <span weight='heavy' size='large'>U</span>nsorted"
 mode --pango_markup $mode_system_wallpaper_change {
-	bindsym s      $ex $dotfilesFolder/scripts/wallpaper change saved
-	bindsym u      $ex $dotfilesFolder/scripts/wallpaper change unsorted
+	bindsym s      $ex wallpaper change saved
+	bindsym u      $ex wallpaper change unsorted
 
 	bindsym BackSpace mode $mode_system_wallpaper
 
@@ -54,7 +54,7 @@ mode --pango_markup $mode_system_wallpaper_change {
 set $mode_system_wallpaper "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Wallpaper </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>G</span>et <span weight='heavy' size='large'>S</span>ort"
 mode --pango_markup $mode_system_wallpaper {
 	bindsym c      mode $mode_system_wallpaper_change
-	bindsym g      $ex $dotfilesFolder/scripts/wallpaper get
+	bindsym g      $ex wallpaper get
 	bindsym s      mode $mode_system_wallpaper_sort
 
 	bindsym BackSpace mode $mode_system
@@ -66,12 +66,12 @@ mode --pango_markup $mode_system_wallpaper {
 
 set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Control]UP</span> <span weight='heavy' size='large'>[Shift|Control]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
 mode --pango_markup $mode_system_volume {
-	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && $dotfilesFolder/scripts/pnotify-volume
-	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && $dotfilesFolder/scripts/pnotify-volume
-	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && $dotfilesFolder/scripts/pnotify-volume
-	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && $dotfilesFolder/scripts/pnotify-volume
-	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && $dotfilesFolder/scripts/pnotify-volume
-	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && $dotfilesFolder/scripts/pnotify-volume
+	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && pnotify-volume
+	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && pnotify-volume
+	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && pnotify-volume
+	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && pnotify-volume
+	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && pnotify-volume
+	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && pnotify-volume
 	bindsym m            $ex pactl set-sink-mute   $pactlSink toggle
 
 	bindsym BackSpace mode $mode_system
@@ -84,7 +84,7 @@ mode --pango_markup $mode_system_volume {
 set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown"
 mode --pango_markup $mode_system_leave {
 	bindsym e      $ex i3-msg [class=".*"] kill && sleep 1 && i3-msg exit
-	bindsym l      mode default, $ex $dotfilesFolder/scripts/system-lock
+	bindsym l      mode default, $ex system-lock
 	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
 
 	bindsym BackSpace mode $mode_system
@@ -99,7 +99,7 @@ mode --pango_markup $mode_system_i3 {
 	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
 	bindsym r 			reload
 	bindsym Shift+r restart
-	bindsym u 			$ex $dotfilesFolder/scripts/update-dotfiles-i3
+	bindsym u 			$ex update-dotfiles-i3
 
 	bindsym BackSpace mode $mode_system
 
@@ -171,12 +171,12 @@ mode --pango_markup $mode_system_cursor {
 
 set $mode_system_backlight "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Backlight </span>  <span weight='heavy' size='large'>[Shift]UP</span> <span weight='heavy' size='large'>[Shift]DOWN</span> <span weight='heavy' size='large'>M</span>ax <span weight='heavy' size='large'>(Shift)M</span>in"
 mode --pango_markup $mode_system_backlight {
-	bindsym up         $ex xbacklight -inc 10 -time 20   && $dotfilesFolder/scripts/pnotify-brightness
-	bindsym down       $ex xbacklight -dec 10 -time 20   && $dotfilesFolder/scripts/pnotify-brightness
-	bindsym Shift+up   $ex xbacklight -inc 5  -time 20   && $dotfilesFolder/scripts/pnotify-brightness
-	bindsym Shift+down $ex xbacklight -dec 5  -time 20   && $dotfilesFolder/scripts/pnotify-brightness
-	bindsym m          $ex xbacklight -set 90 -time 2000 && $dotfilesFolder/scripts/pnotify-brightness
-	bindsym Shift+m    $ex xbacklight -set 10 -time 2000 && $dotfilesFolder/scripts/pnotify-brightness
+	bindsym up         $ex xbacklight -inc 10 -time 20   && pnotify-brightness
+	bindsym down       $ex xbacklight -dec 10 -time 20   && pnotify-brightness
+	bindsym Shift+up   $ex xbacklight -inc 5  -time 20   && pnotify-brightness
+	bindsym Shift+down $ex xbacklight -dec 5  -time 20   && pnotify-brightness
+	bindsym m          $ex xbacklight -set 90 -time 2000 && pnotify-brightness
+	bindsym Shift+m    $ex xbacklight -set 10 -time 2000 && pnotify-brightness
 
 	bindsym BackSpace mode $mode_system
 
@@ -188,7 +188,7 @@ mode --pango_markup $mode_system_backlight {
 set $mode_system_autolock "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Autolock </span>  <span weight='heavy' size='large'>D</span>isable <span weight='heavy' size='large'>E</span>nable"
 mode --pango_markup $mode_system_autolock {
 	bindsym d       mode default, $ex pkill xautolock
-	bindsym e       mode default, $ex xautolock -time 10 -locker "$dotfilesFolder/scripts/system-lock"
+	bindsym e       mode default, $ex xautolock -time 10 -locker "system-lock"
 
 	bindsym BackSpace mode $mode_system
 
@@ -202,8 +202,8 @@ mode --pango_markup $mode_system {
 	bindsym a       mode $mode_system_autolock
 	bindsym b       mode $mode_system_backlight
 	bindsym c       mode $mode_system_cursor
-	bindsym f       mode default, $ex $dotfilesFolder/scripts/clear_ram
-	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- $dotfilesFolder/scripts/update-dotfiles)
+	bindsym f       mode default, $ex clear_ram
+	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- update-dotfiles)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
 	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && reboot
@@ -233,7 +233,7 @@ set $mode_containers "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' si
 mode --pango_markup $mode_containers {
 	bindsym f      fullscreen
 	bindsym k      mode $mode_containers_kill
-	bindsym m      mode default, $ex $dotfilesFolder/scripts/i3windowMark $borderSize
+	bindsym m      mode default, $ex i3windowMark $borderSize
 
 	bindsym BackSpace mode $mode_menu
 

@@ -8,4 +8,4 @@ $exa libinput-gestures-setup stop && libinput-gestures-setup start
 
 $ex /usr/lib/gnome-settings-daemon/gsd-xsettings &
 
-$ex xautolock -time 10 -locker "$dotfilesFolder/scripts/system-lock"
+$ex xautolock -time 10 -locker "system-lock"
