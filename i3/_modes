@@ -242,13 +242,14 @@ mode --pango_markup $mode_containers {
 	bindsym space  mode default
 }
 
-set $mode_launch "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Launch </span>  <span weight='heavy' size='large'>C</span>ode <span weight='heavy' size='large'>F</span>iles <span weight='heavy' size='large'>M</span>usic <span weight='heavy' size='large'>T</span>erminal <span weight='heavy' size='large'>W</span>eb"
+set $mode_launch "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Launch </span>  <span weight='heavy' size='large'>C</span>ode <span weight='heavy' size='large'>F</span>iles <span weight='heavy' size='large'>M</span>usic <span weight='heavy' size='large'>T</span>erminal <span weight='heavy' size='large'>W</span>eb <span weight='heavy' size='large'>P</span>odcasts"
 mode --pango_markup $mode_launch {
 	bindsym c          $ex code, mode default
 	bindsym f          $ex nautilus
 	bindsym m          $ex google-play-music-desktop-player, mode default
 	bindsym t          $ex gnome-terminal
 	bindsym w          $ex google-chrome, mode default
+	bindsym p          $ex nautilus -w $HOME/Downloads, $ex vlc, $ex nautilus -w $HOME/Podcasts, mode default
 
 	bindsym $mod+Left  focus left
 	bindsym $mod+Right focus right
@@ -265,7 +266,7 @@ mode --pango_markup $mode_launch {
 	bindsym space      mode default
 }
 
-set $mode_menu "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Mode Menu </span>  <span weight='heavy' size='large'>C</span>ontainers <span weight='heavy' size='large'>L</span>aunch <span weight='heavy' size='large'>S</span>ystem <span weight='heavy' size='large'>W</span>orkspaces"
+set $mode_menu "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Meta Mode </span>  <span weight='heavy' size='large'>C</span>ontainers <span weight='heavy' size='large'>L</span>aunch <span weight='heavy' size='large'>S</span>ystem <span weight='heavy' size='large'>W</span>orkspaces"
 mode --pango_markup $mode_menu {
 	bindsym c      mode $mode_containers
 	bindsym l      mode $mode_launch
