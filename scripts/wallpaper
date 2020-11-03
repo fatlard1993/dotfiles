@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# TODO
-#make a config file of somekind that includes the preferred size and subreddits
-
-shopt -s expand_aliases
 shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
