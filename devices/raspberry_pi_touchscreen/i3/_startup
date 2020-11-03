@@ -1,1 +1,1 @@
-$ex $dotfilesFolder/scripts/touchCalibrator &
+$ex touchCalibrator &
