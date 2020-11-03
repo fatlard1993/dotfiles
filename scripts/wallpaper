@@ -113,48 +113,31 @@ elif [ "$COMMAND" = "change" ]; then
 		$0 change saved
 	fi
 elif [ "$COMMAND" = "sort" ]; then
-	if [ "$OPTION" = "delete" ]; then
-		CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
+	CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
 
-		if [ ! -e $CURRENT_WALLPAPER ]; then
-			notify-send "Wallpaper" "No wallpaper to delete!"
+	if [ ! -e $CURRENT_WALLPAPER ]; then
+		notify-send "Wallpaper" "No wallpaper to $OPTION!"
 
-			exit 0
-		fi
+		exit 0
+	fi
 
-		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
+	FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
+	if [ "$OPTION" = "delete" ] || [ "$OPTION" = "stash" ]; then
 		echo -e "$FILE_SUM\n" >> $WALLPAPER_DIR/.ignore
+	fi
 
+	if [ "$OPTION" = "delete" ]; then
 		rm $CURRENT_WALLPAPER
-
-		$0 change unsorted
-	elif [ "$OPTION" = "save" ]; then
-		SUBFOLDER=${3:-"saved"}
-		CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
+	else
+		SUBFOLDER=${3:-"${OPTION}ed"}
 
 		mkdir -p $WALLPAPER_DIR/$SUBFOLDER
 
 		mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${CURRENT_WALLPAPER##*.}
-
-		$0 change unsorted
-	elif [ "$OPTION" = "stash" ]; then
-		CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
-
-		if [ ! -e $CURRENT_WALLPAPER ]; then
-			notify-send "Wallpaper" "No wallpaper to delete!"
-			exit 0
-		fi
-
-		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
-
-		mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
-
-		echo -e "$FILE_SUM\n" >> $WALLPAPER_DIR/.ignore
-
-		$0 change unsorted
 	fi
+
+	$0 change unsorted
 elif [ "$COMMAND" = "convert" ]; then
 	SUBFOLDER=${2:-"saved"}
 	FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
