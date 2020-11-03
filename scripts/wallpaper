@@ -162,8 +162,8 @@ elif [ "$COMMAND" = "convert" ]; then
 		mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
 	done
 else
-	echo -e "Useage: PATH/wallpaper [command] [option]\n\
-	get     |IMAGE_COUNT_TO_DOWNLOAD|SUBREDDIT|\n\
+	echo -e "Useage: PATH/wallpaper [command] [option(s)]\n\
+	get     |IMAGE_COUNT_TO_DOWNLOAD ?SUBREDDIT?|\n\
 	change  |saved|unsorted|\n\
 	sort    |delete|save|stash|\n\
 	convert |SUBFOLDER|"
