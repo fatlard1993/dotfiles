@@ -108,6 +108,8 @@ elif [ "$COMMAND" = "change" ]; then
 
 		echo $WALLPAPER > $WALLPAPER_DIR/.current
 	else
+		echo "$WALLPAPER is not supported .. Must be one of: jpg, png"
+
 		$0 change saved
 	fi
 elif [ "$COMMAND" = "sort" ]; then
