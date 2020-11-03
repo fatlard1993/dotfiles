@@ -118,10 +118,13 @@ elif [ "$COMMAND" = "sort" ]; then
 
 		if [ ! -e $CURRENT_WALLPAPER ]; then
 			notify-send "Wallpaper" "No wallpaper to delete!"
+
 			exit 0
 		fi
 
 		FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
+
+		echo -e "$FILE_SUM\n" >> $WALLPAPER_DIR/.ignore
 
 		rm $CURRENT_WALLPAPER
 
