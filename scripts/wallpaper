@@ -20,7 +20,7 @@ if [ "$COMMAND" = "get" ]; then
 		if [ -f $WALLPAPER_DIR/.subreddits ]; then
 			read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
 		else
-			SUBREDDITS=("wallpapers" "earthview" "EarthPorn" "DesktopLego" "BackgroundArt" "HI_Res" "SpecArt" "MinimalWallpaper" "BattlePaintings" "Medievalart" "ShittyMsPaint")
+			SUBREDDITS=("wallpapers" "ShittyMsPaint")
 		fi
 
 		echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
