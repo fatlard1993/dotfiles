@@ -151,6 +151,8 @@ elif [ "$COMMAND" = "sort" ]; then
 
 		mv $CURRENT_WALLPAPER $STASH_DIR/$FILE_SUM.${CURRENT_WALLPAPER##*.}
 
+		echo -e "$FILE_SUM\n" >> $WALLPAPER_DIR/.ignore
+
 		$0 change unsorted
 	fi
 elif [ "$COMMAND" = "convert" ]; then
