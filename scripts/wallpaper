@@ -10,8 +10,6 @@ WALLPAPER_DIR=~/Pictures/Wallpapers
 STASH_DIR=$WALLPAPER_DIR/../notWallpapers
 TMP_DIR=/tmp/wallpapers
 
-alias dmenu_styled="dmenu -i -l 5 -fn 'Source Code Pro-16' -nb '#282a2e' -nf '#b4b7b4' -sb '#81a2be' -sf '#fff'"
-
 touch $WALLPAPER_DIR/.ignore
 
 mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $STASH_DIR
@@ -40,11 +38,7 @@ if [ "$COMMAND" = "get" ]; then
 		exit 1
 	fi
 
-	if [ "$3" = "list" ]; then
-		SUBREDDIT=$(printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From')
-	else
-		SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
-	fi
+	SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
 
 	NUM_IMAGES_TO_DOWNLOAD=${2:-3}
 
@@ -176,5 +170,3 @@ else
 	sort    |delete|save|stash|\n\
 	convert |SUBFOLDER|"
 fi
-
-unalias dmenu_styled
