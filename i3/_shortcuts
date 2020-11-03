@@ -113,7 +113,7 @@ bindsym --whole-window $mod+button3 floating toggle
 bindsym --release $mod+c 						$ex copyPasta c
 bindsym --release $mod+v 						$ex copyPasta v
 
-bindsym $mod+Control+v              $ex clipd menu
+bindsym $mod+Control+v              $ex rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
 
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 

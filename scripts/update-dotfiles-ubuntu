@@ -63,6 +63,20 @@ if [ ! -s "$DOTFILES/temp/.rofiSetup" ]; then
 	echo "1" > $DOTFILES/temp/.rofiSetup
 fi
 
+if [ ! -s "$DOTFILES/temp/.greenclipSetup" ]; then
+	echo "Setting up greenclip"
+
+	(
+		cd /usr/local/bin
+
+		wget https://github.com/erebe/greenclip/releases/download/3.3/greenclip
+
+		chmod +x ./greenclip
+	)
+
+	echo "1" > $DOTFILES/temp/.greenclipSetup
+fi
+
 if [ ! -s /etc/sudo.conf ]; then
 	echo "Generating sudo.conf"
 
