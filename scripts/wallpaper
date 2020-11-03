@@ -95,10 +95,6 @@ if [ "$COMMAND" = "get" ]; then
 		sed -ie "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
 		$0 get $IMAGE_COUNT_TO_DOWNLOAD
-	elif (( DOWNLOADED_COUNT > 0 )); then
-		sleep 1s
-
-		$0 set unsorted
 	fi
 elif [ "$COMMAND" = "change" ]; then
 	if [ "$OPTION" = "saved" ]; then
