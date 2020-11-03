@@ -23,39 +23,14 @@ mode --pango_markup $mode_workspaces {
 	bindsym space  mode default
 }
 
-set $mode_system_wallpaper_sort "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Sort Wallpapers </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>D</span>elete <span weight='heavy' size='large'>S</span>ave <span weight='heavy' size='large'>(Shift)S</span>tash"
-mode --pango_markup $mode_system_wallpaper_sort {
-	bindsym c       $ex wallpaper change unsorted
-	bindsym d       $ex wallpaper sort delete
-	bindsym s       $ex wallpaper sort save
-	bindsym Shift+s $ex i3-input -F 'exec wallpaper sort stash "%s"' -P 'Stash to subfolder: (default:stashed)'
-
-	#list: printf '%s\n' "${SUBREDDITS[@]}" | dmenu_styled -p 'Get Wallpaper From'
-
-	bindsym BackSpace mode $mode_system_wallpaper
-
-	bindsym Escape mode default
-	bindsym Return mode default
-	bindsym space  mode default
-}
-
-set $mode_system_wallpaper_change "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Change Wallpaper </span>  <span weight='heavy' size='large'>S</span>aved <span weight='heavy' size='large'>U</span>nsorted"
-mode --pango_markup $mode_system_wallpaper_change {
-	bindsym s      $ex wallpaper change saved
-	bindsym u      $ex wallpaper change unsorted
-
-	bindsym BackSpace mode $mode_system_wallpaper
-
-	bindsym Escape mode default
-	bindsym Return mode default
-	bindsym space  mode default
-}
-
-set $mode_system_wallpaper "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Wallpaper </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>G</span>et <span weight='heavy' size='large'>S</span>ort"
+set $mode_system_wallpaper "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Wallpaper </span>  <span weight='heavy' size='large'>C</span>hange <span weight='heavy' size='large'>G</span>et <span weight='heavy' size='large'>S</span>ave <span weight='heavy' size='large'>D</span>elete <span weight='heavy' size='large'>(Shift)S</span>tash"
 mode --pango_markup $mode_system_wallpaper {
-	bindsym c      mode $mode_system_wallpaper_change
-	bindsym g      $ex wallpaper get
-	bindsym s      mode $mode_system_wallpaper_sort
+	bindsym c       $ex wallpaper change unsorted
+	bindsym Shift+c $ex wallpaper change saved
+	bindsym g       $ex wallpaper get
+	bindsym s       $ex wallpaper sort save
+	bindsym d       $ex wallpaper sort delete
+	bindsym Shift+s $ex i3-input -F 'exec wallpaper sort stash "%s"' -P 'Stash to subfolder: (default:stashed)'
 
 	bindsym BackSpace mode $mode_system
 
