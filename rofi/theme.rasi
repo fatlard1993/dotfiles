@@ -26,11 +26,11 @@
 	background-color: @base01;
 	text-color: @foregroundColor;
 
-	active-background: @base0D;
+	active-background: @base0C;
 	urgent-background: @base08;
-	selected-background: @active-background;
+	selected-background: @base0D;
 	selected-urgent-background: @urgent-background;
-	selected-active-background: @active-background;
+	selected-active-background: @selected-background;
 }
 
 #window {
