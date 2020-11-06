@@ -29,7 +29,7 @@ bindsym $mod+Control+period         $ex CMD="move next" node i3node.js
 
 ## Float
 bindsym $mod+f                      unmark, floating toggle
-bindsym $mod+s                      sticky toggle
+bindsym $mod+Shift+s                sticky toggle
 bindsym $mod+o                      $overwatch
 
 ## Resize
@@ -76,7 +76,10 @@ bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad
 
 # Etc
 
-bindsym $mod+space                  $ex rofi -show drun
+bindsym $mod+space                  $ex rofi -show drun -show-icons=true
+bindsym $mod+r                      $ex rofi -show run
+bindsym $mod+s                      $ex rofi -show ssh
+bindsym $mod+Shift+Tab              $ex rofi -show window
 
 bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
 
