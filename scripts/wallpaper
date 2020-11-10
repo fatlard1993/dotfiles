@@ -83,7 +83,7 @@ if [ "$COMMAND" = "get" ]; then
 		exit 0
 	fi
 
-	notify-send "Wallpaper" "Downloaded_COUNT $DOWNLOADED_COUNT wallpapers from $SUBREDDIT"
+	notify-send "Wallpaper" "Downloaded $DOWNLOADED_COUNT wallpapers from $SUBREDDIT"
 
 	if (( DOWNLOADED_COUNT < IMAGE_COUNT_TO_DOWNLOAD )); then
 		(( IMAGE_COUNT_TO_DOWNLOAD = IMAGE_COUNT_TO_DOWNLOAD - DOWNLOADED_COUNT ))
