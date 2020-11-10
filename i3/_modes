@@ -204,11 +204,30 @@ mode --pango_markup $mode_containers_kill {
 	bindsym space  mode default
 }
 
-set $mode_containers "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Containers </span>  <span weight='heavy' size='large'>F</span>ullscreen <span weight='heavy' size='large'>K</span>ill <span weight='heavy' size='large'>M</span>ark"
+set $mode_containers_float "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Float Containers </span>  <span weight='heavy' size='large'>F</span>loat Toggle <span weight='heavy' size='large'>S</span>ticky Toggle <span weight='heavy' size='large'>O</span>verwatch"
+mode --pango_markup $mode_containers_float {
+	bindsym f      unmark, floating toggle
+	bindsym s      sticky toggle
+	bindsym o      $overwatch
+	bindsym m      resize set 1920 1080, move position mouse
+	bindsym Up     resize set $screenWidth 480, move window to position 0 0
+	bindsym Down   resize set 1920 1080, move position center
+	bindsym Left   resize set 1600 1125, move window to position 200 250
+	bindsym Right  resize set 1600 1125, move window to position 2000 250
+
+	bindsym BackSpace mode $mode_containers
+
+	bindsym Escape mode default
+	bindsym Return mode default
+	bindsym space  mode default
+}
+
+set $mode_containers "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Containers </span>  <span weight='heavy' size='large'>F</span>ullscreen <span weight='heavy' size='large'>(Shift)F</span>loat <span weight='heavy' size='large'>K</span>ill <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_containers {
-	bindsym f      fullscreen
-	bindsym k      mode $mode_containers_kill
-	bindsym m      mode default, $ex i3windowMark $borderSize
+	bindsym f       fullscreen
+	bindsym Shift+f floating enable, mode $mode_containers_float
+	bindsym k       mode $mode_containers_kill
+	bindsym m       mode default, $ex i3windowMark $borderSize
 
 	bindsym BackSpace mode $mode_menu
 
