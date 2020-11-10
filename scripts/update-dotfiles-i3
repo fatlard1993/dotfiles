@@ -18,9 +18,16 @@ device_i3_folder=$DOTFILES/devices/$DOTFILES_DEVICE/i3
 
 mkdir -p $HOME/.config/i3
 
+SCREEN_DIMENSIONS=`xdpyinfo | grep dimensions | sed 's/x/ /'`
+SCREEN_WIDTH=`echo $SCREEN_DIMENSIONS | awk '/dimensions/{print $2}'`
+SCREEN_HEIGHT=`echo $SCREEN_DIMENSIONS | awk '/dimensions/{print $3}'`
+
 echo "set \$dotfilesFolder $DOTFILES" > /tmp/i3SysVars
 echo "set \$dotfilesDevice $DOTFILES_DEVICE" >> /tmp/i3SysVars
 echo "set \$deviceFolder $DOTFILES/devices/$DOTFILES_DEVICE" >> /tmp/i3SysVars
+echo "set \$screenWidth $SCREEN_WIDTH" >> /tmp/i3SysVars
+echo "set \$screenHeight $SCREEN_HEIGHT" >> /tmp/i3SysVars
+echo "set \$overwatch floating enable, sticky enable, resize set $(( $SCREEN_WIDTH / 2 )) $(( $SCREEN_HEIGHT / 2 )), move window to position $(($SCREEN_WIDTH / 2)) 0" >> /tmp/i3SysVars
 
 cat $DOTFILES/etc/_fileWarning \
   <(echo) $i3_folder/_theme \
