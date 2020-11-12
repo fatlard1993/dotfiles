@@ -30,7 +30,6 @@ bindsym $mod+Control+period         $ex CMD="move next" node i3node.js
 ## Float
 bindsym $mod+f                      unmark, floating toggle
 bindsym $mod+Shift+s                sticky toggle
-bindsym $mod+o                      $overwatch
 
 ## Resize
 bindsym $mod+plus                   resize grow   height 10 px or 10 ppt, resize grow   width 10 px or 10 ppt
@@ -112,6 +111,15 @@ bindsym --whole-window $mod+button3 floating toggle
 
 
 # Experimental
+
+bindsym $hyper+Control+Escape         $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
+bindsym $hyper+Control+r              $ex i3-msg [class=".*"] kill && sleep 1 && reboot
+bindsym $hyper+Escape                 [class=".*"] kill, mode default
+bindsym $hyper+o                      $overwatch
+bindsym $hyper+m                      $ex i3workspaceMark
+
+#bindsym $mod+Left                   $ex xdotool --clearmodifiers key Home
+#bindsym $mod+Right                  $ex xdotool --clearmodifiers key End
 
 bindsym --release $mod+c 						$ex copyPasta c
 bindsym --release $mod+v 						$ex copyPasta v
