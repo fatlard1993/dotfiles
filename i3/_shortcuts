@@ -100,7 +100,7 @@ bindsym XF86MonBrightnessDown       $ex xbacklight -dec 10 -time 10 && pnotify-b
 
 ## Etc
 
-bindsym Print                       $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
+bindsym Print                       $ex $screenshot
 
 
 # Mouse shortcuts
