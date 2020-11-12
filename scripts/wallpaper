@@ -3,12 +3,11 @@
 shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
-STASH_DIR=$WALLPAPER_DIR/../notWallpapers
 TMP_DIR=/tmp/wallpapers
 
 touch $WALLPAPER_DIR/.ignore
 
-mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $STASH_DIR
+mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $WALLPAPER_DIR/stashed
 
 COMMAND=$1
 OPTION=$2
