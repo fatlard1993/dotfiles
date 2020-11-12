@@ -1,0 +1,43 @@
+#!/bin/bash
+
+INCLUDES=${1:-"Arduino Documents Downloads Misc Music Pictures Projects"}
+BACKUP_DEVICE=/media/$USER/MEDIA
+BACKUP_LOCATION=$BACKUP_DEVICE/Backups
+BACKUP_COUNT=2
+
+if [ ! -e $BACKUP_LOCATION ]; then
+	echo "$BACKUP_LOCATION is not available"
+
+	exit 1
+fi
+
+echo "Saving some known goodies"
+
+cp -n $HOME/.minecraft/screenshots/* $HOME/Pictures/Screenshots/minecraft/
+
+rsync -raz --ignore-existing --progress $HOME/Podcasts/* $BACKUP_DEVICE/Podcasts/
+rsync -raz --ignore-existing --progress $HOME/Pictures/Wallpapers/stashed/* $BACKUP_DEVICE/Pictures/Misc/
+rsync -raz --ignore-existing --progress $HOME/Pictures/Misc/* $BACKUP_DEVICE/Pictures/Misc/
+rsync -raz --ignore-existing --progress $HOME/Pictures/Screenshots/minecraft/* $BACKUP_DEVICE/Pictures/Minecraft/
+
+echo "Backing up your beloved files"
+
+BACKUP_LOCATION=$BACKUP_LOCATION/$DOTFILES_DEVICE
+
+mkdir -p $BACKUP_LOCATION/0
+
+for (( index = $BACKUP_COUNT; index > 0; --index)); do
+	if [ -e $BACKUP_LOCATION/$index ]; then
+		if [ $index == $BACKUP_COUNT ]; then
+			rm -rf $BACKUP_LOCATION/$index
+		else
+			mv $BACKUP_LOCATION/$index $BACKUP_LOCATION/$(( index + 1 ))
+		fi
+	fi
+done
+
+cd $HOME
+
+for item in $INCLUDES ; do
+	tar -czvf $BACKUP_LOCATION/0/$item.tar.gz $item
+done
