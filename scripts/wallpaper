@@ -120,7 +120,7 @@ elif [ "$COMMAND" = "sort" ]; then
 	FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
 	if [ "$OPTION" = "delete" ] || [ "$OPTION" = "stash" ]; then
-		echo -e "$FILE_SUM\n" >> $WALLPAPER_DIR/.ignore
+		echo $FILE_SUM >> $WALLPAPER_DIR/.ignore
 	fi
 
 	if [ "$OPTION" = "delete" ]; then
