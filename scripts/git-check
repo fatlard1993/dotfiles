@@ -1,3 +1,3 @@
 #!/bin/bash
 
-find . -type d -name '.git' | while read dir ; do bash -c "cd $dir/../ && echo -e \"\nGIT STATUS IN ${dir//\.git/}\" && git status -s" ; done
+find . -type d -name '.git' | while read dir ; do bash -c "cd $dir/../ && echo -e \"\nGIT STATUS IN ${dir//\.git/}\" && git status --ignored" ; done
