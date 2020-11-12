@@ -62,6 +62,8 @@ mode --pango_markup $mode_system_leave {
 	bindsym l      mode default, $ex system-lock
 	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
 
+	bindsym Control+Escape $ex FuckItAll
+
 	bindsym BackSpace mode $mode_system
 
 	bindsym Escape mode default
