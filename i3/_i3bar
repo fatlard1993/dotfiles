@@ -3,7 +3,7 @@ bar {
   output $mainDisplay
 
 	# bindsym button1 $ex matchbox-keyboard
-	bindsym button2 $ex scrot "Pictures/Screenshots/%Y_%m_%d_%H:%M:%S.png" && notify-send "Screenshot!"
+	bindsym button2 $ex $screenshot
 	bindsym button4 nop
 	bindsym button5 nop
 
