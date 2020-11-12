@@ -3,10 +3,23 @@
 INCLUDES=${1:-"Arduino Documents Downloads Misc Music Pictures Projects"}
 BACKUP_DEVICE=/media/$USER/MEDIA
 BACKUP_LOCATION=$BACKUP_DEVICE/Backups
-BACKUP_COUNT=2
+EXTRA_BACKUPS=2
 
 if [ ! -e $BACKUP_LOCATION ]; then
 	echo "$BACKUP_LOCATION is not available"
+
+	exit 1
+fi
+
+if [ "$1" == "--restore" ]; then
+	RESTORE_INDEX=${2:-0}
+	BACKUP_LOCATION=$BACKUP_LOCATION/$DOTFILES_DEVICE/$RESTORE_INDEX
+
+	echo "Restoring from $BACKUP_LOCATION"
+
+	for file in $BACKUP_LOCATION/* ; do
+		tar -xzvf $file -C $HOME
+	done
 
 	exit 1
 fi
@@ -24,17 +37,17 @@ echo "Backing up your beloved files"
 
 BACKUP_LOCATION=$BACKUP_LOCATION/$DOTFILES_DEVICE
 
-mkdir -p $BACKUP_LOCATION/0
-
-for (( index = $BACKUP_COUNT; index > 0; --index)); do
+for (( index = $EXTRA_BACKUPS; index >= 0; --index)); do
 	if [ -e $BACKUP_LOCATION/$index ]; then
-		if [ $index == $BACKUP_COUNT ]; then
+		if [ $index == $EXTRA_BACKUPS ]; then
 			rm -rf $BACKUP_LOCATION/$index
 		else
 			mv $BACKUP_LOCATION/$index $BACKUP_LOCATION/$(( index + 1 ))
 		fi
 	fi
 done
+
+mkdir -p $BACKUP_LOCATION/0
 
 cd $HOME
 
