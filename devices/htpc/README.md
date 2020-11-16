@@ -50,3 +50,21 @@ Shortcuts>view>"hide and show toolbar" alt+F4
 profile preferences
   cursor shape ibeam
   custom font source code pro 12
+
+### plex
+```
+sudo chown -R chase:chase /var/lib/plexmediaserver
+sudo service plexmediaserver stop
+sudo chown -R chase:chase /var/lib/plexmediaserver
+sudo systemctl edit plexmediaserver
+```
+This will create /etc/systemd/system/plexmediaserver.service.d/override.conf
+```
+[Service]
+User=myuser
+Group=myuser
+```
+```
+sudo systemctl daemon-reload
+sudo service plexmediaserver start
+```
