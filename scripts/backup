@@ -1,8 +1,8 @@
 #!/bin/bash
 
-INCLUDES=${1:-"Arduino Documents Downloads Misc Music Pictures Projects"}
-BACKUP_DEVICE=/media/$USER/MEDIA
+BACKUP_DEVICE=${1:-/media/$USER/MEDIA}
 BACKUP_LOCATION=$BACKUP_DEVICE/Backups
+INCLUDES=${2:-"Arduino Documents Downloads Misc Music Pictures Projects"}
 EXTRA_BACKUPS=2
 
 if [ ! -e $BACKUP_LOCATION ]; then
@@ -24,30 +24,44 @@ if [ "$1" == "--restore" ]; then
 	exit 1
 fi
 
-echo "Saving some known goodies"
+function max {
+	echo $(( $1  > $2 ? $1 : $2 ))
+}
 
-cp -n $HOME/.minecraft/screenshots/* $HOME/Pictures/Screenshots/minecraft/
+echo "Saving some known goodies"
 
 rsync -raz --ignore-existing --progress $HOME/Podcasts/* $BACKUP_DEVICE/Podcasts/
 rsync -raz --ignore-existing --progress $HOME/Pictures/Wallpapers/stashed/* $BACKUP_DEVICE/Pictures/Misc/
 rsync -raz --ignore-existing --progress $HOME/Pictures/Misc/* $BACKUP_DEVICE/Pictures/Misc/
-rsync -raz --ignore-existing --progress $HOME/Pictures/Screenshots/minecraft/* $BACKUP_DEVICE/Pictures/Minecraft/
+rsync -raz --ignore-existing --progress $HOME/.minecraft/screenshots/* $BACKUP_DEVICE/Pictures/Minecraft/
+
+rm $HOME/Pictures/Wallpapers/stashed/* $HOME/Pictures/Misc/*
 
 echo "Backing up your beloved files"
 
 BACKUP_LOCATION=$BACKUP_LOCATION/$DOTFILES_DEVICE
 
-for (( index = $EXTRA_BACKUPS; index >= 0; --index)); do
+echo "Maintaining $EXTRA_BACKUPS extra backups"
+
+for (( index = `max $(ls -1 | tail -n 1) $EXTRA_BACKUPS`; index >= 0; --index)); do
 	if [ -e $BACKUP_LOCATION/$index ]; then
+		echo "Maintaining #$index"
+
 		if [ $index == $EXTRA_BACKUPS ]; then
+			echo "┗Trimming excess backup"
+
 			rm -rf $BACKUP_LOCATION/$index
 		else
+			echo "┗Ageing backup"
+
 			mv $BACKUP_LOCATION/$index $BACKUP_LOCATION/$(( index + 1 ))
 		fi
 	fi
 done
 
 mkdir -p $BACKUP_LOCATION/0
+
+echo "Backing up $HOME/($INCLUDES) to $BACKUP_LOCATION"
 
 cd $HOME
 
