@@ -125,6 +125,8 @@ elif [ "$COMMAND" = "sort" ]; then
 	if [ "$OPTION" = "delete" ]; then
 		rm $CURRENT_WALLPAPER
 	else
+		if [ "$OPTION" == "save" ]; then OPTION = 'sav'; fi
+
 		SUBFOLDER=${3:-"${OPTION}ed"}
 
 		mkdir -p $WALLPAPER_DIR/$SUBFOLDER
