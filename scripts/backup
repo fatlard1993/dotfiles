@@ -43,7 +43,7 @@ BACKUP_LOCATION=$BACKUP_LOCATION/$DOTFILES_DEVICE
 
 echo "Maintaining $EXTRA_BACKUPS extra backups"
 
-for (( index = `max $(ls -1 | tail -n 1) $EXTRA_BACKUPS`; index >= 0; --index)); do
+for (( index = `max $(cd $BACKUP_LOCATION ; ls -1 | tail -n 1) $EXTRA_BACKUPS`; index >= 0; --index)); do
 	if [ -e $BACKUP_LOCATION/$index ]; then
 		echo "Maintaining #$index"
 
