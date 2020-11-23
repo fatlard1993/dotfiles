@@ -1,0 +1,47 @@
+#!/bin/bash
+
+ID=`xdpyinfo | grep focus | cut -f4 -d " "`
+PID=`xprop -id "$ID" | grep -m 1 PID | cut -d " " -f 3`
+APP=`ps -ho "%c" $PID`
+
+get-all-cwd(){
+	local cpid_list=`pstree -lpATn "$PID" | grep -oP '\(\K[^)]+(?=\))'`
+	local list=""
+
+	for pid in $cpid_list; do
+		([ "$pid" -ne -1 ] && [ -e "/proc/$pid/cwd" ]) || continue
+
+		cwd=`readlink "/proc/$pid/cwd"`
+
+		([ -e "$cwd" ] && [ $cwd != $HOME ]) || continue
+
+		list="$cwd $list"
+	done
+
+	echo $list | tr ' ' '\n' | sort | uniq | tr '\n' ' ' | sed -e 's/[[:space:]]*$//'
+}
+
+ALL_CWD=`get-all-cwd`
+CWD_COUNT=`echo $ALL_CWD | wc -w | grep -oE '[0-9]+'`
+
+if (( $CWD_COUNT > 1 )); then
+	CWD=`echo "$ALL_CWD $HOME" | tr ' ' '\n' | sed -r '/^\s*$/d' | rofi -dmenu`
+elif [ $CWD_COUNT == 1 ]; then
+	CWD=$ALL_CWD
+elif [ $CWD_COUNT == 0 ]; then
+	case $APP in
+		chrome)
+			CWD=$HOME/Downloads
+			;;
+		nautilus)
+			CWD=`echo -e "$HOME\n$HOME/Downloads\n$HOME/Projects" | rofi -dmenu`
+			;;
+		*)
+			CWD=$HOME
+			;;
+	esac
+fi
+
+if [ $CWD != "" ]; then
+	gnome-terminal --class quakeTerm --working-directory=$CWD
+fi
