@@ -80,7 +80,7 @@ bindsym $mod+r                      $ex rofi -show run
 bindsym $mod+s                      $ex rofi -show ssh
 bindsym $mod+Shift+Tab              $ex rofi -show window
 
-bindsym $mod+grave                  $ex gnome-terminal --class quakeTerm
+bindsym $mod+grave                  $ex smartCtxTerm
 
 bindsym $mod+Control+o              $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
