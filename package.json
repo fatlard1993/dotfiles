@@ -17,5 +17,9 @@
 		"eslint-config-rules": "github:fatlard1993/eslint-config-rules#2.x.x",
 		"babel-eslint": "^10.0.3",
 		"eslint": "^6.4.0"
+	},
+	"dependencies": {
+		"movie-art": "^2.0.3",
+		"request": "^2.88.2"
 	}
 }
