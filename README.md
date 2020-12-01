@@ -118,3 +118,5 @@ This script runs at login and sets up a base set of windows in workspaces.
 
 * make scripts for ubuntu based vs raspbian based and for headless vs i3
 * make things into symlinks or directly change references to files instead of copying them all over
+* use symlinks for wallpaper subreddits and ignore
+* might need to rotate some home videos for plex: https://ostechnix.com/how-to-rotate-videos-using-ffmpeg-from-commandline/
