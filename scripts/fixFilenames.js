@@ -4,29 +4,35 @@ const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
 
-const baseFolder = process.argv[2];
+const baseFolder = process.cwd();
 const files = fs.readdirSync(baseFolder).filter((entry) => {
 	const stats = fs.lstatSync(path.join(baseFolder, entry));
 
 	return !stats.isDirectory();
-});;
+});
 
 files.forEach((filename, index) => {
-	if(process.argv[3] === '1' && index !== 1) return;
+	if(process.argv[2] === '1' && index !== 1) return;
 
-	if(filename[0] === 'S') return;
+	var filenameRegex = /(.+)(s\d\de\d\d)(.+)?(?:\.|\s)(?:720|1080|bdr|brr|webr).+(\..+)/i;
 
-	var fileParts = filename.split(/[\s\.]/);
-	var seasonEpisode = filename.match(/s\d\de\d\d/i)[0].toUpperCase();
-	// var seasonEpisode = 'S01E'+ filename.match(/(?!1x)\d\d/i)[0].toUpperCase();
-	var description = '';//` ${fileParts.slice(3, fileParts.length - 1).join(' ')}`;
-	var extension = `.${filename.split('.')[filename.split('.').length - 1]}`;
+	if(!filenameRegex.test(filename)) return console.log('Skipping', filename);
 
-	var newFilename = seasonEpisode + description + extension;
+	console.log(`\noldFilename: ${filename}`);
 
-	// var newFilename = fileParts.slice(0, 2).map((part) => { return part[0].toUpperCase() + part.substring(1, part.length).replace('5e', '5E'); }).join(' ');
+	var fileParts = filename.match(filenameRegex);
 
-	console.log(`\nfilename: ${filename}\nnewFilename: ${newFilename}`);
+	var showName = fileParts[1].replace(/\./g, ' ');
 
-	if(process.argv[3] === 'y') fs.rename(filename, newFilename, (err) => { if(err) console.error('ERROR ', err); });
+	var seasonEpisode = fileParts[2].toLowerCase();
+
+	var description = fileParts[3] ? ' -'+ fileParts[3].replace(/\./g, ' ') : '';
+
+	var extension = fileParts[4];
+
+	var newFilename = showName + seasonEpisode + description + extension;
+
+	console.log(`newFilename: ${newFilename}`);
+
+	if(process.argv[2] === 'y') fs.rename(filename, newFilename, (err) => { if(err) console.error('ERROR ', err); });
 });
