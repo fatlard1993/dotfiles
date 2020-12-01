@@ -124,3 +124,7 @@ sudo nano /etc/X11/Xresources/x11-common
 * overwatch youtube url (mod control o)
 
 * quick notes (mod n)
+
+
+revamp the overlay floating window workspaces to support more than one window
+Make certain key mappings behave differently based on what app is in focus
