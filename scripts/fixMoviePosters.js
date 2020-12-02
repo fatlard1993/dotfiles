@@ -33,15 +33,19 @@ folders.forEach((name, index) => {
 
 	var movieYear = nameParts[2];
 
+	const posterPath = path.join(baseFolder, name, `poster.jpg`);//${url.match(/.+(\..+$)/)[1]}
+
+	if(fs.existsSync(posterPath) && process.argv[3] !== 'f') return;//console.log('Skipping', name);
+
 	console.log(`Getting movie art for: ${name}`);
 
-	if(process.argv[2] === 'y'){
-		movieArt(movieName, { year: movieYear }, (err, url) => {
-			if(err) console.error(err);
+	if(process.argv[2] !== 'y') return;
 
-			download(url, path.join(baseFolder, name, `poster${url.match(/.+(\..+$)/)[1]}`), () => {
-				console.log(`✅ Downloaded art for ${name}`);
-			});
+	movieArt(movieName, { year: movieYear }, (err, url) => {
+		if(err) console.error(err);
+
+		download(url, posterPath, () => {
+			console.log(`✅ Downloaded art for ${name}`);
 		});
-	}
+	});
 });
