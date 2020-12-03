@@ -11,24 +11,32 @@ const files = fs.readdirSync(baseFolder).filter((entry) => {
 	return !stats.isDirectory();
 });
 
+function padNumber(number, length){
+	var string = '000000000'+ number;
+
+	return string.substr(string.length - length);
+}
+
 files.forEach((filename, index) => {
 	if(process.argv[2] === '1' && index !== 1) return;
 
-	var filenameRegex = /(.+)(s\d\de\d\d)(.+)?(?:\.|\s)(?:720|1080|bdr|brr|webr).+(\..+)/i;
+	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+)?(?:\s-\s|\.|\s)(?:720|1080|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
 
 	if(!filenameRegex.test(filename)) return console.log('Skipping', filename);
 
 	console.log(`\noldFilename: ${filename}`);
 
+	const separatorRegex = /\.|\s-\s/g;
+
 	var fileParts = filename.match(filenameRegex);
 
-	var showName = fileParts[1].replace(/\./g, ' ');
+	var showName = fileParts[1].replace(separatorRegex, ' ');
 
-	var seasonEpisode = fileParts[2].toLowerCase();
+	var seasonEpisode = `s${padNumber(fileParts[2], 2)}e${padNumber(fileParts[3], 2)}`;
 
-	var description = fileParts[3] ? ' -'+ fileParts[3].replace(/\./g, ' ') : '';
+	var description = fileParts[4] ? ' -'+ fileParts[4].replace(separatorRegex, ' ') : '';
 
-	var extension = fileParts[4];
+	var extension = fileParts[5];
 
 	var newFilename = showName + seasonEpisode + description + extension;
 
