@@ -2,8 +2,8 @@
 
 for command in youtube-dl ffmpeg; do
 	if [ ! $(which $command) ]; then
-		zenity --error --text "Could not find \"$command\" application.\n
-Make sure ffmpeg is installed and \"$command\" is executable."
+		zenity --error --text "Could not find \"$command\" application.\nMake sure \"$command\" is installed and is executable."
+
 		exit 1
 	fi
 done
