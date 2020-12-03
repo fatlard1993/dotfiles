@@ -20,7 +20,7 @@ function padNumber(number, length){
 files.forEach((filename, index) => {
 	if(process.argv[2] === '1' && index !== 1) return;
 
-	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+)?(?:\s-\s|\.|\s)(?:720|1080|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
+	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+?)?(?:\s-\s|\.|\s)(?:480|720|1080|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
 
 	if(!filenameRegex.test(filename)) return console.log('Skipping', filename);
 
