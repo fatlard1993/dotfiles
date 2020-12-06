@@ -20,9 +20,9 @@ function padNumber(number, length){
 files.forEach((filename, index) => {
 	if(process.argv[2] === '1' && index !== 1) return;
 
-	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+?)?(?:\s-\s|\.|\s)(?:480|720|1080|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
+	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+?)?(?:\s-\s|\.|\s)(?:480|720|1080|stv|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
 
-	if(!filenameRegex.test(filename)) return console.log('Skipping', filename);
+	if(!filenameRegex.test(filename)) return console.log('Skipping ..', filename);
 
 	console.log(`\noldFilename: ${filename}`);
 
@@ -30,7 +30,7 @@ files.forEach((filename, index) => {
 
 	var fileParts = filename.match(filenameRegex);
 
-	var showName = fileParts[1].replace(separatorRegex, ' ');
+	var showName = /\/([^\/]+)\/[^\/]+$/.exec(baseFolder)[1] +' ';//fileParts[1].replace(separatorRegex, ' ');
 
 	var seasonEpisode = `s${padNumber(fileParts[2], 2)}e${padNumber(fileParts[3], 2)}`;
 
