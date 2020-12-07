@@ -9,6 +9,10 @@ if [ ! "$device" ]; then
 	device="/dev/$(lsblk -o NAME | grep mmc | head -n 1)";
 fi
 
+if [ ! "$device" ]; then
+	device="/dev/$(lsblk -o NAME | grep sda | head -n 1)";
+fi
+
 if [ ! "$image" ]; then
 	image=`readlink -f ./temp.backup`
 fi
