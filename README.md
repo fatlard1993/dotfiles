@@ -120,3 +120,6 @@ This script runs at login and sets up a base set of windows in workspaces.
 * make things into symlinks or directly change references to files instead of copying them all over
 * use symlinks for wallpaper subreddits and ignore
 * might need to rotate some home videos for plex: https://ostechnix.com/how-to-rotate-videos-using-ffmpeg-from-commandline/
+* Look into a simple auto ap to include
+	* https://github.com/gitbls/autoAP
+	* https://github.com/0unknwn/auto-hotspot
