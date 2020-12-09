@@ -23,6 +23,8 @@ set -x
 
 umount $device
 
+echo "Starting dd @$(date +%F)"
+
 time dd bs=4M if=$image of=$device conv=fdatasync status=progress
 
 sync
