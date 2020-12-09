@@ -1,0 +1,29 @@
+#!/bin/bash
+
+source enforceSudo
+
+usage(){
+  echo "Usage: $0 <new hostname>"
+
+  exit 1
+}
+
+[ "$1" ] || usage
+
+old=$(hostname)
+new=$1
+
+[ "$new" = "_mac_address_" ] && new=$(sed "s/^.*macaddr=\\([0-9A-F:]*\\) .*$/\\1/;s/://g;s/\\(.*\\)/rpi-\\L\\1/" /proc/cmdline)
+
+for file in \
+  /etc/hostname \
+  /etc/hosts \
+  /etc/ssh/ssh_host_rsa_key.pub \
+  /etc/ssh/ssh_host_dsa_key.pub \
+  /etc/ssh/ssh_host_ed25519_key.pub \
+  /etc/ssh/ssh_host_ecdsa_key.pub
+do
+	[ -f $file ] && sed -i.old -e "s:$old:$new:g" $file
+done
+
+hostname $new
