@@ -15,7 +15,7 @@ const movieArt = require('movie-art');
 
 const nameRegex = /(.+)\s\((\d{4})\)/;
 const extensionRegex = /\.[^\.]+?$/;
-const badNameRegex = /(.+?)?(?:\s-\s|\.|\s)(\d{4})(?:\s-\s|\.|\s)(?:480|720|1080|stv|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
+const badNameRegex = /(.+?)?(?:\s-\s|\.|\s)(\d{4})(?:\s-\s|\.|\s)(?:480|720|1080|stv|bdr|brr|webr|sd\sdvd|hd\stv|dvdr|PROPER|DUBBED|REMASTERED).*(\..+)/i;
 
 const baseFolder = process.cwd();
 const children = fs.readdirSync(baseFolder).filter((name) =>{
@@ -43,6 +43,8 @@ children.forEach((child, index) => {
 			const movieFile = fs.readdirSync(folder).filter((childName) => {
 				return childName.startsWith(name);
 			})[0];
+
+			if(!movieFile) return console.log(`Cant find movie file for ${name}`);
 
 			// console.log(`+ isDirectory | movieFile: ${movieFile}`);
 
