@@ -2,7 +2,7 @@
 
 echo "Installing apt packages for i3"
 
-apt-autoinstall i3 libnotify-bin fonts-font-awesome feh imagemagick xdotool wmctrl xautolock caffeine
+apt-autoinstall i3 libnotify-bin fonts-font-awesome feh imagemagick xdotool wmctrl xautolock caffeine rofi
 
 echo "Generating i3 config"
 
