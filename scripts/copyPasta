@@ -3,6 +3,8 @@
 activeWindowClass=`i3getActiveWindowClass`
 terminalApp="gnome-terminal-server"
 
+sleep 0.1
+
 if [ "$activeWindowClass" == "$terminalApp" ]; then
 	xdotool key --clearmodifiers "ctrl+shift+$1"
 else
