@@ -31,6 +31,9 @@ if [ -s $DOTFILES/devices/$DOTFILES_DEVICE/.profile ]; then
 	cat $DOTFILES/devices/$DOTFILES_DEVICE/.profile >> $HOME/.profile
 fi
 
+echo "Linking .inputrc"
+sudo ln -sf $DOTFILES/etc/.inputrc $HOME/.inputrc
+
 echo -e "\nUpdating bashrc.d"
 
 mkdir -p $HOME/.bashrc.d
