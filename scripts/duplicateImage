@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [ ! "$1" ]; then
+	echo -e "Missing input .. Please specify one:\n duplicateImage \x1b[31m<input>\x1b[0m <output>"
+	exit 1
+fi
+
+if [ ! "$2" ]; then
+	echo -e "Missing output .. Please specify one:\n duplicateImage <input> \x1b[31m<output>\x1b[0m"
+	exit 1
+fi
+
+echo -e "\nYou are about to write '\x1b[31m$1\x1b[0m' to '\x1b[31m$2\x1b[0m'\n\n[enter] to continue .. OR .. [ctrl+c] to cancel\n"
+read -p ""
+
+umount $1
+umount $2
+
+echo "Starting dd @$(date +%F_%H:%M)"
+
+time dd bs=4M if=$1 of=$2 conv=fdatasync status=progress
+
+sync

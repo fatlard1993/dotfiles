@@ -1,34 +1,58 @@
 #!/bin/bash
 
-source enforceSudo
+help() {
+	cat <<EOF
+Usage:
+  backupDrive [OPTIONS...]
 
-device=$2
-image=`readlink -f $1`
+Options:
+  -?, -h, --help           Show help (this)
+  -d, --device=<device>    Specifies the device input
+  -i, --image=<image>      Specifies the image output file
+
+EOF
+}
+
+while (( $# > 0 )) ; do
+	case "$1" in
+		-\?|-h|--help)
+			help
+			exit 0
+		;;
+		-i|--image|--image=*)
+			[[ "$1" = --image=* ]] && image="${1#*=}" || { shift; image="$1"; }
+		;;
+		-d|--device|--device=*)
+			[[ "$1" = --device=* ]] && device="${1#*=}" || { shift; device="$1"; }
+		;;
+		*)
+			echo "Unrecgonized option .. For a full list of available options see backupDrive -h"
+			exit 1
+	esac
+	shift
+done
+
+if [ "$image" ]; then
+	image=`readlink -f $image`
+fi
+
+if [ ! "$image" ]; then
+	image=`readlink -f ./temp.img`
+fi
 
 if [ ! "$device" ]; then
 	device="/dev/$(lsblk -o NAME | grep mmc | head -n 1)";
 fi
 
-if [ ! "$device" ] || [ "$device" = "/dev/" ]; then
+if [ "$device" = "/dev/" ]; then
 	device="/dev/$(lsblk -o NAME | grep sda | head -n 1)";
 fi
 
-if [ ! "$image" ]; then
-	image=`readlink -f ./temp.backup`
+if [ "$device" = "/dev/" ]; then
+	echo -e "Could not autodetect a device. Please specify one\n backupDrive \x1b[31m-d <device>\x1b[0m"
+	exit 1
 fi
 
-lsblk | grep -v snap
+lsblk | grep disk
 
-echo -e "\nYou are about to backup the device '$device' to the image '$image'\nPress enter to continue .. or Ctrl+c to cancel\n"
-
-read -p ""
-
-set -x
-
-umount $device
-
-echo "Starting dd @$(date +%F_%H:%M)"
-
-time dd bs=4M if=$device of=$image conv=fdatasync status=progress
-
-sync
+sudo $DOTFILES/scripts/duplicateImage $device $image
