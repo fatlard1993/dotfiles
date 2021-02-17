@@ -2,26 +2,7 @@
 
 export DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
 
-if [ "$DOTFILES_DEVICE" ]; then
-	echo "DEVICE: $DOTFILES_DEVICE"
-elif [ "$1" ] && [ -d "$DOTFILES/devices/$1" ]; then
-	DOTFILES_DEVICE=$1
-else
-	echo -e "\n\"$1\" is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $DOTFILES/devices)\n"
-
-	read -p "Enter the device type: " deviceType; exec $(dirname $(readlink -f $0))/$(basename $0) $deviceType
-
-	exit #?
-fi
-
-echo "Setting up system variables"
-
-export DOTFILES_DEVICE
-export PATH=$PATH:$DOTFILES/scripts/
-
-echo -e "\nexport PATH=\"$PATH\"" | sudo tee /etc/profile.d/02_env.sh
-echo -e "\nexport DOTFILES=$DOTFILES" | sudo tee -a /etc/profile.d/02_env.sh
-echo -e "\nexport DOTFILES_DEVICE=$DOTFILES_DEVICE" | sudo tee -a /etc/profile.d/02_env.sh
+source $DOTFILES/scripts/dotfiles-update-bashrc
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
 
@@ -96,8 +77,6 @@ if [ ! -s "$HOME/.nvm" ]; then
 
 	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
 fi
-
-dotfiles-update-bashrc
 
 echo "Installing global npm packages"
 
