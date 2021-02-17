@@ -29,7 +29,7 @@ echo "set \$screenWidth $SCREEN_WIDTH" >> /tmp/i3SysVars
 echo "set \$screenHeight $SCREEN_HEIGHT" >> /tmp/i3SysVars
 echo "set \$overwatch floating enable, sticky enable, resize set $(( $SCREEN_WIDTH / 2 )) $(( $SCREEN_HEIGHT / 2 )), move window to position $(($SCREEN_WIDTH / 2)) 0" >> /tmp/i3SysVars
 
-cat $DOTFILES/etc/_fileWarning \
+cat $DOTFILES/etc/autogen_warning \
   <(echo) $i3_folder/_theme \
 	<(echo) /tmp/i3SysVars \
   <(echo) $i3_folder/_variables \
@@ -45,14 +45,14 @@ cat $DOTFILES/etc/_fileWarning \
   <(echo) $i3_folder/_i3bar \
 > $HOME/.config/i3/config
 
-cat $DOTFILES/etc/_fileWarning \
+cat $DOTFILES/etc/autogen_warning \
   <(echo) $i3_folder/_status_theme \
   <(echo) $i3_folder/_status_items \
   <(echo) $device_i3_folder/_status_order \
 > $HOME/.config/i3/status.conf
 
 if [ -s "$device_i3_folder/_status2_order" ]; then
-  cat $DOTFILES/etc/_fileWarning \
+  cat $DOTFILES/etc/autogen_warning \
     <(echo) $i3_folder/_status_theme \
     <(echo) $i3_folder/_status_items \
     <(echo) $device_i3_folder/_status2_order \
