@@ -97,7 +97,7 @@ if [ ! -s "$HOME/.nvm" ]; then
 	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
 fi
 
-update-dotfiles-bashrc
+dotfiles-update-bashrc
 
 echo "Installing global npm packages"
 

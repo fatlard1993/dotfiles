@@ -80,7 +80,7 @@ bindsym $mod+r                      $ex rofi -show run
 bindsym $mod+s                      $ex rofi -show ssh
 bindsym $mod+Shift+Tab              $ex rofi -show window
 
-bindsym $mod+grave                  $ex smartCtxTerm
+bindsym $mod+grave                  $ex terminal-smart
 
 bindsym $mod+Control+o              $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
@@ -116,16 +116,16 @@ bindsym $hyper+Control+Escape         $ex i3-msg [class=".*"] kill && sleep 1 &&
 bindsym $hyper+Control+r              $ex i3-msg [class=".*"] kill && sleep 1 && reboot
 bindsym $hyper+Escape                 [class=".*"] kill, mode default
 bindsym $hyper+o                      $overwatch
-bindsym $hyper+m                      $ex i3workspaceMark
+bindsym $hyper+m                      $ex i3-workspace-mark
 
 #bindsym $mod+Left                   $ex xdotool --clearmodifiers key Home
 #bindsym $mod+Right                  $ex xdotool --clearmodifiers key End
 
-bindsym --release $mod+c 						$ex copyPasta c
-bindsym --release $mod+v 						$ex copyPasta v
+bindsym --release $mod+c 						$ex pc-copy-paste c
+bindsym --release $mod+v 						$ex pc-copy-paste v
 
 bindsym $mod+Control+v              $ex rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
 
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 
-bindsym $mod+g                      $ex i3getActiveWindowClass gui
+bindsym $mod+g                      $ex i3-window-active-class gui

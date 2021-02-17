@@ -4,7 +4,7 @@ my collection of configs, scripts and various dotfiles
 
 ## Install
 
-```DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git && ./dotfiles/scripts/update-dotfiles```
+```DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git && ./dotfiles/scripts/dotfiles-update```
 
 
 ## Google Chrome
@@ -77,7 +77,7 @@ http://ubuntuhandbook.org/index.php/2014/12/stream-android-audio-to-ubuntu-wifi/
 Add this line to the end of your sudoers file:
 username ALL=(ALL) NOPASSWD: /home/username/.scripts/*
 
-### i3getWindowCriteria
+### i3-window-criteria
 
 This script outputs xwininfo in an "easy to use with i3" format
 
@@ -85,7 +85,7 @@ Run the program and click a window. (click the content of the window not the bor
 OR
 execute a program and pipe the output to capture things like splashscreens, or quick pop-up windows
 
-### ledCtl
+### led-control
 
 This script hijacks the caps lock LED and mimics the function of a HDD LED
 
@@ -108,7 +108,7 @@ Run the script with no parameters to see usage.
 This is a node app that is used for talking to the gpmdp application.
 It is very raw and doesn't do much, I just made it when I was bored..
 
-### initWorkspaces
+### i3-init-workspaces
 
 This script runs at login and sets up a base set of windows in workspaces.
 

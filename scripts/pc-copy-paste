@@ -1,6 +1,6 @@
 #!/bin/bash
 
-activeWindowClass=`i3getActiveWindowClass`
+activeWindowClass=`i3-window-active-class`
 terminalApp="gnome-terminal-server"
 
 sleep 0.1

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source enforceSudo
+source sudo-enforce
 
 echo "Updating apt packages"
 

@@ -4,10 +4,8 @@ $ex wallpaper get
 
 $ex clipd &
 
-$ex ledCtl caps monitor &
-
 $ex greenclip daemon &
 
 $ex caffeine-indicator &
 
-$ex initWorkspaces
+$ex i3-init-workspaces

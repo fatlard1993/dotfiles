@@ -8,40 +8,40 @@
 # Optionally supports the Ocrad engine for multi-column text.
 # These recognition engines have a very high character recognition success rate compared to other OCR's, including proprietary software.
 # New: multi-page and multiple file selection support!
-# Enhanced XSANE output and TIFF compatibility. 
+# Enhanced XSANE output and TIFF compatibility.
 # Handles nearly any format out there!
 # This script will convert any image of text into editable and indexable text. (for a full list of compatible file formats see the first filter below)
 #
 # REM: The better/cleaner/higher contrasted/higher resolution your image or scan is the better the results
-# 
+#
 # Dependencies: libtiff-dev (or -devel)(installed FIRST), tesseract-2.04 (latest stable-version), your chosen language data for Tesseract (2.00 and up) *1,
 # ImageMagick, ghostscript, Zenity, and OpenOffice or other text editor *2
 # This version of tesseract can be downloaded from here: http://code.google.com/p/tesseract-ocr/downloads/list
-# Warning: This script will not work with the latest beta version (tesseract 3.00 pre-release) due to database structure modifications. 
-# 
-# Optional dependencies: ocrad ->an alternate recognition engine 
+# Warning: This script will not work with the latest beta version (tesseract 3.00 pre-release) due to database structure modifications.
+#
+# Optional dependencies: ocrad ->an alternate recognition engine
 # If inital results are unsatisfactory, maybe this engine will do better. Most importantly, it supports basic page format recognition. *3
 # The latest version of ocrad can be downloaded off the GNU mirror list here: http://www.gnu.org/software/ocrad/
-# 
-# Also: Make sure to select Unicode UTF-8 in OpenOffice's pop-up window (or text editor of your choice). 
-# 
+#
+# Also: Make sure to select Unicode UTF-8 in OpenOffice's pop-up window (or text editor of your choice).
+#
 #
 #
 # *1 	Install Tesseract after libtiff-dev. Then extract all the language databases you need into the "wherever_you_installed/tesseract-2.04/tessdata" directory.
 # 		This is done automatically if you extract the language databases from WITHIN the "tesseract-2.04" directory (and allow overwriting).
 # 		This script allows the use of multiple language databases. Default is English and French. For adding others see comments below.
 #		You NEED at least one language database or tesseract will not work.
-# *2 	Simply change the occurance of "soffice -writer" below to a text editor of your choice, ie: gedit, KWrite, etc 
+# *2 	Simply change the occurance of "soffice -writer" below to a text editor of your choice, ie: gedit, KWrite, etc
 # 		Some systems call on OpenOffice Writer differently. If unsure, check the properties tab of your Writer launcher.
-# 		Ie: On customized versions of OOo (such as the ones provided by Linux Mandrake or Gentoo), you start Writer with: oowriter 
+# 		Ie: On customized versions of OOo (such as the ones provided by Linux Mandrake or Gentoo), you start Writer with: oowriter
 # *3	If you install ocrad also, TextRipper will recognize this and prompt you to choose between the two offering better recognition or page format support
 #
 # Troubleshooting:
-#		If this script ends saying your text editor can't open "OCR output-editable text.txt", 
-#		or if run off the cli: Unable to load unicharset file /usr/local/share/tessdata/eng.unicharset 
+#		If this script ends saying your text editor can't open "OCR output-editable text.txt",
+#		or if run off the cli: Unable to load unicharset file /usr/local/share/tessdata/eng.unicharset
 #		do (as superuser):
-#		echo /usr/local/share /usr/share | xargs -n 1 cp -R wherever_you_installed/tesseract-2.04/tessdata 
-#			Explanation: 	Tesseract may call on the tessdata directory from the /share directory of your filesystem, 
+#		echo /usr/local/share /usr/share | xargs -n 1 cp -R wherever_you_installed/tesseract-2.04/tessdata
+#			Explanation: 	Tesseract may call on the tessdata directory from the /share directory of your filesystem,
 #							so you need to make your language databases available from there.
 #
 
@@ -80,7 +80,7 @@ fi
 OCRAD_YES=`ls /usr/local/bin /usr/bin /$HOME/bin | grep ocrad`
 if [ $OCRAD_YES = ocrad ]; then
 	# Prompt for multi-column or block text
-	MC_YES=$(zenity --list --title="Format definition" --text="Is the text in multiple columns?" --radiolist --column "" --column "" TRUE No FALSE Yes) 
+	MC_YES=$(zenity --list --title="Format definition" --text="Is the text in multiple columns?" --radiolist --column "" --column "" TRUE No FALSE Yes)
 	EXIT1=$?
 	if [ $EXIT1 -ne 0 ] ; then
 		exit
@@ -124,24 +124,24 @@ CLI fans do 'convert WeirdFile.??? NewFileToRip.pgm'"
                 ;;
 	1)
 		# Test if the file is an image of the tiff class format.
- 		IS_PNM=`echo "$1" | grep -i -c -E [.]tiff\|[.]tif`
+		IS_PNM=`echo "$1" | grep -i -c -E [.]tiff\|[.]tif`
 		if [ $IS_PNM -eq 0 ] ; then
 echo "20"
 			# Since the file is not a .tiff image, convert it using ImageMagick
 			convert "$DN_FILE"/"$BN_FILE" "$DN_FILE"/"$CONV_TIF"
 echo "40"
-		fi		
+		fi
 
 		# Since the file is a .tiff image, ensure tesseract compatibility with ImageMagick
 		IS_TIF=`echo "$1" | grep -i -c -E [.]tiff\|[.]tif`
 		if [ $IS_TIF -eq 1 ] ; then
-echo "20"			
-			convert "$DN_FILE"/"$BN_FILE" -alpha off -type truecolor -type bilevel +compress "$DN_FILE"/"$CONV_TIF" 
+echo "20"
+			convert "$DN_FILE"/"$BN_FILE" -alpha off -type truecolor -type bilevel +compress "$DN_FILE"/"$CONV_TIF"
 echo "40"
 		fi
 
 		# Test if the file is a pdf document.
- 		IS_PDF=`echo "$1" | grep -i -c -E [.]pdf`
+		IS_PDF=`echo "$1" | grep -i -c -E [.]pdf`
 
 		if [ $IS_PDF -eq 1 ] ; then
 echo "20"
@@ -149,7 +149,7 @@ echo "20"
 			# Test if encrypted
 			pdfinfo "$BN_FILE" > "$DN_FILE"/pdfinfo_out
 
-			if test -s "$DN_FILE"/pdfinfo_out ; then 
+			if test -s "$DN_FILE"/pdfinfo_out ; then
 				echo "pdf is not pw locked" # it is not encrypted
 			else # it is encrypted so hint on PDFcrack
 				zenity --error --title "${BN_FILE} is password locked" --text "Visit http://pdfcrack.sourceforge.net/index.html"
@@ -187,25 +187,25 @@ echo "40"
 					convert *converted_from_pdf* "$CONV_TIF"
 echo "50"
 				fi
-		
+
 		fi
 				# OCR operation
 				if [ $MC_YES = No ] ; then
-					# Convert pgm's to tif (w/o the +adjoin option results in one tif file)			
+					# Convert pgm's to tif (w/o the +adjoin option results in one tif file)
 echo "70"
 						case $USE_LANG in
-	        					English)
-								# The following works on the Desktop too! 
-								tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l eng 
+							English)
+								# The following works on the Desktop too!
+								tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l eng
 								;;
 							French)
-								# The following works on the Desktop too! 
-								tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l fra 
+								# The following works on the Desktop too!
+								tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l fra
 								;;
-							# Uncomment to add other language(s). Replace variables "Other_Language" and "Other_Language_ID".			
+							# Uncomment to add other language(s). Replace variables "Other_Language" and "Other_Language_ID".
 							# Other_Language)
-								# # The following works on the Desktop too! 
-								# tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l Other_Language_ID 
+								# # The following works on the Desktop too!
+								# tesseract "$DN_FILE"/"$CONV_TIF" "$DN_FILE"/"${OCRd_FILE} $i" -l Other_Language_ID
 								# ;;
 						esac
 echo "80"
@@ -220,13 +220,13 @@ echo "70"
 					done
 					ocrad -a -l --format=utf8 "$DN_FILE"/"$CONV_PGM" -o "$DN_FILE"/"${OCRd_FILE} $i.txt"
 echo "80"
-				fi		
+				fi
 
 		;;
 	*)
 		zenity --warning --title="Corrupted file" --text="Open the file in GIMP then save as -> select the .pnm extension -> and try TextRipper on this new file. \n
 Otherwise rescan the page \n\n
-CLI fans do 'convert WeirdFile.??? NewFileToRip.pgm'"		
+CLI fans do 'convert WeirdFile.??? NewFileToRip.pgm'"
 		exit
                 ;;
   esac
