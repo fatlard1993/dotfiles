@@ -1,47 +1,62 @@
 #!/bin/bash
 
-if [ -s "$HOME/.bashrc.bkup" ]; then
+export DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
+
+source $DOTFILES/scripts/dotfiles-variables
+
+if [ -s /etc/bash.bashrc.bkup ]; then
 	echo "Restoring default bashrc"
+
+	sudo mv /etc/bash.bashrc.bkup /etc/bash.bashrc
+fi
+
+if [ -s "$HOME/.bashrc.bkup" ]; then
+	echo "Restoring default user bashrc files"
 
 	mv $HOME/.bashrc.bkup $HOME/.bashrc
 	sudo mv /root/.bashrc.bkup /root/.bashrc
 fi
 
+if [ -s /etc/inputrc.bkup ]; then
+	echo "Restoring default bashrc"
+
+	sudo mv /etc/inputrc.bkup /etc/inputrc
+fi
+
+if [ ! -s /etc/bash.bashrc.bkup ]; then
+	echo "Backing up default bashrc"
+	sudo cp /etc/bash.bashrc /etc/bash.bashrc.bkup
+
+	echo "Enabling global variables"
+	echo -e "\nexport OG_PATH=\"$OG_PATH\"" | sudo tee /etc/profile.d/00_env.sh
+	echo "export PATH=\"$PATH\"" | sudo tee -a /etc/profile.d/00_env.sh
+	echo "export DOTFILES=$DOTFILES" | sudo tee -a /etc/profile.d/00_env.sh
+	echo -e "export DOTFILES_DEVICE=$DOTFILES_DEVICE\n" | sudo tee -a /etc/profile.d/00_env.sh
+	sudo chmod +x /etc/profile.d/00_env.sh
+	cat /etc/profile.d/00_env.sh | sudo tee -a /etc/bash.bashrc
+
+	echo "Bypassing sudoers secure path"
+	sudo sed -ie 's/Defaults\tsecure_path/#Defaults\tsecure_path/' /etc/sudoers
+
+	echo "Enabling bashrc.d"
+	cat $DOTFILES/etc/bashrc | sudo tee -a /etc/bash.bashrc
+fi
+
 if [ ! -s "$HOME/.bashrc.bkup" ]; then
-	echo -e "Backing up and extending .bashrc\n"
+	echo "Backing up and user bashrc files"
 
 	cp $HOME/.bashrc $HOME/.bashrc.bkup
 	sudo cp /root/.bashrc /root/.bashrc.bkup
-
-	cat $DOTFILES/etc/.bashrc >> $HOME/.bashrc
-	cat $DOTFILES/etc/.bashrc | sudo tee -a /root/.bashrc
 fi
 
-echo -e "\nUpdating .bash_profile and .profile"
+if [ ! -s /etc/inputrc.bkup ]; then
+	echo "Backing up default inputrc"
+	sudo cp /etc/inputrc /etc/inputrc.bkup
 
-rm -rf $HOME/.bash_profile $HOME/.profile
-
-cp $DOTFILES/etc/.bash_profile $HOME/.bash_profile
-cp $DOTFILES/etc/.bash_profile $HOME/.profile
-
-echo -e "\nsource $HOME/.bashrc" >> $HOME/.bash_profile
-echo -e "\nsource $HOME/.bashrc" >> $HOME/.profile
-
-if [ -s $DOTFILES/devices/$DOTFILES_DEVICE/.profile ]; then
-	cat $DOTFILES/devices/$DOTFILES_DEVICE/.profile >> $HOME/.profile
+	echo "Extending inputrc"
+	echo -e "\n\"\C-h\": backward-kill-word" | sudo tee -a /etc/inputrc
+	echo -e "\"\\\e[3;5~\": kill-word\n" | sudo tee -a /etc/inputrc
 fi
 
-echo "Linking .inputrc"
-sudo ln -sf $DOTFILES/etc/.inputrc $HOME/.inputrc
-
-echo -e "\nUpdating bashrc.d"
-
-mkdir -p $HOME/.bashrc.d
-sudo mkdir -p /root/.bashrc.d
-
-files=$(find $DOTFILES/bashrc/* -type f)
-
-for file in $files; do
-	ln -sf $file $HOME/.bashrc.d/$(basename $file)
-	sudo ln -sf $file /root/.bashrc.d/$(basename $file)
-done
+echo "Linking device profile"
+sudo ln -sf $DOTFILES/devices/$DOTFILES_DEVICE/.profile /etc/profile.d/device.sh
