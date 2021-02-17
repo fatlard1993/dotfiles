@@ -18,7 +18,7 @@ if [ -s "$HOME/.bashrc.bkup" ]; then
 fi
 
 if [ -s /etc/inputrc.bkup ]; then
-	echo "Restoring default bashrc"
+	echo "Restoring default inputrc"
 
 	sudo mv /etc/inputrc.bkup /etc/inputrc
 fi
