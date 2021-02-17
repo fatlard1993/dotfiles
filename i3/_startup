@@ -8,4 +8,4 @@ $ex greenclip daemon &
 
 $ex caffeine-indicator &
 
-$ex i3-init-workspaces
+$ex i3-workspace-init
