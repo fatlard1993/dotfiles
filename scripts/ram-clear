@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source enforceSudo
+source sudo-enforce
 
 echo 3 > /proc/sys/vm/drop_caches && swapoff -a && swapon -a && notify-send 'Success!' 'Ram-cache and Swap Cleared'

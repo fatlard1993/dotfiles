@@ -129,4 +129,4 @@ if [ ! -d "$HOME/Projects/external/libinput-gestures" ]; then
 	)
 fi
 
-update-dotfiles-fonts
+dotfiles-update-fonts

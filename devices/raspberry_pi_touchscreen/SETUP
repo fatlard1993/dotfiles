@@ -2,7 +2,7 @@
 
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
-update-dotfiles-i3
+dotfiles-update-i3
 
 echo "Installing apt packages for $DOTFILES_DEVICE"
 

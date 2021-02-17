@@ -3,7 +3,7 @@
 help() {
 	cat <<EOF
 Usage:
-  backupDrive [OPTIONS...]
+  drive-backup [OPTIONS...]
 
 Options:
   -?, -h, --help           Show help (this)
@@ -26,7 +26,7 @@ while (( $# > 0 )) ; do
 			[[ "$1" = --device=* ]] && device="${1#*=}" || { shift; device="$1"; }
 		;;
 		*)
-			echo "Unrecgonized option .. For a full list of available options see backupDrive -h"
+			echo "Unrecgonized option .. For a full list of available options see drive-backup -h"
 			exit 1
 	esac
 	shift
@@ -49,10 +49,10 @@ if [ "$device" = "/dev/" ]; then
 fi
 
 if [ "$device" = "/dev/" ]; then
-	echo -e "Could not autodetect a device. Please specify one\n backupDrive \x1b[31m-d <device>\x1b[0m"
+	echo -e "Could not autodetect a device. Please specify one\n drive-backup \x1b[31m-d <device>\x1b[0m"
 	exit 1
 fi
 
 lsblk | grep disk
 
-sudo $DOTFILES/scripts/duplicateImage $device $image
+sudo $DOTFILES/scripts/image-duplicate $device $image

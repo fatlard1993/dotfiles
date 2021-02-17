@@ -14,7 +14,7 @@ mode --pango_markup $mode_workspaces_layout {
 set $mode_workspaces "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Workspaces </span>  <span weight='heavy' size='large'>L</span>ayout <span weight='heavy' size='large'>M</span>ark"
 mode --pango_markup $mode_workspaces {
 	bindsym l      mode $mode_workspaces_layout
-	bindsym m      mode default, $ex i3workspaceMark
+	bindsym m      mode default, $ex i3-workspace-mark
 
 	bindsym BackSpace mode $mode_menu
 
@@ -76,7 +76,7 @@ mode --pango_markup $mode_system_i3 {
 	bindsym c				$ex i3-input -F '%s' -P 'Send command to i3: ', mode default
 	bindsym r 			reload
 	bindsym Shift+r restart
-	bindsym u 			$ex update-dotfiles-i3
+	bindsym u 			$ex dotfiles-update-i3
 
 	bindsym BackSpace mode $mode_system
 
@@ -179,8 +179,8 @@ mode --pango_markup $mode_system {
 	bindsym a       mode $mode_system_autolock
 	bindsym b       mode $mode_system_backlight
 	bindsym c       mode $mode_system_cursor
-	bindsym f       mode default, $ex clear_ram
-	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- update-dotfiles)
+	bindsym f       mode default, $ex ram-clear
+	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- dotfiles-update)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
 	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && reboot
@@ -229,7 +229,7 @@ mode --pango_markup $mode_containers {
 	bindsym f       fullscreen
 	bindsym Shift+f floating enable, mode $mode_containers_float
 	bindsym k       mode $mode_containers_kill
-	bindsym m       mode default, $ex i3windowMark $borderSize
+	bindsym m       mode default, $ex i3-window-mark $borderSize
 
 	bindsym BackSpace mode $mode_menu
 

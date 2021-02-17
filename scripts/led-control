@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source enforceSudo
+source sudo-enforce
 
 # check dependencies
 command -v setxkbmap >/dev/null 2>&1 || { echo >&2 "Script requires setxkbmap but it is not installed.Aborting."; exit 1; }
@@ -43,5 +43,5 @@ elif [ "$2" = "monitor" ]; then
 		OLD=$NEW
 	done
 else
-	echo -e "\nUseage:\nledCtl num 1\nledCtl scroll 0\nledCtl caps monitor\n"
+	echo -e "\nUseage:\nled-control num 1\nled-control scroll 0\nled-control caps monitor\n"
 fi

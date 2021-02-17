@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Script to capture/apply xinput calibration for the touchscreen
+# The system will always run xinput_calibrator, which dumps
+# output to stdout.
+# * If that output indicates that the user interacted with the
+# program, it will capture the values to a file, to be
+# applied on the next power cycle.
+# * If the unit is unattended, there is no interaction.
+# No new calibration will be stored,
+# and the old file will be applied.
+
+CAL_COMMANDS="$HOME/cal_commands"
+CAL_RAW="$HOME/cal_raw"
+
+if [ -e $CAL_COMMANDS ]
+then
+	echo "Found calibration commands - applying."
+
+	# clightly non-obvious - dot runs the commands in the named file.
+	. $CAL_COMMANDS
+fi
+
+xinput_calibrator --output-type xinput > $CAL_RAW
+
+grep 'xinput set' $CAL_RAW
+
+if [ $? -eq 0 ]
+then
+	echo "Storing new calibration values"
+
+	grep 'xinput set' $CAL_RAW | sed 's/^[[:space:]]\+//g; s/$/;/g' > $CAL_COMMANDS
+fi
+
+if [ -e $CAL_RAW ]
+then
+	rm $CAL_RAW
+fi
