@@ -13,7 +13,7 @@ usage(){
 old=$(hostname)
 new=$1
 
-[ "$new" = "_mac_address_" ] && new=$(sed "s/^.*macaddr=\\([0-9A-F:]*\\) .*$/\\1/;s/://g;s/\\(.*\\)/rpi-\\L\\1/" /proc/cmdline)
+[ "$new" = "_mac_address_" ] && new=`sed 's/:/-/g' /sys/class/net/eth0/address`
 
 for file in \
   /etc/hostname \
