@@ -1,0 +1,199 @@
+{
+	"__sortOrder": [
+		"GitHub",
+		"StackOverflow",
+		"Localhost #1",
+		"Localhost #2",
+		"regexr",
+		"prodpad",
+		"TestTrack",
+		"Teams",
+		"Email",
+		"messages",
+		"Gmail",
+		"linkedin",
+		"discord",
+		"Mysterious Universe",
+		"Music",
+		"youtubemusic",
+		"Ebay",
+		"Amazon",
+		"BECU",
+		"CS Mother Hub",
+		"curse forge",
+		"prime video",
+		"dropbox",
+		"Router",
+		"fabric wiki",
+		"chrome settings",
+		"fontawesome",
+		"towncraft server",
+		"Youtube",
+		"soundcloud",
+		"Radius NX",
+		"control server",
+		"babycam",
+		"activeforks",
+		"Plex",
+		"listi",
+		"htpc",
+		"calendly",
+		"draw.io"
+	],
+	"GitHub": {
+		"url": "http://github.com/",
+		"color": "rgb(97,164,52)"
+	},
+	"StackOverflow": {
+		"url": "http://stackoverflow.com/",
+		"color": "rgb(195,118,45)"
+	},
+	"Email": {
+		"url": "https://outlook.office365.com/owa/#path=/mail",
+		"color": "rgb(52,91,166)"
+	},
+	"Gmail": {
+		"url": "http://gmail.com/",
+		"color": "rgb(177,51,51)"
+	},
+	"Mysterious Universe": {
+		"url": "https://mysteriousuniverse.org/log-in/",
+		"color": "rgb(126,51,177)"
+	},
+	"Music": {
+		"url": "https://play.google.com/music/listen?u=1#/home",
+		"color": "rgb(219,102,36)"
+	},
+	"Localhost #1": {
+		"url": "http://localhost:8081",
+		"color": "rgb(159,177,51)"
+	},
+	"Localhost #2": {
+		"url": "http://localhost:8082",
+		"color": "rgb(154,177,51)"
+	},
+	"Ebay": {
+		"url": "http://ebay.com/",
+		"color": "rgb(193,40,40)"
+	},
+	"Amazon": {
+		"url": "http://amazon.com/",
+		"color": "rgb(226,128,45)"
+	},
+	"Teams": {
+		"url": "https://teams.microsoft.com/_#/conversations/Composer%20Builds?threadId=19:94566418959f4a9ead2783307aea4499@thread.skype&ctx=channel",
+		"color": "rgb(84,51,177)"
+	},
+	"TestTrack": {
+		"url": "http://bugs.symetrixaudio.com/ttweb/#Default/11/issues?tabID=589&filterID=149&page=0",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"BECU": {
+		"url": "https://onlinebanking.becu.org/BECUBankingWeb/Login.aspx",
+		"color": "rgb(177,51,51)"
+	},
+	"CS Mother Hub": {
+		"url": "http://google.com/search?q=http://192.168.100.22:1337",
+		"color": "rgb(207,168,77)"
+	},
+	"curse forge": {
+		"url": "https://www.curseforge.com/minecraft/mc-mods?filter-game-version=2020709689:7499&filter-sort=2",
+		"color": "rgb(126,51,177)"
+	},
+	"messages": {
+		"url": "https://messages.google.com/web",
+		"color": "rgb(34,109,224)"
+	},
+	"discord": {
+		"url": "https://discordapp.com/channels/668543438958100552/668543438958100555",
+		"color": "rgb(149,157,229)"
+	},
+	"prime video": {
+		"url": "https://www.amazon.com/gp/video/storefront/ref=sv_atv_logo?node=2858778011",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"Router": {
+		"url": "192.168.1.1",
+		"color": "rgb(59,59,59)"
+	},
+	"dropbox": {
+		"url": "http://dropbox.com/",
+		"color": "rgb(20,108,200)"
+	},
+	"prodpad": {
+		"url": "https://app.prodpad.com/",
+		"color": "rgb(54,172,215)"
+	},
+	"fabric wiki": {
+		"url": "https://fabricmc.net/wiki/start",
+		"color": "rgb(190,181,144)"
+	},
+	"chrome settings": {
+		"url": "http://google.com/search?q=chrome://settings/",
+		"color": "rgb(115,115,115)"
+	},
+	"fontawesome": {
+		"url": "https://fontawesome.com/icons?d=gallery&m=free",
+		"color": "rgb(0,122,249)"
+	},
+	"towncraft server": {
+		"url": "https://mc.ggservers.com/server/63465",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"Youtube": {
+		"url": "http://youtube.com",
+		"color": "rgb(177,51,51)"
+	},
+	"soundcloud": {
+		"url": "https://soundcloud.com/",
+		"color": "rgb(229,106,29)"
+	},
+	"regexr": {
+		"url": "https://regexr.com/",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"linkedin": {
+		"url": "http://linkedin.com",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"Radius NX": {
+		"url": "http://192.168.2.197",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"control server": {
+		"url": "http://192.168.2.158",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"babycam": {
+		"url": "192.168.1.39",
+		"color": "rgb(51,165,177)"
+	},
+	"youtubemusic": {
+		"url": "https://music.youtube.com/",
+		"color": "rgb(178,29,29)"
+	},
+	"activeforks": {
+		"url": "https://techgaun.github.io/active-forks/index.html",
+		"color": "hsl(209, 55%, 45%)"
+	},
+	"Plex": {
+		"url": "192.168.1.37:32400/web",
+		"color": "rgb(192,126,58)"
+	},
+	"listi": {
+		"url": "http://localhost:11571",
+		"color": "rgb(51,162,177)"
+	},
+	"htpc": {
+		"url": "192.168.1.37",
+		"color": "rgb(102,102,102)"
+	},
+	"calendly": {
+		"url": "https://calendly.com/event_types/user/me",
+		"color": "rgb(51,162,177)"
+	},
+	"draw.io": {
+		"url": "draw.io",
+		"color": "rgb(177,109,51)"
+	}
+}

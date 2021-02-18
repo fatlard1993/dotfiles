@@ -11,6 +11,10 @@ sudo ln -sf $device_folder/etc/grub /etc/default/grub
 
 sudo update-grub2
 
+echo "Linking bookmarks"
+mkdir -p $HOME/.home-page
+sudo ln -sf $device_folder/bookmarks.json $HOME/.home-page/bookmarks.json
+
 echo "Setting up lockscreen"
 
 sudo ln -sf $device_folder/lock.png $HOME/.config/i3/lock.png
