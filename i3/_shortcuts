@@ -59,7 +59,7 @@ bindsym $mod+period                 workspace next
 # Scratchpads
 
 ## Move
-bindsym $mod+Control+7            $ex CMD="scratchpad move_to 7" node i3node.js
+bindsym $mod+Control+7            $ex i3d.js -c scratchpad -a 7
 bindsym $mod+Control+8            $ex CMD="scratchpad move_to 8" node i3node.js
 bindsym $mod+Control+9            $ex CMD="scratchpad move_to 9" node i3node.js
 
