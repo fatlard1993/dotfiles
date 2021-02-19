@@ -10,8 +10,6 @@ apt-autoinstall xinput-calibrator matchbox-keyboard
 
 cp $device_folder/libinput-gestures.conf $HOME/.config/
 
-ln -sf $device_folder/.profile $HOME/.profile
-
 ln -sf $device_folder/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
 
 sudo cp $device_folder/config.txt /boot/config.txt
