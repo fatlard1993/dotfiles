@@ -1,0 +1,17 @@
+#!/bin/bash
+
+export 	apps=(
+	"chromium-browser --enable-touch-events http://192.168.1.37"
+)
+
+export workspaces=(
+	"1"
+)
+
+export workspaceNames=(
+	"1 Web"
+)
+
+export workspaceColors=(
+	"#cc6666"
+)
