@@ -1,0 +1,49 @@
+#!/bin/bash
+
+export apps=(
+	"nautilus -w $HOME/Projects"
+	"nautilus -w $HOME/Downloads"
+	"gnome-terminal --working-directory $HOME/Projects"
+	"gnome-terminal --working-directory $HOME/Projects"
+	"i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
+	"i3-msg focus left && i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
+	"code -n Projects/lib.code-workspace"
+	"code -n Projects/code.code-workspace"
+	"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
+)
+
+export workspaces=(
+	"5"
+	"5"
+	"4"
+	"4"
+	"4"
+	"4"
+	"3"
+	"2"
+	"1"
+)
+
+export workspaceNames=(
+	"5 Files"
+	"5 Files"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"3 Lib"
+	"2 Code"
+	"1 Web"
+)
+
+export workspaceColors=(
+	"#8abeb7"
+	"#8abeb7"
+	"#b5bd68"
+	"#b5bd68"
+	"#b5bd68"
+	"#b5bd68"
+	"#f0c674"
+	"#de935f"
+	"#cc6666"
+)
