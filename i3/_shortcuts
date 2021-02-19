@@ -24,8 +24,8 @@ bindsym $mod+Control+4              move container to workspace number 4, worksp
 bindsym $mod+Control+5              move container to workspace number 5, workspace number 5
 bindsym $mod+Control+6              move container to workspace number 6, workspace number 6
 bindsym $mod+Control+Tab            move container to workspace back_and_forth, workspace back_and_forth
-bindsym $mod+Control+comma          $ex CMD="move prev" node i3node.js
-bindsym $mod+Control+period         $ex CMD="move next" node i3node.js
+bindsym $mod+Control+comma          $ex i3d.js container strafe left
+bindsym $mod+Control+period         $ex i3d.js container strafe right
 
 ## Float
 bindsym $mod+f                      unmark, floating toggle
@@ -59,18 +59,18 @@ bindsym $mod+period                 workspace next
 # Scratchpads
 
 ## Move
-bindsym $mod+Control+7            $ex i3d.js -c scratchpad -a 7
-bindsym $mod+Control+8            $ex CMD="scratchpad move_to 8" node i3node.js
-bindsym $mod+Control+9            $ex CMD="scratchpad move_to 9" node i3node.js
+bindsym $mod+Control+7              $ex i3d.js container addToScratchpad 7
+bindsym $mod+Control+8              $ex i3d.js container addToScratchpad 8
+bindsym $mod+Control+9              $ex i3d.js container addToScratchpad 9
 
 ## View
-bindsym $mod+7                    [con_mark="sp*"] move scratchpad, [con_mark="sp_7"] scratchpad show
-bindsym $mod+8                    [con_mark="sp*"] move scratchpad, [con_mark="sp_8"] scratchpad show
-bindsym $mod+9                    [con_mark="sp*"] move scratchpad, [con_mark="sp_9"] scratchpad show
+bindsym $mod+7                      $ex i3d.js scratchpad show 7
+bindsym $mod+8                      $ex i3d.js scratchpad show 8
+bindsym $mod+9                      $ex i3d.js scratchpad show 9
 
 ## Etc
-bindsym $mod+0                    [con_mark="sp*"] move scratchpad
-bindsym $mod+Control+0            [con_mark="sp*"] move to workspace "scratchpad dump", [con_mark="sp*"] floating disable, [con_mark="sp*"] unmark, workspace "scratchpad dump"
+bindsym $mod+0                      $ex i3d.js scratchpad hide
+bindsym $mod+Control+0              $ex i3d.js scratchpad dump
 
 
 # Etc
@@ -105,21 +105,21 @@ bindsym Print                       $ex $screenshot
 
 # Mouse shortcuts
 
-bindsym --whole-window $mod+button2 kill
+bindsym --whole-window              $mod+button2 kill
 
-bindsym --whole-window $mod+button3 floating toggle
+bindsym --whole-window              $mod+button3 floating toggle
 
 
 # Experimental
 
-bindsym $hyper+Control+Escape         $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
-bindsym $hyper+Control+r              $ex i3-msg [class=".*"] kill && sleep 1 && reboot
-bindsym $hyper+Escape                 [class=".*"] kill, mode default
-bindsym $hyper+o                      $overwatch
-bindsym $hyper+m                      $ex i3-workspace-mark
+bindsym $hyper+Control+Escape       $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
+bindsym $hyper+Control+r            $ex i3-msg [class=".*"] kill && sleep 1 && reboot
+bindsym $hyper+Escape               [class=".*"] kill, mode default
+bindsym $hyper+o                    $overwatch
+bindsym $hyper+m                    $ex i3-workspace-mark
 
-#bindsym $mod+Left                   $ex xdotool --clearmodifiers key Home
-#bindsym $mod+Right                  $ex xdotool --clearmodifiers key End
+#bindsym $mod+Left                  $ex xdotool --clearmodifiers key Home
+#bindsym $mod+Right                 $ex xdotool --clearmodifiers key End
 
 bindsym --release $mod+c 						$ex pc-copy-paste c
 bindsym --release $mod+v 						$ex pc-copy-paste v
