@@ -2,7 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const exec = require('child_process').exec;
+
+const ffmetadata = require('ffmetadata');
 
 const baseFolder = process.cwd();
 const files = fs.readdirSync(baseFolder).filter((entry) => {
@@ -22,7 +23,24 @@ files.forEach((filename, index) => {
 
 	var filenameRegex = /(.+?)(s?\d\d?)[ex](\d\d?)(.+?)?(?:\s-\s|\.|\s)(?:480|720|1080|stv|bdr|brr|webr|sd\sdvd|hd\stv|dvdr).*(\..+)/i;
 
-	if(!filenameRegex.test(filename)) return console.log('Skipping ..', filename);
+
+	if(!filenameRegex.test(filename))	return console.log('Skipping ..', filename);
+
+	ffmetadata.read(filename, (err, data) => {
+		if(err) return console.error('Error reading metadata', err);
+
+		console.log('filename', filename);
+		console.log('metadata', data);
+
+		// data.test = data.test ? parseInt(data.test) + 1 : 0;
+
+		ffmetadata.write(filename, data, (err) => {
+			if(err) return console.error('Error writing metadata', err);
+
+			console.log('filename', filename);
+			console.log('new metadata', data);
+		});
+	});
 
 	console.log(`\noldFilename: ${filename}`);
 
