@@ -19,6 +19,7 @@
 		"eslint": "^6.4.0"
 	},
 	"dependencies": {
+		"ffmetadata": "^1.6.0",
 		"movie-art": "^2.0.3",
 		"request": "^2.88.2"
 	}
