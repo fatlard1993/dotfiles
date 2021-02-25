@@ -262,12 +262,13 @@ mode --pango_markup $mode_launch {
 	bindsym space      mode default
 }
 
-set $mode_menu "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Meta Mode </span>  <span weight='heavy' size='large'>C</span>ontainers <span weight='heavy' size='large'>L</span>aunch <span weight='heavy' size='large'>S</span>ystem <span weight='heavy' size='large'>W</span>orkspaces"
+set $mode_menu "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Meta Mode </span>  <span weight='heavy' size='large'>C</span>ontainers <span weight='heavy' size='large'>L</span>aunch <span weight='heavy' size='large'>S</span>ystem <span weight='heavy' size='large'>W</span>orkspaces <span weight='heavy' size='large'>P</span>aste"
 mode --pango_markup $mode_menu {
 	bindsym c      mode $mode_containers
 	bindsym l      mode $mode_launch
 	bindsym s      mode $mode_system
 	bindsym w      mode $mode_workspaces
+	bindsym p      mode $mode_paste
 
 	bindsym BackSpace mode default
 
