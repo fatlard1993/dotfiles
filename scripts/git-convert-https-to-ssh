@@ -1,0 +1,10 @@
+#!/bin/bash
+
+user=${1:-`git config --global github.user`}
+host=${2:-github.com}
+
+find . -type d -name '.git' | while read dir ; do
+	isHttps=`cat $dir/config | grep "https:" | grep "$user"`
+
+	[ "$isHttps" != "" ] && sed -i -e "s/url = .*\.com/url = git@$host:/" $dir/config
+done
