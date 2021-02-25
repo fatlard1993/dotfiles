@@ -14,6 +14,10 @@ for group in $groupsToAdd; do
 	sudo adduser $USER $group
 done
 
+echo "Adding $USER to sudoers"
+sudo mkdir -p /etc/sudoers.d
+echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_$USER-nopasswd"
+
 echo "Expanding file limits"
 
 ulimit -Sn unlimited
