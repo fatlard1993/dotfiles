@@ -23,25 +23,20 @@ echo "Expanding file limits"
 ulimit -Sn unlimited
 ulimit -Sl unlimited
 
-if [ ! -s "$DOTFILES/temp/.cronSetup" ]; then
-	echo "Setting up cron"
+echo "Configuring cron"
+sudo ln -sf $DOTFILES/cron/crontab /etc/crontab
 
-	sudo ln -sf $DOTFILES/cron/crontab /etc/crontab
+files=$(find $DOTFILES/cron/hourly/* -type f)
 
-	files=$(find $DOTFILES/cron/hourly/* -type f)
+for file in $files; do
+	sudo ln -sf $file /etc/cron.hourly/$(basename $file)
+done
 
-	for file in $files; do
-		sudo ln -sf $file /etc/cron.hourly/$(basename $file)
-	done
+files=$(find $DOTFILES/cron/daily/* -type f)
 
-	files=$(find $DOTFILES/cron/daily/* -type f)
-
-	for file in $files; do
-		sudo ln -sf $file /etc/cron.daily/$(basename $file)
-	done
-
-	echo "1" > $DOTFILES/temp/.cronSetup
-fi
+for file in $files; do
+	sudo ln -sf $file /etc/cron.daily/$(basename $file)
+done
 
 if [ ! -s "$DOTFILES/temp/.gitSetup" ]; then
 	echo "Setting up git"
