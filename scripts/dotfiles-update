@@ -90,9 +90,9 @@ for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
 done
 
-echo "Running device setup"
+echo "Running device-specific update"
 
-$DOTFILES/devices/$DOTFILES_DEVICE/SETUP
+$DOTFILES/devices/$DOTFILES_DEVICE/update
 
 if [ ! -s "$DOTFILES/temp/.dnsmasqSetup" ]; then
 	echo "Setting up dnsmasq"
