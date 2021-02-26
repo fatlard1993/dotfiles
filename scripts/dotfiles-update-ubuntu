@@ -55,13 +55,9 @@ if [ ! -s "$DOTFILES/temp/.gtkSetup" ]; then
 	echo "1" > $DOTFILES/temp/.gtkSetup
 fi
 
-if [ ! -s "$DOTFILES/temp/.rofiSetup" ]; then
-	echo "Setting up rofi"
-
-	ln -sf $DOTFILES/rofi/config $HOME/.config/rofi/config
-
-	echo "1" > $DOTFILES/temp/.rofiSetup
-fi
+echo "Configuring rofi"
+mkdir -p $HOME/.config/rofi
+ln -sf $DOTFILES/rofi/config $HOME/.config/rofi/config
 
 if [ ! -s "$DOTFILES/temp/.greenclipSetup" ]; then
 	echo "Setting up greenclip"
