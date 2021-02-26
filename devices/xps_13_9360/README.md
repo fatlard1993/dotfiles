@@ -100,7 +100,7 @@ okay, so apparently the mouse settings I set up before through gsettings arent b
 
 
 ## Setup
-```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && cd ~/Projects/dotfiles && ./SETUP xps_13_9360```
+```sudo apt install git -y && mkdir -p ~/Projects && cd ~/Projects && git clone https://github.com/fatlard1993/dotfiles && ~/Projects/dotfiles/scripts/dotfiles-update xps_13_9360```
 
 ## Old setup stuff
 
