@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sleep 0.4
+
+xdotool key --clearmodifiers "ctrl+$1"
