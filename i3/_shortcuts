@@ -28,7 +28,7 @@ bindsym $mod+Control+comma          $ex i3d.js container strafe left
 bindsym $mod+Control+period         $ex i3d.js container strafe right
 
 ## Float
-bindsym $mod+f                      unmark, floating toggle
+bindsym $mod+Control+f              unmark, floating toggle
 bindsym $mod+Shift+s                sticky toggle
 
 ## Resize
@@ -39,7 +39,7 @@ bindsym $mod+Shift+minus            resize shrink height 5 px or 5 ppt,   resize
 
 ## Etc
 
-bindsym $mod+q                      kill
+bindsym $mod+w                      kill
 
 
 # Workspaces
@@ -77,7 +77,7 @@ bindsym $mod+Control+0              $ex i3d.js scratchpad dump
 
 bindsym $mod+space                  $ex rofi -show drun -show-icons=true
 bindsym $mod+r                      $ex rofi -show run
-bindsym $mod+s                      $ex rofi -show ssh
+#bindsym $mod+s                      $ex rofi -show ssh
 bindsym $mod+Shift+Tab              $ex rofi -show window
 
 bindsym $mod+grave                  $ex terminal-smart
@@ -111,6 +111,13 @@ bindsym --whole-window              $mod+button3 floating toggle
 
 
 # Experimental
+
+bindsym --release $mod+s            $ex pc-press-key "ctrl+s"
+bindsym --release $mod+Shift+s      $ex pc-press-key "ctrl+shift+s"
+bindsym --release $mod+f            $ex pc-press-key "ctrl+f"
+bindsym --release $mod+Shift+f      $ex pc-press-key "ctrl+shift+f"
+bindsym --release $mod+x            $ex pc-press-key "ctrl+x"
+bindsym --release $mod+z            $ex pc-press-key "ctrl+z"
 
 bindsym $hyper+Control+Escape       $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
 bindsym $hyper+Control+r            $ex i3-msg [class=".*"] kill && sleep 1 && reboot
