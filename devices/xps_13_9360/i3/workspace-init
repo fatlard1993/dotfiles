@@ -9,7 +9,7 @@ export apps=(
 	"i3-msg focus left && i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
 	"code -n Projects/lib.code-workspace"
 	"code -n Projects/code.code-workspace"
-	"google-chrome -d https://outlook.office365.com/owa/#path=/mail"
+	"google-chrome"
 )
 
 export workspaces=(
