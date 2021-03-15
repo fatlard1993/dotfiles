@@ -2,4 +2,4 @@
 
 sleep 0.4
 
-xdotool key --clearmodifiers "ctrl+$1"
+xdotool key --clearmodifiers "$1"
