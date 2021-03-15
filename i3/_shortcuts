@@ -37,11 +37,6 @@ bindsym $mod+minus                  resize shrink height 10 px or 10 ppt, resize
 bindsym $mod+Shift+plus             resize grow   height 5 px or 5 ppt,   resize grow   width 5 px or 5 ppt
 bindsym $mod+Shift+minus            resize shrink height 5 px or 5 ppt,   resize shrink width 5 px or 5 ppt
 
-## Etc
-
-bindsym $mod+w                      kill
-
-
 # Workspaces
 
 ## View
@@ -112,18 +107,23 @@ bindsym --whole-window              $mod+button3 floating toggle
 
 # Experimental
 
+## mac-like
 bindsym --release $mod+s            $ex pc-press-key "ctrl+s"
 bindsym --release $mod+Shift+s      $ex pc-press-key "ctrl+shift+s"
 bindsym --release $mod+f            $ex pc-press-key "ctrl+f"
 bindsym --release $mod+Shift+f      $ex pc-press-key "ctrl+shift+f"
 bindsym --release $mod+x            $ex pc-press-key "ctrl+x"
 bindsym --release $mod+z            $ex pc-press-key "ctrl+z"
+bindsym $mod+w                      kill
+bindsym $mod+q                      $ex i3-msg [class="`i3-window-active-class`"] kill
+bindsym $mod+Shift+q                [class=".*"] kill
 
-bindsym $hyper+Control+Escape       $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
-bindsym $hyper+Control+r            $ex i3-msg [class=".*"] kill && sleep 1 && reboot
-bindsym $hyper+Escape               [class=".*"] kill, mode default
-bindsym $hyper+o                    $overwatch
-bindsym $hyper+m                    $ex i3-workspace-mark
+
+#bindsym $hyper+Control+Escape       [class=".*"] kill && sleep 1 && shutdown -h now
+#bindsym $hyper+Control+r            [class=".*"] kill && sleep 1 && reboot
+#bindsym $hyper+Escape               [class=".*"] kill, mode default
+#bindsym $hyper+o                    $overwatch
+#bindsym $hyper+m                    $ex i3-workspace-mark
 
 #bindsym $mod+Left                  $ex xdotool --clearmodifiers key Home
 #bindsym $mod+Right                 $ex xdotool --clearmodifiers key End
