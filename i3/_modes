@@ -58,9 +58,9 @@ mode --pango_markup $mode_system_volume {
 
 set $mode_system_leave "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Leave </span>  <span weight='heavy' size='large'>E</span>xit <span weight='heavy' size='large'>L</span>ock <span weight='heavy' size='large'>S</span>hutdown"
 mode --pango_markup $mode_system_leave {
-	bindsym e      $ex i3-msg [class=".*"] kill && sleep 1 && i3-msg exit
+	bindsym e      $ex pc-leave exit
 	bindsym l      mode default, $ex system-lock
-	bindsym s      $ex i3-msg [class=".*"] kill && sleep 1 && shutdown -h now
+	bindsym s      $ex pc-leave shutdown
 
 	bindsym Control+Escape $ex FuckItAll
 

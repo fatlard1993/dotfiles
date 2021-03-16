@@ -74,14 +74,12 @@ bindsym                $mod+Control+0        $ex i3d.js scratchpad dump
 
 bindsym                $mod+space            $ex rofi -show drun -show-icons=true
 bindsym                $mod+r                $ex rofi -show run
-#bindsym                $mod+s                $ex rofi -show ssh
+bindsym                $mod+Control+s        $ex rofi -show ssh
 bindsym                $mod+Shift+Tab        $ex rofi -show window
 
 bindsym                $mod+grave            $ex terminal-smart
 
 bindsym                $mod+Control+o        $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
-
-bindsym                $mod+n                $ex leafpad $dotfilesFolder/temp/notes
 
 
 # Function keys
