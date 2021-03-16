@@ -107,7 +107,8 @@ bindsym --whole-window              $mod+button3 floating toggle
 
 # Experimental
 
-## mac-like
+## Mac-like
+
 bindsym --release $mod+s            $ex pc-press-key "ctrl+s"
 bindsym --release $mod+Shift+s      $ex pc-press-key "ctrl+shift+s"
 bindsym --release $mod+f            $ex pc-press-key "ctrl+f"
@@ -117,22 +118,20 @@ bindsym --release $mod+z            $ex pc-press-key "ctrl+z"
 bindsym $mod+w                      kill
 bindsym $mod+q                      $ex i3-msg [class="`i3-window-active-class`"] kill
 bindsym $mod+Shift+q                [class=".*"] kill
-
-
-#bindsym $hyper+Control+Escape       [class=".*"] kill && sleep 1 && shutdown -h now
-#bindsym $hyper+Control+r            [class=".*"] kill && sleep 1 && reboot
-#bindsym $hyper+Escape               [class=".*"] kill, mode default
-#bindsym $hyper+o                    $overwatch
-#bindsym $hyper+m                    $ex i3-workspace-mark
-
-#bindsym $mod+Left                  $ex xdotool --clearmodifiers key Home
-#bindsym $mod+Right                 $ex xdotool --clearmodifiers key End
-
 bindsym --release $mod+c 						$ex pc-copy-paste c
 bindsym --release $mod+v 						$ex pc-copy-paste v
+
+
+## Misc
+
+bindsym --release $mod+Left         $ex pc-press-key "Home"
+bindsym --release $mod+Right        $ex pc-press-key "End"
 
 bindsym $mod+Control+v              $ex rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
 
 bindsym --release $mod+p 				    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 
-bindsym $mod+g                      $ex i3-window-active-class gui
+
+## Dev
+
+bindsym $mod+Control+Shift+c        $ex i3-window-active-class gui
