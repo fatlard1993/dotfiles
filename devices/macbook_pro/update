@@ -1,0 +1,28 @@
+#!/bin/bash
+
+export DOTFILES=~/Projects/dotfiles
+export DOTFILES_DEVICE="macbook_pro"
+
+device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
+
+echo "Creating directories"
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots
+
+echo "Linking yabai config"
+ln -sf $device_folder/.yabairc $HOME/.yabairc
+
+echo "Linking skhd config"
+ln -sf $device_folder/.skhdrc $HOME/.skhdrc
+
+echo "Linking zsh config"
+ln -sf $device_folder/.zshrc $HOME/.zshrc
+
+echo "Installing global npm packages"
+npm i -g pm2 fatlard1993/zelda
+
+echo "Installing brew apps"
+brew tap homebrew/cask-fonts
+brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro
+
+echo "Configuring priv-config"
+$DOTFILES/../priv-config/update

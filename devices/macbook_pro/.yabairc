@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+
+# necessary to load scripting-addition during startup on macOS Big Sur
+# *yabai --load-sa* is configured to run through sudo without a password
+sudo yabai --load-sa
+yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
+
+# global settings
+yabai -m config external_bar                 off:45:0
+yabai -m config window_placement             second_child
+yabai -m config window_topmost               on
+yabai -m config window_shadow                float
+yabai -m config window_opacity               on
+yabai -m config window_opacity_duration      0.1
+yabai -m config active_window_opacity        1.0
+yabai -m config normal_window_opacity        0.85
+yabai -m config window_border                on
+yabai -m config window_border_width          6
+yabai -m config active_window_border_color   0xff81a2be
+yabai -m config normal_window_border_color   0xff373b41
+yabai -m config insert_feedback_color        0xaacc6666
+yabai -m config split_ratio                  0.50
+yabai -m config auto_balance                 on
+yabai -m config layout                       bsp
+
+# mouse settings
+yabai -m config mouse_modifier               alt
+
+# general space settings
+yabai -m config top_padding                  15
+yabai -m config bottom_padding               15
+yabai -m config left_padding                 15
+yabai -m config right_padding                15
+yabai -m config window_gap                   10
+
+# window rules
+yabai -m rule --add app="^System Preferences$" manage=off
+
+# signals
+yabai -m signal --add event=window_destroyed active=yes action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus mouse &> /dev/null || yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id) &> /dev/null"
+
+# spaces
+yabai -m space 1 --label web
+yabai -m space 2 --label code
+yabai -m space --create
+yabai -m space 3 --label terminal
+yabai -m space --create
+yabai -m space 4 --label finder
+
+echo "yabai configuration loaded.."
