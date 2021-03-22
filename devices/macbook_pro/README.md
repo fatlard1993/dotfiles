@@ -12,6 +12,7 @@
 * Muzzle app
 * nvm (touch .zshrc) https://github.com/nvm-sh/nvm
 * Karabeaner elements: https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-
+* xbarapp: https://github.com/matryer/xbar/releases/tag/v2.0.33-beta
 * Kitty: https://sw.kovidgoyal.net/kitty/binary.html
 * Fix Home and End: https://medium.com/@elhayefrat/how-to-fix-the-home-and-end-buttons-for-an-external-keyboard-in-mac-4da773a0d3a2
 * Fix zsh error: https://stackoverflow.com/questions/13762280/zsh-compinit-insecure-directories
@@ -21,6 +22,7 @@
 
 * Desktop>Picture
 * Displays>Arrangement
+* Mission Control>Automatically rearrange spaces
 
 
 ## Terminal Preferences
