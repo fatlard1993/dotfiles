@@ -3,7 +3,9 @@
 ## Install Apps
 
 * Chrome
+	* Disable hardware acceleration
 * VS Code
+	* Disable hardware acceleration: https://code.visualstudio.com/updates/v1_40#_disable-gpu-acceleration
 * Homebrew: https://brew.sh/
 * Logitech Options: https://www.logitech.com/en-us/product/options
 * Yabai: https://stevenlee090.github.io/yabai-skhd-wm/
