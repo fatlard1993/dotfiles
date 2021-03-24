@@ -17,12 +17,31 @@ ln -sf $device_folder/.skhdrc $HOME/.skhdrc
 echo "Linking zsh config"
 ln -sf $device_folder/.zshrc $HOME/.zshrc
 
+echo "Linking kitty config"
+ln -sf $device_folder/kitty.conf $HOME/.config/kitty/kitty.conf
+
+echo "Linking karabiner config"
+ln -sf $device_folder/karabiner.json $HOME/.config/karabiner/karabiner.json
+
+if [ ! -f /usr/local/bin/brew ]; then
+	echo "Installing brew"
+
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+if [ ! -f $HOME/.nvm ]; then
+	echo "Installing NVM"
+
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
+fi
+
 echo "Installing global npm packages"
 npm i -g pm2 fatlard1993/zelda
 
 echo "Installing brew apps"
 brew tap homebrew/cask-fonts
-brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro
+brew tap mongodb/brew
+brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro mongodb-community@3.6
 
 echo "Configuring priv-config"
 $DOTFILES/../priv-config/update
