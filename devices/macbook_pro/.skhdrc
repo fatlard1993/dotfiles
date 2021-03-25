@@ -1,50 +1,60 @@
-# A list of all built-in modifier and literal keywords can
-# be found at https://github.com/koekeishiya/skhd/issues/1
+## $HOME/.skhdrc
+# A list of all built-in modifier and literal keywords can be found at
+# https://github.com/koekeishiya/skhd/issues/1
 
+## KEYBINDS
+#        Key        :        Command
 
 # balance size of windows
-alt + shift - 0 : yabai -m space --balance
+alt + shift - 0     : yabai -m space --balance
 
 # toggle window parent zoom
-alt - b : yabai -m window --toggle zoom-parent
+alt - b             : yabai -m window --toggle zoom-parent
 
 # toggle window fullscreen zoom
-alt + shift - f : yabai -m window --toggle zoom-fullscreen
+alt + shift - f     : yabai -m window --toggle zoom-fullscreen
 
 # toggle window native fullscreen
-alt + ctrl - f : yabai -m window --toggle native-fullscreen
+alt + ctrl - f      : yabai -m window --toggle native-fullscreen
 
 # float / unfloat window and restore position
-alt - f : yabai -m window --toggle float && yabai -m window --grid 4:4:1:1:2:2
+alt - f             : yabai -m window --toggle float && yabai -m window --grid 4:4:1:1:2:2
 
 # toggle picture-in-picture
-alt - p : yabai -m window --toggle border && yabai -m window --toggle pip
+alt - p             : yabai -m window --toggle border && yabai -m window --toggle pip
 
 
-## workspaces
+## SPACES
+cmd - 1             : yabai -m space --focus 1
+cmd - 2             : yabai -m space --focus 2
+cmd - 3             : yabai -m space --focus 3
+cmd - 4             : yabai -m space --focus 4
+cmd - 5             : yabai -m space --focus 5
+cmd - 6             : yabai -m space --focus 6
+cmd - 7             : yabai -m space --focus 7
+cmd - 8             : yabai -m space --focus 8
+cmd - 9             : yabai -m space --focus 9
 
-cmd - 1 : yabai -m space --focus 1
-cmd - 2 : yabai -m space --focus 2
-cmd - 3 : yabai -m space --focus 3
-cmd - 4 : yabai -m space --focus 4
-cmd - 5 : yabai -m space --focus 5
+cmd - tab           : yabai -m space --focus recent
 
-cmd - tab : yabai -m space --focus recent
 
-## containers
+## WINDOWS
+cmd - left          : yabai -m window --focus west
+cmd - down          : yabai -m window --focus south
+cmd - up            : yabai -m window --focus north
+cmd - right         : yabai -m window --focus east
 
-cmd - left : yabai -m window --focus west
-cmd - down : yabai -m window --focus south
-cmd - up : yabai -m window --focus north
-cmd - right : yabai -m window --focus east
+cmd + ctrl - 1      : yabai -m window --space 1 && yabai -m space --focus 1
+cmd + ctrl - 2      : yabai -m window --space 2 && yabai -m space --focus 2
+cmd + ctrl - 3      : yabai -m window --space 3 && yabai -m space --focus 3
+cmd + ctrl - 4      : yabai -m window --space 4 && yabai -m space --focus 4
+cmd + ctrl - 5      : yabai -m window --space 5 && yabai -m space --focus 5
+cmd + ctrl - 6      : yabai -m window --space 6 && yabai -m space --focus 6
+cmd + ctrl - 7      : yabai -m window --space 7 && yabai -m space --focus 7
+cmd + ctrl - 8      : yabai -m window --space 8 && yabai -m space --focus 8
+cmd + ctrl - 9      : yabai -m window --space 9 && yabai -m space --focus 9
 
-cmd + ctrl - left : yabai -m window --swap west
-cmd + ctrl - down : yabai -m window --swap south
-cmd + ctrl - up : yabai -m window --swap north
-cmd + ctrl - right : yabai -m window --swap east
-
-cmd + ctrl - 1 : yabai -m window --space 1 && yabai -m space --focus 1
-cmd + ctrl - 2 : yabai -m window --space 2 && yabai -m space --focus 2
-cmd + ctrl - 3 : yabai -m window --space 3 && yabai -m space --focus 3
-cmd + ctrl - 4 : yabai -m window --space 4 && yabai -m space --focus 4
-cmd + ctrl - 5 : yabai -m window --space 5 && yabai -m space --focus 5
+cmd + ctrl - left   : yabai -m window --swap west
+cmd + ctrl - down   : yabai -m window --swap south
+cmd + ctrl - up     : yabai -m window --swap north
+cmd + ctrl - right  : yabai -m window --swap east
