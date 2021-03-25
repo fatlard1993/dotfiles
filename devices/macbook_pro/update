@@ -41,6 +41,8 @@ npm i -g pm2 fatlard1993/zelda
 echo "Installing brew apps"
 brew tap homebrew/cask-fonts
 brew tap mongodb/brew
+brew update
+brew upgrade
 brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro mongodb-community@3.6
 
 echo "Configuring priv-config"
