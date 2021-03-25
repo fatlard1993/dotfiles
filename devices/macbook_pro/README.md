@@ -11,19 +11,19 @@
 * Muzzle app: https://muzzleapp.com/
 * Karabeaner elements: https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-
 * xbarapp: https://github.com/matryer/xbar/releases/tag/v2.0.33-beta
-	* caffeinate
+	* system/caffeinate
 		* 999d
-	* clipboard-history
+	* system/clipboard-history
 		* 5s
-	* ejector
+	* system/ejector (not working on 10.14)
 		* 5s
-	* internal-ip
+	* network/internal-ip (requires restart)
 		* 1m
-	* real-cpu-usage
+	* system/real-cpu-usage
 		* 10s
-	* showhide-files
+	* system/showhide-files
 		* 999d
-	* yabai-skhd
+	* tools/yabai-skhd
 		* 1s
 * Kitty: https://sw.kovidgoyal.net/kitty/binary.html
 * Fix Home and End: https://medium.com/@elhayefrat/how-to-fix-the-home-and-end-buttons-for-an-external-keyboard-in-mac-4da773a0d3a2
