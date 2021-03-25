@@ -58,3 +58,6 @@ cmd + ctrl - left   : yabai -m window --swap west
 cmd + ctrl - down   : yabai -m window --swap south
 cmd + ctrl - up     : yabai -m window --swap north
 cmd + ctrl - right  : yabai -m window --swap east
+
+meh - 1             : yabai -m config focus_follows_mouse autoraise
+meh - q             : yabai -m config focus_follows_mouse off
