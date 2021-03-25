@@ -17,26 +17,34 @@
 
 ## System Preferences
 
-* Desktop>Picture
-* Displays>Arrangement
-* Dock>Automatically hide
-* Dock>Magnification>Max
-* Mission Control>Automatically rearrange spaces
-* Mission Control>Show Desktop>F6
-* Keyboard>Shortcuts>...
-* Keyboard>Input Sources>Show Input Menu
-* Keyboard>Dictation>Shortcut>Either Command Key
-
-## Terminal Preferences
-
-1. General>profile>import>justfatlard_macos.terminal
-1. Profiles>justfatlard_macos.terminal>Default
+* Desktop
+	* Picture
+* Displays
+	* Arrangement
+* Dock
+	* Automatically hide
+	* Magnification
+		* Max
+* Mission Control
+	* Automatically rearrange spaces
+	* Show Desktop
+	* F6
+* Keyboard
+	* Shortcuts
+	* Input Sources
+		* Show Input Menu
+	* Dictation
+		* Shortcut
+			* Either Command Key
 
 ## Screenshot Preferences
 
-* Save location>~/Pictures/Screenshots
+* Save location
+	* ~/Pictures/Screenshots
 
 ## VS Code Preferences
 
-1. Extensions>Settings Sync>Install
+1. Extensions
+	* Settings Sync
+		* Install
 1. Shift + Option + D
