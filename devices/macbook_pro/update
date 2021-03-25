@@ -6,7 +6,7 @@ export DOTFILES_DEVICE="macbook_pro"
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
 echo "Creating directories"
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/.config/kitty $HOME/.config/karabiner
 
 echo "Linking yabai config"
 ln -sf $device_folder/.yabairc $HOME/.yabairc
