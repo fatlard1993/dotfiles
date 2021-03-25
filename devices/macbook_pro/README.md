@@ -62,3 +62,8 @@
 	* Settings Sync
 		* Install
 1. Shift + Option + D
+
+
+## Pre-catalina zsh
+
+* ```chsh -s /bin/zsh```
