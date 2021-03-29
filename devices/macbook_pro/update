@@ -44,6 +44,7 @@ brew tap mongodb/brew
 brew update
 brew upgrade
 brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro mongodb-community@3.6
+brew services restart yabai
 
 echo "Configuring priv-config"
 $DOTFILES/../priv-config/update
