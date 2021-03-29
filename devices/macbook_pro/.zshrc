@@ -29,8 +29,7 @@ prompt='${newline}┏${time}${tty}${user}${host}${directory}$(git_branch_name)${
 
 
 ## PATH
-export PATH="/usr/local/opt/mongodb-community@3.6/bin:$PATH"
-
+export PATH="/usr/local/opt/mongodb-community@3.6/bin:/usr/local/opt/rabbitmq/sbin:$PATH"
 
 ## MISC
 setopt HIST_IGNORE_ALL_DUPS
