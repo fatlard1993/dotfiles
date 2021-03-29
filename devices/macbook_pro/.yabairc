@@ -10,10 +10,7 @@ yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
 
 
 ## CONFIG
-yabai -m config external_bar                 off:45:0
 yabai -m config window_placement             second_child
-yabai -m config split_ratio                  0.50
-yabai -m config auto_balance                 on
 yabai -m config layout                       bsp
 
 yabai -m config window_topmost               on
@@ -22,7 +19,7 @@ yabai -m config window_shadow                float
 yabai -m config window_opacity               on
 yabai -m config window_opacity_duration      0.1
 yabai -m config active_window_opacity        1.0
-yabai -m config normal_window_opacity        0.85
+yabai -m config normal_window_opacity        0.9
 
 yabai -m config window_border                on
 yabai -m config window_border_width          6
@@ -41,7 +38,11 @@ yabai -m config mouse_modifier               alt
 
 
 ## RULES
-yabai -m rule --add app="^System Preferences$" manage=off
+yabai -m rule --add app="^Finder$" manage=on
+yabai -m rule --add app="System Information" manage=off
+yabai -m rule --add app="Installer" manage=off
+yabai -m rule --add app=".* Preferences" manage=off
+yabai -m rule --add title="Preferences" manage=off
 
 
 echo "yabai configuration loaded.."
