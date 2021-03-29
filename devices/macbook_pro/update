@@ -6,7 +6,18 @@ export DOTFILES_DEVICE="macbook_pro"
 device_folder=$DOTFILES/devices/$DOTFILES_DEVICE
 
 echo "Creating directories"
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/.config/kitty $HOME/.config/karabiner
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/.config/kitty $HOME/.config/karabiner $HOME/Library/KeyBindings
+
+echo "Installing/Updating brew apps"
+brew tap homebrew/cask-fonts
+brew tap homebrew/cask-drivers
+brew tap mongodb/brew
+brew update
+brew upgrade
+brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro mongodb-community@3.6 swiftbar visual-studio-code google-chrome karabiner-elements kitty muzzle logitech-options logitech-unifying koekeishiya/formulae/skhd koekeishiya/formulae/yabai
+sudo yabai --install-sa
+brew services restart skhd
+brew services restart yabai
 
 echo "Linking yabai config"
 ln -sf $device_folder/.yabairc $HOME/.yabairc
@@ -23,13 +34,19 @@ ln -sf $device_folder/kitty.conf $HOME/.config/kitty/kitty.conf
 echo "Linking karabiner config"
 ln -sf $device_folder/karabiner.json $HOME/.config/karabiner/karabiner.json
 
+echo "Linking vscode argv config"
+ln -sf $device_folder/vscode/argv.json $HOME/.vscode/argv.json
+
+echo "Linking DefaultKeyBindings"
+sudo ln -sf $device_folder/DefaultKeyBindings.dict $HOME/Library/KeyBindings/DefaultKeyBindings.dict
+
 if [ ! -f /usr/local/bin/brew ]; then
 	echo "Installing brew"
 
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
-if [ ! -f $HOME/.nvm ]; then
+if [ ! -e $HOME/.nvm ]; then
 	echo "Installing NVM"
 
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
@@ -37,14 +54,6 @@ fi
 
 echo "Installing global npm packages"
 npm i -g pm2 fatlard1993/zelda
-
-echo "Installing brew apps"
-brew tap homebrew/cask-fonts
-brew tap mongodb/brew
-brew update
-brew upgrade
-brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro mongodb-community@3.6
-brew services restart yabai
 
 echo "Configuring priv-config"
 $DOTFILES/../priv-config/update
