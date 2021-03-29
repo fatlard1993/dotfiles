@@ -1,0 +1,25 @@
+{
+/* Home */
+"\UF729" = "moveToBeginningOfLine:";
+
+/* End  */
+"\UF72B" = "moveToEndOfLine:";
+
+/* Shift + Home  */
+"$\UF729" = "moveToBeginningOfLineAndModifySelection:";
+
+/* Shift + End  */
+"$\UF72B" = "moveToEndOfLineAndModifySelection:";
+
+/* Ctrl + Home  */
+"^\UF729" = "moveToBeginningOfDocument:";
+
+/* Ctrl + End  */
+"^\UF72B" = "moveToEndOfDocument:";
+
+/* Shift + Ctrl + Home  */
+"$^\UF729" = "moveToBeginningOfDocumentAndModifySelection:";
+
+/* Shift + Ctrl + End */
+"$^\UF72B" = "moveToEndOfDocumentAndModifySelection:";
+}
