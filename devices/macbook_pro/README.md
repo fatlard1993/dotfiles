@@ -26,7 +26,8 @@
 * Displays
 	* Arrangement
 * Dock
-	* Automatically hide
+	* [x] Automatically hide and show the Dock
+	* [ ] Show recent applications
 	* Magnification
 		* Max
 * Mission Control
