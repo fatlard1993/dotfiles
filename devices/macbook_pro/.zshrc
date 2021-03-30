@@ -2,7 +2,6 @@
 
 
 ## NVM
-export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
@@ -14,7 +13,7 @@ function git_branch_name()
   if [[ $branch == "" ]]; then
     :
   else
-    echo "%F{cyan}[$(git name-rev --name-only @)]%f"
+    echo "%F{cyan}[  $(git name-rev --name-only @) ]%f"
   fi
 }
 newline=$'\n'
@@ -26,11 +25,6 @@ time="[%*]"
 setopt prompt_subst
 
 prompt='${newline}┏${time}${tty}${user}${host}${directory}$(git_branch_name)${newline}┗ %% '
-
-
-## PATH
-export PATH="/usr/local/opt/mongodb-community@3.6/bin:/usr/local/opt/rabbitmq/sbin:$PATH"
-
 
 ## MISC
 setopt HIST_IGNORE_ALL_DUPS
