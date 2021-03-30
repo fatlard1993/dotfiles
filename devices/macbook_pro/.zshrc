@@ -13,7 +13,7 @@ function git_branch_name()
   if [[ $branch == "" ]]; then
     :
   else
-    echo "%F{cyan}[  $(git name-rev --name-only @) ]%f"
+    echo "%F{cyan}[  $(git name-rev --name-only @) ]%f"
   fi
 }
 newline=$'\n'

@@ -14,7 +14,7 @@ brew tap homebrew/cask-drivers
 brew tap mongodb/brew
 brew update
 brew upgrade
-brew install thefuck arp-scan xclip jq font-source-code-pro font-source-sans-pro font-fontawesome font-powerline-symbols mongodb-community@3.6 swiftbar visual-studio-code google-chrome karabiner-elements kitty muzzle logitech-options logitech-unifying koekeishiya/formulae/skhd koekeishiya/formulae/yabai redis rabbitmq bettertouchtool
+brew install thefuck arp-scan xclip jq fontconfig font-source-code-pro font-source-sans-pro font-fontawesome mongodb-community@3.6 swiftbar visual-studio-code google-chrome karabiner-elements kitty muzzle logitech-options logitech-unifying koekeishiya/formulae/skhd koekeishiya/formulae/yabai redis rabbitmq bettertouchtool
 sudo yabai --install-sa
 brew services restart skhd
 brew services restart yabai
