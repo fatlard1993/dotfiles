@@ -26,6 +26,7 @@ echo "Linking skhd config"
 ln -sf $device_folder/.skhdrc $HOME/.skhdrc
 
 echo "Linking zsh config"
+ln -sf $device_folder/.zshenv $HOME/.zshenv
 ln -sf $device_folder/.zshrc $HOME/.zshrc
 
 echo "Linking kitty config"
