@@ -38,8 +38,10 @@ ln -sf $device_folder/karabiner.json $HOME/.config/karabiner/karabiner.json
 echo "Linking vscode argv config"
 ln -sf $device_folder/vscode/argv.json $HOME/.vscode/argv.json
 
-echo "Linking DefaultKeyBindings"
-sudo ln -sf $device_folder/DefaultKeyBindings.dict $HOME/Library/KeyBindings/DefaultKeyBindings.dict
+if [ ! -e $HOME/Library/KeyBindings/DefaultKeyBindings.dict ]; then
+	echo "Linking DefaultKeyBindings"
+	sudo ln -sf $device_folder/DefaultKeyBindings.dict $HOME/Library/KeyBindings/DefaultKeyBindings.dict
+fi
 
 if [ ! -f /usr/local/bin/brew ]; then
 	echo "Installing brew"
