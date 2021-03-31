@@ -12,10 +12,10 @@ alt + shift - 0     : yabai -m space --balance
 alt - b             : yabai -m window --toggle zoom-parent
 
 # toggle window fullscreen zoom
-alt + shift - f     : yabai -m window --toggle zoom-fullscreen
+alt + shift - f             : yabai -m window --toggle zoom-fullscreen
 
 # toggle window native fullscreen
-alt + ctrl - f      : yabai -m window --toggle native-fullscreen
+meh - f             : yabai -m window --toggle native-fullscreen
 
 # float / unfloat window and restore position
 alt - f             : yabai -m window --toggle float && yabai -m window --grid 4:4:1:1:2:2
@@ -61,3 +61,5 @@ cmd + ctrl - right  : yabai -m window --swap east
 
 meh - 1             : yabai -m config focus_follows_mouse autoraise
 meh - q             : yabai -m config focus_follows_mouse off
+
+ctrl + alt - f      : yabai -m window --toggle topmost; yabai -m window --toggle zoom-fullscreen; yabai -m window --toggle topmost
