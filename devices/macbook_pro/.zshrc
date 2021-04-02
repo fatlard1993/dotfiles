@@ -35,6 +35,10 @@ setopt appendhistory
 setopt HIST_IGNORE_ALL_DUPS
 
 
+## MISC
+unsetopt nomatch
+
+
 ## ALIAS
 alias l='ls -G'
 alias ls='ls -G'
