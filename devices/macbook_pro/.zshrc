@@ -43,6 +43,9 @@ unsetopt nomatch
 alias l='ls -G'
 alias ls='ls -G'
 
+alias mongod="mongod --dbpath=$HOME/mongoDataDB --fork --syslog --bind_ip 127.0.0.1"
+alias mongod-status='ps aux | grep mongod'
+
 
 ## KEYBINDS
 # https://web.cs.elte.hu/local/texinfo/zsh/zsh_10.html
