@@ -43,6 +43,8 @@ unsetopt nomatch
 alias l='ls -G'
 alias ls='ls -G'
 
+alias icat="kitty +kitten icat"
+
 alias mongod="mongod --dbpath=$HOME/mongoDataDB --fork --syslog --bind_ip 127.0.0.1"
 alias mongod-status='ps aux | grep mongod'
 
