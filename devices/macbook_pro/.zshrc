@@ -36,6 +36,10 @@ setopt appendhistory
 setopt HIST_IGNORE_ALL_DUPS
 
 
+## PRIV-CONFIG
+[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshrc ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshrc
+
+
 ## MISC
 unsetopt nomatch
 
@@ -61,7 +65,3 @@ bindkey "^[[1;5D"  backward-word
 bindkey "^[[1;3C"  forward-word
 bindkey "^[[1;5C"  forward-word
 bindkey "≥"        insert-last-word
-
-
-## PRIV-CONFIG
-[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshrc ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshrc
