@@ -26,6 +26,7 @@ setopt prompt_subst
 
 prompt='${newline}┏${time}${tty}${user}${host}${directory}$(git_branch_name)${newline}┗ %% '
 
+
 ## HISTORY
 HISTFILE=$HOME/.zsh_history
 HISTSIZE=10000
@@ -38,15 +39,14 @@ setopt HIST_IGNORE_ALL_DUPS
 ## MISC
 unsetopt nomatch
 
+autoload -Uz compinit && compinit
+
 
 ## ALIAS
 alias l='ls -G'
 alias ls='ls -G'
 
 alias icat="kitty +kitten icat"
-
-alias mongod="mongod --dbpath=$HOME/mongoDataDB --fork --syslog --bind_ip 127.0.0.1"
-alias mongod-status='ps aux | grep mongod'
 
 
 ## KEYBINDS
@@ -61,3 +61,7 @@ bindkey "^[[1;5D"  backward-word
 bindkey "^[[1;3C"  forward-word
 bindkey "^[[1;5C"  forward-word
 bindkey "≥"        insert-last-word
+
+
+## PRIV-CONFIG
+[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshrc ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshrc

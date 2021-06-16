@@ -12,3 +12,7 @@ export PATH="/usr/local/opt/mongodb-community@3.6/bin:/usr/local/opt/rabbitmq/sb
 
 ## NVM
 export NVM_DIR="$HOME/.nvm"
+
+
+## PRIV-CONFIG
+[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshenv ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshenv
