@@ -48,6 +48,7 @@ yabai -m config mouse_modifier               alt
 ## RULES
 yabai -m rule --add app="^Finder$" manage=on
 yabai -m rule --add app="System Information" manage=off
+yabai -m rule --add app="Activity Monitor" manage=off
 yabai -m rule --add app=".*Webex.*" manage=off
 yabai -m rule --add app="Installer" manage=off
 yabai -m rule --add app=".* Preferences" manage=off
