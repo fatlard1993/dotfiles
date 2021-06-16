@@ -66,6 +66,7 @@
 ## [Yabai](https://stevenlee090.github.io/yabai-skhd-wm/)
 
 * [Disable SIP](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
+* sudo yabai --install-sa
 
 ## Pre-catalina zsh
 
