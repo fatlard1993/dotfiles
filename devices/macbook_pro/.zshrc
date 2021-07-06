@@ -52,6 +52,7 @@ alias ls='ls -G'
 
 alias icat="kitty +kitten icat"
 
+eval $(thefuck --alias)
 
 ## KEYBINDS
 # https://web.cs.elte.hu/local/texinfo/zsh/zsh_10.html
