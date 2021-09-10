@@ -26,8 +26,6 @@ alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[
 
 alias arps='sudo arp-scan -l'
 
-alias mkd='function __mkd() { mkdir -p "$@" && cd "$_"; unset -f __mkd; }; __mkd'
-
 # Reload the shell (i.e. invoke as a login shell)
 alias reload="exec ${SHELL} -l"
 
@@ -37,70 +35,17 @@ alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
 
 alias file-downlaod='curl --continue-at - --location --progress-bar --remote-name --remote-time'
 
-  link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
-
-
-echo 'Enter new hostname of the machine (e.g. macbook-paulmillr)'
-  read hostname
-  echo "Setting new hostname to $hostname..."
-  scutil --set HostName "$hostname"
-  compname=$(sudo scutil --get HostName | tr '-' '.')
-  echo "Setting computer name to $compname"
-  scutil --set ComputerName "$compname"
-  sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$compname"
-
-
-answer_is_yes() {
-    [[ "$REPLY" =~ ^[Yy]$ ]] \
-        && return 0 \
-        || return 1
-}
-
-ask() {
-    print_question "$1"
-    read -r
-}
-
-ask_for_confirmation() {
-    print_question "$1 (y/n) "
-    read -r -n 1
-    printf "\n"
-}
-
-ask_for_sudo() {
-
-    # Ask for the administrator password upfront.
-
-    sudo -v &> /dev/null
-
-    # Update existing `sudo` time stamp
-    # until this script has finished.
-    #
-    # https://gist.github.com/cowboy/3118588
-
-    while true; do
-        sudo -n true
-        sleep 60
-        kill -0 "$$" || exit
-    done &> /dev/null &
-
-}
+mcd() { mkdir -p "$@" && cd "$_"; unset -f __mkd; }
 
 cmd_exists() {
-    command -v "$1" &> /dev/null
+	command -v "$1" &> /dev/null
 }
 
 kill_all_subprocesses() {
+	local i=""
 
-    local i=""
-
-    for i in $(jobs -p); do
-        kill "$i"
-        wait "$i" &> /dev/null
-    done
-
-}
-
-get_answer() {
-    printf "%s" "$REPLY"
+	for i in $(jobs -p); do
+		kill "$i"
+		wait "$i" &> /dev/null
+	done
 }
