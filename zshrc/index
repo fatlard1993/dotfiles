@@ -1,0 +1,44 @@
+#!/bin/zsh
+
+thisPath=`dirname $0`
+
+unsetopt nomatch
+
+# Enable completions
+autoload -Uz compinit && compinit
+
+source "$thisPath/aliases"
+source "$thisPath/history"
+source "$thisPath/kitty"
+source "$thisPath/ls"
+source "$thisPath/man"
+source "$thisPath/node-repl"
+source "$thisPath/nvm"
+source "$thisPath/prompt"
+source "$thisPath/thefuck"
+
+# $ git log --no-merges --pretty=format:"%ae" | stats
+# # => 514 a@example.com
+# # => 200 b@example.com
+alias stats='sort | uniq -c | sort -r'
+# Lists the ten most used commands.
+alias history-stats="history 0 | awk '{print \$2}' | stats | head"
+
+# 4 lulz.
+function compute() {
+  while true; do head -n 100 /dev/urandom; sleep 0.1; done \
+    | hexdump -C | grep "ca fe"
+}
+
+# Simple .tar archiving.
+function tar_() {
+  tar -cvf "$1.tar" "$1"
+}
+
+function untar() {
+  tar -xvf $1
+}
+
+# Support urls without quotes
+autoload -Uz url-quote-magic
+zle -N self-insert url-quote-magic

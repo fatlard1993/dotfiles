@@ -1,0 +1,42 @@
+#!/bin/zsh
+
+source "$(dirname $0)/../bin/lib/dot-util" "$0" "$@"
+
+info "Installing XCode command line tools..."
+if xcode-select --print-path &>/dev/null; then
+	success "XCode command line tools already installed."
+elif xcode-select --install &>/dev/null; then
+	success "Finished installing XCode command line tools."
+else
+	error "Failed to install XCode command line tools."
+fi
+
+(cd $macosPath ; brew bundle)
+
+# disable itunes opening on media keys
+# git clone https://github.com/thebitguru/play-button-itunes-patch ~/code/play-button-itunes-patch
+
+# faster git server communication.
+# like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
+# git config protocol.version 2
+
+echo "Linking karabiner config"
+mkdir -p $HOME/.config/karabiner
+ln -sf $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
+
+if [ ! -e $HOME/Library/KeyBindings/DefaultKeyBindings.dict ]; then
+	echo "Linking DefaultKeyBindings"
+	mkdir -p $HOME/Library/KeyBindings
+	sudo ln -sf $macosPath/DefaultKeyBindings.dict $HOME/Library/KeyBindings/DefaultKeyBindings.dict
+fi
+
+echo "Linking skhd config"
+ln -sf $profilePath/.skhdrc $HOME/.skhdrc
+
+echo "Linking yabai config"
+ln -sf $profilePath/.yabairc $HOME/.yabairc
+
+echo "Setting up yabai"
+sudo yabai --install-sa
+brew services restart skhd
+brew services restart yabai

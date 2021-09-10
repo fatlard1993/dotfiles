@@ -1,0 +1,15 @@
+#!/bin/zsh
+# Determine size of a file or total size of a directory
+
+source "$(dirname $0)/lib/dot-util" "$0" "$@"
+
+if du -b /dev/null > /dev/null 2>&1; then
+	arg=-sbh;
+else
+	arg=-sh;
+fi
+if [[ -n "$@" ]]; then
+	du $arg -- "$@";
+else
+	du $arg .[^.]* ./*;
+fi

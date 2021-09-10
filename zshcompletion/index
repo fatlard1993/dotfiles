@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+zshcompletion=`dirname $0`
+
+source "$zshcompletion/lang"
+source "$zshcompletion/path"

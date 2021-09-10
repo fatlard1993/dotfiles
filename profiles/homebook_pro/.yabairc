@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+## $HOME/.yabairc
+
+source "$(dirname $0)../../macos/.yabairc"

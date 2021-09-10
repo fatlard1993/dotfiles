@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+function gitBranchLabel()
+{
+  branch=$(git symbolic-ref HEAD 2> /dev/null | awk 'BEGIN{FS="/"} {print $NF}')
+  if [[ $branch == "" ]]; then
+    :
+  else
+    echo "%F{cyan}[  $branch ]%f"
+  fi
+}
+newline=$'\n'
+user="%F{green}[%n]%f"
+host="%F{magenta}[%m]%f"
+directory="%F{blue}[%~]%f"
+time="[%*]"
+
+setopt prompt_subst
+
+prompt='${newline}┏${time}${tty}${user}${host}${directory}$(gitBranchLabel)${newline}┗ %% '

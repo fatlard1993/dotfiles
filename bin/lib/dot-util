@@ -1,0 +1,165 @@
+#!/bin/zsh
+
+source "$(dirname $0)/constants"
+
+scriptName=`basename $1`
+scriptPath=`dirname $1`
+
+link_file () {
+  local src=$1 dst=$2
+
+  local overwrite= backup= skip=
+  local action=
+
+  if [ -f "$dst" -o -d "$dst" -o -L "$dst" ]
+  then
+
+    if [ "$overwrite_all" == "false" ] && [ "$backup_all" == "false" ] && [ "$skip_all" == "false" ]
+    then
+
+      local currentSrc="$(readlink $dst)"
+
+      if [ "$currentSrc" == "$src" ]
+      then
+
+        skip=true;
+
+      else
+
+        user "File already exists: $dst ($(basename "$src")), what do you want to do?\n\
+        [s]kip, [S]kip all, [o]verwrite, [O]verwrite all, [b]ackup, [B]ackup all?"
+        read -n 1 action
+
+        case "$action" in
+          o )
+            overwrite=true;;
+          O )
+            overwrite_all=true;;
+          b )
+            backup=true;;
+          B )
+            backup_all=true;;
+          s )
+            skip=true;;
+          S )
+            skip_all=true;;
+          * )
+            ;;
+        esac
+
+      fi
+
+    fi
+
+    overwrite=${overwrite:-$overwrite_all}
+    backup=${backup:-$backup_all}
+    skip=${skip:-$skip_all}
+
+    if [ "$overwrite" == "true" ]
+    then
+      rm -rf "$dst"
+      success "removed $dst"
+    fi
+
+    if [ "$backup" == "true" ]
+    then
+      mv "$dst" "${dst}.backup"
+      success "moved $dst to ${dst}.backup"
+    fi
+
+    if [ "$skip" == "true" ]
+    then
+      success "skipped $src"
+    fi
+  fi
+
+  if [ "$skip" != "true" ]  # "false" or empty
+  then
+    ln -s "$1" "$2"
+    success "linked $1 to $2"
+  fi
+}
+
+setup_gitconfig () {
+  if ! [ -f git/gitconfig.local.symlink ]
+  then
+    info 'setup gitconfig'
+
+    git_credential='cache'
+    if [ "$(uname -s)" == "Darwin" ]
+    then
+      git_credential='osxkeychain'
+    fi
+
+    user ' - What is your github author name?'
+    read -e git_authorname
+    user ' - What is your github author email?'
+    read -e git_authoremail
+
+    sed -e "s/AUTHORNAME/$git_authorname/g" -e "s/AUTHOREMAIL/$git_authoremail/g" -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" git/gitconfig.local.symlink.example > git/gitconfig.local.symlink
+
+    success 'gitconfig'
+  fi
+}
+
+function symlink() {
+	OVERWRITTEN=""
+	if [ -e "$2" ] || [ -h "$2" ]; then
+		OVERWRITTEN="(Overwritten)"
+		rm -r "$2"
+	fi
+
+	echo "$2 -> $1 $OVERWRITTEN"
+	ln -s "$1" "$2"
+}
+
+symlink() {
+	OVERWRITTEN=""
+	if [ -e "$2" ] || [ -h "$2" ]; then
+		OVERWRITTEN="(Overwritten)"
+		if ! rm -r "$2"; then
+			substep_error "Failed to remove existing file(s) at $2."
+		fi
+	fi
+	if ln -s "$1" "$2"; then
+		substep_success "Symlinked $2 to $1. $OVERWRITTEN"
+	else
+		substep_error "Symlinking $2 to $1 failed."
+	fi
+}
+
+clear_broken_symlinks() {
+	find -L "$1" -type l | while read fn; do
+		if rm "$fn"; then
+			substep_success "Removed broken symlink at $fn."
+		else
+			substep_error "Failed to remove broken symlink at $fn."
+		fi
+	done
+}
+
+# direct it all to /dev/null
+function nullify() {
+  "$@" >/dev/null 2>&1
+}
+
+obtainSudo() {
+	info "Prompting for sudo password..."
+	if sudo -v; then
+		# Keep-alive: update existing `sudo` time stamp until `setup.sh` has finished
+		while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+		success "Sudo credentials updated."
+	else
+		error "Failed to obtain sudo credentials."
+	fi
+}
+
+enforceSudo(){
+	if [[ `whoami` != "root" ]]; then
+		echo -e "$(basename $0) needs to be run as root ... Restarting with sudo\n"
+
+		exec sudo $(dirname $(readlink -f $0))/$(basename $0) $@
+
+		exit #?
+	fi
+}
