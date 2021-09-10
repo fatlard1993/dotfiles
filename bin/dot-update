@@ -76,6 +76,8 @@ for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
 done
 
+# link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
+
 echo "Configuring profile"
 $profilePath/dot-update
 
