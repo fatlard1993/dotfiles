@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname $0)/lib/dot-util" "$0" "$@"
+source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
 
 mimeType=$(file -b --mime-type "$1")
 

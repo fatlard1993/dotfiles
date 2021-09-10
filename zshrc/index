@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-thisPath=`dirname $0`
+thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
 
 unsetopt nomatch
 

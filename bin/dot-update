@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname $0)/lib/dot-util" "$0" "$@"
+source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
 
 (cd $dotfilesPath ; git pull)
 
@@ -23,6 +23,8 @@ profilePath="$dotfilesPath/profiles/$profileName"
 
 echo "Adding $USER to groups: $groupsToAdd"
 
+groupsToAdd=(input dialout)
+
 for group in $groupsToAdd; do
 	sudo adduser $USER $group
 done
@@ -30,10 +32,6 @@ done
 echo "Adding $USER to sudoers"
 sudo mkdir -p /etc/sudoers.d
 echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_$USER-nopasswd"
-
-echo "Expanding file limits"
-ulimit -Sn unlimited
-ulimit -Sl unlimited
 
 echo "Creating common directories"
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots
@@ -69,7 +67,12 @@ if [ ! -e $HOME/.nvm ]; then
 fi
 
 echo "Installing global npm packages"
-npm i -g pm2 fatlard1993/zelda
+
+globalNpmPackages=(pm2 fatlard1993/zelda)
+
+for package in $globalNpmPackages; do
+	npm list -g | grep $package || npm i -g $package
+done
 
 echo "Configuring profile"
 $profilePath/dot-update

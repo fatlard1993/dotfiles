@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname $0)/constants"
+source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/constants"
 
 scriptName=`basename $1`
 scriptPath=`dirname $1`

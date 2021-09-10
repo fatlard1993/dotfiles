@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-zshcompletion=`dirname $0`
+zshcompletion=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
 
 source "$zshcompletion/lang"
 source "$zshcompletion/path"

@@ -1,6 +1,6 @@
 ## $HOME/.zshrc
 
-source "$(dirname $0)/../../zshrc/index"
+source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../../zshrc/index"
 
 # macOS has no `md5sum`, so use `md5` as a fallback
 command -v md5sum > /dev/null || alias md5sum="md5"

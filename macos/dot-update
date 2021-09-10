@@ -1,14 +1,14 @@
 #!/bin/zsh
 
-source "$(dirname $0)/../bin/lib/dot-util" "$0" "$@"
+source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../bin/lib/dot-util" "$0" "$@"
 
-info "Installing XCode command line tools..."
+echo "Installing XCode command line tools..."
 if xcode-select --print-path &>/dev/null; then
-	success "XCode command line tools already installed."
+	echo "XCode command line tools already installed."
 elif xcode-select --install &>/dev/null; then
-	success "Finished installing XCode command line tools."
+	echo "Finished installing XCode command line tools."
 else
-	error "Failed to install XCode command line tools."
+	echo "Failed to install XCode command line tools."
 fi
 
 (cd $macosPath ; brew bundle)

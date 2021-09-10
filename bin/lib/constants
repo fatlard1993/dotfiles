@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-binPath=`cd $(dirname $0)/.. ; pwd`
+binPath=`cd $(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/.. ; pwd`
 libPath="$binPath/lib"
 dotfilesPath=`cd $binPath/.. ; pwd`
 macosPath="$dotfilesPath/macos"
