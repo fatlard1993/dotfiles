@@ -1,5 +1,10 @@
 # New MacBook Setup
 
+- `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
+- You will be prompted to install xcode - upon completion, re-run the above line
+- `./dotfiles/bin/dot-update <profile>`
+
+
 ## Install Apps
 
 * alerter: https://github.com/vjeantet/alerter/releases
