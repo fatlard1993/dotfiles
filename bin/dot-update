@@ -13,9 +13,9 @@ if [ "$profileName" ]; then
 elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
 	profileName=$1
 else
-	echo -e "\n\"$1\" is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $dotfilesPath/profiles)\n"
+	echo -e "\n\"$1\" is not a valid profile. You can provide one as an argument, eg: $0 <profile>\n\n$(ls $dotfilesPath/profiles)\n"
 
-	read -p "Enter the device type: " profileName; exec $(dirname $(readlink -f $0))/$(basename $0) $profileName
+	read profileName
 
 	exit #?
 fi
@@ -50,7 +50,7 @@ echo "Linking vscode argv config"
 mkdir -p $HOME/.vscode
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
 
-if test ! $(which brew); then
+if [ ! -e `which brew` ]; then
 	echo "Installing brew"
 
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
