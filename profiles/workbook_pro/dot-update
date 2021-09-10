@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+source "$(dirname $0)/../../bin/lib/dot-util" "$0" "$@"
+
+$macosPath/dot-update
+
+(cd $profilePath ; brew bundle)

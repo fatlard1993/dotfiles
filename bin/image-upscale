@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+filename="carloses color plot.png"
+convert "$filename" -resize 300% "$filename.3x-basic.png"
+convert "$filename" -colorspace RGB +sigmoidal-contrast 7.5 -filter Lanczos -define filter:blur=.9264075766146068 -distort Resize 300% -sigmoidal-contrast 7.5 -colorspace sRGB "$filename.3x-awesome.png"

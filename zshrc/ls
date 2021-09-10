@@ -1,0 +1,15 @@
+#!/bin/zsh
+
+source "$(dirname $0)../theme/ls.zsh"
+
+# List all files colorized in long format
+alias l="ls -lF -G"
+
+# List all files colorized in long format, excluding . and ..
+alias la="ls -lAF -G"
+
+# List only directories
+alias lsd="ls -lF -G | grep --color=never '^d'"
+
+# Always use color output for `ls`
+alias ls="command ls -G"

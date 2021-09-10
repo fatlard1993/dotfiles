@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+source "$(dirname $0)../theme/less.zsh"
+
+# Don’t clear the screen after quitting a manual page.
+export MANPAGER='less -X';

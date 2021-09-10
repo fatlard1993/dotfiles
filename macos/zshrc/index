@@ -1,0 +1,13 @@
+## $HOME/.zshrc
+
+source "$(dirname $0)/../../zshrc/index"
+
+# macOS has no `md5sum`, so use `md5` as a fallback
+command -v md5sum > /dev/null || alias md5sum="md5"
+
+# macOS has no `sha1sum`, so use `shasum` as a fallback
+command -v sha1sum > /dev/null || alias sha1sum="shasum"
+
+## PRIV-CONFIG
+# todo make this a gitignored folder that priv-config symlinks into instead
+[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshrc ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshrc

@@ -1,0 +1,106 @@
+#!/bin/zsh
+
+# Always enable colored `grep` output
+# Note: `GREP_OPTIONS="--color=auto"` is deprecated, hence the alias usage.
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+alias cd..="cd .."
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
+alias cd.='cd $(readlink -f .)'    # Go to real dir (i.e. if current dir is linked)
+
+# Change working directory to the top-most Finder window location
+alias cdf='function __cdf() { cd `osascript -e "tell app \"Finder\" to POSIX path of (insertion location as alias)"`; unset -f cdf; }; cdf'
+
+# Enable aliases to be sudo’ed
+alias sudo='sudo '
+
+# IP addresses
+alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
+alias localip="ipconfig getifaddr en0"
+alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+
+alias arps='sudo arp-scan -l'
+
+alias mkd='function __mkd() { mkdir -p "$@" && cd "$_"; unset -f __mkd; }; __mkd'
+
+# Reload the shell (i.e. invoke as a login shell)
+alias reload="exec ${SHELL} -l"
+
+alias calc='echo "$*" | bc -l'
+
+alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
+
+alias file-downlaod='curl --continue-at - --location --progress-bar --remote-name --remote-time'
+
+  link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
+
+
+echo 'Enter new hostname of the machine (e.g. macbook-paulmillr)'
+  read hostname
+  echo "Setting new hostname to $hostname..."
+  scutil --set HostName "$hostname"
+  compname=$(sudo scutil --get HostName | tr '-' '.')
+  echo "Setting computer name to $compname"
+  scutil --set ComputerName "$compname"
+  sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$compname"
+
+
+answer_is_yes() {
+    [[ "$REPLY" =~ ^[Yy]$ ]] \
+        && return 0 \
+        || return 1
+}
+
+ask() {
+    print_question "$1"
+    read -r
+}
+
+ask_for_confirmation() {
+    print_question "$1 (y/n) "
+    read -r -n 1
+    printf "\n"
+}
+
+ask_for_sudo() {
+
+    # Ask for the administrator password upfront.
+
+    sudo -v &> /dev/null
+
+    # Update existing `sudo` time stamp
+    # until this script has finished.
+    #
+    # https://gist.github.com/cowboy/3118588
+
+    while true; do
+        sudo -n true
+        sleep 60
+        kill -0 "$$" || exit
+    done &> /dev/null &
+
+}
+
+cmd_exists() {
+    command -v "$1" &> /dev/null
+}
+
+kill_all_subprocesses() {
+
+    local i=""
+
+    for i in $(jobs -p); do
+        kill "$i"
+        wait "$i" &> /dev/null
+    done
+
+}
+
+get_answer() {
+    printf "%s" "$REPLY"
+}

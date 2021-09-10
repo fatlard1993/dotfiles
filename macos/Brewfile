@@ -1,0 +1,11 @@
+instance_eval(File.read("~/.dotfiles/Brewfile"))
+
+brew "koekeishiya/formulae/skhd", restart_service: true
+brew "koekeishiya/formulae/yabai", restart_service: true
+
+cask "robo-3t"
+cask "swiftbar"
+cask "appcleaner"
+cask "karabiner-elements"
+cask "muzzle"
+cask "keyboard-cleaner"

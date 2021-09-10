@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+thisPath=`dirname $0`
+
+source "$thisPath/lang"
+source "$thisPath/path"
+
+export EDITOR='/usr/local/bin/code'
+export VISUAL='/usr/local/bin/code'
+export PAGER='less'

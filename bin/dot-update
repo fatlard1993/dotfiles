@@ -1,0 +1,78 @@
+#!/bin/zsh
+
+source "$(dirname $0)/lib/dot-util" "$0" "$@"
+
+(cd $dotfilesPath ; git pull)
+
+ln -sf $dotfilesPath $HOME/.dotfiles
+
+if [ "$profileName" ]; then
+	echo "Profile: $profileName"
+elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
+	profileName=$1
+else
+	echo -e "\n\"$1\" is not a valid device. You can also provide one as an argument, eg: $0 <device>\n\n$(ls $dotfilesPath/profiles)\n"
+
+	read -p "Enter the device type: " profileName; exec $(dirname $(readlink -f $0))/$(basename $0) $profileName
+
+	exit #?
+fi
+
+echo $profileName > $HOME/.dotfilesProfile
+profilePath="$dotfilesPath/profiles/$profileName"
+
+echo "Adding $USER to groups: $groupsToAdd"
+
+for group in $groupsToAdd; do
+	sudo adduser $USER $group
+done
+
+echo "Adding $USER to sudoers"
+sudo mkdir -p /etc/sudoers.d
+echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_$USER-nopasswd"
+
+echo "Expanding file limits"
+ulimit -Sn unlimited
+ulimit -Sl unlimited
+
+echo "Creating common directories"
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots
+
+echo "Linking zsh config"
+ln -sf $profilePath/.zshenv $HOME/.zshenv
+ln -sf $profilePath/.zshrc $HOME/.zshrc
+
+echo "Linking kitty config"
+mkdir -p $HOME/.config/kitty
+ln -sf $dotfilesPath/kitty.conf $HOME/.config/kitty/kitty.conf
+
+echo "Linking vscode argv config"
+mkdir -p $HOME/.vscode
+ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
+
+if test ! $(which brew); then
+	echo "Installing brew"
+
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+brew update
+
+brew tap homebrew/bundle
+
+(cd $dotfilesPath ; brew bundle)
+
+if [ ! -e $HOME/.nvm ]; then
+	echo "Installing NVM"
+
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+fi
+
+echo "Installing global npm packages"
+npm i -g pm2 fatlard1993/zelda
+
+echo "Configuring profile"
+$profilePath/dot-update
+
+echo "Configuring priv-config"
+$dotfilesPath/../priv-config/update
