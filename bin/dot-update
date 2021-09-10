@@ -4,7 +4,9 @@ source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
 
 (cd $dotfilesPath ; git pull)
 
-ln -sf $dotfilesPath $HOME/.dotfiles
+if [ ! -e $HOME/.dotfiles ]; then
+	ln -sf $dotfilesPath $HOME/.dotfiles
+fi
 
 if [ "$profileName" ]; then
 	echo "Profile: $profileName"
