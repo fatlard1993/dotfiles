@@ -23,13 +23,13 @@ fi
 echo $profileName > $HOME/.dotfilesProfile
 profilePath="$dotfilesPath/profiles/$profileName"
 
-echo "Adding $USER to groups: $groupsToAdd"
+# echo "Adding $USER to groups: $groupsToAdd"
 
-groupsToAdd=(input dialout)
+# groupsToAdd=(input dialout)
 
-for group in $groupsToAdd; do
-	sudo adduser $USER $group
-done
+# for group in $groupsToAdd; do
+# 	sudo adduser $USER $group
+# done
 
 echo "Adding $USER to sudoers"
 sudo mkdir -p /etc/sudoers.d
@@ -50,7 +50,7 @@ echo "Linking vscode argv config"
 mkdir -p $HOME/.vscode
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
 
-if [ ! -e `which brew` ]; then
+if [[ ! -a $(which brew) ]]; then
 	echo "Installing brew"
 
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -62,7 +62,7 @@ brew tap homebrew/bundle
 
 (cd $dotfilesPath ; brew bundle)
 
-if [ ! -e $HOME/.nvm ]; then
+if [[ ! -a $HOME/.nvm ]]; then
 	echo "Installing NVM"
 
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
