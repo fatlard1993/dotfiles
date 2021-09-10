@@ -1,8 +1,19 @@
 # New MacBook Setup
 
-- `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
-- You will be prompted to install xcode - upon completion, re-run the above line
-- `./dotfiles/bin/dot-update <profile>`
+## Manual Setps
+
+1. `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
+1. You will be prompted to install xcode - upon completion, re-run the above line
+1. `./dotfiles/bin/dot-update <profile>`
+
+- vscode
+	- Authorize github on the first command to use auth
+	- Install Settings Sync extension, then press `Shift + Alt + D`
+		- login w/ github
+
+- system preferences
+	- apple id > login
+	- all the ___ permission checks
 
 
 ## Install Apps
