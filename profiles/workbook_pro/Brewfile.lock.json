@@ -1,0 +1,30 @@
+{
+  "entries": {
+    "cask": {
+      "swiftbar": {
+        "version": "1.3.0",
+        "options": {
+          "full_name": "swiftbar"
+        }
+      },
+      "figma": {
+        "version": "101.6.0",
+        "options": {
+          "full_name": "figma"
+        }
+      }
+    }
+  },
+  "system": {
+    "macos": {
+      "big_sur": {
+        "HOMEBREW_VERSION": "3.2.11",
+        "HOMEBREW_PREFIX": "/usr/local",
+        "Homebrew/homebrew-core": "71edb1e226683df27412b8ddd5f9b59a056f2c92",
+        "CLT": "12.5.1.0.1.1623191612",
+        "Xcode": "12.5",
+        "macOS": "11.3.1"
+      }
+    }
+  }
+}

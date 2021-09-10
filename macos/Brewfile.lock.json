@@ -30,7 +30,7 @@
         }
       },
       "karabiner-elements": {
-        "version": "12.10.0",
+        "version": "13.7.0",
         "options": {
           "full_name": "karabiner-elements"
         }
@@ -58,6 +58,14 @@
         "CLT": "10.3.0.0.1.1562985497",
         "Xcode": "10.3",
         "macOS": "10.14.6"
+      },
+      "big_sur": {
+        "HOMEBREW_VERSION": "3.2.11",
+        "HOMEBREW_PREFIX": "/usr/local",
+        "Homebrew/homebrew-core": "71edb1e226683df27412b8ddd5f9b59a056f2c92",
+        "CLT": "12.5.1.0.1.1623191612",
+        "Xcode": "12.5",
+        "macOS": "11.3.1"
       }
     }
   }

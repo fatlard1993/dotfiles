@@ -5,7 +5,7 @@
         "revision": "244bfa18b23948404fc2ee4253eb232053034212"
       },
       "homebrew/cask": {
-        "revision": "8aa19dc042202727feae9607b3c65f284acabf65"
+        "revision": "f5010fa75a68056f774dbbf085631f53aa6b5745"
       },
       "homebrew/cask-drivers": {
         "revision": "c8e603acc3487653096675ed36e5c03b5e4bfb75"
@@ -14,10 +14,10 @@
         "revision": "2442b97c666daefc10dcdf0f1409218547dc79e7"
       },
       "homebrew/cask-versions": {
-        "revision": "41513922eac79a8c849fb49b3582ce21552c4a3d"
+        "revision": "8b10734ee720f3905236be6a85c56628461d4fda"
       },
       "homebrew/core": {
-        "revision": "1e121aa1d4cc165df0eb29b9b281a7f234b51386"
+        "revision": "71edb1e226683df27412b8ddd5f9b59a056f2c92"
       },
       "homebrew/services": {
         "revision": "75e051a0c8e0521385514307030faa0243d70693"
@@ -411,6 +411,40 @@
             }
           }
         }
+      },
+      "svn": {
+        "version": "1.14.1_3",
+        "bottle": {
+          "rebuild": 0,
+          "root_url": "https://ghcr.io/v2/homebrew/core",
+          "files": {
+            "arm64_big_sur": {
+              "cellar": "/opt/homebrew/Cellar",
+              "url": "https://ghcr.io/v2/homebrew/core/subversion/blobs/sha256:8b21c6fa258c0b6222653e06d7a4e701bfb04845b494039a81058205201bc81a",
+              "sha256": "8b21c6fa258c0b6222653e06d7a4e701bfb04845b494039a81058205201bc81a"
+            },
+            "big_sur": {
+              "cellar": "/usr/local/Cellar",
+              "url": "https://ghcr.io/v2/homebrew/core/subversion/blobs/sha256:d9c0205d04df5fb25d510b4e9a85de721de17ca152257d8850770f141e1a1f44",
+              "sha256": "d9c0205d04df5fb25d510b4e9a85de721de17ca152257d8850770f141e1a1f44"
+            },
+            "catalina": {
+              "cellar": "/usr/local/Cellar",
+              "url": "https://ghcr.io/v2/homebrew/core/subversion/blobs/sha256:c1a0c5bcf8a1fac3837c34f7bcff1897d8f3074e72f06fc541804599e73a492c",
+              "sha256": "c1a0c5bcf8a1fac3837c34f7bcff1897d8f3074e72f06fc541804599e73a492c"
+            },
+            "mojave": {
+              "cellar": "/usr/local/Cellar",
+              "url": "https://ghcr.io/v2/homebrew/core/subversion/blobs/sha256:5fb32f15610da2ab65ffc09ff298a479bf1ef8cd8aa964883e58937e85abe154",
+              "sha256": "5fb32f15610da2ab65ffc09ff298a479bf1ef8cd8aa964883e58937e85abe154"
+            },
+            "x86_64_linux": {
+              "cellar": "/home/linuxbrew/.linuxbrew/Cellar",
+              "url": "https://ghcr.io/v2/homebrew/core/subversion/blobs/sha256:2c19a4cdc9465a7bfe259153035beac3dba025f19cf678712b233b2c66c342b1",
+              "sha256": "2c19a4cdc9465a7bfe259153035beac3dba025f19cf678712b233b2c66c342b1"
+            }
+          }
+        }
       }
     },
     "cask": {
@@ -505,7 +539,7 @@
         }
       },
       "logitech-unifying": {
-        "version": "1.2.359",
+        "version": "1.3.375",
         "options": {
           "full_name": "logitech-unifying"
         }
@@ -521,6 +555,14 @@
         "CLT": "10.3.0.0.1.1562985497",
         "Xcode": "10.3",
         "macOS": "10.14.6"
+      },
+      "big_sur": {
+        "HOMEBREW_VERSION": "3.2.11",
+        "HOMEBREW_PREFIX": "/usr/local",
+        "Homebrew/homebrew-core": "71edb1e226683df27412b8ddd5f9b59a056f2c92",
+        "CLT": "12.5.1.0.1.1623191612",
+        "Xcode": "12.5",
+        "macOS": "11.3.1"
       }
     }
   }
