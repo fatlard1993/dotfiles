@@ -6,4 +6,4 @@ chsh -s /bin/zsh
 
 $macosPath/dot-update
 
-(cd $profilePath ; brew bundle)
+(cd $profilePath ; brew bundle --no-lock)
