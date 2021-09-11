@@ -15,6 +15,12 @@
 	- apple id > login
 	- all the ___ permission checks
 
+- countless "this app is from the internet, are you sure ... " prompts
+
+- chrome
+	- settings
+	- extensions
+
 
 ## Install Apps
 
@@ -77,12 +83,11 @@
 ## [Karabiner](https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-)
 
 * Does not respect symlinked config file. If you make a change from the UI you will need to manually update this config file.
-	* `cp $HOME/.config/karabiner/karabiner.json $HOME/Projects/dotfiles/devices/macbook_pro/`
+	* `cp $HOME/.config/karabiner/karabiner.json $HOME/.dotfiles/macos/`
 
 ## [Yabai](https://stevenlee090.github.io/yabai-skhd-wm/)
 
 * [Disable SIP](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
-* sudo yabai --install-sa
 
 
 https://github.com/moretension/duti
@@ -90,3 +95,8 @@ https://github.com/moretension/duti
 https://github.com/kcrawford/dockutil
 
 https://github.com/jondot/awesome-devenv
+
+
+# faster git server communication.
+# like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
+# git config protocol.version 2
