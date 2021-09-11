@@ -5,3 +5,6 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 $macosPath/dot-update
 
 (cd $profilePath ; brew bundle --no-lock)
+
+$dotfiles/macoc/macos.config.d/ssd
+$dotfiles/macoc/macos.config.d/touch-bar

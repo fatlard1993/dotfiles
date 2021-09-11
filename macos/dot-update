@@ -41,5 +41,8 @@ sudo yabai --install-sa
 brew services restart skhd
 brew services restart yabai
 
+echo "Updating mac software"
+sudo softwareupdate -i -a
+
 echo "Configuring macos"
 source "$dotfilesPath/macos/macos.config.d/index"
