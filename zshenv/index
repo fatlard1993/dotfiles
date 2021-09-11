@@ -2,8 +2,9 @@
 
 thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
 
-source "$thisPath/lang"
-source "$thisPath/path"
+for file in $thisPath/*(.); do
+	[[ "$file" != "$thisPath/index" ]] && source $file
+done
 
 export EDITOR='/usr/local/bin/code'
 export VISUAL='/usr/local/bin/code'
