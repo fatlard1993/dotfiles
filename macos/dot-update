@@ -11,7 +11,7 @@ else
 	echo "Failed to install XCode command line tools."
 fi
 
-(cd $macosPath ; brew bundle)
+(cd $macosPath ; brew bundle --no-lock)
 
 # disable itunes opening on media keys
 # git clone https://github.com/thebitguru/play-button-itunes-patch ~/code/play-button-itunes-patch

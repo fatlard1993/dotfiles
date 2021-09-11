@@ -60,7 +60,7 @@ brew update
 
 brew tap homebrew/bundle
 
-(cd $dotfilesPath ; brew bundle)
+(cd $dotfilesPath ; brew bundle --no-lock)
 
 if [[ ! -a $HOME/.nvm ]]; then
 	echo "Installing NVM"
