@@ -2,6 +2,9 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+echo "Linking pam sudo config"
+ln -sf $profilePath/pam_sudo /etc/pam.d/sudo
+
 $macosPath/dot-update
 
 (cd $profilePath ; brew bundle --no-lock)
