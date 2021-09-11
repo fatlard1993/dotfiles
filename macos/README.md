@@ -64,17 +64,6 @@
 		* Shortcut
 			* Either Command Key
 
-## Screenshot Preferences
-
-* Save location
-	* ~/Pictures/Screenshots
-
-## VS Code Preferences
-
-1. Extensions
-	* Settings Sync
-		* Install
-1. Shift + Option + D
 
 ## Chrome Preferences
 
@@ -97,6 +86,8 @@ https://github.com/kcrawford/dockutil
 https://github.com/jondot/awesome-devenv
 
 
-# faster git server communication.
-# like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
-# git config protocol.version 2
+faster git server communication.
+like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
+`git config protocol.version 2`
+
+https://github.com/yt-dlp/yt-dlp

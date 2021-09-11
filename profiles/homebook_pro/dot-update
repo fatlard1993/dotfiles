@@ -1,9 +1,9 @@
 #!/bin/zsh
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../../bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 chsh -s /bin/zsh
 
 $macosPath/dot-update
 
-(cd $profilePath ; brew bundle)
+(cd $profilePath ; brew bundle --no-lock)
