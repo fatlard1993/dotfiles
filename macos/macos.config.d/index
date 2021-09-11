@@ -8,34 +8,16 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+obtainSudo
+
 configPath="$dotfilesPath/macos/macos.config.d"
 
 # Close any open System Preferences panes, to prevent them from overriding settings we’re about to change
 osascript -e 'tell application "System Preferences" to quit'
 
-# Ask for the administrator password upfront
-sudo -v
-
-# Keep-alive: update existing `sudo` time stamp until `.macos` has finished
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-
-source "$configPath/activity-monitor"
-source "$configPath/chrome"
-source "$configPath/dock"
-source "$configPath/energy"
-source "$configPath/finder"
-source "$configPath/hot-corners"
-source "$configPath/keyboard"
-source "$configPath/location"
-source "$configPath/mac-app-store"
-source "$configPath/mission-control"
-source "$configPath/safari"
-source "$configPath/screen"
-source "$configPath/screenshots"
-source "$configPath/spotlight"
-source "$configPath/terminal"
-source "$configPath/text-edit"
-source "$configPath/trackpad"
+for file in $configPath/*(.); do
+	[[ "$file" != "$configPath/index" ]] && sudo $file
+done
 
 ###############################################################################
 # Bluetooth                                                                   #
@@ -69,7 +51,7 @@ defaults write com.apple.dock mru-spaces -bool false
 defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true
 
 # Disable local Time Machine backups
-hash tmutil &> /dev/null && sudo tmutil disablelocal
+hash tmutil &> /dev/null && tmutil disablelocal
 
 ###############################################################################
 # Disk Utility                                                                #
@@ -101,7 +83,7 @@ defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true
 launchctl unload -w /System/Library/LaunchAgents/com.apple.rcd.plist 2> /dev/null
 
 # Disable the sound effects on boot
-sudo nvram SystemAudioVolume=" "
+nvram SystemAudioVolume=" "
 
 # Set sidebar icon size to medium
 defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2
@@ -154,7 +136,7 @@ defaults write com.apple.helpviewer DevMode -bool true
 
 # Reveal IP address, hostname, OS version, etc. when clicking the clock
 # in the login window
-sudo defaults write /Library/Preferences/com.apple.loginwindow AdminHostInfo HostName
+defaults write /Library/Preferences/com.apple.loginwindow AdminHostInfo HostName
 
 # Disable Notification Center and remove the menu bar icon
 launchctl unload -w /System/Library/LaunchAgents/com.apple.notificationcenterui.plist 2> /dev/null
@@ -179,9 +161,9 @@ defaults write com.apple.menuextra.battery ShowPercent -string "YES"
 
 # Set a custom wallpaper image. `DefaultDesktop.jpg` is already a symlink, and
 # all wallpapers are in `/Library/Desktop Pictures/`. The default is `Wave.jpg`.
-#rm -rf ~/Library/Application Support/Dock/desktoppicture.db
-#sudo rm -rf /System/Library/CoreServices/DefaultDesktop.jpg
-#sudo ln -s /path/to/your/image /System/Library/CoreServices/DefaultDesktop.jpg
+# rm -rf ~/Library/Application Support/Dock/desktoppicture.db
+# rm -rf /System/Library/CoreServices/DefaultDesktop.jpg
+# ln -s /path/to/your/image /System/Library/CoreServices/DefaultDesktop.jpg
 
 # Reset Launchpad, but keep the desktop wallpaper intact
 find "${HOME}/Library/Application Support/Dock" -name "*-*.db" -maxdepth 1 -delete
