@@ -2,6 +2,8 @@
 
 source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
 
+obtainSudo
+
 (cd $dotfilesPath ; git pull)
 
 if [ ! -e $HOME/.dotfiles ]; then
@@ -36,7 +38,7 @@ sudo mkdir -p /etc/sudoers.d
 echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_$USER-nopasswd"
 
 echo "Creating common directories"
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
 echo "Linking zsh config"
 ln -sf $profilePath/.zshenv $HOME/.zshenv
@@ -68,6 +70,9 @@ if [[ ! -a $HOME/.nvm ]]; then
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 fi
 
+nvm install 12
+nvm use 12
+
 echo "Installing global npm packages"
 
 globalNpmPackages=(pm2 fatlard1993/zelda)
@@ -76,10 +81,20 @@ for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
 done
 
-# link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
-
 echo "Configuring profile"
 $profilePath/dot-update
 
 echo "Configuring priv-config"
 $dotfilesPath/../priv-config/update
+
+if [[ ! -a $HOME/Projects/home-page ]]; then
+	echo "Installing home-page"
+
+	(
+		cd $HOME/Projects
+		git clone https://github.com/fatlard1993/home-page
+		cd $HOME/Projects/home-page
+		npm i
+		pm2 start --name home-page ./src/server/inndex
+	)
+fi
