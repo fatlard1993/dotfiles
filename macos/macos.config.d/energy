@@ -24,6 +24,3 @@ sudo pmset -b sleep 5
 
 # Set standby delay to 24 hours (default is 1 hour)
 sudo pmset -a standbydelay 86400
-
-# Never go into computer sleep mode
-systemsetup -setcomputersleep Off > /dev/null
