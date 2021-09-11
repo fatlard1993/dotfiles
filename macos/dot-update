@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Installing XCode command line tools..."
 if xcode-select --print-path &>/dev/null; then
@@ -11,7 +11,7 @@ else
 	echo "Failed to install XCode command line tools."
 fi
 
-(cd $macosPath ; brew bundle)
+(cd $macosPath ; brew bundle --no-lock)
 
 echo "Linking karabiner config"
 mkdir -p $HOME/.config/karabiner
@@ -37,3 +37,8 @@ brew services restart skhd
 brew services restart yabai
 
 sudo yabai --load-sa
+echo "Updating mac software"
+sudo softwareupdate -i -a
+
+echo "Configuring macos"
+source "$dotfilesPath/macos/macos.config.d/index"
