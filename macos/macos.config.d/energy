@@ -5,32 +5,25 @@
 ###############################################################################
 
 # Enable lid wakeup
-pmset -a lidwake 1
+sudo pmset -a lidwake 1
 
 # Restart automatically on power loss
-pmset -a autorestart 1
+sudo pmset -a autorestart 1
 
 # Restart automatically if the computer freezes
 systemsetup -setrestartfreeze on
 
 # Sleep the display after 15 minutes
-pmset -a displaysleep 15
+sudo pmset -a displaysleep 15
 
 # Disable machine sleep while charging
-pmset -c sleep 0
+sudo pmset -c sleep 0
 
 # Set machine sleep to 5 minutes on battery
-pmset -b sleep 5
+sudo pmset -b sleep 5
 
 # Set standby delay to 24 hours (default is 1 hour)
-pmset -a standbydelay 86400
+sudo pmset -a standbydelay 86400
 
 # Never go into computer sleep mode
 systemsetup -setcomputersleep Off > /dev/null
-
-# Remove the sleep image file to save disk space
-rm /private/var/vm/sleepimage
-# Create a zero-byte file instead…
-touch /private/var/vm/sleepimage
-# …and make sure it can’t be rewritten
-chflags uchg /private/var/vm/sleepimage
