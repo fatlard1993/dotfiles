@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../../bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 $macosPath/dot-update
 

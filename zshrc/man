@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})../theme/less.zsh"
+source "$HOME/.dotfiles/theme/less.zsh"
 
 # Don’t clear the screen after quitting a manual page.
 export MANPAGER='less -X';
