@@ -58,17 +58,6 @@
 		* Shortcut
 			* Either Command Key
 
-## Screenshot Preferences
-
-* Save location
-	* ~/Pictures/Screenshots
-
-## VS Code Preferences
-
-1. Extensions
-	* Settings Sync
-		* Install
-1. Shift + Option + D
 
 ## Chrome Preferences
 
@@ -90,3 +79,5 @@ https://github.com/moretension/duti
 https://github.com/kcrawford/dockutil
 
 https://github.com/jondot/awesome-devenv
+
+https://github.com/yt-dlp/yt-dlp

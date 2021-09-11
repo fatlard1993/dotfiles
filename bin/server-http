@@ -1,8 +1,6 @@
 #!/bin/zsh
 # Start an HTTP server from a directory, optionally specifying the port
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
-
 port="${1:-8000}";
 
 sleep 1 && open "http://localhost:${port}/" &

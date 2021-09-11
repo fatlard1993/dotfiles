@@ -1,8 +1,6 @@
 #!/bin/zsh
 # Determine size of a file or total size of a directory
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
-
 if du -b /dev/null > /dev/null 2>&1; then
 	arg=-sbh;
 else
