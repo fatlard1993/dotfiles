@@ -7,15 +7,9 @@ unsetopt nomatch
 # Enable completions
 autoload -Uz compinit && compinit
 
-source "$thisPath/aliases"
-source "$thisPath/history"
-source "$thisPath/kitty"
-source "$thisPath/ls"
-source "$thisPath/man"
-source "$thisPath/node-repl"
-source "$thisPath/nvm"
-source "$thisPath/prompt"
-source "$thisPath/thefuck"
+for file in $thisPath/*(.); do
+	[[ "$file" != "$thisPath/index" ]] && source $file
+done
 
 # $ git log --no-merges --pretty=format:"%ae" | stats
 # # => 514 a@example.com
