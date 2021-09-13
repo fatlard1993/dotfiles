@@ -104,6 +104,8 @@ if [[ ! -a $HOME/Projects/home-page ]]; then
 		npm i
 
 		pm2 start --name home-page ./src/server/index.js
+
+		pm2 save
 	)
 else
 	echo "Updating home-page"
@@ -120,5 +122,7 @@ else
 		npm i
 
 		pm2 start home-page
+
+		pm2 save
 	)
 fi

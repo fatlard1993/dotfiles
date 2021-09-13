@@ -11,3 +11,5 @@ $macosPath/dot-update
 
 $dotfilesPath/macos/macos.config.d/ssd
 $dotfilesPath/macos/macos.config.d/touch-bar
+
+sudo env PATH=$PATH:/Users/chase.whitfield/.nvm/versions/node/$(nvm version)/bin /Users/chase.whitfield/.nvm/versions/node/$(nvm version)/lib/node_modules/pm2/bin/pm2 startup launchd -u chase.whitfield --hp /Users/chase.whitfield
