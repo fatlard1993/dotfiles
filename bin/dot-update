@@ -94,9 +94,29 @@ if [[ ! -a $HOME/Projects/home-page ]]; then
 
 	(
 		cd $HOME/Projects
+
 		git clone https://github.com/fatlard1993/home-page
+
 		cd $HOME/Projects/home-page
+
 		npm i
-		pm2 start --name home-page ./src/server/inndex
+
+		pm2 start --name home-page ./src/server/index.js
+	)
+else
+	echo "Updating home-page"
+
+	(
+		pm2 stop home-page
+
+		cd $HOME/Projects/home-page
+
+		git pull
+
+		rm -rf ./node_modules
+
+		npm i
+
+		pm2 start home-page
 	)
 fi

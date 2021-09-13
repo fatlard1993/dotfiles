@@ -20,6 +20,7 @@
 - chrome
 	- settings
 	- extensions
+		- extension settings
 
 
 ## Install Apps
