@@ -13,6 +13,8 @@ alias ....="cd ../../.."
 alias .....="cd ../../../.."
 alias cd.='cd $(readlink -f .)'    # Go to real dir (i.e. if current dir is linked)
 
+alias perms="stat -f '%A - %N'"
+
 # Change working directory to the top-most Finder window location
 alias cdf='function __cdf() { cd `osascript -e "tell app \"Finder\" to POSIX path of (insertion location as alias)"`; unset -f cdf; }; cdf'
 
