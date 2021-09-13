@@ -19,3 +19,29 @@ defaults write NSGlobalDomain InitialKeyRepeat -int 25
 defaults write com.apple.BezelServices kDim -bool true
 # Turn off keyboard illumination when computer is not used for 5 minutes
 defaults write com.apple.BezelServices kDimTime -int 300
+
+
+# \u200b = disabled
+
+# defaults write -g NSUserKeyEquivalents -dict-add "Menu Item" -string "@$~^k"
+
+# defaults write -g NSUserKeyEquivalents '{
+# "Minimize"="\u200b";
+# "Minimize All"="\u200b";
+# }'
+
+# defaults write com.apple.finder NSUserKeyEquivalents '{
+# "Show Package Contents"="@\r";
+# "Tags..."="@t";
+# }'
+
+# defaults write -app Safari NSUserKeyEquivalents '{
+# "Show Previous Tab"="@j";
+# "Show Next Tab"="@k";
+# "Mail Contents of This Page"="\u200b";
+# }'
+
+# defaults write -app Mail NSUserKeyEquivalents '{
+# "\033Format\033Indentation\033Decrease"="^\Uf702";
+# "\033Format\033Indentation\033Increase"="^\Uf703";
+# }'

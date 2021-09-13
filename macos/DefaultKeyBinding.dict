@@ -1,4 +1,6 @@
 {
+/* @ for Command, $ for Shift, ~ for Alt and ^ for Ctrl */
+
 /* Home */
 "\UF729" = "moveToBeginningOfLine:";
 
@@ -22,4 +24,39 @@
 
 /* Shift + Ctrl + End */
 "$^\UF72B" = "moveToEndOfDocumentAndModifySelection:";
+
+
+
+
+/* Control + Right */
+"^\UF703" = ("moveWordForward:", "moveWordForward:", "moveWordBackward:");
+
+/* Control + Left */
+"^$\UF703" = ("moveWordForwardAndModifySelection:", "moveWordForwardAndModifySelection:", "moveWordBackwardAndModifySelection:");
+
+
+
+/* */
+"@\UF702" = ("moveWordBackward:");
+
+/* */
+"@$\UF702" = ("moveWordBackwardAndModifySelection:");
+
+/* */
+"~\UF702" = ("moveToBeginningOfLine:");
+
+/* */
+"~$\UF702" = ("moveToBeginningOfLineAndModifySelection:");
+
+/* */
+"@\UF703" = ("moveWordForward:", "moveWordForward:", "moveWordBackward:");
+
+/* */
+"@$\UF703" = ("moveWordForwardAndModifySelection:", "moveWordForwardAndModifySelection:", "moveWordBackwardAndModifySelection:");    \
+
+/* */
+"~\UF703" = ("moveToEndOfLine:");
+
+/* */
+"~$\UF703" = ("moveToEndOfLineAndModifySelection:");
 }

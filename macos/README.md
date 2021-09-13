@@ -14,13 +14,28 @@
 - system preferences
 	- apple id > login
 	- all the ___ permission checks
+	- displays
+		- menubar location
+	- desktop & screen saver
+		- folder - add Wallpapers folder
+			- change every hour
+			- random order
+	- keyboard
+		- shortcuts
+			- Switch to Desktop 1-10
+				- CMD+X
 
 - countless "this app is from the internet, are you sure ... " prompts
+
+- App logins
 
 - chrome
 	- settings
 	- extensions
 		- extension settings
+
+- webex-meetings
+	- dont start on login
 
 
 ## Install Apps
