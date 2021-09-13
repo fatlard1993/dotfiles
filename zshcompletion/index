@@ -1,6 +1,0 @@
-#!/bin/zsh
-
-thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
-
-source "$thisPath/lang"
-source "$thisPath/path"
