@@ -4,6 +4,8 @@ thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
 
 unsetopt nomatch
 
+fpath=($HOME/.dotfiles/zshcompletion $fpath)
+
 # Enable completions
 autoload -Uz compinit && compinit
 
