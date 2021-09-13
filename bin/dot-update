@@ -41,6 +41,8 @@ echo "Creating common directories"
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
 echo "Linking zsh config"
+mkdir -p $HOME/.zshrc.d $HOME/.zshenv.d
+
 ln -sf $profilePath/.zshenv $HOME/.zshenv
 ln -sf $profilePath/.zshrc $HOME/.zshrc
 
