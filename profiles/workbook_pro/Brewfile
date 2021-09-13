@@ -1,3 +1,7 @@
 cask "swiftbar"
 cask "figma"
 cask "lastpass"
+cask "slack"
+cask "microsoft-outlook"
+cask "webex"
+cask "webex-meetings"
