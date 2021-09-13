@@ -14,6 +14,8 @@
 - system preferences
 	- apple id > login
 	- all the ___ permission checks
+	- sound
+		- default audio device
 	- displays
 		- menubar location
 	- desktop & screen saver
@@ -66,9 +68,6 @@
 
 ## Misc Notes
 
-
-* alerter: https://github.com/vjeantet/alerter/releases
-	* `mv ~/Downloads/alerter /usr/local/bin/`
 * Fix zsh error complaint: https://stackoverflow.com/questions/13762280/zsh-compinit-insecure-directories
 
 https://github.com/moretension/duti
