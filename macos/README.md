@@ -4,7 +4,7 @@
 
 1. `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
 1. You will be prompted to install xcode - upon completion, re-run the above line
-1. `./dotfiles/bin/dot-update <profile>`
+1. `./dotfiles/bin/dot-update <profileName>`
 
 - vscode
 	- Authorize github on the first command to use auth
@@ -31,59 +31,27 @@
 
 - chrome
 	- settings
+		- disable hardware acceleration
 	- extensions
 		- extension settings
 
 - webex-meetings
 	- dont start on login
 
+- swiftbar
+	- plugins location
+	- launch at login
 
-## Install Apps
-
-* alerter: https://github.com/vjeantet/alerter/releases
-	* `mv ~/Downloads/alerter /usr/local/bin/`
-* swiftbar
-	* System
-		* Show hidden files in Finder
-		* Screenshotter
-		* Real CPU Usage
-		* Ejector
-		* Clipboard History
-		* Caffeinate
-	* Time
-		* Countdown Timer 2
-		* Alarm Clock
-	* Tools
-		* yabai/skhd helper
-* Fix zsh error complaint: https://stackoverflow.com/questions/13762280/zsh-compinit-insecure-directories
-
-## System Preferences
-
-* Desktop
-	* Picture
-* Displays
-	* Arrangement
-* Dock
-	* [x] Automatically hide and show the Dock
-	* [ ] Show recent applications
-	* Magnification
-		* Max
-* Mission Control
-	* Automatically rearrange spaces
-	* Show Desktop
-	* F6
-* Keyboard
-	* Shortcuts
-	* Input Sources
-		* Show Input Menu
-	* Dictation
-		* Shortcut
-			* Either Command Key
+- karabiner must be started manually to request initial permissions
 
 
-## Chrome Preferences
+## Todo
 
-* Disable hardware acceleration
+- CMD + arrow keys to focus windows
+- Option + arrow keys in terminal to hop words
+- Option + delete key in terminal to delete word
+- Home and End keys in terminal
+
 
 ## [Karabiner](https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-)
 
@@ -93,7 +61,15 @@
 ## [Yabai](https://stevenlee090.github.io/yabai-skhd-wm/)
 
 * [Disable SIP](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
+	- Currently testing how far I can get without this part for now
 
+
+## Misc Notes
+
+
+* alerter: https://github.com/vjeantet/alerter/releases
+	* `mv ~/Downloads/alerter /usr/local/bin/`
+* Fix zsh error complaint: https://stackoverflow.com/questions/13762280/zsh-compinit-insecure-directories
 
 https://github.com/moretension/duti
 
