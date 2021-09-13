@@ -7,6 +7,12 @@ unsetopt nomatch
 # Enable completions
 autoload -Uz compinit && compinit
 
+# Support urls without quotes
+autoload -Uz url-quote-magic
+zle -N self-insert url-quote-magic
+
+for file in $HOME/.zshrc.d/*; source $file
+
 for file in $thisPath/*(.); do
 	[[ "$file" != "$thisPath/index" ]] && source $file
 done
@@ -32,7 +38,3 @@ function tar_() {
 function untar() {
   tar -xvf $1
 }
-
-# Support urls without quotes
-autoload -Uz url-quote-magic
-zle -N self-insert url-quote-magic
