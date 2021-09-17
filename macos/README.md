@@ -16,6 +16,7 @@
 	- all the ___ permission checks
 	- sound
 		- default audio device
+		- sound effect
 	- displays
 		- menubar location
 	- desktop & screen saver

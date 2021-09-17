@@ -38,7 +38,8 @@ sudo yabai --install-sa
 brew services restart skhd
 brew services restart yabai
 
-sudo yabai --load-sa
+yabai --load-sa
+
 echo "Updating mac software"
 sudo softwareupdate -i -a
 
