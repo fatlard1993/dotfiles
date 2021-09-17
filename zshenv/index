@@ -2,12 +2,12 @@
 
 thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
 
-for file in $HOME/.zshenv.d/*; source $file
+export EDITOR='/usr/local/bin/code'
+export VISUAL='/usr/local/bin/code'
+export PAGER='less'
 
 for file in $thisPath/*(.); do
 	[[ "$file" != "$thisPath/index" ]] && source $file
 done
 
-export EDITOR='/usr/local/bin/code'
-export VISUAL='/usr/local/bin/code'
-export PAGER='less'
+for file in $HOME/.zshenv.d/*; source $file
