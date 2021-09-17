@@ -4,7 +4,7 @@
 PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
 # Dotfiles Bin
-PATH="$HOME/.dotfiles/bin:$PATH"
+PATH="$PATH:$HOME/.dotfiles/bin"
 
 # Local Bin
-export PATH="./bin:$PATH"
+PATH="$PATH:$PWD/bin"
