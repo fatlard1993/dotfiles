@@ -8,3 +8,6 @@ PATH="$PATH:$HOME/.dotfiles/bin"
 
 # Local Bin
 PATH="$PATH:$PWD/bin"
+
+# NPM Bin
+PATH="$PATH:$HOME/.npm-global/bin"

@@ -70,11 +70,7 @@ fi
 
 source "$dotfilesPath/zshrc/nvm"
 
-nvm install 12
-nvm use 12
-nvm alias default 12
-echo -e '#!/bin/zsh'"\n"'PATH="$PATH:'`npm root -g`'"' > $HOME/.zshenv.d/nodePath
-chmod a+x $HOME/.zshenv.d/nodePath
+source "$binPath/nvm-use 12"
 
 echo "Installing global npm packages"
 

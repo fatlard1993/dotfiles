@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+version=$1
+
+nvm install $1
+nvm use $1
+nvm alias default $1
+
+mkdir -p $HOME/.npm-global
+
+ln -sf $HOME/.nvm/versions/node/$(nvm version)/bin $HOME/.npm-global/bin
