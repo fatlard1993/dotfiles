@@ -1,3 +1,10 @@
 #!/bin/zsh
 
-export PATH="./bin:/usr/local/bin:/usr/local/sbin:$HOME/.dotfiles/bin:$PATH"
+# Base Path
+PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+
+# Dotfiles Bin
+PATH="$HOME/.dotfiles/bin:$PATH"
+
+# Local Bin
+export PATH="./bin:$PATH"

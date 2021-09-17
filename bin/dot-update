@@ -33,10 +33,6 @@ profilePath="$dotfilesPath/profiles/$profileName"
 # 	sudo adduser $USER $group
 # done
 
-echo "Adding $USER to sudoers"
-sudo mkdir -p /etc/sudoers.d
-echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_$USER-nopasswd"
-
 echo "Creating common directories"
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects
 
@@ -76,6 +72,7 @@ source "$dotfilesPath/zshrc/nvm"
 
 nvm install 12
 nvm use 12
+nvm alias default 12
 
 echo "Installing global npm packages"
 
@@ -84,6 +81,8 @@ globalNpmPackages=(pm2 fatlard1993/zelda)
 for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
 done
+
+pm2 update
 
 echo "Configuring profile"
 $profilePath/dot-update
