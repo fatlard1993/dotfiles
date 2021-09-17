@@ -74,7 +74,7 @@ source "$binPath/nvm-use 12"
 
 echo "Installing global npm packages"
 
-globalNpmPackages=(pm2 fatlard1993/zelda)
+globalNpmPackages=(pm2 npm-check-updates fatlard1993/zelda)
 
 for package in $globalNpmPackages; do
 	npm list -g | grep $package || npm i -g $package
