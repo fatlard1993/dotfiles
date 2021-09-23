@@ -6,6 +6,9 @@ PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 # Dotfiles Bin
 PATH="$PATH:$HOME/.dotfiles/bin"
 
+# Local Scripts
+PATH="$PATH:$PWD/scripts"
+
 # Local Bin
 PATH="$PATH:$PWD/bin"
 
