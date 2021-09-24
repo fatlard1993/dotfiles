@@ -37,6 +37,8 @@ alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
 
 alias file-downlaod='curl --continue-at - --location --progress-bar --remote-name --remote-time'
 
+alias F='fuck'
+
 mcd() { mkdir -p "$@" && cd "$_" }
 
 cmd_exists() {
