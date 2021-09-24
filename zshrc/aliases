@@ -39,6 +39,8 @@ alias file-downlaod='curl --continue-at - --location --progress-bar --remote-nam
 
 alias F='fuck'
 
+alias npmi='npm i'
+
 mcd() { mkdir -p "$@" && cd "$_" }
 
 cmd_exists() {
