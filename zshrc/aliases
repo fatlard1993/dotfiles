@@ -40,6 +40,7 @@ alias file-downlaod='curl --continue-at - --location --progress-bar --remote-nam
 alias F='fuck'
 
 alias npmi='npm i'
+alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
 
 mcd() { mkdir -p "$@" && cd "$_" }
 
