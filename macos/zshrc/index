@@ -1,18 +1,13 @@
+#!/bin/zsh
 ## $HOME/.zshrc
 
-thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
+zshrcPath="$HOME/.dotfiles/macos/zshenv"
 
-for file in $thisPath/*(.); do
-	[[ "$file" != "$thisPath/index" ]] && source $file
+for file in $zshrcPath/*(.); do
+	[[ "$file" != "$zshrcPath/index" ]] && source $file
 done
 
-source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../../zshrc/index"
-
-# macOS has no `md5sum`, so use `md5` as a fallback
-command -v md5sum > /dev/null || alias md5sum="md5"
-
-# macOS has no `sha1sum`, so use `shasum` as a fallback
-command -v sha1sum > /dev/null || alias sha1sum="shasum"
+source "$HOME/.dotfiles/zshrc/index"
 
 ## PRIV-CONFIG
 # todo make this a gitignored folder that priv-config symlinks into instead

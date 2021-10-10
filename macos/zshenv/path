@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+# GNU Coreutils Bin
+PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
