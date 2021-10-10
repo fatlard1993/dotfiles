@@ -1,5 +1,11 @@
 ## $HOME/.zshrc
 
+thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
+
+for file in $thisPath/*(.); do
+	[[ "$file" != "$thisPath/index" ]] && source $file
+done
+
 source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/../../zshrc/index"
 
 # macOS has no `md5sum`, so use `md5` as a fallback
