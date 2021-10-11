@@ -70,7 +70,7 @@ fi
 
 source "$dotfilesPath/zshrc/nvm"
 
-source "$binPath/nvm-use 12"
+$binPath/nvm-use ${GLOBAL_NODE_VERSION:-12}
 
 echo "Installing global npm packages"
 
