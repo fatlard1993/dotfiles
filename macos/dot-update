@@ -46,3 +46,7 @@ sudo softwareupdate -i -a
 
 echo "Configuring macos"
 source "$dotfilesPath/macos/macos.config.d/index"
+
+echo "Linking Java Bindings into Java Extensions"
+sudo mkdir -p /Library/Java/Extensions
+sudo ln -s /usr/local/lib/libsvnjavahl-1.dylib /Library/Java/Extensions/libsvnjavahl-1.dylib
