@@ -1,0 +1,51 @@
+{
+  "title": "justfatlard dotfiles modifications",
+  "rules": [
+    {
+      "description": "Focus previous window",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "left_arrow",
+            "modifiers": {
+              "mandatory": ["command"]
+            }
+          },
+          "to": [
+            {
+              "key_code": "right_arrow",
+              "modifiers": {
+                "mandatory": ["command", "shift"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "Caps Lock to Escape on single press, Caps Lock on press and hold.",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "caps_lock",
+            "modifiers": {
+              "optional": ["any"]
+            }
+          },
+          "to": [
+            {
+              "key_code": "escape"
+            }
+          ],
+          "to_if_held_down": [
+            {
+              "key_code": "caps_lock"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

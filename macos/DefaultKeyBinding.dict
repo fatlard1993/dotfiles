@@ -1,62 +1,58 @@
 {
-/* @ for Command, $ for Shift, ~ for Alt and ^ for Ctrl */
+	/* @ for Command, $ for Shift, ~ for Alt and ^ for Ctrl */
 
-/* Home */
-"\UF729" = "moveToBeginningOfLine:";
+	/* Home */
+	"\UF729" = "moveToBeginningOfLine:";
 
-/* End  */
-"\UF72B" = "moveToEndOfLine:";
+	/* End  */
+	"\UF72B" = "moveToEndOfLine:";
 
-/* Shift + Home  */
-"$\UF729" = "moveToBeginningOfLineAndModifySelection:";
+	/* Shift + Home  */
+	"$\UF729" = "moveToBeginningOfLineAndModifySelection:";
 
-/* Shift + End  */
-"$\UF72B" = "moveToEndOfLineAndModifySelection:";
+	/* Shift + End  */
+	"$\UF72B" = "moveToEndOfLineAndModifySelection:";
 
-/* Ctrl + Home  */
-"^\UF729" = "moveToBeginningOfDocument:";
+	/* Ctrl + Home  */
+	"^\UF729" = "moveToBeginningOfDocument:";
 
-/* Ctrl + End  */
-"^\UF72B" = "moveToEndOfDocument:";
+	/* Ctrl + End  */
+	"^\UF72B" = "moveToEndOfDocument:";
 
-/* Shift + Ctrl + Home  */
-"$^\UF729" = "moveToBeginningOfDocumentAndModifySelection:";
+	/* Shift + Ctrl + Home  */
+	"$^\UF729" = "moveToBeginningOfDocumentAndModifySelection:";
 
-/* Shift + Ctrl + End */
-"$^\UF72B" = "moveToEndOfDocumentAndModifySelection:";
-
-
+	/* Shift + Ctrl + End */
+	"$^\UF72B" = "moveToEndOfDocumentAndModifySelection:";
 
 
-/* Control + Right */
-"^\UF703" = ("moveWordForward:", "moveWordForward:", "moveWordBackward:");
+	/* Cmd + Left */
+	/* "@\UF702" = "moveWordBackward:"; */
 
-/* Control + Left */
-"^$\UF703" = ("moveWordForwardAndModifySelection:", "moveWordForwardAndModifySelection:", "moveWordBackwardAndModifySelection:");
+	/* Cmd + Shift + Left */
+	/* "@$\UF702" = "moveWordBackwardAndModifySelection:"; */
+
+	/* Alt + Left */
+	/* "~\UF702" = "moveToBeginningOfLine:"; */
+
+	/* Alt + Shift + Left */
+	/* "~$\UF702" = "moveToBeginningOfLineAndModifySelection:"; */
+
+	/* Cmd + Right */
+	/* "@\UF703" = "moveWordForward:"; */
+
+	/* Cmd + Shift + Right */
+	/* "@$\UF703" = "moveWordForwardAndModifySelection:"; */
+
+	/* Alt + Right */
+	/* "~\UF703" = "moveToEndOfLine:"; */
+
+	/* Alt + Shift + Right */
+	/* "~$\UF703" = "moveToEndOfLineAndModifySelection:"; */
 
 
-
-/* */
-"@\UF702" = ("moveWordBackward:");
-
-/* */
-"@$\UF702" = ("moveWordBackwardAndModifySelection:");
-
-/* */
-"~\UF702" = ("moveToBeginningOfLine:");
-
-/* */
-"~$\UF702" = ("moveToBeginningOfLineAndModifySelection:");
-
-/* */
-"@\UF703" = ("moveWordForward:", "moveWordForward:", "moveWordBackward:");
-
-/* */
-"@$\UF703" = ("moveWordForwardAndModifySelection:", "moveWordForwardAndModifySelection:", "moveWordBackwardAndModifySelection:");    \
-
-/* */
-"~\UF703" = ("moveToEndOfLine:");
-
-/* */
-"~$\UF703" = ("moveToEndOfLineAndModifySelection:");
+	/* "\UF729"  = moveToBeginningOfParagraph:; // home */
+  /* "\UF72B"  = moveToEndOfParagraph:; // end */
+  /* "$\UF729" = moveToBeginningOfParagraphAndModifySelection:; // shift-home */
+  /* "$\UF72B" = moveToEndOfParagraphAndModifySelection:; // shift-end */
 }

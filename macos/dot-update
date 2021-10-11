@@ -16,8 +16,9 @@ fi
 (cd $macosPath ; brew bundle --no-lock)
 
 echo "Linking karabiner config"
-mkdir -p $HOME/.config/karabiner
-ln -sf $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
+mkdir -p $HOME/.config/karabiner/assets/complex_modifications
+cp $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
+cp $macosPath/karabiner_complex_mods.json $HOME/.config/karabiner/assets/complex_modifications/dotfiles.json
 
 if [ ! -e $HOME/Library/KeyBindings/DefaultKeyBindings.dict ]; then
 	echo "Linking DefaultKeyBindings"
