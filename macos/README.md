@@ -25,8 +25,12 @@
 			- random order
 	- keyboard
 		- shortcuts
-			- Switch to Desktop 1-10
-				- CMD+X
+			- Mission Control
+				- Switch to Desktop 1-10
+					- CMD+X
+			- Keyboard
+				- Move focus to next window
+					- CMD + Right
 
 - countless "this app is from the internet, are you sure ... " prompts
 
