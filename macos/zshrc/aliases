@@ -51,3 +51,6 @@ alias ql="qlmanage -p &>/dev/null"
 
 alias logs='journalctl -fu'
 alias logs-all='journalctl -u'
+
+# Change working directory to the top-most Finder window location
+alias cdf='function __cdf() { cd `osascript -e "tell app \"Finder\" to POSIX path of (insertion location as alias)"`; unset -f cdf; }; cdf'
