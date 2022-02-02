@@ -41,7 +41,10 @@ alias rm-rf='rm -rf'
 
 alias npmi='npm i'
 alias npmstart='npm start'
+alias npm-='npm run'
 alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
+
+alias git-R!="git reset --hard @{u}"
 
 mcd() { mkdir -p "$@" && cd "$_" }
 
