@@ -42,6 +42,7 @@ alias rm-rf='rm -rf'
 alias npmi='npm i'
 alias npmstart='npm start'
 alias npm-='npm run'
+alias npm-ls="jq -r '.scripts | keys[]' ./package.json"
 alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
 
 alias git-R!="git reset --hard @{u}"
@@ -59,4 +60,25 @@ kill_all_subprocesses() {
 		kill "$i"
 		wait "$i" &> /dev/null
 	done
+}
+
+alias stats='sort | uniq -c | sort -r'
+
+alias git-stats='git log --no-merges --pretty=format:"%ae" | stats'
+# Lists the ten most used commands.
+alias history-stats="history 0 | awk '{print \$2}' | stats | head"
+
+# 4 lulz.
+compute() {
+  while true; do head -n 100 /dev/urandom; sleep 0.1; done \
+    | hexdump -C | grep "ca fe"
+}
+
+# Simple .tar archiving.
+tar_() {
+  tar -cvf "$1.tar" "$1"
+}
+
+untar() {
+  tar -xvf $1
 }
