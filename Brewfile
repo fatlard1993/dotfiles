@@ -18,6 +18,7 @@ brew "coreutils"
 brew "readline"
 brew "jq"
 brew "tree"
+brew "wget"
 brew "svn"
 
 
