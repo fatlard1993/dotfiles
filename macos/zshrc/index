@@ -1,7 +1,9 @@
 #!/bin/zsh
 ## $HOME/.zshrc
 
-zshrcPath="$HOME/.dotfiles/macos/zshenv"
+zshrcPath="$HOME/.dotfiles/macos/zshrc"
+
+alias readlink='greadlink'
 
 for file in $zshrcPath/*(.); do
 	[[ "$file" != "$zshrcPath/index" ]] && source $file
