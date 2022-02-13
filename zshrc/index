@@ -13,28 +13,6 @@ autoload -Uz compinit && compinit
 autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
-# $ git log --no-merges --pretty=format:"%ae" | stats
-# # => 514 a@example.com
-# # => 200 b@example.com
-alias stats='sort | uniq -c | sort -r'
-# Lists the ten most used commands.
-alias history-stats="history 0 | awk '{print \$2}' | stats | head"
-
-# 4 lulz.
-function compute() {
-  while true; do head -n 100 /dev/urandom; sleep 0.1; done \
-    | hexdump -C | grep "ca fe"
-}
-
-# Simple .tar archiving.
-function tar_() {
-  tar -cvf "$1.tar" "$1"
-}
-
-function untar() {
-  tar -xvf $1
-}
-
 for file in $thisPath/*(.); do
 	[[ "$file" != "$thisPath/index" ]] && source $file
 done
