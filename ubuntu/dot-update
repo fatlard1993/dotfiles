@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+(cd $ubuntuPath ; brew bundle --no-lock)
+
+# TODO switch over to skhdrc
+# echo "Linking skhd config"
+# ln -sf $profilePath/.skhdrc $HOME/.skhdrc
+
+# TODO move these into brewfile
+# apt-autoinstall curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools libusb-1.0-0-dev mlocate
+# sudo pip3 install thefuck

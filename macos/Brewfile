@@ -2,6 +2,7 @@ brew "alerter"
 brew "koekeishiya/formulae/skhd", restart_service: true
 brew "koekeishiya/formulae/yabai", restart_service: true
 
+brew "fontconfig"
 cask "robo-3t"
 cask "appcleaner"
 cask "karabiner-elements"

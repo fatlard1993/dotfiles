@@ -1,0 +1,32 @@
+# Bind |     Flag     |           Key           | Action
+
+bindsym                $mod+XF86PowerOff         $ex pc-leave reboot
+bindsym                $super+XF86PowerOff    $ex pc-leave shutdown
+
+bindsym                $mod+F1                   workspace F1
+bindsym                $mod+F2                   workspace F2
+bindsym                $mod+F3                   workspace F3
+bindsym                $mod+F4                   workspace F4
+bindsym                $mod+F5                   workspace F5
+bindsym                $mod+F6                   workspace F6
+bindsym                $mod+F7                   workspace F7
+bindsym                $mod+F8                   workspace F8
+bindsym                $mod+F9                   workspace F9
+bindsym                $mod+F10                 workspace F10
+bindsym                $mod+F11                 workspace F11
+bindsym                $mod+F12                 workspace F12
+
+bindsym                $mod+$super+F1           move container to workspace F1, workspace F1
+bindsym                $mod+$super+F2           move container to workspace F2, workspace F2
+bindsym                $mod+$super+F3           move container to workspace F3, workspace F3
+bindsym                $mod+$super+F4           move container to workspace F4, workspace F4
+bindsym                $mod+$super+F5           move container to workspace F5, workspace F5
+bindsym                $mod+$super+F6           move container to workspace F6, workspace F6
+bindsym                $mod+$super+F7           move container to workspace F7, workspace F7
+bindsym                $mod+$super+F8           move container to workspace F8, workspace F8
+bindsym                $mod+$super+F9           move container to workspace F9, workspace F9
+bindsym                $mod+$super+F10         move container to workspace F10, workspace F10
+bindsym                $mod+$super+F11         move container to workspace F11, workspace F11
+bindsym                $mod+$super+F12         move container to workspace F12, workspace F12
+
+bindsym                $super+n              $ex leafpad $dotfilesFolder/../priv-config/notes.md

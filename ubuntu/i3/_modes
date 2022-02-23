@@ -39,14 +39,14 @@ mode --pango_markup $mode_system_wallpaper {
 	bindsym space  mode default
 }
 
-set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Control]UP</span> <span weight='heavy' size='large'>[Shift|Control]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
+set $mode_system_volume "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> Volume </span>  <span weight='heavy' size='large'>[Shift|Super]UP</span> <span weight='heavy' size='large'>[Shift|Super]DOWN</span> <span weight='heavy' size='large'>M</span>ute"
 mode --pango_markup $mode_system_volume {
 	bindsym up           $ex pactl set-sink-volume $pactlSink +6% && pnotify-volume
 	bindsym down         $ex pactl set-sink-volume $pactlSink -6% && pnotify-volume
 	bindsym Shift+up     $ex pactl set-sink-volume $pactlSink +3% && pnotify-volume
 	bindsym Shift+down   $ex pactl set-sink-volume $pactlSink -3% && pnotify-volume
-	bindsym Control+up   $ex pactl set-sink-volume $pactlSink 90% && pnotify-volume
-	bindsym Control+down $ex pactl set-sink-volume $pactlSink 10% && pnotify-volume
+	bindsym $super+up   $ex pactl set-sink-volume $pactlSink 90% && pnotify-volume
+	bindsym $super+down $ex pactl set-sink-volume $pactlSink 10% && pnotify-volume
 	bindsym m            $ex pactl set-sink-mute   $pactlSink toggle
 
 	bindsym BackSpace mode $mode_system
@@ -62,7 +62,7 @@ mode --pango_markup $mode_system_leave {
 	bindsym l      mode default, $ex system-lock
 	bindsym s      $ex pc-leave shutdown
 
-	bindsym Control+Escape $ex FuckItAll
+	bindsym $super+Escape $ex FuckItAll
 
 	bindsym BackSpace mode $mode_system
 
@@ -85,7 +85,7 @@ mode --pango_markup $mode_system_i3 {
 	bindsym space  mode default
 }
 
-set $mode_system_cursor "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> KB Cursor Control </span>  <span weight='heavy' size='large'>Movement</span> Shift = slow | Control = fast :: <span weight='heavy' size='large'>Buttons</span> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Control = Release"
+set $mode_system_cursor "<span fgcolor='#e0e0e0' bgcolor='#282a2e' weight='bold' size='small'> KB Cursor Control </span>  <span weight='heavy' size='large'>Movement</span> Shift = slow | Super = fast :: <span weight='heavy' size='large'>Buttons</span> 1 = LMB 2 = CMB 3 = RMB | Shift = press | Super = Release"
 mode --pango_markup $mode_system_cursor {
 	set $slow 5
 	set $quick 20
@@ -102,15 +102,15 @@ mode --pango_markup $mode_system_cursor {
 	bindsym Up 							$ex xdotool mousemove_relative -- 0 -$quick
 	bindsym Right 					$ex xdotool mousemove_relative $quick 0
 
-	bindsym Control+Left 		$ex xdotool mousemove_relative -- -$fast 0
-	bindsym Control+Down 		$ex xdotool mousemove_relative 0 $fast
-	bindsym Control+Up 			$ex xdotool mousemove_relative -- 0 -$fast
-	bindsym Control+Right 	$ex xdotool mousemove_relative $fast 0
+	bindsym $super+Left 		$ex xdotool mousemove_relative -- -$fast 0
+	bindsym $super+Down 		$ex xdotool mousemove_relative 0 $fast
+	bindsym $super+Up 		  	$ex xdotool mousemove_relative -- 0 -$fast
+	bindsym $super+Right 	$ex xdotool mousemove_relative $fast 0
 
-	bindsym $mod+Left 			$ex xdotool mousemove_relative -- -$superFast 0
-	bindsym $mod+Down 			$ex xdotool mousemove_relative 0 $superFast
-	bindsym $mod+Up 				$ex xdotool mousemove_relative -- 0 -$superFast
-	bindsym $mod+Right 			$ex xdotool mousemove_relative $superFast 0
+	#bindsym $mod+Left 			$ex xdotool mousemove_relative -- -$superFast 0
+	#bindsym $mod+Down 			$ex xdotool mousemove_relative 0 $superFast
+	#bindsym $mod+Up 				$ex xdotool mousemove_relative -- 0 -$superFast
+	#bindsym $mod+Right 			$ex xdotool mousemove_relative $superFast 0
 
 	# Left Click
 	bindsym 1               $ex xdotool click 1
@@ -131,13 +131,13 @@ mode --pango_markup $mode_system_cursor {
 	bindsym Shift+3         $ex xdotool mousedown 3
 
 	# Left Drag release
-	bindsym Control+1       $ex xdotool mouseup 1
+	bindsym $super+1       $ex xdotool mouseup 1
 
 	# Middle Drag release
-	bindsym Control+2       $ex xdotool mouseup 2
+	bindsym $super+2       $ex xdotool mouseup 2
 
 	# Right Drag release
-	bindsym Control+3       $ex xdotool mouseup 3
+	bindsym $super+3       $ex xdotool mouseup 3
 
 	bindsym BackSpace mode $mode_system
 
@@ -247,10 +247,10 @@ mode --pango_markup $mode_launch {
 	bindsym w          $ex google-chrome, mode default
 	bindsym p          $ex nautilus -w $HOME/Downloads, $ex vlc, $ex nautilus -w $HOME/Podcasts, mode default
 
-	bindsym $mod+Left  focus left
-	bindsym $mod+Right focus right
-	bindsym $mod+Up    focus up
-	bindsym $mod+Down  focus down
+	bindsym $super+Left  focus left
+	bindsym $super+Right focus right
+	bindsym $super+Up    focus up
+	bindsym $super+Down  focus down
 
 	bindsym Down       split vertical
 	bindsym Right      split horizontal

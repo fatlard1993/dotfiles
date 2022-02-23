@@ -9,7 +9,6 @@ tap "mongodb/brew"
 
 # Misc
 brew "thefuck"
-brew "fontconfig"
 brew "imagemagick"
 brew "xclip"
 brew "arp-scan"

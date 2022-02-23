@@ -1,13 +1,13 @@
 #!/bin/zsh
 
-thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
-
 export EDITOR='/usr/local/bin/code'
 export VISUAL='/usr/local/bin/code'
 export PAGER='less'
 
-for file in $thisPath/*(.); do
-	[[ "$file" != "$thisPath/index" ]] && source $file
+zshenvPath="$HOME/.dotfiles/zshenv"
+
+for file in $zshenvPath/*(.); do
+	[[ "$file" != "$zshenvPath/index" ]] && source $file
 done
 
 for file in $HOME/.zshenv.d/*; source $file

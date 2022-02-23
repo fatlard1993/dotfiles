@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+zshenvPath="$HOME/.dotfiles/ubuntu/zshenv"
+
+for file in $zshenvPath/*(.); do
+	[[ "$file" != "$zshenvPath/index" ]] && source $file
+done
+
+source "$HOME/.dotfiles/zshenv/index"

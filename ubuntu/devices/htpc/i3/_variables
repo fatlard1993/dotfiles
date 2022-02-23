@@ -1,8 +1,0 @@
-set $fontSize 16
-set $borderSize 4
-set $pactlSink 0
-
-set $mod			Mod4
-
-# HDMI-1 = miniHDMI
-set $mainDisplay HDMI-1
