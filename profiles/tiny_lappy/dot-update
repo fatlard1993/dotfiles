@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+[[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
+
+$ubuntuPath/dot-update
+
+(cd $profilePath ; brew bundle --no-lock)

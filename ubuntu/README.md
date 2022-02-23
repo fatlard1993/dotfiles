@@ -1,22 +1,16 @@
-# dotfiles
-
-my collection of configs, scripts and various dotfiles
-
-## Install
-
-```DIR=~/Projects && mkdir -p $DIR && cd $DIR && git clone https://github.com/fatlard1993/dotfiles.git && ./dotfiles/scripts/dotfiles-update```
-
-
-## Google Chrome
-
-https://www.google.com/chrome/browser/desktop/index.html
-```sudo dpkg -i ~/Downloads/google-chrome-stable*.deb; sudo apt install -f -y```
-
-
 ## Save gnome-terminal profile
 
 1) get id: ``` dconf dump /org/gnome/terminal/legacy/profiles:/ | grep -e "\[\:\|visible-name" ```
 2) run: ``` dconf dump /org/gnome/terminal/legacy/profiles:/:<id>/ > $DOTFILES/temp/<name>.dconf ```
+
+Haven't figured out how to set these automatically yet:
+
+"Edit" -> "Keyboard Shortcuts..." and map:
+
+"Copy" action to Ctrl + C and "Paste" to Ctrl + V. The interrupt command will automatically be remapped to Ctrl + Shift + C
+"New Window" action to "Ctrl+N"
+"Close Window" action to "Ctrl+w"
+"Select All" action to "Ctrl+a"
 
 ## VS code
 

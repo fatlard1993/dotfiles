@@ -88,38 +88,38 @@ $profilePath/dot-update
 echo "Configuring priv-config"
 $dotfilesPath/../priv-config/update
 
-if [[ ! -a $HOME/Projects/home-page ]]; then
-	echo "Installing home-page"
+# if [[ ! -a $HOME/Projects/home-page ]]; then
+# 	echo "Installing home-page"
 
-	(
-		cd $HOME/Projects
+# 	(
+# 		cd $HOME/Projects
 
-		git clone https://github.com/fatlard1993/home-page
+# 		git clone https://github.com/fatlard1993/home-page
 
-		cd $HOME/Projects/home-page
+# 		cd $HOME/Projects/home-page
 
-		npm i
+# 		npm i
 
-		pm2 start --name home-page ./src/server/index.js
+# 		pm2 start --name home-page ./src/server/index.js
 
-		pm2 save
-	)
-else
-	echo "Updating home-page"
+# 		pm2 save
+# 	)
+# else
+# 	echo "Updating home-page"
 
-	(
-		pm2 stop home-page
+# 	(
+# 		pm2 stop home-page
 
-		cd $HOME/Projects/home-page
+# 		cd $HOME/Projects/home-page
 
-		git pull
+# 		git pull
 
-		rm -rf ./node_modules
+# 		rm -rf ./node_modules
 
-		npm i
+# 		npm i
 
-		pm2 start home-page
+# 		pm2 start home-page
 
-		pm2 save
-	)
-fi
+# 		pm2 save
+# 	)
+# fi
