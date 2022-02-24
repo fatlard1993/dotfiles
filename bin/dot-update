@@ -54,11 +54,11 @@ ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
 echo "Configuring profile"
 $profilePath/dot-update
 
-brew update
+# brew update
 
-brew tap homebrew/bundle
+# brew tap homebrew/bundle
 
-(cd $dotfilesPath ; brew bundle --no-lock)
+# (cd $dotfilesPath ; brew bundle --no-lock)
 
 if [[ ! -a $HOME/.nvm ]]; then
 	echo "Installing NVM"

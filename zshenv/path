@@ -17,3 +17,6 @@ PATH="$PATH:$PWD/node_modules/.bin"
 
 # NPM Bin
 PATH="$PATH:$HOME/.npm-global/bin"
+
+# Local User Bin
+PATH="$PATH:$HOME/.local/bin"

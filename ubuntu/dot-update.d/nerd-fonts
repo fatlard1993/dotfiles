@@ -1,0 +1,45 @@
+#!/bin/zsh
+
+fonts=(
+BitstreamVeraSansMono
+CodeNewRoman
+DroidSansMono
+FiraCode
+FiraMono
+Go-Mono
+Hack
+Hermit
+JetBrainsMono
+Meslo
+Noto
+Overpass
+ProggyClean
+RobotoMono
+SourceCodePro
+SpaceMono
+Ubuntu
+UbuntuMono
+)
+
+version='2.1.0'
+fonts_dir="$HOME/.local/share/fonts"
+
+mkdir -p $fonts_dir/.downloaded
+
+for font in $fonts; do
+	[[ -e "$fonts_dir/.downloaded/$font" ]] || {
+        zip_file="$font.zip"
+        download_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v$version/$zip_file"
+
+        echo "Downloading $download_url"
+
+        wget "$download_url"
+        unzip "$zip_file" -d "$fonts_dir"
+        rm "$zip_file"
+        echo "1" > $fonts_dir/.downloaded/$font
+    }
+done
+
+find "$fonts_dir" -name '*Windows Compatible*' -delete
+
+fc-cache -fv

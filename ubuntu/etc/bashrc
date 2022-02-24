@@ -1,3 +1,0 @@
-for file in $DOTFILES/bashrc/*; do
-	if [ -f $file ]; then source $file; fi
-done

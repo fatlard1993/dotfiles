@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+[[ `dconf read /org/gnome/terminal/legacy/profiles:/list` = "" ]] && {
+	echo "Setting up gnome-terminal"
+
+	dconf_folder=/org/gnome/terminal/legacy/profiles:
+
+	dconf reset -f $dconf_folder/
+
+	new_id="$(uuidgen)"
+	list="['$new_id']"
+
+	dconf write $dconf_folder/list "$list"
+	dconf write "$dconf_folder/:$new_id"/visible-name "'Tomorrow Night'"
+
+	dconf load $dconf_folder/:$new_id/ < $ubuntuPath/tomorrow_night_gnome_terminal.dconf
+
+	dconf write $dconf_folder/default "'$new_id'"
+}
