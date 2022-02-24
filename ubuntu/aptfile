@@ -1,12 +1,12 @@
 #!/usr/bin/env aptfile
 
 ppa "maarten-baert/simplescreenrecorder"
+ppa "yurivkhan/kitty"
 
 update
 
 package "build-essential"
 package "software-properties-common"
-package "git-core"
 package "curl"
 package "dnsmasq"
 package "whois"
@@ -49,3 +49,5 @@ package "libcanberra-gtk-module"
 package "libcanberra-gtk3-module"
 package "ffmpeg"
 package "rofi"
+
+package "kitty"

@@ -2,10 +2,6 @@
 
 export DOTFILES=$(cd $(dirname $(readlink -f $0))/.. && pwd)
 
-source $DOTFILES/scripts/dotfiles-update-bashrc
-
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $DOTFILES/temp
-
 groupsToAdd="input dialout"
 
 echo "Adding $USER to groups: $groupsToAdd"
@@ -52,12 +48,6 @@ fi
 
 apt-autoupdate
 
-echo "Installing apt packages"
-
-apt-autoinstall curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools libusb-1.0-0-dev mlocate
-
-sudo pip3 install thefuck
-
 if [ ! -s "$HOME/.nvm" ]; then
 	echo "Installing NVM"
 
@@ -75,49 +65,6 @@ if [ ! -s "$HOME/.nvm" ]; then
 	npm=/usr/local/bin/npm
 
 	sudo setcap 'cap_net_bind_service=+ep' `readlink -f /usr/local/bin/node`
-fi
-
-echo "Installing global npm packages"
-
-globalNpmPackages="pm2"
-
-for package in $globalNpmPackages; do
-	npm list -g | grep $package || npm i -g $package
-done
-
-echo "Running device-specific update"
-
-$DOTFILES/devices/$DOTFILES_DEVICE/update
-
-if [ ! -s "$DOTFILES/temp/.dnsmasqSetup" ]; then
-	echo "Setting up dnsmasq"
-
-	sudo groupadd -r dnsmasq
-
-	sudo service resolvconf stop
-
-	sudo update-rc.d resolvconf remove
-
-	sudo systemctl stop systemd-resolved
-	sudo systemctl disable systemd-resolved
-
-	sudo ln -sf $DOTFILES/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
-	sudo ln -sf $DOTFILES/dnsmasq/resolv.personal /etc/resolv.personal
-	sudo ln -sf $DOTFILES/dnsmasq/hosts.adblock /etc/hosts.adblock
-	sudo ln -sf $DOTFILES/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
-	sudo ln -sf $DOTFILES/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
-
-	sudo systemctl enable dnsmasq
-
-	sudo service network-manager restart
-
-	sudo service dnsmasq restart
-
-	sudo systemctl restart dnsmasq
-
-	sudo ln -sf /var/run/NetworkManager/resolv.conf /etc/resolv.conf
-
-	echo "1" > $DOTFILES/temp/.dnsmasqSetup
 fi
 
 echo "Cleaning apt packages"

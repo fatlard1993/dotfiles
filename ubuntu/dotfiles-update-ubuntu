@@ -1,0 +1,26 @@
+#!/bin/zsh
+
+if [ ! -s /etc/apt/sources.list.d/vscode.list ]; then
+	# Install vscode prerequisites
+	curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+
+	sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/
+
+	sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+
+	addedRepo=true
+fi
+
+if [ "$addedRepo" ]; then sudo apt update -y; fi
+
+echo "Purgeing unwanted default  apt packages"
+
+apt-autopurge totem thunderbird
+
+if [ ! -s "$DOTFILES/temp/.dunstSetup" ]; then
+	echo "Setting up dunst"
+
+	mkdir -p $HOME/.config/dunst
+
+	ln -sf $DOTFILES/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
+fi

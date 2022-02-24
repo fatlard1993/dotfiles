@@ -2,6 +2,3 @@
 
 # GNU Coreutils Bin
 # PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
-
-# brew
-PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"

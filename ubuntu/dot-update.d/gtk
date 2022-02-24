@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+if [ ! -s "$HOME/.dotfiles/temp/.gtkSetup" ]; then
+	echo "Setting gtk dark preference"
+
+	echo -e "[Settings]\ngtk-application-prefer-dark-theme=1" > $HOME/.config/gtk-3.0/settings.ini
+
+	echo "1" > $HOME/.dotfiles/temp/.gtkSetup
+fi

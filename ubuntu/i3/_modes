@@ -180,7 +180,7 @@ mode --pango_markup $mode_system {
 	bindsym b       mode $mode_system_backlight
 	bindsym c       mode $mode_system_cursor
 	bindsym f       mode default, $ex ram-clear
-	bindsym u       mode default, $ex (cd $dotfilesFolder && git pull && gnome-terminal --role="update" -- dotfiles-update)
+	bindsym u       mode default, $ex (cd $dotfilesPath && git pull && gnome-terminal --role="update" -- dot-update)
 	bindsym i       mode $mode_system_i3
 	bindsym l       mode $mode_system_leave
 	bindsym r       $ex i3-msg [class=".*"] kill && sleep 1 && reboot

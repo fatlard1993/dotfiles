@@ -1,0 +1,17 @@
+#!/bin/zsh
+
+mkdir -p $HOME/Projects/external
+
+[[ -d "$HOME/Projects/external/libinput-gestures" ]] || (
+	echo "Installing libinput-gestures"
+
+	cd $HOME/Projects/external
+
+	git clone https://github.com/bulletmark/libinput-gestures.git
+
+	cd ./libinput-gestures
+
+	sudo make install
+
+	libinput-gestures-setup autostart
+)

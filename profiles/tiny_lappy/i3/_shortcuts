@@ -29,4 +29,4 @@ bindsym                $mod+$super+F10         move container to workspace F10, 
 bindsym                $mod+$super+F11         move container to workspace F11, workspace F11
 bindsym                $mod+$super+F12         move container to workspace F12, workspace F12
 
-bindsym                $super+n              $ex leafpad $dotfilesFolder/../priv-config/notes.md
+bindsym                $super+n              $ex leafpad $dotfilesPath/../priv-config/profiles/personal/notes.md
