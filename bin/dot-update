@@ -41,6 +41,7 @@ mkdir -p $HOME/.zshrc.d $HOME/.zshenv.d
 
 ln -sf $profilePath/.zshenv $HOME/.zshenv
 ln -sf $profilePath/.zshrc $HOME/.zshrc
+ln -sf $profilePath/.zprofile $HOME/.zprofile
 
 echo "Linking kitty config"
 mkdir -p $HOME/.config/kitty
@@ -50,11 +51,8 @@ echo "Linking vscode argv config"
 mkdir -p $HOME/.vscode
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
 
-if [[ ! -a $(which brew) ]]; then
-	echo "Installing brew"
-
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
+echo "Configuring profile"
+$profilePath/dot-update
 
 brew update
 
@@ -70,7 +68,7 @@ fi
 
 source "$dotfilesPath/zshrc/nvm"
 
-$binPath/nvm-use ${GLOBAL_NODE_VERSION:-12}
+$binPath/nvm-use ${GLOBAL_NODE_VERSION:-14}
 
 echo "Installing global npm packages"
 
@@ -81,9 +79,6 @@ for package in $globalNpmPackages; do
 done
 
 pm2 update
-
-echo "Configuring profile"
-$profilePath/dot-update
 
 echo "Configuring priv-config"
 $dotfilesPath/../priv-config/update
