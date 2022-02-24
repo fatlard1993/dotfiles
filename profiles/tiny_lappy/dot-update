@@ -2,8 +2,20 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-[[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
-
 $ubuntuPath/dot-update
 
-(cd $profilePath ; brew bundle --no-lock)
+(cd $profilePath ; sudo aptfile)
+
+echo "Updating grub"
+
+sudo ln -sf $profilePath/etc/grub /etc/default/grub
+
+sudo update-grub2
+
+echo "Linking libinput-gestures config"
+
+cp $profilePath/libinput-gestures.conf $HOME/.config/
+
+echo "Linking wallpaper config"
+
+ln -sf $profilePath/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits

@@ -2,12 +2,24 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-(cd $ubuntuPath ; brew bundle --no-lock)
+[[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
+
+if [[ ! -a  /usr/local/bin/aptfile ]]; then
+	echo "Installing aptfile"
+
+  curl -o /usr/local/bin/aptfile https://raw.githubusercontent.com/seatgeek/bash-aptfile/master/bin/aptfile
+
+	chmod +x /usr/local/bin/aptfile
+fi
+
+(cd $ubuntuPath ; sudo aptfile)
 
 # TODO switch over to skhdrc
 # echo "Linking skhd config"
 # ln -sf $profilePath/.skhdrc $HOME/.skhdrc
 
-# TODO move these into brewfile
-# apt-autoinstall curl dnsmasq whois software-properties-common build-essential make autoconf automake speedtest-cli openssh-server arp-scan youtube-dl cu net-tools postfix mailutils uuid-runtime gparted pv python3-dev python3-pip python3-setuptools libusb-1.0-0-dev mlocate
-# sudo pip3 install thefuck
+sudo pip3 install thefuck
+
+echo "Setting up lockscreen"
+
+sudo ln -sf $ubuntuPath/lock.png $HOME/.config/i3/lock.png

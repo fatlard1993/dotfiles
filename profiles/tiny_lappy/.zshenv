@@ -1,6 +1,7 @@
+#!/bin/zsh
 ## $HOME/.zshenv
 
-source "$HOME/.dotfiles/macos/zshenv/index"
+source "$HOME/.dotfiles/ubuntu/zshenv/index"
 
 ## PRIV-CONFIG
-[[ -f $HOME/Projects/priv-config/devices/macbook_pro/.zshenv ]] && source $HOME/Projects/priv-config/devices/macbook_pro/.zshenv
+[[ -f $HOME/Projects/priv-config/devices/tiny_lappy/.zshenv ]] && source $HOME/Projects/priv-config/devices/tiny_lappy/.zshenv
