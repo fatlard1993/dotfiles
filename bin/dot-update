@@ -43,10 +43,6 @@ ln -sf $profilePath/.zshenv $HOME/.zshenv
 ln -sf $profilePath/.zshrc $HOME/.zshrc
 ln -sf $profilePath/.zprofile $HOME/.zprofile
 
-echo "Linking kitty config"
-mkdir -p $HOME/.config/kitty
-ln -sf $dotfilesPath/kitty.conf $HOME/.config/kitty/kitty.conf
-
 echo "Linking vscode argv config"
 mkdir -p $HOME/.vscode
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json

@@ -4,7 +4,7 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 [[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
 
-if [[ ! -a  $HOME/.local/bin/aptfile ]]; then
+[[ ! -a  $HOME/.local/bin/aptfile ]] && {
 	echo "Installing aptfile"
 
 	mkdir -p $HOME/.local/bin
@@ -12,37 +12,20 @@ if [[ ! -a  $HOME/.local/bin/aptfile ]]; then
   curl -o $HOME/.local/bin/aptfile https://raw.githubusercontent.com/seatgeek/bash-aptfile/master/bin/aptfile
 
 	chmod +x $HOME/.local/bin/aptfile
-fi
-
-(cd $ubuntuPath ; sudo aptfile)
+}
 
 # TODO switch over to skhdrc
 # echo "Linking skhd config"
 # ln -sf $profilePath/.skhdrc $HOME/.skhdrc
 
-sudo pip3 install thefuck
+echo "Expanding file limits"
 
-echo "Setting up lockscreen"
+ulimit -Sn unlimited
+ulimit -Sl unlimited
 
-sudo ln -sf $ubuntuPath/lock.png $HOME/.config/i3/lock.png
+echo "Purgeing unwanted default apt packages"
 
-echo "Linking rofi config"
+apt-autopurge totem thunderbird
 
-mkdir -p $HOME/.config/rofi
-ln -sf $ubuntuPath/rofi/config $HOME/.config/rofi/config
 
-echo "Autoinstalling drivers"
-
-sudo ubuntu-drivers autoinstall
-
-if [ ! -s /etc/sudo.conf ]; then
-	echo "Generating sudo.conf"
-
-	echo "Path askpass $DOTFILES/scripts/zenity-askpass" | sudo tee /etc/sudo.conf
-fi
-
-dotUpdatePath="$ubuntuPath/dot-update.d"
-
-for file in $dotUpdatePath/*(.); do
-	[[ "$file" != "$dotUpdatePath/index" ]] && source $file
-done
+for file in $ubuntuPath/dot-update.d/*(.); source $file

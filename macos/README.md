@@ -55,9 +55,7 @@
 ## Todo
 
 - CMD + arrow keys to focus windows
-- Option + arrow keys in terminal to hop words
-- Option + delete key in terminal to delete word
-- Home and End keys in terminal
+- Home and End keys in web browser scroll instead of moving selector to end of line
 
 
 ## [Karabiner](https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-)

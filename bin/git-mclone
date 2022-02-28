@@ -1,6 +1,6 @@
 #!/bin/bash
 
-GITHUB_PREFIX=https://github.com/
+GITHUB_URL=https://github.com/
 GITHUB_USERNAME=$(git config --global github.user)
 
 if [ -n "$GITHUB_USERNAME" ]; then
@@ -41,9 +41,9 @@ fi
 for repo in $@; do
 	if [ `awk -v repo="$repo" -v delimit="/" 'BEGIN{print index(repo,delimit)}'` -ne 0 ]; then
 		echo "Pulling in $repo";
-		git clone $GITHUB_PREFIX$repo
+		git clone $GITHUB_URL$repo
 	else
 		echo "Pulling in $USERNAME/$repo";
-		git clone $GITHUB_PREFIX$USERNAME/$repo
+		git clone $GITHUB_URL$USERNAME/$repo
 	fi
 done
