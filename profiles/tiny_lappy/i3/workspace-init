@@ -3,10 +3,10 @@
 export apps=(
 	"nautilus -w $HOME/Projects"
 	"nautilus -w $HOME/Downloads"
-	"gnome-terminal --working-directory $HOME/Projects"
-	"gnome-terminal --working-directory $HOME/Projects"
-	"i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
-	"i3-msg focus left && i3-msg split vertical && gnome-terminal --working-directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"i3-msg split vertical && kitty --directory $HOME/Projects"
+	"i3-msg focus left && i3-msg split vertical && kitty --directory $HOME/Projects"
 	"code -n"
 	"google-chrome"
 )

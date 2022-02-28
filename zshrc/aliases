@@ -47,6 +47,9 @@ alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
 
 alias git-R!="git reset --hard @{u}"
 
+vissh() { [ "$1" == "" ] && nano $HOME/.ssh/config || nano $HOME/.ssh/config.d/$1 }
+vigit() { git config -e }
+
 mcd() { mkdir -p "$@" && cd "$_" }
 
 cmd_exists() {

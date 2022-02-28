@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+[[ `which fuck` =~ "not found" ]] && sudo pip3 install thefuck

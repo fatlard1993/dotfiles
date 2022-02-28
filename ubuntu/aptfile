@@ -37,7 +37,6 @@ package "default-jre"
 package "dconf-tools"
 package "simplescreenrecorder"
 package "code"
-package "gnome-terminal"
 package "nautilus"
 package "libinput-tools"
 package "pavucontrol"
@@ -51,3 +50,23 @@ package "ffmpeg"
 package "rofi"
 
 package "kitty"
+
+
+echo "Upgrading apt packages"
+
+apt update --fix-missing
+
+dpkg --configure -a
+
+apt upgrade -y
+
+apt install --fix-broken -y
+
+
+echo "Cleaning apt packages"
+
+apt upgrade -y
+
+apt autoremove --purge -y
+
+apt clean

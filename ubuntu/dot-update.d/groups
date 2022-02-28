@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+groupsToAdd=(input dialout)
+
+echo "Adding $USER to groups: $groupsToAdd"
+
+for group in $groupsToAdd; do
+	sudo adduser $USER $group
+done

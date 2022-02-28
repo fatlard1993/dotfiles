@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+[[ `git config --global user.name` = "" ]] && {
+	echo "Setting up global git username"
+
+	read -p "Enter your git user.name: " username; git config --global user.name $username
+}
+
+[[ `git config --global user.email` = "" ]] && {
+	echo "Setting up global git email"
+
+	read -p "Enter your git user.email: " email; git config --global user.email $email
+
+	git config --global credential.helper cache
+	git config --global credential.helper 'cache --timeout=3600'
+}
