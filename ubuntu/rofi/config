@@ -1,0 +1,24 @@
+rofi.modi:                           window,windowcd,run,drun,ssh
+rofi.font:                           mono 12
+rofi.dpi:                            0
+rofi.width:                          60
+rofi.lines:                          10
+rofi.kb-row-tab:                     Alt+Tab
+rofi.kb-accept-entry:                Return,KP_Enter,Tab
+rofi.kb-cancel:                      Escape,Super_L
+rofi.kb-move-word-back:              Control+Left
+rofi.kb-move-word-forward:           Control+Right
+rofi.kb-remove-word-forward:         Control+Delete
+rofi.kb-mode-next:                   Control+Tab
+rofi.kb-mode-previous:               Control+Shift+Tab
+rofi.kb-select-1:                    Control+1
+rofi.kb-select-2:                    Control+2
+rofi.kb-select-3:                    Control+3
+rofi.kb-select-4:                    Control+4
+rofi.kb-select-5:                    Control+5
+rofi.kb-select-6:                    Control+6
+rofi.kb-select-7:                    Control+7
+rofi.kb-select-8:                    Control+8
+rofi.kb-select-9:                    Control+9
+rofi.kb-select-10:                   Control+0
+rofi.theme:                          ~/.dotfiles/ubuntu/rofi/theme.rasi

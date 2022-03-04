@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+[[ ! -s /etc/inputrc.bkup ]] && {
+	echo "Backing up default inputrc"
+	sudo cp /etc/inputrc /etc/inputrc.bkup
+
+	echo "Extending inputrc"
+	echo -e "\n\"\C-h\": backward-kill-word" | sudo tee -a /etc/inputrc
+	echo -e "\"\\\e[3;5~\": kill-word\n" | sudo tee -a /etc/inputrc
+}

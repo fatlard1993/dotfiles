@@ -1,3 +1,0 @@
-#!/bin/bash
-
-alias arps='sudo arp-scan -l'

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+screenCap=$HOME/.config/i3/.screen_locked.png
+lockImg=$HOME/.dotfiles/ubuntu/lock.png
+
+scrot -o $screenCap && convert $screenCap -blur 8x8 $screenCap
+
+if [ -f $lockImg ]; then
+	composite -blend 40 $lockImg $screenCap $screenCap
+fi
+
+i3lock -i $screenCap

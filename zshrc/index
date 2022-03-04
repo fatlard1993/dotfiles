@@ -1,7 +1,5 @@
 #!/bin/zsh
 
-thisPath=`dirname ${BASH_SOURCE[0]:-${(%):-%x}}`
-
 unsetopt nomatch
 
 fpath=($HOME/.dotfiles/zshcompletion $fpath)
@@ -13,8 +11,10 @@ autoload -Uz compinit && compinit
 autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
-for file in $thisPath/*(.); do
-	[[ "$file" != "$thisPath/index" ]] && source $file
+zshrcPath="$HOME/.dotfiles/zshrc"
+
+for file in $zshrcPath/*(.); do
+	[[ "$file" != "$zshrcPath/index" ]] && source $file
 done
 
 for file in $HOME/.zshrc.d/*; source $file

@@ -1,0 +1,10 @@
+set $fontSize 6
+set $borderSize 2
+set $pactlSink 0
+
+set $super Mod4
+set $alt			Mod1
+set $mod			Control
+
+set $mainDisplay eDP1
+set $secondaryDisplay DP1

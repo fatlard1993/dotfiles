@@ -1,0 +1,12 @@
+#!/usr/bin/env aptfile
+
+update
+
+package "gimp"
+package "gpick"
+package "code"
+package "vlc"
+package "mpv"
+package "mongodb"
+package "onboard"
+package "android-tools-adb"

@@ -1,0 +1,32 @@
+#!/bin/zsh
+
+[[ -f $HOME/.dotfiles/temp/.dnsmasqSetup ]] || {
+	echo "Setting up dnsmasq"
+
+	sudo groupadd -r dnsmasq
+
+	sudo service resolvconf stop
+
+	sudo update-rc.d resolvconf remove
+
+	sudo systemctl stop systemd-resolved
+	sudo systemctl disable systemd-resolved
+
+	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
+	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
+	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
+	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
+
+	sudo systemctl enable dnsmasq
+
+	sudo service network-manager restart
+
+	sudo service dnsmasq restart
+
+	sudo systemctl restart dnsmasq
+
+	sudo ln -sf /var/run/NetworkManager/resolv.conf /etc/resolv.conf
+
+	echo "1" > $HOME/.dotfiles/temp/.dnsmasqSetup
+}

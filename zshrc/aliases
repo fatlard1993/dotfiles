@@ -20,9 +20,9 @@ alias perms="stat -f '%A - %N'"
 alias sudo='sudo '
 
 # IP addresses
-alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
-alias localip="ipconfig getifaddr en0"
-alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+# alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
+# alias localip="ipconfig getifaddr en0"
+# alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
 
 alias arps='sudo arp-scan -l'
 
@@ -46,6 +46,9 @@ alias npm-ls="jq -r '.scripts | keys[]' ./package.json"
 alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
 
 alias git-R!="git reset --hard @{u}"
+
+vissh() { [ "$1" == "" ] && nano $HOME/.ssh/config || nano $HOME/.ssh/config.d/$1 }
+vigit() { git config -e }
 
 mcd() { mkdir -p "$@" && cd "$_" }
 

@@ -3,41 +3,41 @@
 # Containers
 
 ## Split
-bindsym                $mod+Shift+Down       split vertical
-bindsym                $mod+Shift+Right      split horizontal
+bindsym                $super+Shift+Down       split vertical
+bindsym                $super+Shift+Right     split horizontal
 
 ## Focus within current workspace
-bindsym                $mod+Left             focus left
-bindsym                $mod+Right            focus right
-bindsym                $mod+Up               focus up
-bindsym                $mod+Down             focus down
+bindsym                $super+Left             focus left
+bindsym                $super+Right           focus right
+bindsym                $super+Up                  focus up
+bindsym                $super+Down             focus down
 
 ## Move within current workspace
-bindsym                $mod+Control+Left     move left
-bindsym                $mod+Control+Right    move right
-bindsym                $mod+Control+Up       move up
-bindsym                $mod+Control+Down     move down
+bindsym                $mod+$super+Left    move left
+bindsym                $mod+$super+Right  move right
+bindsym                $mod+$super+Up         move up
+bindsym                $mod+$super+Down    move down
 
 ## Move to workspace
-bindsym                $mod+Control+1        move container to workspace number 1, workspace number 1
-bindsym                $mod+Control+2        move container to workspace number 2, workspace number 2
-bindsym                $mod+Control+3        move container to workspace number 3, workspace number 3
-bindsym                $mod+Control+4        move container to workspace number 4, workspace number 4
-bindsym                $mod+Control+5        move container to workspace number 5, workspace number 5
-bindsym                $mod+Control+6        move container to workspace number 6, workspace number 6
-bindsym                $mod+Control+Tab      move container to workspace back_and_forth, workspace back_and_forth
-bindsym                $mod+Control+comma    $ex i3d.js container strafe left
-bindsym                $mod+Control+period   $ex i3d.js container strafe right
+bindsym                $mod+$super+1              move container to workspace number 1, workspace number 1
+bindsym                $mod+$super+2              move container to workspace number 2, workspace number 2
+bindsym                $mod+$super+3              move container to workspace number 3, workspace number 3
+bindsym                $mod+$super+4              move container to workspace number 4, workspace number 4
+bindsym                $mod+$super+5              move container to workspace number 5, workspace number 5
+bindsym                $mod+$super+6              move container to workspace number 6, workspace number 6
+bindsym                $mod+$super+Tab         move container to workspace back_and_forth, workspace back_and_forth
+bindsym                $mod+$super+comma    $ex i3d.js container strafe left
+bindsym                $mod+$super+period  $ex i3d.js container strafe right
 
 ## Float
-bindsym                $mod+Control+f        unmark, floating toggle
-bindsym                $mod+Shift+s          sticky toggle
+bindsym                $mod+$super+f       unmark, floating toggle
+bindsym                $mod+$super+s       sticky toggle
 
 ## Resize
-bindsym                $mod+plus             resize grow   height 10 px or 10 ppt, resize grow   width 10 px or 10 ppt
-bindsym                $mod+minus            resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
-bindsym                $mod+Shift+plus       resize grow   height 5 px or 5 ppt,   resize grow   width 5 px or 5 ppt
-bindsym                $mod+Shift+minus      resize shrink height 5 px or 5 ppt,   resize shrink width 5 px or 5 ppt
+bindsym                $super+plus                     resize grow   height 10 px or 10 ppt, resize grow   width 10 px or 10 ppt
+bindsym                $super+minus                   resize shrink height 10 px or 10 ppt, resize shrink width 10 px or 10 ppt
+bindsym                $super+Shift+plus       resize grow   height 5 px or 5 ppt,   resize grow   width 5 px or 5 ppt
+bindsym                $super+Shift+minus     resize shrink height 5 px or 5 ppt,   resize shrink width 5 px or 5 ppt
 
 # Workspaces
 
@@ -48,38 +48,38 @@ bindsym                $mod+3                workspace number 3
 bindsym                $mod+4                workspace number 4
 bindsym                $mod+5                workspace number 5
 bindsym                $mod+6                workspace number 6
-bindsym                $mod+Tab              workspace back_and_forth
-bindsym                $mod+comma            workspace prev
-bindsym                $mod+period           workspace next
+bindsym                $super+Tab       workspace back_and_forth
+bindsym                $super+comma   workspace prev
+bindsym                $super+period workspace next
 
 
 # Scratchpads
 
-## Move
-bindsym                $mod+Control+7        $ex i3d.js container addToScratchpad 7
-bindsym                $mod+Control+8        $ex i3d.js container addToScratchpad 8
-bindsym                $mod+Control+9        $ex i3d.js container addToScratchpad 9
-
 ## View
-bindsym                $mod+7                $ex i3d.js scratchpad show 7
-bindsym                $mod+8                $ex i3d.js scratchpad show 8
-bindsym                $mod+9                $ex i3d.js scratchpad show 9
+bindsym                $super+7                $ex i3d.js scratchpad show 7
+bindsym                $super+8                $ex i3d.js scratchpad show 8
+bindsym                $super+9                $ex i3d.js scratchpad show 9
+
+## Move
+bindsym                $mod+$super+7        $ex i3d.js container addToScratchpad 7
+bindsym                $mod+$super+8        $ex i3d.js container addToScratchpad 8
+bindsym                $mod+$super+9        $ex i3d.js container addToScratchpad 9
 
 ## Etc
-bindsym                $mod+0                $ex i3d.js scratchpad hide
-bindsym                $mod+Control+0        $ex i3d.js scratchpad dump
+bindsym                $super+0                   $ex i3d.js scratchpad hide
+bindsym                $mod+$super+0       $ex i3d.js scratchpad dump
 
 
 # Etc
 
-bindsym                $mod+space            $ex rofi -show drun -show-icons=true
-bindsym                $mod+r                $ex rofi -show run
-bindsym                $mod+Control+s        $ex rofi -show ssh
+bindsym                $mod+space                 $ex rofi -show drun -show-icons=true
+bindsym                $super+r                      $ex rofi -show run
+#bindsym                $mod+$super+s        $ex rofi -show ssh
 bindsym                $mod+Shift+Tab        $ex rofi -show window
 
-bindsym                $mod+grave            $ex terminal-smart
+bindsym                $super+grave            $ex terminal-smart
 
-bindsym                $mod+Control+o        $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
+bindsym                $mod+$super+o        $ex $overwatchYouTubeURL $($getText"Overwatch YouTube URL")
 
 
 # Function keys
@@ -87,10 +87,10 @@ bindsym                $mod+Control+o        $ex $overwatchYouTubeURL $($getText
 ## Volume
 bindsym                XF86AudioRaiseVolume  $ex pactl set-sink-volume $pactlSink +6% && pnotify-volume
 bindsym                XF86AudioLowerVolume  $ex pactl set-sink-volume $pactlSink -6% && pnotify-volume
-bindsym                XF86AudioMute         $ex pactl set-sink-mute   $pactlSink toggle
+bindsym                XF86AudioMute                   $ex pactl set-sink-mute   $pactlSink toggle
 
 ## Backlight
-bindsym                XF86MonBrightnessUp   $ex xbacklight -inc 10 -time 10 && pnotify-brightness
+bindsym                XF86MonBrightnessUp      $ex xbacklight -inc 10 -time 10 && pnotify-brightness
 bindsym                XF86MonBrightnessDown $ex xbacklight -dec 10 -time 10 && pnotify-brightness
 
 ## Etc
@@ -108,27 +108,20 @@ bindsym --whole-window $mod+button3          floating toggle
 # Experimental
 
 ## Mac-like
-bindsym --release      $mod+s                $ex pc-press-key "ctrl+s"
-bindsym --release      $mod+Shift+s          $ex pc-press-key "ctrl+shift+s"
-bindsym --release      $mod+f                $ex pc-press-key "ctrl+f"
-bindsym --release      $mod+Shift+f          $ex pc-press-key "ctrl+shift+f"
-bindsym --release      $mod+x                $ex pc-press-key "ctrl+x"
-bindsym --release      $mod+z                $ex pc-press-key "ctrl+z"
-bindsym                $mod+w                kill
-bindsym                $mod+q                $ex i3-msg [class="`i3-window-active-class`"] kill
-bindsym                $mod+Shift+q          [class=".*"] kill
-bindsym --release      $mod+c                $ex pc-copy-paste c
-bindsym --release      $mod+v                $ex pc-copy-paste v
+#bindsym                 $mod+backspace                       $ex pc-press-key "Delete"
 
+bindsym                $super+w                kill
+bindsym                $super+q                $ex i3-msg [class="`i3-window-active-class`"] kill
+bindsym                $mod+$super+q   [class=".*"] kill
 
 ## Misc
-bindsym --release      $mod+Left             $ex pc-press-key "Home"
-bindsym --release      $mod+Right            $ex pc-press-key "End"
+bindsym --release      $super+Left             $ex pc-press-key "Home"
+bindsym --release      $super+Right           $ex pc-press-key "End"
 
-bindsym                $mod+Control+v        $ex rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
+bindsym                             $mod+$super+v        $ex rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
 
-bindsym --release      $mod+p                $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
+#bindsym --release     $super+p                    $ex xdotool type --clearmodifiers --delay 40 `xclip -selection c -out`
 
 
 ## Dev
-bindsym                $mod+Control+Shift+c  $ex i3-window-active-class gui
+#bindsym                $mod+$super+Shift+c  $ex i3-window-active-class gui
