@@ -1,5 +1,0 @@
-order += "ethernet _first_"
-order += "wireless _first_"
-order += "disk /"
-order += "volume master"
-order += "time"

@@ -1,0 +1,45 @@
+#!/bin/bash
+
+export apps=(
+	"nautilus -w $HOME/Projects"
+	"nautilus -w $HOME/Downloads"
+	"kitty --directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"i3-msg split vertical && kitty --directory $HOME/Projects"
+	"i3-msg focus left && i3-msg split vertical && kitty --directory $HOME/Projects"
+	"code -n"
+	"google-chrome"
+)
+
+export workspaces=(
+	"5"
+	"5"
+	"4"
+	"4"
+	"4"
+	"4"
+	"2"
+	"1"
+)
+
+export workspaceNames=(
+	"5 Files"
+	"5 Files"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"2 Code"
+	"1 Web"
+)
+
+export workspaceColors=(
+	"#8abeb7"
+	"#8abeb7"
+	"#b5bd68"
+	"#b5bd68"
+	"#b5bd68"
+	"#b5bd68"
+	"#de935f"
+	"#cc6666"
+)

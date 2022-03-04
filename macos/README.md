@@ -55,9 +55,7 @@
 ## Todo
 
 - CMD + arrow keys to focus windows
-- Option + arrow keys in terminal to hop words
-- Option + delete key in terminal to delete word
-- Home and End keys in terminal
+- Home and End keys in web browser scroll instead of moving selector to end of line
 
 
 ## [Karabiner](https://support.wasdkeyboards.com/hc/en-us/articles/115009171728-How-do-add-native-Mac-hotkeys-to-my-keyboard-)
@@ -81,7 +79,6 @@ https://github.com/kcrawford/dockutil
 
 https://github.com/jondot/awesome-devenv
 
-
 faster git server communication.
 like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
 `git config protocol.version 2`
@@ -89,3 +86,7 @@ like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-pro
 link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
 
 https://github.com/yt-dlp/yt-dlp
+
+terminal word hop blows up whole paths: /this/should/be/four
+
+https://github.com/ttscoff/KeyBindings/blob/master/DefaultKeyBinding.dict

@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+[[ -f  /usr/local/bin/greenclip ]] || (
+	echo "Setting up greenclip"
+
+	cd /usr/local/bin
+
+	sudo wget https://github.com/erebe/greenclip/releases/download/3.3/greenclip
+
+	sudo chmod +x ./greenclip
+)

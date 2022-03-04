@@ -20,6 +20,13 @@ mkdir -p $HOME/.config/karabiner/assets/complex_modifications
 cp $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
 cp $macosPath/karabiner_complex_mods.json $HOME/.config/karabiner/assets/complex_modifications/dotfiles.json
 
+
+echo "Linking kitty config"
+
+mkdir -p $HOME/.config/kitty
+ln -sf $macosPath/kitty.conf $HOME/.config/kitty/kitty.conf
+
+
 if [ ! -e $HOME/Library/KeyBindings/DefaultKeyBindings.dict ]; then
 	echo "Linking DefaultKeyBindings"
 	mkdir -p $HOME/Library/KeyBindings

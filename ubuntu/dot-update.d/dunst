@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+[[ -f $HOME/.config/dunst ]] || {
+	echo "Setting up dunst"
+
+	mkdir -p $HOME/.config/dunst
+
+	ln -sf $HOME/.dotfiles/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
+}

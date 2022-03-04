@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+npm-global-export() {
+  npm list --global --parseable --depth=0 | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > ${1:-"./npmfile"}
+}
+
+npm-global-import() {
+  xargs npm install --global < ${1:-"./npmfile"}
+}

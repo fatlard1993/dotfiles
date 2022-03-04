@@ -1,0 +1,72 @@
+#!/usr/bin/env aptfile
+
+ppa "maarten-baert/simplescreenrecorder"
+ppa "yurivkhan/kitty"
+
+update
+
+package "build-essential"
+package "software-properties-common"
+package "curl"
+package "dnsmasq"
+package "whois"
+package "make"
+package "autoconf"
+package "automake"
+package "speedtest-cli"
+package "openssh-server"
+package "arp-scan"
+package "youtube-dl"
+package "cu"
+package "net-tools"
+package "postfix"
+package "mailutils"
+package "uuid-runtime"
+package "gparted"
+package "pv"
+package "python3-dev"
+package "python3-pip"
+package "python3-setuptools"
+package "libusb-1.0-0-dev"
+package "mlocate"
+
+package "xinit"
+package "xserver-xorg"
+package "pasystray"
+package "default-jre"
+package "dconf-tools"
+package "simplescreenrecorder"
+package "code"
+package "nautilus"
+package "libinput-tools"
+package "pavucontrol"
+package "leafpad"
+package "xbacklight"
+package "xclip"
+package "scrot"
+package "libcanberra-gtk-module"
+package "libcanberra-gtk3-module"
+package "ffmpeg"
+package "rofi"
+
+package "kitty"
+
+
+echo "Upgrading apt packages"
+
+apt update --fix-missing
+
+dpkg --configure -a
+
+apt upgrade -y
+
+apt install --fix-broken -y
+
+
+echo "Cleaning apt packages"
+
+apt upgrade -y
+
+apt autoremove --purge -y
+
+apt clean

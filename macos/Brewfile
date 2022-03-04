@@ -1,7 +1,29 @@
+tap "homebrew/bundle"
+tap "homebrew/cask"
+tap "homebrew/cask-drivers"
+tap "homebrew/cask-fonts"
+tap "homebrew/cask-versions"
+tap "homebrew/core"
+tap "homebrew/services"
+tap "mongodb/brew"
+
 brew "alerter"
 brew "koekeishiya/formulae/skhd", restart_service: true
 brew "koekeishiya/formulae/yabai", restart_service: true
 
+# Misc
+brew "thefuck"
+brew "imagemagick"
+brew "xclip"
+brew "arp-scan"
+brew "bat"
+brew "coreutils"
+brew "readline"
+brew "jq"
+brew "tree"
+brew "wget"
+brew "svn"
+brew "fontconfig"
 cask "robo-3t"
 cask "appcleaner"
 cask "karabiner-elements"
@@ -9,3 +31,23 @@ cask "muzzle"
 cask "keyboard-cleaner"
 cask "ytmdesktop-youtube-music"
 cask "raycast"
+
+# Fonts
+cask "font-source-code-pro"
+cask "font-source-sans-pro"
+cask "font-fontawesome"
+cask "font-hack-nerd-font"
+
+# Misc Casks
+cask "robo-3t"
+cask "figma"
+cask "docker"
+cask "firefox"
+cask "gimp"
+cask "postman"
+cask "mongodb-compass"
+cask "visual-studio-code"
+cask "google-chrome"
+cask "kitty"
+cask "logitech-options"
+cask "logitech-unifying"
