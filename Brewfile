@@ -31,7 +31,6 @@ cask "font-hack-nerd-font"
 # Misc Casks
 cask "robo-3t"
 cask "figma"
-cask "docker"
 cask "firefox"
 cask "gimp"
 cask "postman"
