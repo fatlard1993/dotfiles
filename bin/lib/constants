@@ -1,9 +1,10 @@
 #!/bin/zsh
 
-binPath=`cd $(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/.. ; pwd`
+dotfilesPath="$HOME/.dotfiles"
+binPath="$dotfilesPath/bin"
 libPath="$binPath/lib"
-dotfilesPath=`cd $binPath/.. ; pwd`
 macosPath="$dotfilesPath/macos"
 ubuntuPath="$dotfilesPath/ubuntu"
+
 profileName=`cat $HOME/.dotfilesProfile`
 profilePath="$dotfilesPath/profiles/$profileName"

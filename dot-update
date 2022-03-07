@@ -1,0 +1,34 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Creating common directories"
+
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $HOME/dot-update.d
+
+echo "Creating local update stub"
+
+echo "#!/bin/zsh" > $HOME/.dot-update.d/local
+chmod a+x $HOME/.dot-update.d/local
+
+echo "Fetching latest dotfiles"
+
+(cd $dotfilesPath ; git pull)
+
+for file in $dotfilesPath/dot-update.d/*(.); source $file
+
+echo "Configuring profile"
+
+$profilePath/dot-update
+
+echo "Installing/Updating global npm packages"
+
+npm-global-import $dotfilesPath/npmfile
+
+echo "Updating PM2"
+
+pm2 update
+
+echo "Running local updates"
+
+for file in $HOME/dot-update.d/*(.); source $file

@@ -4,28 +4,6 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 $ubuntuPath/dot-update
 
-(cd $profilePath ; sudo aptfile)
+sudo $profilePath/aptfile
 
-echo "Updating grub"
-
-sudo ln -sf $profilePath/etc/grub /etc/default/grub
-
-sudo update-grub2
-
-echo "Linking Xmodmap"
-
-ln -sf $profilePath/.Xmodmap $HOME/
-
-
-echo "Linking kitty config"
-
-mkdir -p $HOME/.config/kitty
-ln -sf $ubuntuPath/kitty.conf $HOME/.config/kitty/kitty.conf
-
-echo "Linking libinput-gestures config"
-
-ln -sf $profilePath/libinput-gestures.conf $HOME/.config/
-
-echo "Linking wallpaper config"
-
-ln -sf $profilePath/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+for file in $profilePath/dot-update.d/*(.); source $file

@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+if [ ! -e $HOME/.dotfiles ]; then
+	ln -sf $dotfilesPath $HOME/.dotfiles
+fi
+
+if [ "$profileName" ]; then
+	echo "Profile: $profileName"
+elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
+	profileName=$1
+else
+	echo -e "\n\"$1\" is not a valid profile. You can provide one as an argument, eg: $0 <profile>\n\n$(ls $dotfilesPath/profiles)\n"
+
+	read profileName
+
+	exit #?
+fi
+
+echo $profileName > $HOME/.dotfilesProfile
+profilePath="$dotfilesPath/profiles/$profileName"

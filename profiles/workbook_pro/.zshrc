@@ -1,3 +1,3 @@
 ## $HOME/.zshrc
 
-source "$HOME/.dotfiles/macos/zshrc/index"
+source "$HOME/.dotfiles/macos/.zshrc"

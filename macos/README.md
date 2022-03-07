@@ -1,6 +1,6 @@
 # New MacBook Setup
 
-## Manual Setps
+## Manual Steps
 
 1. `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
 1. You will be prompted to install xcode - upon completion, re-run the above line
