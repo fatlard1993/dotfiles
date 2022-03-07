@@ -4,7 +4,7 @@ source "$(dirname ${BASH_SOURCE[0]:-${(%):-%x}})/lib/dot-util" "$0" "$@"
 
 version=$1
 
-source "$dotfilesPath/zshrc/nvm"
+source "$dotfilesPath/.zshrc.d/nvm"
 
 nvm install $1
 nvm use $1

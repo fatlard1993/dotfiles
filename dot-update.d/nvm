@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+if [[ ! -a $HOME/.nvm ]]; then
+	echo "Installing NVM"
+
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+fi
+
+source "$dotfilesPath/.zshrc.d/nvm"
+
+$binPath/nvm-use ${GLOBAL_NODE_VERSION:-14}

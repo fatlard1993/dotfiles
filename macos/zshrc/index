@@ -9,7 +9,7 @@ for file in $zshrcPath/*(.); do
 	[[ "$file" != "$zshrcPath/index" ]] && source $file
 done
 
-source "$HOME/.dotfiles/zshrc/index"
+source "$HOME/.dotfiles/.zshrc"
 
 ## PRIV-CONFIG
 # todo make this a gitignored folder that priv-config symlinks into instead

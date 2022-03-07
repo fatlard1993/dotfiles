@@ -6,4 +6,4 @@ for file in $zshenvPath/*(.); do
 	[[ "$file" != "$zshenvPath/index" ]] && source $file
 done
 
-source "$HOME/.dotfiles/zshenv/index"
+source "$HOME/.dotfiles/.zshenv"

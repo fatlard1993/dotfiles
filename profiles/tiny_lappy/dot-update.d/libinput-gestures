@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking libinput-gestures config"
+
+ln -sf $profilePath/libinput-gestures.conf $HOME/.config/
