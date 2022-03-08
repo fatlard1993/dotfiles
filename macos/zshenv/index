@@ -2,7 +2,7 @@
 
 zshenvPath="$HOME/.dotfiles/macos/zshenv"
 
-for file in $zshenvPath/*(.); do
+for file in $zshenvPath/*(N.); do
 	[[ "$file" != "$zshenvPath/index" ]] && source $file
 done
 

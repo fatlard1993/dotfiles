@@ -15,6 +15,6 @@ autoload -Uz compinit && compinit
 autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
-for file in $dotfilesPath/.zshrc.d/*(.); source $file
+for file in $dotfilesPath/.zshrc.d/*(N.); source $file
 
-for file in $HOME/.zshrc.d/*(.); source $file
+for file in $HOME/.zshrc.d/*(N.); source $file

@@ -15,7 +15,7 @@ echo "Fetching latest dotfiles"
 
 (cd $dotfilesPath ; git pull)
 
-for file in $dotfilesPath/dot-update.d/*(.); source $file
+for file in $dotfilesPath/dot-update.d/*(N.); source $file
 
 echo "Configuring profile"
 
@@ -31,4 +31,4 @@ pm2 update
 
 echo "Running local updates"
 
-for file in $HOME/dot-update.d/*(.); source $file
+for file in $HOME/dot-update.d/*(N.); source $file
