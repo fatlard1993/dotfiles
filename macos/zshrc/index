@@ -5,7 +5,7 @@ zshrcPath="$HOME/.dotfiles/macos/zshrc"
 
 alias readlink='greadlink'
 
-for file in $zshrcPath/*(.); do
+for file in $zshrcPath/*(N.); do
 	[[ "$file" != "$zshrcPath/index" ]] && source $file
 done
 
