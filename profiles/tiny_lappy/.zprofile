@@ -1,4 +1,4 @@
 #!/bin/zsh
 ## $HOME/.zprofile
 
-#source "$HOME/.dotfiles/ubuntu/.zprofile"
+source "$HOME/.dotfiles/ubuntu/.zprofile"
