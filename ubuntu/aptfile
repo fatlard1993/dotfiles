@@ -48,6 +48,8 @@ package "libcanberra-gtk-module"
 package "libcanberra-gtk3-module"
 package "ffmpeg"
 package "rofi"
+package "sxhkd"
+package "bspwm"
 
 package "kitty"
 
