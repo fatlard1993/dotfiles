@@ -13,3 +13,13 @@ bspc config gapless_monocle      true
 
 bspc rule -a Gimp desktop='^8' state=floating follow=on
 bspc rule -a Chrome desktop='^1'
+
+$HOME/.dotfiles/ubuntu/bin/wallpaper change unsorted
+
+$HOME/.dotfiles/ubuntu/bin/wallpaper get
+
+$HOME/.dotfiles/ubuntu/bin/status-bar &
+
+greenclip daemon &
+
+caffeine-indicator &

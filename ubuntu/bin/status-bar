@@ -1,0 +1,44 @@
+#!/bin/zsh
+
+clockStatus() {
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $(date "+%a %b %d, %T") %{F-}%{B-}"
+}
+
+batteryStatus() {
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $(cat /sys/class/power_supply/BAT0/capacity)% %{F-}%{B-}"
+}
+
+ipStatus() {
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $(hostname -I) %{F-}%{B-}"
+}
+
+volumeStatus() {
+	defaultSink=`pacmd stat | awk -F": " '/^Default sink name: /{print $2}'`
+	volume=`pacmd list-sinks | awk '/^\s+name: /{indefault = $2 == "<'$defaultSink'>"} /^\s+volume: / && indefault {print $5; exit}' | awk -F"%" '{print $1}'`
+
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $volume %{F-}%{B-}"
+}
+
+cpuStatus () {
+	cpuUsage=`cat <(grep 'cpu ' /proc/stat) <(sleep 0.5 && grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f%\n", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
+
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $cpuUsage %{F-}%{B-}"
+}
+
+diskStatus() {
+	echo "%{r}%{F#FFFF00}%{B#0000FF} $(df -h --total / | tail -n 1 | grep -Eo "[0-9]+%") %{F-}%{B-}"
+}
+
+barText() {
+	echo "$(ipStatus) $(cpuStatus) $(diskStatus) $(volumeStatus) $(batteryStatus) $(clockStatus)"
+}
+
+barFeed() {
+	while true; do
+		barText
+
+		sleep 1
+	done
+}
+
+barFeed | lemonbar -p
