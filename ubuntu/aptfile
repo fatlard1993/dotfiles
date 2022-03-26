@@ -50,6 +50,8 @@ package "ffmpeg"
 package "rofi"
 package "sxhkd"
 package "bspwm"
+package "xfonts-terminus"
+package "xfonts-terminus-oblique"
 
 package "kitty"
 

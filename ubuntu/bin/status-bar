@@ -1,44 +1,85 @@
 #!/bin/zsh
 
-clockStatus() {
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $(date "+%a %b %d, %T") %{F-}%{B-}"
-}
+UPDATE_RATE=1
 
-batteryStatus() {
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $(cat /sys/class/power_supply/BAT0/capacity)% %{F-}%{B-}"
+base00="#1d1f21"
+base01="#282a2e"
+base02="#373b41"
+base03="#969896"
+base04="#b4b7b4"
+base05="#c5c8c6"
+base06="#e0e0e0"
+base07="#ffffff"
+base08="#cc6666"
+base09="#de935f"
+base0A="#f0c674"
+base0B="#b5bd68"
+base0C="#8abeb7"
+base0D="#81a2be"
+base0E="#b294bb"
+base0F="#a3685a"
+
+workspaceStatus() {
+	workspaceNames=(`bspc query -D --names`)
+	focused=`bspc query -D -d focused --names`
+	result=""
+
+	for name in $workspaceNames; do
+		if [ $name = $focused ]; then
+			result="$result %{B$base0D}%{F#000000}[ $name ]%{B-}%{F-} "
+		else
+			result="$result $name "
+		fi
+	done
+
+	echo $result
 }
 
 ipStatus() {
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $(hostname -I) %{F-}%{B-}"
+	echo " %{B#111111}%{F$base07} IP: $(hostname -I | awk -F' ' '{ print $1 }') %{B-}%{F-} "
 }
 
 volumeStatus() {
-	defaultSink=`pacmd stat | awk -F": " '/^Default sink name: /{print $2}'`
-	volume=`pacmd list-sinks | awk '/^\s+name: /{indefault = $2 == "<'$defaultSink'>"} /^\s+volume: / && indefault {print $5; exit}' | awk -F"%" '{print $1}'`
+	defaultSink=`pacmd stat | awk -F": " '/^Default sink name: /{ print $2 }'`
+	volume=`pacmd list-sinks | awk '/^\s+name: /{indefault = $2 == "<'$defaultSink'>"} /^\s+volume: / && indefault {print $5; exit}' | awk -F"%" '{ print $1 }'`
 
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $volume %{F-}%{B-}"
+	echo "[ %{F$base0E}VOL: $volume%%%{F-} ]"
 }
 
 cpuStatus () {
-	cpuUsage=`cat <(grep 'cpu ' /proc/stat) <(sleep 0.5 && grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f%\n", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
+	cpuUsage=`cat <(grep 'cpu ' /proc/stat) <(sleep 1 && grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f%\n", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
 
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $cpuUsage %{F-}%{B-}"
+	echo "[ %{F$base0D}CPU: $cpuUsage%%{F-} ]"
+}
+
+batteryStatus() {
+	battery=`cat /sys/class/power_supply/BAT0/capacity`
+
+	if [ "$battery" -lt "30" ]; then
+		echo "%{B$base08}[ %{F$base07}BAT: $battery%%%{F-} ]%{B-}"
+	else
+		echo "[ %{F$base0B}BAT: $battery%%%{F-} ]"
+	fi
+}
+
+clockStatus() {
+	echo "[ %{F$base09}$(date "+%a %b %d")%{F-} ][ %{F$base09}$(date "+%H:%M.%S")%{F-} ]"
 }
 
 diskStatus() {
-	echo "%{r}%{F#FFFF00}%{B#0000FF} $(df -h --total / | tail -n 1 | grep -Eo "[0-9]+%") %{F-}%{B-}"
+	echo "[ DF: $(df -h --total / | tail -n 1 | grep -Eo "[0-9]+%") ]"
 }
 
 barText() {
-	echo "$(ipStatus) $(cpuStatus) $(diskStatus) $(volumeStatus) $(batteryStatus) $(clockStatus)"
+	echo "%{l}$(workspaceStatus)%{r}$(ipStatus)$(volumeStatus)$(cpuStatus)$(batteryStatus)$(clockStatus)"
 }
 
 barFeed() {
 	while true; do
 		barText
 
-		sleep 1
+		sleep $UPDATE_RATE
 	done
 }
 
-barFeed | lemonbar -p
+barFeed | lemonbar -p -f "terminus-bold-22" -B '#000000' -F $base06
