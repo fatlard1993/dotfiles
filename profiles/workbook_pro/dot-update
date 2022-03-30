@@ -2,14 +2,4 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-echo "Linking pam sudo config"
-sudo ln -sf $profilePath/pam_sudo /etc/pam.d/sudo
-
-$macosPath/dot-update
-
-(cd $profilePath ; brew bundle --no-lock)
-
-$macosPath/macos-config.d/ssd
-$macosPath/macos-config.d/touch-bar
-
-sudo pm2 startup launchd -u chase.whitfield --hp /Users/chase.whitfield
+for file in $profilePath/dot-update.d/*; source $file

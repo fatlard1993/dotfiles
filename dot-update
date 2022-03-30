@@ -3,7 +3,6 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Fetching latest dotfiles"
-
 (cd $HOME/.dotfiles ; git pull)
 
 for file in $HOME/{.,.dotfiles/}dot-update.d/*; source $file

@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+sudo pm2 startup launchd -u chase.whitfield --hp /Users/chase.whitfield

@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking pam sudo config"
+sudo ln -sf $profilePath/pam_sudo /etc/pam.d/sudo

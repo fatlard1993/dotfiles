@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking karabiner config"
+mkdir -p $HOME/.config/karabiner/assets/complex_modifications
+cp $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
+cp $macosPath/karabiner_complex_mods.json $HOME/.config/karabiner/assets/complex_modifications/dotfiles.json

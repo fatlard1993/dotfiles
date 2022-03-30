@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+if [ ! -e $HOME/Library/KeyBindings/DefaultKeyBindings.dict ]; then
+	echo "Linking DefaultKeyBindings"
+
+	obtainSudo
+
+	mkdir -p $HOME/Library/KeyBindings
+	sudo ln -sf $macosPath/DefaultKeyBindings.dict $HOME/Library/KeyBindings/DefaultKeyBindings.dict
+fi
