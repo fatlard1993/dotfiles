@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+$HOME/.dotfiles/ubuntu/bin/wallpaper change unsorted
+
+$HOME/.dotfiles/ubuntu/bin/wallpaper get

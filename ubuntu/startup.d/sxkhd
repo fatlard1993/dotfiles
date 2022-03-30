@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+pgrep -x sxhkd > /dev/null || sxhkd &
