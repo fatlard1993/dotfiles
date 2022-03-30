@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# todo support config splitting, Ex. sxhkd -c /config/one /config/two ...
+# dynamically generate the list of configs
+pgrep -x sxhkd > /dev/null || sxhkd &
