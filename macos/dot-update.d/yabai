@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+obtainSudo
+
+echo "Linking skhd config"
+ln -sf $profilePath/.skhdrc $HOME/.skhdrc
+
+echo "Linking yabai config"
+ln -sf $profilePath/.yabairc $HOME/.yabairc
+
+echo "Setting up yabai"
+sudo yabai --uninstall-sa
+sudo yabai --install-sa
+
+brew services restart skhd
+brew services restart yabai
+
+yabai --load-sa

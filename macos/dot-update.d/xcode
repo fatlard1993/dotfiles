@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+echo "Installing XCode command line tools..."
+if xcode-select --print-path &>/dev/null; then
+	echo "XCode command line tools already installed."
+elif xcode-select --install &>/dev/null; then
+	echo "Finished installing XCode command line tools."
+else
+	echo "Failed to install XCode command line tools."
+fi

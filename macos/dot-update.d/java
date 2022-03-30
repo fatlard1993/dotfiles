@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+obtainSudo
+
+echo "Linking Java Bindings into Java Extensions"
+sudo mkdir -p /Library/Java/Extensions
+sudo ln -s /usr/local/lib/libsvnjavahl-1.dylib /Library/Java/Extensions/libsvnjavahl-1.dylib

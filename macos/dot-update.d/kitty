@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking kitty config"
+
+mkdir -p $HOME/.config/kitty
+ln -sf $macosPath/kitty.conf $HOME/.config/kitty/kitty.conf
