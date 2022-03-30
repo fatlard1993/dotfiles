@@ -1,10 +1,6 @@
-#! /bin/sh
+#!/bin/zsh
 
-pgrep -x sxhkd > /dev/null || sxhkd &
-
-xrandr --output eDP-1 --mode 2048x1152
-
-bspc monitor -d 1 2 3 4 5 6 7 8 9 10
+bspc monitor -d 1 2 3 4 5 6 7 8 9
 
 bspc config border_width         2
 bspc config window_gap          12
@@ -12,16 +8,8 @@ bspc config window_gap          12
 bspc config split_ratio          0.52
 bspc config borderless_monocle   true
 bspc config gapless_monocle      true
+bspc config click_to_focus       true
 
-bspc rule -a Gimp desktop='^8' state=floating follow=on
-bspc rule -a Chrome desktop='^1'
+bspc rule -a Gimp state=floating follow=on
 
-$HOME/.dotfiles/ubuntu/bin/wallpaper change unsorted
-
-$HOME/.dotfiles/ubuntu/bin/wallpaper get
-
-$HOME/.dotfiles/ubuntu/bin/status-bar &
-
-greenclip daemon &
-
-caffeine-indicator &
+for file in $HOME/.dotfiles/ubuntu/startup.d/*(N.); source $file

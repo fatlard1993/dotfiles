@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+mkdir -p ~/.icons
+
+if [ ! -d ~/.icons/phinger-cursors ]; then
+	wget -cO- https://github.com/phisch/phinger-cursors/releases/latest/download/phinger-cursors-variants.tar.bz2 | tar xfj - -C ~/.icons
+fi

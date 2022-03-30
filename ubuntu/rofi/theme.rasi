@@ -1,6 +1,7 @@
 
 
 * {
+	black:  #000000;
 	base00: #1d1f21;
 	base01: #282a2e;
 	base02: #373b41;
@@ -28,6 +29,8 @@
 
 	active-background: @base0C;
 	urgent-background: @base08;
+	active-foreground: @black;
+	urgent-foreground: @black;
 	selected-background: @base0D;
 	selected-urgent-background: @urgent-background;
 	selected-active-background: @selected-background;
