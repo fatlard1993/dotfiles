@@ -1,22 +1,22 @@
 #!/bin/zsh
 
 # Base Path
-PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
 # Dotfiles Bin
-PATH="$PATH:$HOME/.dotfiles/bin"
+export PATH="$PATH:$HOME/.dotfiles/bin"
 
 # Local Scripts
-PATH="$PATH:$PWD/scripts"
+export PATH="$PATH:$PWD/scripts"
 
 # Local Bin
-PATH="$PATH:$PWD/bin"
+export PATH="$PATH:$PWD/bin"
 
 # Local node_modules Bin
-PATH="$PATH:$PWD/node_modules/.bin"
+export PATH="$PATH:$PWD/node_modules/.bin"
 
 # NPM Bin
-PATH="$PATH:$HOME/.npm-global/bin"
+export PATH="$PATH:$HOME/.npm-global/bin"
 
 # Local User Bin
-PATH="$PATH:$HOME/.local/bin"
+export PATH="$PATH:$HOME/.local/bin"
