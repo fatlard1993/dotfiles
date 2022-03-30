@@ -3,7 +3,7 @@
 source "$HOME/.dotfiles/theme/ls.zsh"
 
 # ls defaults
-alias ls="command ls -G --color"
+alias ls="command ls -G"
 
 # List all files in long format
 alias l="ls -lF"
