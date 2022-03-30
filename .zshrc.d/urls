@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# Support urls without quotes
+autoload -Uz url-quote-magic
+zle -N self-insert url-quote-magic

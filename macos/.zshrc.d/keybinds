@@ -1,13 +1,13 @@
 #!/bin/zsh
 
 # https://web.cs.elte.hu/local/texinfo/zsh/zsh_10.html
-bindkey "^[[H"     beginning-of-line
-bindkey "^[[F"     end-of-line
-bindkey "^[[3~"    delete-char
-bindkey "^[[3;3~"  kill-word
-bindkey "^[[3;5C"  kill-word
-bindkey "^[[1;3D"  backward-word
-bindkey "^[[1;5D"  backward-word
-bindkey "^[[1;3C"  forward-word
-bindkey "^[[1;5C"  forward-word
-bindkey "≥"        insert-last-word
+# bindkey "^[[H"     beginning-of-line
+# bindkey "^[[F"     end-of-line
+# bindkey "^[[3~"    delete-char
+# bindkey "^[[3;3~"  kill-word
+# bindkey "^[[3;5C"  kill-word
+# bindkey "^[[1;3D"  backward-word
+# bindkey "^[[1;5D"  backward-word
+# bindkey "^[[1;3C"  forward-word
+# bindkey "^[[1;5C"  forward-word
+# bindkey "≥"        insert-last-word

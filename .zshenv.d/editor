@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+export EDITOR='/usr/local/bin/code'
+export VISUAL='/usr/local/bin/code'
+export PAGER='less'
