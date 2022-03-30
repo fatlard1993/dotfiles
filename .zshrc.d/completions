@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+fpath=($dotfilesPath/zshcompletion $fpath)
+
+# fpath=($binPath/completion $fpath)
+
+# Enable completions
+autoload -Uz compinit && compinit
