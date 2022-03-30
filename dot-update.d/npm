@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Installing/Updating global npm packages"
+
+npm-global-import $dotfilesPath/npmfile
+
+echo "Updating PM2"
+
+pm2 update

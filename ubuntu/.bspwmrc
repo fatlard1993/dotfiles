@@ -12,4 +12,4 @@ bspc config click_to_focus       true
 
 bspc rule -a Gimp state=floating follow=on
 
-for file in $HOME/.dotfiles/ubuntu/startup.d/*(N.); source $file
+for file in $HOME/.dotfiles/ubuntu/startup.d/*; source $file

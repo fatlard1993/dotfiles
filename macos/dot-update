@@ -20,7 +20,6 @@ mkdir -p $HOME/.config/karabiner/assets/complex_modifications
 cp $macosPath/karabiner.json $HOME/.config/karabiner/karabiner.json
 cp $macosPath/karabiner_complex_mods.json $HOME/.config/karabiner/assets/complex_modifications/dotfiles.json
 
-
 echo "Linking kitty config"
 
 mkdir -p $HOME/.config/kitty
@@ -52,7 +51,7 @@ echo "Updating mac software"
 sudo softwareupdate --all --install --force
 
 echo "Configuring macos"
-source "$dotfilesPath/macos/macos.config.d/index"
+source "$dotfilesPath/macos/macos-config"
 
 echo "Linking Java Bindings into Java Extensions"
 sudo mkdir -p /Library/Java/Extensions

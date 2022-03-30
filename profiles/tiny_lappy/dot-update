@@ -6,4 +6,4 @@ $ubuntuPath/dot-update
 
 sudo $profilePath/aptfile
 
-for file in $profilePath/dot-update.d/*(N.); source $file
+for file in $profilePath/dot-update.d/*; source $file

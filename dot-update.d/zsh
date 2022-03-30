@@ -2,15 +2,6 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-mkdir -p $HOME/.zshrc.d $HOME/.zshenv.d
-
-echo "Creating local zsh stubs"
-
-echo "#!/bin/zsh" > $HOME/.zshrc.d/local
-echo "#!/bin/zsh" > $HOME/.zshenv.d/local
-chmod a+x $HOME/.zshrc.d/local
-chmod a+x $HOME/.zshenv.d/local
-
 echo "Linking zsh config"
 
 ln -sf $profilePath/.zshenv $HOME/.zshenv

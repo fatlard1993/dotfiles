@@ -6,6 +6,6 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 $macosPath/dot-update
 
-$dotfilesPath/macos/macos.config.d/ssd
+$dotfilesPath/macos/macos-config.d/ssd
 
 (cd $profilePath ; brew bundle --no-lock)

@@ -3,5 +3,6 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Linking vscode argv config"
+
 mkdir -p $HOME/.vscode
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
