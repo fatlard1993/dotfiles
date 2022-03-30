@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Configuring profile"
+
+$profilePath/dot-update

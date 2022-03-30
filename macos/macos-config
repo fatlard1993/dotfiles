@@ -10,14 +10,12 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 obtainSudo
 
-configPath="$dotfilesPath/macos/macos.config.d"
 
 # Close any open System Preferences panes, to prevent them from overriding settings we’re about to change
 osascript -e 'tell application "System Preferences" to quit'
 
-for file in $configPath/*(N.); do
-	[[ "$file" != "$configPath/index" ]] && sudo $file
-done
+for file in $macosPath/macos-config.d/*; sudo $file
+
 
 ###############################################################################
 # Bluetooth                                                                   #

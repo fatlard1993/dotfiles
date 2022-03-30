@@ -9,7 +9,7 @@ $macosPath/dot-update
 
 (cd $profilePath ; brew bundle --no-lock)
 
-$dotfilesPath/macos/macos.config.d/ssd
-$dotfilesPath/macos/macos.config.d/touch-bar
+$macosPath/macos-config.d/ssd
+$macosPath/macos-config.d/touch-bar
 
 sudo pm2 startup launchd -u chase.whitfield --hp /Users/chase.whitfield

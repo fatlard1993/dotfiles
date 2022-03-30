@@ -17,4 +17,4 @@ echo "Purgeing unwanted default apt packages"
 
 $ubuntuPath/bin/apt-autopurge totem thunderbird
 
-for file in $ubuntuPath/dot-update.d/*(N.); source $file
+for file in $ubuntuPath/dot-update.d/*; source $file
