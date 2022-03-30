@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+$HOME/.dotfiles/ubuntu/bin/status-bar

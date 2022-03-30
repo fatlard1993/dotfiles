@@ -55,6 +55,7 @@ package "xfonts-terminus-oblique"
 package "libx11-dev"
 package "libxcursor-dev"
 package "libpng-dev"
+package "xcape"
 
 package "kitty"
 
