@@ -1,5 +1,5 @@
 #!/bin/zsh
 
-source "$HOME/.dotfiles/.zshenv"
+. "$HOME/.dotfiles/.zshenv"
 
-for file in $HOME/.dotfiles/ubuntu/.zshenv.d/*; source $file
+for file in $HOME/.dotfiles/ubuntu/.zshenv.d/*; . "$file"

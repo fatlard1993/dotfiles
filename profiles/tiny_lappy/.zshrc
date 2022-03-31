@@ -1,6 +1,6 @@
 #!/bin/zsh
 ## $HOME/.zshrc
 
-source "$HOME/.dotfiles/ubuntu/.zshrc"
+. "$HOME/.dotfiles/ubuntu/.zshrc"
 
-xmodmap $HOME/.Xmodmap
+xmodmap "$HOME/.Xmodmap"
