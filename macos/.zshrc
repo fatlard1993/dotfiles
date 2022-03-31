@@ -1,5 +1,7 @@
 #!/bin/zsh
 
-source "$HOME/.dotfiles/.zshrc"
+. $HOME/.dotfiles/macos/.zshrc.d/polyfill
 
-for file in $HOME/.dotfiles/macos/.zshrc.d/*; source $file
+. $HOME/.dotfiles/.zshrc
+
+for file in $HOME/.dotfiles/macos/.zshrc.d/*; . $file
