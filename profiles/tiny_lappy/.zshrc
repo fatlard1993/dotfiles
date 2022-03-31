@@ -3,4 +3,4 @@
 
 source "$HOME/.dotfiles/ubuntu/.zshrc"
 
-xmodmap $profilePath/.Xmodmap
+xmodmap $HOME/.Xmodmap
