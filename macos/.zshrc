@@ -1,7 +1,7 @@
 #!/bin/zsh
 
-. $HOME/.dotfiles/macos/.zshrc.d/polyfill
+. "$HOME/.dotfiles/macos/.zshrc.d/polyfill"
 
-. $HOME/.dotfiles/.zshrc
+. "$HOME/.dotfiles/.zshrc"
 
-for file in $HOME/.dotfiles/macos/.zshrc.d/*; . $file
+for file in $HOME/.dotfiles/macos/.zshrc.d/*; . "$file"

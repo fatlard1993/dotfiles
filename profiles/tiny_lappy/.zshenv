@@ -1,4 +1,4 @@
 #!/bin/zsh
 ## $HOME/.zshenv
 
-source "$HOME/.dotfiles/ubuntu/.zshenv"
+. "$HOME/.dotfiles/ubuntu/.zshenv"

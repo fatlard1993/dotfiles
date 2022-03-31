@@ -3,7 +3,7 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Configuring macos"
-source "$macosPath/macos-config"
+. "$macosPath/macos-config"
 
 echo "Updating mac software"
 obtainSudo

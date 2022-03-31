@@ -1,3 +1,3 @@
 ## $HOME/.zshenv
 
-source "$HOME/.dotfiles/macos/.zshenv"
+. "$HOME/.dotfiles/macos/.zshenv"
