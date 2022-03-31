@@ -1,5 +1,5 @@
 #!/bin/zsh
 
-setxkbmap -option "caps:escape"
+# setxkbmap -option "caps:escape"
 
-xmodmap $LAYOUT_EN; xcape -e "Super_L=Escape"
+# xmodmap $LAYOUT_EN; xcape -e "Super_L=Escape"
