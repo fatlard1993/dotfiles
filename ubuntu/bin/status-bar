@@ -54,6 +54,12 @@ volumeStatus() {
 	echo "[ %{F$base0E}VOL: $volume%%%{F-} ]"
 }
 
+ramStatus () {
+	ramStatus=`free -h | awk -F' ' '{ print $7 }' | xargs`
+
+	echo "[ %{F$base0D}RAM: $ramStatus%{F-} ]"
+}
+
 cpuStatus () {
 	cpuUsage=`cat $HOME/.dotfiles/temp/.cpuStatus <(grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f%\n", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
 
@@ -77,11 +83,13 @@ clockStatus() {
 }
 
 diskStatus() {
-	echo "[ DF: $(df -h --total / | tail -n 1 | grep -Eo "[0-9]+%") ]"
+	diskFree=`df -h --total / | tail -n1 | awk -F' ' '{ print $4 }'`
+	diskFreePct=`df -h --total / | tail -n 1 | grep -Eo "[0-9]+%"`
+	echo "[ %{F$base0E}/ $diskFree ($diskFreePct)%{F-} ]"
 }
 
 barText() {
-	echo "%{l}$(workspaceStatus)%{r}$(ipStatus)$(volumeStatus)$(cpuStatus)$(batteryStatus)$(clockStatus)"
+	echo "%{l}$(workspaceStatus)%{r}$(ipStatus)$(diskStatus)$(volumeStatus)$(cpuStatus)$(ramStatus)$(batteryStatus)$(clockStatus)"
 }
 
 barFeed() {
