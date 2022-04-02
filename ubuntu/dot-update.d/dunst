@@ -5,5 +5,5 @@
 
 	mkdir -p $HOME/.config/dunst
 
-	ln -sf $HOME/.dotfiles/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
+	ln -sf $HOME/.dotfiles/ubuntu/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
 }
