@@ -2,6 +2,7 @@
 
 UPDATE_RATE=9
 
+black="#000000"
 base00="#1d1f21"
 base01="#282a2e"
 base02="#373b41"
@@ -27,6 +28,12 @@ chmod 777 $HOME/.dotfiles/temp/.cpuStatus
 echo "" > $HOME/.dotfiles/temp/status-bar-sleep.pid
 chmod 777 $HOME/.dotfiles/temp/status-bar-sleep.pid
 
+sep="%{F$base03} # %{F-}"
+
+label() {
+	echo "%{F${2:-$base09}}$1%{F$base03}: %{F-}"
+}
+
 workspaceStatus() {
 	workspaceNames=(`bspc query -D --names`)
 	focused=`bspc query -D -d focused --names`
@@ -34,7 +41,7 @@ workspaceStatus() {
 
 	for name in $workspaceNames; do
 		if [ $name = $focused ]; then
-			result="$result %{B$base0D}%{F#000000} $name %{B-}%{F-} "
+			result="$result %{B$base0D}%{F$black} $name %{B-}%{F-} "
 		else
 			result="$result $name "
 		fi
@@ -51,45 +58,47 @@ volumeStatus() {
 	defaultSink=`pacmd stat | awk -F": " '/^Default sink name: /{ print $2 }'`
 	volume=`pacmd list-sinks | awk '/^\s+name: /{indefault = $2 == "<'$defaultSink'>"} /^\s+volume: / && indefault {print $5; exit}' | awk -F"%" '{ print $1 }'`
 
-	echo "[ %{F$base0E}VOL: $volume%%%{F-} ]"
+	echo "$(label VOL)$volume%%"
 }
 
 ramStatus () {
 	ramStatus=`free -h | awk -F' ' '{ print $7 }' | xargs`
 
-	echo "[ %{F$base0D}RAM: $ramStatus%{F-} ]"
+	echo "$(label RAM)$ramStatus"
 }
 
 cpuStatus () {
-	cpuUsage=`cat $HOME/.dotfiles/temp/.cpuStatus <(grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f%\n", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
+	cpuUsage=`cat $HOME/.dotfiles/temp/.cpuStatus <(grep 'cpu ' /proc/stat) | awk -v RS="" '{printf "%.1f", ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}'`
 
 	echo `grep 'cpu ' /proc/stat` > $HOME/.dotfiles/temp/.cpuStatus
 
-	echo "[ %{F$base0D}CPU: $cpuUsage%%{F-} ]"
+	echo "$(label CPU)$cpuUsage%%"
 }
 
 batteryStatus() {
 	battery=`cat /sys/class/power_supply/BAT0/capacity`
 
 	if [ "$battery" -lt "30" ]; then
-		echo "%{B$base08}[ %{F$base07}BAT: $battery%%%{F-} ]%{B-}"
+		echo "$(label BAT $base08)$battery%%"
+	elif [ "$battery" -lt "90" ]; then
+		echo "$(label BAT)$battery%%"
 	else
-		echo "[ %{F$base0B}BAT: $battery%%%{F-} ]"
+		echo "$(label BAT $base0B)$battery%%"
 	fi
 }
 
 clockStatus() {
-	echo "[ %{F$base09}$(date "+%a %b %d")%{F-} ][ %{F$base09}$(date "+%H:%M.%S")%{F-} ]"
+	echo "$(date "+%a %b %d")%{F$base03} :: %{F-}$(date "+%H:%M.%S")"
 }
 
 diskStatus() {
 	diskFree=`df -h --total / | tail -n1 | awk -F' ' '{ print $4 }'`
-	diskFreePct=`df -h --total / | tail -n 1 | grep -Eo "[0-9]+%"`
-	echo "[ %{F$base0E}/ $diskFree ($diskFreePct)%{F-} ]"
+	# diskFreePct=`df -h --total / | tail -n 1 | grep -Eo "[0-9]+%"`
+	echo "$(label /)$diskFree"
 }
 
 barText() {
-	echo "%{l}$(workspaceStatus)%{r}$(ipStatus)$(diskStatus)$(volumeStatus)$(cpuStatus)$(ramStatus)$(batteryStatus)$(clockStatus)"
+	echo "%{l}$(workspaceStatus)%{c}$(ipStatus)%{r}$(diskStatus)$sep$(volumeStatus)$sep$(cpuStatus)$sep$(ramStatus)$sep$(batteryStatus)$sep$(clockStatus) "
 }
 
 barFeed() {
@@ -102,4 +111,4 @@ barFeed() {
 	done
 }
 
-barFeed | lemonbar -p -f "terminus-bold-22" -B '#000000' -F $base06
+barFeed | lemonbar -p -f "terminus-bold-22" -B $black -F $base06
