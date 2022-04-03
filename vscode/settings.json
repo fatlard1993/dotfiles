@@ -247,12 +247,4 @@
 	],
 
 	"snakeTrail.color": "51, 116, 177",
-
-	"sync.gist": "840e909429cfa3e896568c2ea01ac241",
-	"sync.autoDownload": false,
-	"sync.autoUpload": false,
-	"sync.forceDownload": false,
-	"sync.quietSync": false,
-	"sync.removeExtensions": true,
-	"sync.syncExtensions": true
 }
