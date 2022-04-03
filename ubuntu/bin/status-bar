@@ -51,7 +51,7 @@ workspaceStatus() {
 }
 
 ipStatus() {
-	echo " %{B#111111}%{F$base07} IP: $(hostname -I | awk -F' ' '{ print $1 }') %{B-}%{F-} "
+	echo " %{B#111111}%{F$base07} $(hostname -I | awk -F' ' '{ print $1 }') %{B-}%{F-} "
 }
 
 volumeStatus() {

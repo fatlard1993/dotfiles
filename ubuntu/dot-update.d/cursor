@@ -5,3 +5,7 @@ mkdir -p ~/.icons
 if [ ! -d ~/.icons/phinger-cursors ]; then
 	wget -cO- https://github.com/phisch/phinger-cursors/releases/latest/download/phinger-cursors-variants.tar.bz2 | tar xfj - -C ~/.icons
 fi
+
+echo "Linking Xresources config"
+
+ln -sf $HOME/.dotfiles/ubuntu/.Xresources $HOME/
