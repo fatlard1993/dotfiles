@@ -1,0 +1,36 @@
+[
+	{
+		"key": "ctrl+alt+s",
+		"command": "workbench.action.files.saveAll"
+	},
+	{
+		"key": "ctrl+c",
+		"command": "workbench.action.terminal.copySelection",
+		"when": "terminalFocus && terminalProcessSupported && terminalTextSelected && terminalTextSelected"
+	},
+	{
+		"key": "ctrl+shift+c",
+		"command": "-workbench.action.terminal.copySelection",
+		"when": "terminalFocus && terminalProcessSupported && terminalTextSelected && terminalTextSelected"
+	},
+	{
+		"key": "ctrl+v",
+		"command": "workbench.action.terminal.paste",
+		"when": "terminalFocus && terminalProcessSupported"
+	},
+	{
+		"key": "ctrl+shift+v",
+		"command": "-workbench.action.terminal.paste",
+		"when": "terminalFocus && terminalProcessSupported"
+	},
+	{
+		"key": "enter",
+		"command": "renameFile",
+		"when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+	},
+	{
+		"key": "f2",
+		"command": "-renameFile",
+		"when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+	}
+]
