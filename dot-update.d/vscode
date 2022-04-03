@@ -2,7 +2,15 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-echo "Linking vscode argv config"
-
 mkdir -p $HOME/.vscode
-ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/argv.json
+
+echo "Linking vscode argv config"
+ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/
+
+echo "Linking vscode settings config"
+ln -sf $dotfilesPath/vscode/settings.json $HOME/.vscode/
+
+echo "Linking vscode keybinds config"
+ln -sf $dotfilesPath/vscode/keybinds.json $HOME/.vscode/
+
+vscode-update

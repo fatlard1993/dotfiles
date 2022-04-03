@@ -8,8 +8,6 @@
 
 - vscode
 	- Authorize github on the first command to use auth
-	- Install Settings Sync extension, then press `Shift + Alt + D`
-		- login w/ github
 
 - system preferences
 	- apple id > login

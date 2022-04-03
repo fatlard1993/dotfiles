@@ -14,10 +14,6 @@ Haven't figured out how to set these automatically yet:
 
 ## VS code
 
-Install the settings Sync extension and press ```Shift + Alt + D```
-
-Generate a new token with gist permissions.
-
 add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``` and then run ```sudo sysctl -p```
 
 
