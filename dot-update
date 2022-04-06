@@ -1,6 +1,8 @@
 #!/bin/zsh
 
-source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+[[ ! -e $HOME/.dotfiles ]] && ln -sf `readlink -f ./` $HOME/.dotfiles
+
+[[ -e ./dot-update.d/0_setup ]] && ./dot-update.d/0_setup $@
 
 echo "Fetching latest dotfiles"
 (cd $HOME/.dotfiles ; git pull)
