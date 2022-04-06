@@ -27,10 +27,6 @@ mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $HO
 	chmod a+x $HOME/.zshenv.d/local
 }
 
-if [ ! -e $HOME/.dotfiles ]; then
-	ln -sf $dotfilesPath $HOME/.dotfiles
-fi
-
 if [ "$profileName" ]; then
 	echo "Profile: $profileName"
 elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
