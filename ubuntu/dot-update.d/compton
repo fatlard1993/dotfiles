@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+[[ -f $HOME/.config/compton.conf ]] || {
+	echo "Setting up compton"
+
+	ln -sf $HOME/.dotfiles/ubuntu/compton.conf $HOME/.config/
+}
