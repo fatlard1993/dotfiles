@@ -23,7 +23,7 @@
 	separatorColor: @base04;
 	foregroundColor: @base07;
 
-	font: "Source Code Pro 12";
+	font: "Source Code Pro 32";
 	background-color: @base01;
 	text-color: @foregroundColor;
 
@@ -78,15 +78,15 @@
 }
 #element.selected.normal {
 	background-color: @selected-background;
-	text-color: @foregroundColor;
+	text-color: @black;
 }
 #element.selected.urgent {
 	background-color: @selected-urgent-background;
-	text-color: @foregroundColor;
+	text-color: @black;
 }
 #element.selected.active {
 	background-color: @selected-active-background;
-	text-color: @foregroundColor;
+	text-color: @black;
 }
 #element.alternate.normal {
 	text-color: @foregroundColor;
