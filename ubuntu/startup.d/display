@@ -1,3 +1,9 @@
 #!/bin/zsh
 
-xrandr --output eDP-1 --mode 2048x1152
+xrandr --output eDP-1 --mode 3200x1800
+
+xrdb -merge ~/.Xresources
+
+xsetroot -cursor_name left_ptr &
+
+# compton &

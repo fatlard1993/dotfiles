@@ -56,6 +56,7 @@ package "libx11-dev"
 package "libxcursor-dev"
 package "libpng-dev"
 package "xcape"
+package "compton"
 
 package "kitty"
 
