@@ -47,7 +47,7 @@ super + ctrl + @space
 	# bspc node -g {marked,locked,sticky,private}
 
 # Focus the node in the given direction
-super + {_,shift + }{left,down,up,right}
+super + {_,shift + }{Left,Down,Up,Right}
 	bspc node -{f,s} {west,south,north,east}
 
 # Focus the node for the given path jump
@@ -72,14 +72,16 @@ super + {grave,Tab}
 # 	bspc node {older,newer} -f; \
 # 	bspc wm -h on
 
-# Focus or send to the given desktop
-ctrl + {_,shift + }{1-9}
-	bspc {desktop -f,node -d} '^{1-9}' --follow; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
-super + {_,shift + }{1-9}
-	bspc {desktop -f,node -d} '^{1-9}' --follow; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
+# Focus the given desktop
+{ctrl,super} + {1-9}
+	{bspc, bspc} desktop -f '^{1-9}'; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
+
+# Send to the given desktop
+{ctrl,super} + shift + {1-9}
+	id=$(bspc query -N -n); {bspc, bspc} node -d '^{1-9}'; bspc node -f ${id}; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
 
 # Rotate tree
-super + ctrl + {right,left}
+super + ctrl + {Right,Left}
     bspc node @/ -C {forward,backward}
 
 # Expand/contract a window by moving one of its side outward/inward

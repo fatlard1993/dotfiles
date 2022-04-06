@@ -6,3 +6,5 @@ mkdir -p $HOME/.config/bspwm $HOME/.config/sxhkd
 
 ln -sf $profilePath/.bspwmrc $HOME/.config/bspwm/bspwmrc
 ln -sf $profilePath/.sxhkdrc $HOME/.config/sxhkd/sxhkdrc
+
+# set -U SXHKD_SHELL sh
