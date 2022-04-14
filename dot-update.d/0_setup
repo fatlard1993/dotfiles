@@ -4,7 +4,7 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Creating common directories"
 
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/Projects $HOME/.dot-update.d $HOME/.zshrc.d $HOME/.zshenv.d
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/bin $HOME/Projects $HOME/.dot-update.d $HOME/.zshrc.d $HOME/.zshenv.d
 
 [[ ! -e $HOME/.dot-update.d/local ]] && {
 	echo "Creating local update stub"
