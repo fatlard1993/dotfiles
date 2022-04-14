@@ -1,0 +1,29 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking dotfiles to kitty config"
+
+ln -sf $dotfilesPath $HOME/.config/kitty/
+
+echo "Linking kitty config"
+
+ln -sf $dotfilesPath/kitty.conf $HOME/.config/kitty/kitty.conf
+
+if [ ! -e $HOME/Projects/external/kitty ]; then
+	echo "Downloading kitty"
+
+	(cd $HOME/Projects/external && git clone https://github.com/kovidgoyal/kitty)
+else
+	echo "Updating kitty"
+
+	(cd $HOME/Projects/external/kitty && git pull)
+fi
+
+echo "Building kitty"
+
+(cd $HOME/Projects/external/kitty && nix-shell --pure --command "make clean && make")
+
+echo "Linking kitty"
+
+sudo ln -sf $HOME/Projects/external/kitty/kitty/launcher/kitty /usr/bin/
