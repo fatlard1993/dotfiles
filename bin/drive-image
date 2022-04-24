@@ -58,4 +58,4 @@ fi
 
 lsblk | grep disk
 
-sudo $DOTFILES/scripts/image-duplicate $image $device
+sudo $HOME/.dotfiles/bin/image-duplicate $image $device
