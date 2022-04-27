@@ -1,5 +1,23 @@
 # Ubuntu
 
+Setting up a new machine:
+
+
+Install the base dependancies:
+```
+sudo apt update -y && sudo apt upgrade -y && sudo apt install git zsh curl
+```
+
+Clone the dotfiles repo to a folder of your choice:
+```
+mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles
+```
+
+Run the update script:
+```
+cd ~/Projects ; ./dot-update <profileName>
+```
+
 ## VS code
 
 add ```fs.inotify.max_user_watches=524288``` to the end of ```/etc/sysctl.conf``` and then run ```sudo sysctl -p```

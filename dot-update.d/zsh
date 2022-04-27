@@ -7,3 +7,5 @@ echo "Linking zsh config"
 ln -sf $profilePath/.zshenv $HOME/.zshenv
 ln -sf $profilePath/.zshrc $HOME/.zshrc
 ln -sf $profilePath/.zprofile $HOME/.zprofile
+
+[[ `grep "^$USER" /etc/passwd | awk -F':' '{ print $NF }'` != "/bin/zsh" ]] && chsh -s $(which zsh)
