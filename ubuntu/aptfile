@@ -5,6 +5,7 @@ ppa "yurivkhan/kitty"
 
 update
 
+package "fzf"
 package "build-essential"
 package "software-properties-common"
 package "curl"
