@@ -4,4 +4,6 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Linking kitty config"
 
+mkdir -p $HOME/.config/kitty/kitty.conf.d/
+
 for file in $macosPath/kitty.conf.d/*; ln -sf "$file" $HOME/.config/kitty/kitty.conf.d/
