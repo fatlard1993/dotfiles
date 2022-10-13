@@ -23,7 +23,7 @@
 	separatorColor: @base04;
 	foregroundColor: @base07;
 
-	font: "Source Code Pro 32";
+	font: "Source Code Pro 36";
 	background-color: @base01;
 	text-color: @foregroundColor;
 

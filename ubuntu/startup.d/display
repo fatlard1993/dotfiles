@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-xrandr --output eDP-1 --mode 3200x1800
+xrandr --output eDP-1 --mode 2880x1620
 
 xrdb -merge ~/.Xresources
 

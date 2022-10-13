@@ -4,6 +4,8 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Linking dotfiles to kitty config"
 
+mkdir -p $HOME/.config/kitty/
+
 ln -sf $dotfilesPath $HOME/.config/kitty/
 
 echo "Linking kitty config"
