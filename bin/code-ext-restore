@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+echo "Updating/Installing/Restoring Extensions"
+
+for extension in `cat $HOME/.dotfiles/vscode/extensions`; code-ext-install "$extension"

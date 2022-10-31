@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+code --uninstall-extension "$1" --force
+
+code-ext-save

@@ -38,15 +38,7 @@ alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
 
 alias file-downlaod='curl --continue-at - --location --progress-bar --remote-name --remote-time'
 
-alias F='fuck'
-
 alias rm-rf='rm -rf'
-
-alias npmi='npm i'
-alias npmstart='npm start'
-alias npm-='npm run'
-alias npm-ls="jq -r '.scripts | keys[]' ./package.json"
-alias npm-packlist="npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
 
 alias git-R!="git reset --hard @{u}"
 

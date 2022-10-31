@@ -1,1 +1,3 @@
 # dotfiles
+
+`./dot-update <profileName>`

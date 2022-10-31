@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+xargs npm install --global < ${1:-"./npmfile"}
