@@ -13,4 +13,4 @@ ln -sf $dotfilesPath/vscode/settings.json $HOME/.vscode/
 echo "Linking vscode keybinds config"
 ln -sf $dotfilesPath/vscode/keybinds.json $HOME/.vscode/
 
-vscode-update
+code-ext-restore

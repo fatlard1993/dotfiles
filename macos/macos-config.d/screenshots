@@ -4,7 +4,7 @@
 # Screenshots                                                                 #
 ###############################################################################
 
-# Save screenshots to the desktop
+# Save screenshots to screenshots folder
 defaults write com.apple.screencapture location -string "${HOME}/Pictures/Screenshots"
 
 # Save screenshots in PNG format (other options: BMP, GIF, JPG, PDF, TIFF)

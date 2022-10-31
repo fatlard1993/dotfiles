@@ -2,6 +2,23 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+if [ "$profileName" ]; then
+	echo "Profile: $profileName"
+elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
+	profileName=$1
+else
+	echo -e "\n\"$1\" is not a valid profile. You can provide one as an argument, eg: $0 <profile>\n\n$(ls $dotfilesPath/profiles)\n"
+
+	read profileName
+
+	exit #?
+fi
+
+echo $profileName > $HOME/.dotfilesProfile
+profilePath="$dotfilesPath/profiles/$profileName"
+
+[[ -e $profilePath/dot-update.d/0_setup ]] && $profilePath/dot-update.d/0_setup
+
 echo "Creating common directories"
 
 mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/bin $HOME/Projects $HOME/.dot-update.d $HOME/.zshrc.d $HOME/.zshenv.d
@@ -26,18 +43,3 @@ mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/bin $HOME/Pr
 	echo "#!/bin/zsh" > $HOME/.zshenv.d/local
 	chmod a+x $HOME/.zshenv.d/local
 }
-
-if [ "$profileName" ]; then
-	echo "Profile: $profileName"
-elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
-	profileName=$1
-else
-	echo -e "\n\"$1\" is not a valid profile. You can provide one as an argument, eg: $0 <profile>\n\n$(ls $dotfilesPath/profiles)\n"
-
-	read profileName
-
-	exit #?
-fi
-
-echo $profileName > $HOME/.dotfilesProfile
-profilePath="$dotfilesPath/profiles/$profileName"

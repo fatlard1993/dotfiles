@@ -3,8 +3,18 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Configuring macos"
-. "$macosPath/macos-config"
+obtainSudo
+# Close any open System Preferences panes, to prevent them from overriding settings we’re about to change
+osascript -e 'tell application "System Preferences" to quit'
+
+for file in $macosPath/macos-config.d/*; do
+    echo "Configure $file..."
+
+    . "$file"
+done
 
 echo "Updating mac software"
 obtainSudo
 sudo softwareupdate --all --install --force
+
+echo "\nNote that some of these changes require a logout/restart to take effect.\n"

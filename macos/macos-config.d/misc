@@ -1,22 +1,5 @@
 #!/bin/zsh
 
-# `defaults find` is good at finding some set preferences
-# e.g.    defaults find com.apple.ActivityMonitor
-
-# Thanks to Mathias Bynens!
-# ~/.macos — https://mths.be/macos
-
-source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
-
-obtainSudo
-
-
-# Close any open System Preferences panes, to prevent them from overriding settings we’re about to change
-osascript -e 'tell application "System Preferences" to quit'
-
-for file in $macosPath/macos-config.d/*; sudo $file
-
-
 ###############################################################################
 # Bluetooth                                                                   #
 ###############################################################################
@@ -161,6 +144,4 @@ defaults write com.apple.menuextra.battery ShowPercent -string "YES"
 # ln -s /path/to/your/image /System/Library/CoreServices/DefaultDesktop.jpg
 
 # Reset Launchpad, but keep the desktop wallpaper intact
-find "${HOME}/Library/Application Support/Dock" -name "*-*.db" -maxdepth 1 -delete
-
-echo "\nDone configuring macos. Note that some of these changes require a logout/restart to take effect.\n"
+# find "${HOME}/Library/Application Support/Dock" -name "*-*.db" -maxdepth 1 -delete

@@ -50,6 +50,10 @@
 - karabiner must be started manually to request initial permissions
 
 
+### Logitech Options Plus
+
+this app doesnt have a brew install method as of yet: https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.zip
+
 ## Todo
 
 - CMD + arrow keys to focus windows

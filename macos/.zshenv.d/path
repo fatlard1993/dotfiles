@@ -2,3 +2,6 @@
 
 # GNU Coreutils Bin
 export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+
+# Set PATH, MANPATH, etc., for Homebrew.
+eval "$(/opt/homebrew/bin/brew shellenv)"

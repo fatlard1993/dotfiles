@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+$macosPath/dot-update.d/0_setup

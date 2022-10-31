@@ -2,10 +2,10 @@
 	/* @ for Command, $ for Shift, ~ for Alt and ^ for Ctrl */
 
 	/* Home */
-	"\UF729" = "moveToBeginningOfLine:";
+	"\UF729" = "moveToBeginningOfParagraph:";
 
 	/* End  */
-	"\UF72B" = "moveToEndOfLine:";
+	"\UF72B" = "moveToEndOfParagraph:";
 
 	/* Shift + Home  */
 	"$\UF729" = "moveToBeginningOfLineAndModifySelection:";
