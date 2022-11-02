@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+mkdir -p "$HOME/Library/Application Support/Code/User/"
+
+echo "Linking vscode argv config"
+ln -sf $dotfilesPath/vscode/argv.json "$HOME/Library/Application Support/Code/User/"
+
+echo "Linking vscode settings config"
+ln -sf $dotfilesPath/vscode/settings.json "$HOME/Library/Application Support/Code/User/"
+
+echo "Linking vscode keybinds config"
+ln -sf $dotfilesPath/vscode/keybinds.json "$HOME/Library/Application Support/Code/User/"
+
+code-ext-restore
