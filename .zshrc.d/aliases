@@ -2,6 +2,9 @@
 
 alias dot-update="$HOME/.dotfiles/dot-update"
 
+# Enable aliases to be sudo’ed
+alias sudo='sudo '
+
 # Always enable colored `grep` output
 # Note: `GREP_OPTIONS="--color=auto"` is deprecated, hence the alias usage.
 alias grep='grep --color=auto'
@@ -14,13 +17,22 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 alias .....="cd ../../../.."
-alias cd.='cd $(readlink -f .)'    # Go to real dir (i.e. if current dir is linked)
-alias cd-dotfiles="cd $(readlink -f $HOME/.dotfiles)"
+alias cd.='cd $(readlink -f .)' # Go to real dir (i.e. if current dir is linked)
+alias cdm='cd ${$(ls -d ~/Projects/*(/) ~/Projects/itential/*(/) ~/*(/) ../*(/) ./*(/) 2&> /dev/null | fzf):-.}' # cd MAGIC
+
+alias cd-git-root='cd $(git rev-parse --show-toplevel)'
+
+alias l!="spinner"
+
+alias sleep="l! sleep"
+alias cp="SPINNER=7 l! cp"
+alias rm="SPINNER=30 l! rm"
+alias tar="SPINNER=18 l! tar"
+
+iap-cd() { cd `iap-which-app $@` }
+iap-code() { code `iap-which-app $@` }
 
 alias perms="stat -f '%A - %N'"
-
-# Enable aliases to be sudo’ed
-alias sudo='sudo '
 
 # IP addresses
 # alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
@@ -31,8 +43,9 @@ alias arps='sudo arp-scan -l'
 
 # Reload the shell (i.e. invoke as a login shell)
 alias reload="exec ${SHELL} -l"
+alias r!="reload"
 
-alias calc='echo "$*" | bc -l'
+calc() { echo "$@" | bc -l }
 
 alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
 
@@ -40,12 +53,31 @@ alias file-downlaod='curl --continue-at - --location --progress-bar --remote-nam
 
 alias rm-rf='rm -rf'
 
-alias git-R!="git reset --hard @{u}"
+alias git-reset="git reset --hard @{upstream}"
+
+git-s() { git status --porcelain }
+
+git-stash-patch() { git stash show "stash@{0}" -p "${1:-"stash"}.patch" }
+
+git-nah() {
+	git reset --hard
+	git clean -df
+	if [ -d ".git/rebase-apply" ] || [ -d ".git/rebase-merge" ]; then
+		git rebase --abort
+	fi
+}
+
+git-latest() {
+	git fetch
+	git reset --hard @{upstream}
+	git clean -df
+	git pull
+}
 
 vissh() { [ "$1" == "" ] && nano $HOME/.ssh/config || nano $HOME/.ssh/config.d/$1 }
 vigit() { git config -e }
 
-mcd() { mkdir -p "$@" && cd "$_" }
+mkd() { mkdir -p "$@" && cd "$_" }
 
 cmd_exists() {
 	command -v "$1" &> /dev/null
@@ -67,16 +99,16 @@ alias git-stats='git log --no-merges --pretty=format:"%ae" | stats'
 alias history-stats="history 0 | awk '{print \$2}' | stats | head"
 
 # 4 lulz.
-compute() {
+hax() {
   while true; do head -n 100 /dev/urandom; sleep 0.1; done \
     | hexdump -C | grep "ca fe"
 }
 
-# Simple .tar archiving.
-tar_() {
-  tar -cvf "$1.tar" "$1"
+holdPlz() {
+	yes "say Your call is very important to ${2:-$USER}. Your patience is appreciated; sleep ${1:-"2"}" | zsh
 }
 
-untar() {
-  tar -xvf $1
-}
+# Simple .tar archiving.
+tar_() { tar -cvf "$1.tar" "$1" }
+
+untar() { tar -xvf $1 }
