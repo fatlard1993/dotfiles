@@ -7,6 +7,7 @@ donjayamanne.githistory
 emilast.LogFileHighlighter
 esbenp.prettier-vscode
 formulahendry.code-runner
+foxundermoon.shell-format
 Gruntfuggly.todo-tree
 huizhou.githd
 iocave.customize-ui
@@ -16,6 +17,7 @@ jock.svg
 meganrogge.template-string-converter
 mrmlnc.vscode-json5
 ms-azuretools.vscode-docker
+ms-python.isort
 ms-python.python
 ms-python.vscode-pylance
 ms-toolsai.jupyter
@@ -36,3 +38,4 @@ streetsidesoftware.code-spell-checker
 tomoki1207.pdf
 vsciot-vscode.vscode-arduino
 ybaumes.highlight-trailing-white-spaces
+ZixuanChen.vitest-explorer
