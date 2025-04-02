@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+# bun completions
+[ -s "/Users/chase.whitfield/.bun/_bun" ] && source "/Users/chase.whitfield/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+alias buni='bun i'
+alias bunstart='bun run start'
+alias bun-start='bun run start'
+alias bun-='bun run'
