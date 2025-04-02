@@ -1,0 +1,15 @@
+#!/bin/zsh
+
+[[ "$1" = "--PlayAll" ]] && {
+	cd /System/Library/PrivateFrameworks/ScreenReader.framework/Versions/A/Resources/Sounds/
+
+	for i in *; do
+		echo "${i:r}"
+		$0 "${i:r}"
+		sleep ${2:-"0.4"}
+	done
+
+	exit 0
+}
+
+afplay /System/Library/PrivateFrameworks/ScreenReader.framework/Versions/A/Resources/Sounds/${1:-"RotorLeft"}.aiff
