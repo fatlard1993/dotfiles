@@ -1,20 +1,257 @@
 #!/bin/zsh
 
-function gitBranchLabel()
-{
-  branch=$(git symbolic-ref HEAD 2> /dev/null | awk 'BEGIN{FS="/"} {print $NF}')
-  if [[ $branch == "" ]]; then
-    :
-  else
-    echo "%F{cyan}[  $branch ]%f"
+_prompt_newline=$'\n'
+_prompt_directory="%F{blue}[%~]%f"
+_prompt_time="[%*]"
+_prompt_ip="%F{12}[$(ipconfig getifaddr en0)]%f"
+
+git-prompt-commit() {
+  git status --porcelain
+
+  echo "┣ Enter a message to commit these changes"
+  read "message?┗ "
+
+echo -e '\e[1A┣'
+
+  git add .
+  git commit -m "$message"
+}
+
+git-prompt-changes() {
+  git status --porcelain
+
+  local RED="\033[1;31m"
+  local YELLOW="\033[1;33m"
+  local GREEN="\033[1;32m"
+  local NC="\033[0m"
+
+  echo "┣ [${GREEN}1${NC}]: Commit, [${YELLOW}2${NC}]: Stash, [${RED}3${NC}]: Clear"
+  read "action?┗ "
+
+  echo -e '\e[1A┣'
+
+  if [ "$action" = "1" ]; then
+    git-prompt-commit
+  elif [ "$action" = "2" ]; then
+    git stash
+  elif [ "$action" = "3" ]; then
+    git-nah
   fi
 }
-newline=$'\n'
-user="%F{green}[%n]%f"
-host="%F{magenta}[%m]%f"
-directory="%F{blue}[%~]%f"
-time="[%*]"
+
+git-prompt-push() {
+  git cherry -v
+
+  local RED="\033[1;31m"
+  local YELLOW="\033[1;33m"
+  local GREEN="\033[1;32m"
+  local NC="\033[0m"
+
+  echo "┣ [${GREEN}1${NC}]: Push, [${YELLOW}2${NC}]: Force Push, [${RED}3${NC}]: Uncommit"
+  read "action?┗ "
+
+  echo -e '\e[1A┣'
+
+  if [ "$action" = "1" ]; then
+    git push
+  elif [ "$action" = "2" ]; then
+    git push --force
+  elif [ "$action" = "3" ]; then
+    git reset --mixed "HEAD~$(git cherry -v | wc -l | xargs)"
+  fi
+}
+
+git-prompt-rebase() {
+  echo "┣ Abort the in-progress rebase?"
+  read REPLY\?"┗ [Return] to continue - [Ctrl + c] to cancel"
+
+  echo -e '\e[1A┣'
+
+  git rebase --abort
+}
+
+gitm() {
+  local isInGitRepo=$([ -d .git ] && echo true || git rev-parse --git-dir >/dev/null 2>&1)
+
+  [[ $isInGitRepo ]] && {
+    local hasGitChanges=$(git status --porcelain)
+    local gitRoot=$(git rev-parse --show-toplevel 2 &>/dev/null)
+    local hasUnpushedCommits=$(git cherry -v)
+    local isMidRebase=""
+
+    [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
+    [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
+
+    [[ "$hasGitChanges" = "" ]] || BUFFER="git-prompt-changes"
+    [[ $hasUnpushedCommits ]] && BUFFER="git-prompt-push"
+    [[ $isMidRebase ]] && BUFFER="git-prompt-rebase"
+  }
+}
+
+statm() {
+  isInGitRepo=`[ -d .git ] && echo true || git rev-parse --git-dir > /dev/null 2>&1`
+
+  local isInItential=""
+
+  [[ `pwd` =~ "Projects/itential" ]] && isInItential=true
+
+  [[ $isInItential ]] && BUFFER="env-status --env"
+
+  [[ $isInGitRepo ]] && {
+      local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
+      local hasUnpushedCommits=`git cherry -v`
+      # local isMidRebase=""
+
+      # [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
+      # [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
+
+      [[ $isInItential ]] && BUFFER="env-status --wd"
+      [[ $hasUnpushedCommits ]] && BUFFER="git status --porcelain"
+      # [[ $isMidRebase ]] && BUFFER=""
+    }
+}
+
+_prompt_gitBranch() {
+  isInGitRepo=`[ -d .git ] && echo true || git rev-parse --git-dir > /dev/null 2>&1`
+
+  [[ $isInGitRepo ]] && {
+    local gitBranch=`git rev-parse --abbrev-ref HEAD`
+    gitBranch=${gitBranch//\%/%%}  # escape '%'
+
+    [[ "$gitBranch" =~ ".*no branch.*" ]] && gitBranch="%F{red}$gitBranch%f"
+
+    local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
+    local hasGitChanges=`git status --porcelain`
+    local hasUnpushedCommits=`git cherry -v 2&>/dev/null`
+    local isMidRebase=""
+    local parentBranch=""
+    local jsRuntime=""
+
+    [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
+    [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
+
+    [[ `pwd` =~ "Projects/itential" ]] && {
+      parent=`git-print-branch-parent 2&>/dev/null`
+
+      [[ "$parent" = "" ]] || {
+        [[ "$parent" = "$gitBranch" ]] || parentBranch="%F{cyan}[$parent]%f"
+      }
+    }
+
+    [[ -f "$gitRoot/package.json" ]] && {
+      [[ -f "$gitRoot/bun.lockb" ]] || jsRuntime="%F{magenta}[$(node --version)]%f"
+      [[ -f "$gitRoot/bun.lockb" ]] && jsRuntime="%F{magenta}[$(bun --version)]%f"
+    }
+
+    local gitStatusColor="green"
+
+    [[ $hasGitChanges ]] && gitStatusColor="yellow"
+    [[ $hasUnpushedCommits ]] && gitStatusColor="magenta"
+    [[ $isMidRebase ]] && gitStatusColor="red"
+
+    local gitIcon="%F{${gitStatusColor}}%f "
+    local branch="%F{cyan}[$gitBranch%F{cyan}]%f"
+    local commit="%F{cyan}[$(git rev-parse --short HEAD)]%f"
+    local packageVersion=""
+    [[ -f "$gitRoot/package.json" ]] && packageVersion="%F{cyan}[$(cd $gitRoot ; jq -r .version package.json)]%f"
+
+    echo "${_prompt_newline}┣ ${gitIcon}${parentBranch}${branch}${commit}${packageVersion}${jsRuntime}"
+  }
+}
+
+_prompt_user() {
+  local user="%F{green}[%n]%f"
+  local host="%F{magenta}[%m]%f"
+
+  [[ $SSH_TTY ]] && echo "${user}${host}"
+}
+
+_prompt_lastCommand() {
+  local lastCommandSeconds=${_elapsed[-1]}
+  local lastCommandExit="%F{red}%(?..%B  %?%b)%f"
+  local lastCommand="$lastCommandExit [$lcmd]"
+
+  [[ "$lcmd" = "" ]] && lastCommand=""
+
+  if [[ "$lastCommandSeconds" = "" ]]; then
+    echo ""
+  elif (( $lastCommandSeconds > 3600 )); then
+    local lastCommandHours=$(gdate -d@${lastCommandSeconds} -u +%H:%M:%S)
+    echo "┗${lastCommand}[${lastCommandHours}]"
+  elif (( $lastCommandSeconds > 60 )); then
+    local lastCommandMinutes=$(gdate -d@${lastCommandSeconds} -u +%M:%S)
+    echo "┗${lastCommand}[${lastCommandMinutes}]"
+  else
+    echo "┗${lastCommand}[${lastCommandSeconds}s]"
+  fi
+}
+
+preexec () {
+  if [ "$cmd" ]; then
+    (( $#_elapsed > 100 )) && set -A _elapsed $_elapsed[-100,-1]
+    typeset -ig _start=SECONDS
+  fi
+}
+precmd () {
+  lcmd=$cmd
+
+  (( _start >= 0 )) && set -A _elapsed $_elapsed $(( SECONDS-_start ))
+  _start=-1
+
+  cmd=
+}
+
+_prompt_commandPipe() {
+  if [ "$cmd" ]; then
+    echo "┣ "
+  else
+    echo "┗ "
+  fi
+}
+
+_prompt_redraw() {
+  zle reset-prompt
+}
+
+reset-prompt-and-accept-line() {
+  [[ $BUFFER ]] || {
+    BUFFER="cdm"
+
+    local isInGitRepo=`[ -d .git ] && echo true || git rev-parse --git-dir > /dev/null 2>&1`
+
+    [[ $isInGitRepo ]] && {
+      local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
+      local hasUnpushedCommits=`git cherry -v`
+      local isMidRebase=""
+
+      [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
+      [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
+
+      [[ $hasUnpushedCommits ]] && BUFFER="git-prompt-push"
+      [[ $isMidRebase ]] && BUFFER="git-prompt-rebase"
+    }
+  }
+
+  cmd=$BUFFER
+
+  _prompt_redraw
+
+  [[ $BUFFER ]] && {
+    zle .accept-line
+  }
+
+  [[ $BUFFER ]] || fc -R ~/.zsh_history
+}
+
+zle -N accept-line reset-prompt-and-accept-line
 
 setopt prompt_subst
 
-prompt='${newline}┏${time}${tty}${user}${host}${directory}$(gitBranchLabel)${newline}┗ %% '
+trap _prompt_redraw WINCH
+
+_prompt_line0='$(_prompt_lastCommand)'
+_prompt_line1='${_prompt_newline}${_prompt_newline}┏${_prompt_time}${_prompt_ip}${tty}$(_prompt_user)${_prompt_directory}'
+_prompt_line2='$(_prompt_gitBranch)'
+_prompt_line3='${_prompt_newline}$(_prompt_commandPipe)%# '
+
+PROMPT="${_prompt_line0}${_prompt_line1}${_prompt_line2}${_prompt_line3}"
