@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+source ~/Projects/fzf-tab-completion/zsh/fzf-zsh-completion.sh
+bindkey '^I' fzf_completion
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
