@@ -13,6 +13,7 @@ brew "koekeishiya/formulae/skhd", restart_service: true
 brew "koekeishiya/formulae/yabai", restart_service: true
 
 # Misc
+brew "fd"
 brew "watch"
 brew "fzf"
 brew "thefuck"
