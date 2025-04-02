@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+count=${1:-"1"}
+
+curl "https://baconipsum.com/api/?type=all-meat&sentences=${count}&format=text" | say
