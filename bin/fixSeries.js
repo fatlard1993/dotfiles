@@ -5,7 +5,19 @@ const path = require('path');
 const exec = require('child_process').exec;
 
 const ffmetadata = require('ffmetadata');
-const util = require('js-util');
+
+export const capitalize = (string, recursive, split = ' ') => {
+	const words = string.split(split);
+	const wordCount = words.length;
+
+	for (let x = 0, word; x < (recursive ? wordCount : 1); ++x) {
+		word = words[x];
+
+		words[x] = word.charAt(0).toUpperCase() + word.slice(1);
+	}
+
+	return words.join(split);
+};
 
 const deleteFilesRegex = /.*(rarbg).*\.(txt|exe)|^subs$/i;
 
@@ -79,7 +91,7 @@ forEachInFolder(process.cwd(), function processChild(child){
 
 	const nameParts = name.match(isDirectory ? folderNameRegex : nameRegex);
 	const season = nameParts && padNumber(nameParts[2], 2);
-	const cleanName = nameParts && util.capitalize(nameParts[1].replace(separatorRegex, ' '), true);
+	const cleanName = nameParts && capitalize(nameParts[1].replace(separatorRegex, ' '), true);
 
 	if(isDirectory){
 		if(folderNameRegex.test(name)){
@@ -111,7 +123,7 @@ forEachInFolder(process.cwd(), function processChild(child){
 	if(!nameRegex.test(name)) return;
 
 	const episode = padNumber(nameParts[3], 2);
-	const description = nameParts[4] ? util.capitalize(nameParts[4].replace(separatorRegex, ' ')) : '';
+	const description = nameParts[4] ? capitalize(nameParts[4].replace(separatorRegex, ' ')) : '';
 	const extension = nameParts[5].toLowerCase();
 
 	const filename = `${cleanName} s${season}e${episode}${description ?  ' - ' : ''}${description}`;
