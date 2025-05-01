@@ -18,7 +18,6 @@
 		"ffmetadata": "github:cgnik/node-ffmetadata",
 		"i3": "^0.3.0",
 		"log": "github:fatlard1993/log#3.x.x",
-		"js-util": "github:fatlard1993/js-util#2.x.x",
 		"movie-art": "^2.0.3",
 		"request": "^2.88.2"
 	}
