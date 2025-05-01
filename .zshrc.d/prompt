@@ -98,6 +98,8 @@ statm() {
   [[ $isInItential ]] && BUFFER="env-status --env"
 
   [[ $isInGitRepo ]] && {
+      BUFFER="git cherry -v"
+
       local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
       local hasUnpushedCommits=`git cherry -v`
       # local isMidRebase=""
