@@ -55,6 +55,8 @@ alias rm-rf='rm -rf'
 
 alias git-reset="git reset --hard @{upstream}"
 
+alias port-ls="sudo lsof -iTCP -sTCP:LISTEN -n -P"
+
 git-s() { git status --porcelain }
 
 git-stash-patch() { git stash show "stash@{0}" -p "${1:-"stash"}.patch" }
