@@ -7,11 +7,12 @@ FILES=$(mktemp)
 PACKAGES=$(mktemp)
 
 find . \
-	-path ./node_modules -prune -or \
-	-path ./build -prune -or \
-	\( -name "*.ts" -or -name "*.js" -or -name "*.json" \) -print >$FILES
+	-path */node_modules -prune -or \
+	-path */build -prune -or \
+	-path */dist -prune -or \
+	\( -name "*.ts" -or -name "*.cjs" -or -name "*.mjs" -or -name "*.js" -or -name "*.jsx" \) -print > $FILES
 
-function check {
+function checkUsage {
 	cat package.json |
 		jq "{} + .$1 | keys" |
 		sed -n 's/.*"\(.*\)".*/\1/p' >$PACKAGES
@@ -19,7 +20,7 @@ function check {
 	echo "--------------------------"
 	echo "Checking $1..."
 	while read PACKAGE; do
-		RES=$(cat $FILES | xargs -P 32 -I {} egrep -i "(import|require).*['\"]$PACKAGE[\"']" '{}' | wc -l)
+		RES=$(cat $FILES | xargs -P 32 -I {} egrep -i "(import|require).*['\"]$PACKAGE(/.+)?[\"']|node_modules/$PACKAGE" '{}' | wc -l)
 		if [ $RES = 0 ]; then
 			echo -e "UNUSED\t\t $PACKAGE"
 		else
@@ -28,6 +29,6 @@ function check {
 	done <$PACKAGES
 }
 
-check "dependencies"
-check "devDependencies"
-check "peerDependencies"
+checkUsage "dependencies"
+checkUsage "devDependencies"
+checkUsage "peerDependencies"
