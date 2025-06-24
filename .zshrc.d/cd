@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+cd() {
+	if [[ "$@" =~ "^\.{3,}$" ]]; then
+		builtin cd `echo "$@" | cut -c2- | sed -e 's/\./\.\.\//g'`
+	elif [[ "$@" == "." ]]; then
+		# Go to real dir (i.e. if current dir is linked)
+		builtin cd `readlink -f .`
+	elif [[ "$@" == "...git" ]]; then
+		builtin cd `git rev-parse --show-toplevel`
+	elif [[ "$@" == "...m" ]]; then
+		# cd MAGIC
+		builtin cd `ls -d ~/Projects/*/ ~/Projects/itential/*/ ~/*/ ../*/ ./*/ ./*/*/ 2&> /dev/null | fzf`
+	else
+		builtin cd "$@"
+	fi
+}
+
+alias cd-="cd -"
+alias cd.='cd .'
+alias cdm='cd ...m'

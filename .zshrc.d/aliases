@@ -11,26 +11,25 @@ alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 
-alias cd-="cd -"
-alias cd..="cd .."
-alias ..="cd .."
-alias ...="cd ../.."
-alias ....="cd ../../.."
-alias .....="cd ../../../.."
-alias cd.='cd $(readlink -f .)' # Go to real dir (i.e. if current dir is linked)
-alias cdm='cd ${$(ls -d ~/Projects/*(/) ~/Projects/itential/*(/) ~/*(/) ../*(/) ./*(/) 2&> /dev/null | fzf):-.}' # cd MAGIC
-
-alias cd-git-root='cd $(git rev-parse --show-toplevel)'
-
 alias l!="spinner"
 
 alias sleep="l! sleep"
 alias cp="SPINNER=7 l! cp"
+alias mv="SPINNER=19 l! mv"
 alias rm="SPINNER=30 l! rm"
 alias tar="SPINNER=18 l! tar"
 
 iap-cd() { cd `iap-which-app $@` }
 iap-code() { code `iap-which-app $@` }
+
+alias i="[[ -e ./bunfig.toml ]] && bun i || npm i"
+alias i!="[[ -e ./package.json ]] && rm -rf ./node_modules && i"
+alias ci="[[ -e ./bunfig.toml ]] && bun i --frozen-lockfile || npm ci"
+
+alias npm-nexus="cp ~/.npmrc.nexus ~/.npmrc"
+alias npm-jfrog="cp ~/.npmrc.jfrog ~/.npmrc"
+
+nlt() { jq '.packages | to_entries[] | select(.key | test("/'${1}'$")) | [.value.version, .key] | join(" -- ")' ./package-lock.json }
 
 alias perms="stat -f '%A - %N'"
 
@@ -41,15 +40,21 @@ alias perms="stat -f '%A - %N'"
 
 alias arps='sudo arp-scan -l'
 
+alias dirty='watch -n1 "cat /proc/meminfo | grep Dirty"'
+
 # Reload the shell (i.e. invoke as a login shell)
 alias reload="exec ${SHELL} -l"
 alias r!="reload"
+
+alias c!="clear"
+
+alias :q="exit"
 
 calc() { echo "$@" | bc -l }
 
 alias speedtest="wget -O /dev/null http://speed.transip.nl/100mb.bin"
 
-alias file-downlaod='curl --continue-at - --location --progress-bar --remote-name --remote-time'
+alias file-download='curl --continue-at - --location --progress-bar --remote-name --remote-time'
 
 alias rm-rf='rm -rf'
 
