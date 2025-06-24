@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+mkdir() {
+	if [[ "$@" =~ "(\s|^)(\.\/|[^/~$])" ]]; then
+		command mkdir "$@"
+		cd "$_"
+	else
+		command mkdir "$@"
+	fi
+}
