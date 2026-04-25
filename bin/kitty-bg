@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Per-window kitty theming based on directory.
+# Emits background, foreground tint, and cursor from the same hue.
+# $HOME resets all channels to defaults.
+
+set -euo pipefail
+
+_reset() {
+  printf '\e]111;\a'  # background
+  printf '\e]110;\a'  # foreground
+  printf '\e]112;\a'  # cursor
+}
+
+# Single HSL→hex via awk (no function defs — BSD awk compatible)
+_hsl() {
+  awk -v idx="$1" -v s="$2" -v l="$3" 'BEGIN {
+    h = idx * 15
+    a = 2*l - 1; if (a < 0) a = -a
+    c = (1 - a) * s
+    hp = h / 60
+    hp2 = hp - int(hp / 2) * 2
+    d = hp2 - 1; if (d < 0) d = -d
+    x = c * (1 - d)
+    m = l - c / 2
+    if      (hp < 1) { r1=c; g1=x; b1=0 }
+    else if (hp < 2) { r1=x; g1=c; b1=0 }
+    else if (hp < 3) { r1=0; g1=c; b1=x }
+    else if (hp < 4) { r1=0; g1=x; b1=c }
+    else if (hp < 5) { r1=x; g1=0; b1=c }
+    else             { r1=c; g1=0; b1=x }
+    printf "#%02X%02X%02X\n",
+      int((r1+m)*255+0.5), int((g1+m)*255+0.5), int((b1+m)*255+0.5)
+  }'
+}
+
+_apply() {
+  local idx="$1"
+  printf '\e]11;%s\a' "$(_hsl "$idx" 0.12 0.07)"  # background
+  printf '\e]10;%s\a' "$(_hsl "$idx" 0.08 0.88)"  # foreground
+  printf '\e]12;%s\a' "$(_hsl "$idx" 0.80 0.60)"  # cursor
+}
+
+_color_for() {
+  local path
+  path=$(cd "${1:-$PWD}" 2>/dev/null && pwd || printf '%s' "${1:-$PWD}")
+  [[ "$path" == "$HOME" ]] && { _reset; return; }
+  local hash idx
+  hash=$(printf '%s' "$path" | cksum | awk '{print $1}')
+  idx=$(( hash % 24 ))
+  _apply "$idx"
+}
+
+case "${1:-}" in
+  "")     _color_for "$PWD" ;;
+  reset)  _reset ;;
+  list)
+    for i in {0..23}; do
+      printf "  %2d  H=%3d°  bg=%-9s cursor=%-9s fg=%s\n" \
+        "$i" "$(( i * 15 ))" \
+        "$(_hsl "$i" 0.25 0.10)" \
+        "$(_hsl "$i" 0.80 0.60)" \
+        "$(_hsl "$i" 0.08 0.88)"
+    done
+    ;;
+  /*)     _color_for "$1" ;;
+  *)
+    printf 'Usage: kitty-bg [reset|list|/path]\n' >&2
+    exit 1
+    ;;
+esac

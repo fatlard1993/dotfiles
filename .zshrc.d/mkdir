@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+[[ -o interactive ]] || return
+[[ -n "$CLAUDECODE" ]] && return
+
 mkdir() {
 	if [[ "$@" =~ "(\s|^)(\.\/|[^/~$])" ]]; then
 		command mkdir "$@"

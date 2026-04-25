@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+[[ -o interactive ]] || return
+[[ -n "$CLAUDECODE" ]] && return
+
 # https://unix.stackexchange.com/questions/108699/documentation-on-less-termcap-variables
 # https://unix.stackexchange.com/questions/119/colors-in-man-pages/147#147
 
@@ -27,7 +30,7 @@ export LESS_TERMCAP_md=$(tput bold; tput setaf $blueBright)
 export LESS_TERMCAP_me=$(tput sgr0)
 export LESS_TERMCAP_so=$(tput bold; tput setaf $yellow)
 export LESS_TERMCAP_se=$(tput rmso; tput sgr0)
-export LESS_TERMCAP_us=$(tput smul; tput bold; tput setaf $white7)
+export LESS_TERMCAP_us=$(tput smul; tput bold; tput setaf $white)
 export LESS_TERMCAP_ue=$(tput rmul; tput sgr0)
 export LESS_TERMCAP_mr=$(tput rev)
 export LESS_TERMCAP_mh=$(tput dim)

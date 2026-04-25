@@ -1,5 +1,11 @@
 #!/bin/zsh
 
+# Restore paging for interactive shells (core.pager=cat in gitconfig for non-interactive)
+export GIT_PAGER=less
+
+# Dotfiles Bin
+export PATH="$PATH:$HOME/.dotfiles/bin"
+
 alias dot-update="$HOME/.dotfiles/dot-update"
 
 # Enable aliases to be sudo’ed
@@ -13,11 +19,33 @@ alias egrep='egrep --color=auto'
 
 alias l!="spinner"
 
-alias sleep="l! sleep"
-alias cp="SPINNER=7 l! cp"
-alias mv="SPINNER=19 l! mv"
-alias rm="SPINNER=30 l! rm"
-alias tar="SPINNER=18 l! tar"
+safe-rm() {
+  local paths=()
+  for arg in "$@"; do
+    [[ "$arg" != -* ]] && paths+=("$arg")
+  done
+  if [[ ${#paths[@]} -eq 0 ]]; then
+    echo "safe-rm: no paths specified" >&2
+    return 1
+  fi
+  trash "${paths[@]}"
+}
+
+[[ "$CLAUDECODE" = "1" ]] && NON_INTERACTIVE=1
+[[ -t 0 ]] || NON_INTERACTIVE=1
+
+[[ "$NON_INTERACTIVE" = "1" ]] && {
+  alias rm="safe-rm"
+  alias unlink="safe-rm"
+}
+
+if [[ -z "$CLAUDECODE" ]]; then
+  alias sleep="spinner sleep"
+  alias cp="SPINNER=7 spinner cp"
+  alias mv="SPINNER=19 spinner mv"
+  alias rm="SPINNER=30 spinner rm"
+  alias tar="SPINNER=18 spinner tar"
+fi
 
 iap-cd() { cd `iap-which-app $@` }
 iap-code() { code `iap-which-app $@` }
@@ -43,10 +71,15 @@ alias arps='sudo arp-scan -l'
 alias dirty='watch -n1 "cat /proc/meminfo | grep Dirty"'
 
 # Reload the shell (i.e. invoke as a login shell)
-alias reload="exec ${SHELL} -l"
+reload() {
+  [[ -n "$KITTY_WINDOW_ID" ]] && kitty-bg reset
+  unset CLAUDECODE
+  exec ${SHELL} -l
+}
 alias r!="reload"
+alias R!="printf '\033[3J'; clear; reload"
 
-alias c!="clear"
+alias c!="printf '\033[3J'; clear"
 
 alias :q="exit"
 
@@ -83,8 +116,6 @@ git-latest() {
 
 vissh() { [ "$1" == "" ] && nano $HOME/.ssh/config || nano $HOME/.ssh/config.d/$1 }
 vigit() { git config -e }
-
-mkd() { mkdir -p "$@" && cd "$_" }
 
 cmd_exists() {
 	command -v "$1" &> /dev/null

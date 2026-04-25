@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+[[ -o interactive ]] || return
+[[ -n "$CLAUDECODE" ]] && return
+
+_pwd_path_update() {
+  local old="$_PWD_PATH_PREFIX"
+
+  if [[ -n "$old" ]]; then
+    path=("${(@)path:#${old}/scripts}")
+    path=("${(@)path:#${old}/bin}")
+    path=("${(@)path:#${old}/node_modules/.bin}")
+  fi
+
+  export _PWD_PATH_PREFIX="$PWD"
+  path+=("$PWD/scripts" "$PWD/bin" "$PWD/node_modules/.bin")
+}
+
+autoload -U add-zsh-hook
+add-zsh-hook chpwd _pwd_path_update
+_pwd_path_update

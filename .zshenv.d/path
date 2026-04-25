@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# Ripgrep config
+export RIPGREP_CONFIG_PATH="$HOME/.dotfiles/.ripgreprc"
+
 # Base Path
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 

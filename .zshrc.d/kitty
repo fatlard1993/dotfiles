@@ -1,3 +1,17 @@
 #!/bin/zsh
 
 alias icat="kitty +kitten icat"
+
+[[ -o interactive ]] || return
+[[ -n "$CLAUDECODE" ]] && return
+[[ -n "$KITTY_WINDOW_ID" ]] || return
+
+claude() {
+  kitty-bg
+  printf '\033[3J'; clear
+  command claude "$@"
+  local rc=$?
+  printf '\033[3J'; clear
+  reload
+  return $rc
+}

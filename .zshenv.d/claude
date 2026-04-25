@@ -1,0 +1,81 @@
+#!/bin/zsh
+
+# Settings only active in Claude Code sessions
+[[ -n "$CLAUDECODE" ]] || return
+
+# --- Output cleanup ---
+
+# Strip colors from well-behaved tools
+export NO_COLOR=1
+export FORCE_COLOR=0
+
+# CI mode — disables progress bars, spinners, and interactive output
+# in test runners, npm, and most build tools
+export CI=true
+
+# npm: errors only, no funding or audit noise
+export npm_config_loglevel=error
+export npm_config_fund=false
+export npm_config_audit=false
+
+# Docker: suppress CLI hints
+export DOCKER_CLI_HINTS=false
+
+# Python: flush output immediately, no .pyc files
+export PYTHONUNBUFFERED=1
+export PYTHONDONTWRITEBYTECODE=1
+
+# Java: suppress encoding warnings
+export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+
+# Node: raise memory ceiling for large builds
+export NODE_OPTIONS="--max-old-space-size=4096"
+
+# Brew: don't auto-update before installs
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+
+# Consistent output width — prevents tools wrapping at detected terminal width
+export COLUMNS=220
+
+# --- Hang prevention ---
+
+# Git: fail immediately if credentials are needed instead of prompting
+export GIT_TERMINAL_PROMPT=0
+
+# Git/editor: no-op so anything opening an editor hangs instead of launching VS Code
+export GIT_EDITOR=true
+export EDITOR=true
+export VISUAL=true
+
+# Git: no-op merge message editor
+export GIT_MERGE_AUTOEDIT=no
+
+# SSH: batch mode — fail fast instead of prompting for credentials
+export GIT_SSH_COMMAND="ssh -o BatchMode=yes"
+
+# Pager: never page — all output should flow directly
+export PAGER=cat
+export MANPAGER=cat
+
+# --- Aliases ---
+
+# jq monochrome by default
+alias jq="jq -M"
+
+# curl: silent, follow redirects, fail on HTTP errors
+alias curl="curl -sLf"
+
+# bat: plain content, no decorative chrome
+alias bat="bat --style=plain --color=never"
+
+# diff: unified format
+alias diff="diff -u"
+
+# wget: quiet
+alias wget="wget -q"
+
+# --- Functions ---
+
+# port: what's listening on a given port
+port() { sudo lsof -iTCP:$1 -sTCP:LISTEN -n -P }
