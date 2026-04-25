@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+[[ -o interactive ]] || return
+[[ -n "$CLAUDECODE" ]] && return
+
 _prompt_newline=$'\n'
 _prompt_directory="%F{blue}[%~]%f"
 _prompt_time="[%*]"
@@ -109,8 +112,8 @@ _prompt_gitBranch() {
 
 
     [[ -f "$gitRoot/package.json" ]] && {
-      [[ -f "$gitRoot/bun.lockb" ]] || jsRuntime="%F{magenta}[$(node --version)]%f"
-      [[ -f "$gitRoot/bun.lockb" ]] && jsRuntime="%F{magenta}[$(bun --version)]%f"
+      [[ -f "$gitRoot/bunfig.toml" ]] || jsRuntime="%F{magenta}[$(node --version)]%f"
+      [[ -f "$gitRoot/bunfig.toml" ]] && jsRuntime="%F{magenta}[$(bun --version)]%f"
     }
 
     local gitStatusColor="green"

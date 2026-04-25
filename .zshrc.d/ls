@@ -9,10 +9,14 @@ export LS_COLORS='di=34:ln=36:so=0:pi=0:ex=32:bd=0:cd=0:su=0:sg=0:tw=34:ow=34'
 alias ls="command gls -G"
 
 # List all files in long format, excluding . and ..
-alias l="ls -lAF --color=always --group-directories-first"
-
 # List all files in long format
-alias la="ls -laF --color=always --group-directories-first"
+if [[ -n "$CLAUDECODE" ]]; then
+  alias l="ls -lAF --color=never --group-directories-first"
+  alias la="ls -laF --color=never --group-directories-first"
+else
+  alias l="ls -lAF --color=always --group-directories-first"
+  alias la="ls -laF --color=always --group-directories-first"
+fi
 
 # List only directories
 alias lsd="ls -lF | grep --color=never '^d'"
