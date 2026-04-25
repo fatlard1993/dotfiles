@@ -1,0 +1,21 @@
+# Ignore common non-source directories
+--glob=!node_modules/
+--glob=!.git/
+--glob=!dist/
+--glob=!build/
+--glob=!coverage/
+--glob=!.next/
+--glob=!.nuxt/
+--glob=!vendor/
+--glob=!*.lock
+--glob=!*.min.js
+--glob=!*.min.css
+
+# Don't use color (cleaner output for tooling)
+--color=never
+
+# Show line numbers
+--line-number
+
+# Follow symlinks
+--follow
