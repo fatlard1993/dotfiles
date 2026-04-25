@@ -1,5 +1,0 @@
-#!/bin/zsh
-
-eval $(thefuck --alias)
-
-alias F='fuck'
