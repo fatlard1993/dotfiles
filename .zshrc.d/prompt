@@ -105,64 +105,138 @@ statm() {
 
       local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
       local hasUnpushedCommits=`git cherry -v`
-      # local isMidRebase=""
-
-      # [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
-      # [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
 
       [[ $isInItential ]] && BUFFER="env-status --wd"
       [[ $hasUnpushedCommits ]] && BUFFER="git status --porcelain"
-      # [[ $isMidRebase ]] && BUFFER=""
     }
 }
+
+# ── async git branch display ──────────────────────────────────────────────────
+
+typeset -A _prompt_git_cache     # pwd -> rendered git line
+typeset -A _prompt_git_unpushed  # pwd -> "1" if unpushed commits exist
+typeset -A _prompt_git_rebasing  # pwd -> "1" if mid-rebase
+_prompt_async_pid=""
+_prompt_async_gen=0
 
 _prompt_gitBranch() {
-  isInGitRepo=`[ -d .git ] && echo true || git rev-parse --git-dir > /dev/null 2>&1`
-
-  [[ $isInGitRepo ]] && {
-    local gitBranch=`git rev-parse --abbrev-ref HEAD`
-    gitBranch=${gitBranch//\%/%%}  # escape '%'
-
-    [[ "$gitBranch" =~ ".*no branch.*" ]] && gitBranch="%F{red}$gitBranch%f"
-
-    local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
-    local hasGitChanges=`git status --porcelain`
-    local hasUnpushedCommits=`git cherry -v 2&>/dev/null`
-    local isMidRebase=""
-    local parentBranch=""
-    local jsRuntime=""
-
-    [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
-    [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
-
-    [[ `pwd` =~ "Projects/itential" ]] && {
-      parent=`git-print-branch-parent 2&>/dev/null`
-
-      [[ "$parent" = "" ]] || {
-        [[ "$parent" = "$gitBranch" ]] || parentBranch="%F{cyan}[$parent]%f"
-      }
-    }
-
-    [[ -f "$gitRoot/package.json" ]] && {
-      [[ -f "$gitRoot/bunfig.toml" ]] || jsRuntime="%F{magenta}[$(node --version)]%f"
-      [[ -f "$gitRoot/bunfig.toml" ]] && jsRuntime="%F{magenta}[$(bun --version)]%f"
-    }
-
-    local gitStatusColor="green"
-
-    [[ $hasGitChanges ]] && gitStatusColor="yellow"
-    [[ $hasUnpushedCommits ]] && gitStatusColor="magenta"
-    [[ $isMidRebase ]] && gitStatusColor="red"
-
-    local gitIcon="%F{${gitStatusColor}}%f "
-    local branch="%F{cyan}[$gitBranch%F{cyan}]%f"
-    local commit="%F{cyan}[$(git rev-parse --short HEAD)]%f"
-    local packageVersion=""
-    [[ -f "$gitRoot/package.json" ]] && packageVersion="%F{cyan}[$(cd $gitRoot ; jq -r .version package.json)]%f"
-
-    echo "${_prompt_newline}┣ ${gitIcon}${parentBranch}${branch}${commit}${packageVersion}${jsRuntime}"
-  }
+  echo "${_prompt_git_cache[$PWD]}"
 }
+
+_prompt_gitBranch_compute() {
+  local dir="$1"
+  local tmpbase="${2:-}"
+  cd "$dir" 2>/dev/null || return
+
+  { [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1; } || return
+
+  # Kick off the two slow operations in parallel
+  local _ptmp
+  _ptmp=$(mktemp -d)
+  git status --porcelain > "$_ptmp/ch" 2>/dev/null &
+  git cherry -v         > "$_ptmp/up" 2>/dev/null &
+
+  # Fast sequential calls run while the parallel ones complete
+  local gitBranch gitRoot gitCommit
+  gitBranch=$(git rev-parse --abbrev-ref HEAD)
+  gitBranch=${gitBranch//\%/%%}  # escape '%'
+  [[ "$gitBranch" =~ ".*no branch.*" ]] && gitBranch="%F{red}$gitBranch%f"
+  gitRoot=$(git rev-parse --show-toplevel 2>/dev/null)
+  gitCommit=$(git rev-parse --short HEAD)
+
+  local isMidRebase=""
+  local parentBranch=""
+  local jsRuntime=""
+
+  [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
+  [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
+
+  [[ "$dir" =~ "Projects/itential" ]] && {
+    local parent
+    parent=$(cd "$gitRoot" && git-print-branch-parent 2>/dev/null)
+    [[ "$parent" = "" ]] || {
+      [[ "$parent" = "$gitBranch" ]] || parentBranch="%F{cyan}[$parent]%f"
+    }
+  }
+
+  [[ -f "$gitRoot/package.json" ]] && {
+    if [[ -f "$gitRoot/bunfig.toml" ]]; then
+      jsRuntime="%F{magenta}[$(bun --version)]%f"
+    else
+      jsRuntime="%F{magenta}[$(node --version)]%f"
+    fi
+  }
+
+  # Collect parallel results
+  wait
+  local hasGitChanges hasUnpushedCommits
+  hasGitChanges=$(cat "$_ptmp/ch")
+  hasUnpushedCommits=$(cat "$_ptmp/up")
+  command rm -rf "$_ptmp"
+
+  local gitStatusColor="green"
+  [[ $hasGitChanges ]] && gitStatusColor="yellow"
+  [[ $hasUnpushedCommits ]] && gitStatusColor="magenta"
+  [[ $isMidRebase ]] && gitStatusColor="red"
+
+  local gitIcon="%F{${gitStatusColor}}%f "
+  local branch="%F{cyan}[$gitBranch%F{cyan}]%f"
+  local commit="%F{cyan}[$gitCommit]%f"
+  local packageVersion=""
+  [[ -f "$gitRoot/package.json" ]] && packageVersion="%F{cyan}[$(jq -r .version "$gitRoot/package.json" 2>/dev/null)]%f"
+
+  [[ -n "$tmpbase" ]] && printf '%s\n%s\n' "${hasUnpushedCommits:+1}" "${isMidRebase:+1}" > "${tmpbase}.state"
+
+  echo "${_prompt_newline}┣ ${gitIcon}${parentBranch}${branch}${commit}${packageVersion}${jsRuntime}"
+}
+
+_prompt_start_async() {
+  [[ -n "$_prompt_async_pid" ]] && kill "$_prompt_async_pid" 2>/dev/null
+  (( _prompt_async_gen++ ))
+
+  local target_pwd="$PWD"
+  local gen="$_prompt_async_gen"
+  local tmpbase="/tmp/_zsh_prompt_${$}"
+
+  {
+    local result
+    result=$(_prompt_gitBranch_compute "$target_pwd" "$tmpbase")
+    printf '%s\n%s\n' "$gen" "$target_pwd" > "${tmpbase}.key"
+    printf '%s' "$result" > "${tmpbase}.result"
+    kill -USR1 $$ 2>/dev/null
+  } &!
+
+  _prompt_async_pid=$!
+}
+
+TRAPUSR1() {
+  local tmpbase="/tmp/_zsh_prompt_${$}"
+  [[ -f "${tmpbase}.key" ]] || return
+
+  local gen target_pwd
+  {
+    IFS= read -r gen
+    IFS= read -r target_pwd
+  } < "${tmpbase}.key"
+
+  [[ "$gen" -eq "$_prompt_async_gen" ]] || return
+
+  local result
+  result=$(cat "${tmpbase}.result" 2>/dev/null)
+
+  local _su="" _sr=""
+  [[ -f "${tmpbase}.state" ]] && { IFS= read -r _su; IFS= read -r _sr; } < "${tmpbase}.state"
+  command rm -f "${tmpbase}.key" "${tmpbase}.result" "${tmpbase}.state"
+
+  [[ "${_prompt_git_cache[$target_pwd]}" == "$result" ]] && return
+
+  _prompt_git_cache[$target_pwd]="$result"
+  _prompt_git_unpushed[$target_pwd]="$_su"
+  _prompt_git_rebasing[$target_pwd]="$_sr"
+  zle && { zle reset-prompt; zle -R }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 _prompt_user() {
   local user="%F{green}[%n]%f"
@@ -173,7 +247,7 @@ _prompt_user() {
 
 _prompt_lastCommand() {
   local lastCommandSeconds=${_elapsed[-1]}
-  local lastCommandExit="%F{red}%(?..%B  %?%b)%f"
+  local lastCommandExit="%F{red}%(?..%B  %?%b)%f"
   local lastCommand="$lastCommandExit [$lcmd]"
 
   [[ "$lcmd" = "" ]] && lastCommand=""
@@ -197,6 +271,7 @@ preexec () {
     typeset -ig _start=SECONDS
   fi
 }
+
 precmd () {
   lcmd=$cmd
 
@@ -204,6 +279,19 @@ precmd () {
   _start=-1
 
   cmd=
+
+  # Block on first visit to a directory so the prompt renders with data
+  if (( ! ${+_prompt_git_cache[$PWD]} )); then
+    local _stmp="/tmp/_zsh_prompt_sync_$$"
+    _prompt_git_cache[$PWD]=$(_prompt_gitBranch_compute "$PWD" "$_stmp")
+    local _su="" _sr=""
+    [[ -f "${_stmp}.state" ]] && { IFS= read -r _su; IFS= read -r _sr; } < "${_stmp}.state"
+    _prompt_git_unpushed[$PWD]="$_su"
+    _prompt_git_rebasing[$PWD]="$_sr"
+    command rm -f "${_stmp}.state"
+  fi
+
+  _prompt_start_async
 }
 
 _prompt_commandPipe() {
@@ -222,18 +310,9 @@ reset-prompt-and-accept-line() {
   [[ $BUFFER ]] || {
     BUFFER="cdm"
 
-    local isInGitRepo=`[ -d .git ] && echo true || git rev-parse --git-dir > /dev/null 2>&1`
-
-    [[ $isInGitRepo ]] && {
-      local gitRoot=`git rev-parse --show-toplevel 2&>/dev/null`
-      local hasUnpushedCommits=`git cherry -v`
-      local isMidRebase=""
-
-      [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
-      [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
-
-      [[ $hasUnpushedCommits ]] && BUFFER="git-prompt-push"
-      [[ $isMidRebase ]] && BUFFER="git-prompt-rebase"
+    [[ ${+_prompt_git_cache[$PWD]} -eq 1 && -n "${_prompt_git_cache[$PWD]}" ]] && {
+      [[ -n "${_prompt_git_unpushed[$PWD]}" ]] && BUFFER="git-prompt-push"
+      [[ -n "${_prompt_git_rebasing[$PWD]}" ]] && BUFFER="git-prompt-rebase"
     }
   }
 
@@ -241,11 +320,7 @@ reset-prompt-and-accept-line() {
 
   _prompt_redraw
 
-  [[ $BUFFER ]] && {
-    zle .accept-line
-  }
-
-  [[ $BUFFER ]] || fc -R ~/.zsh_history
+  [[ $BUFFER ]] && zle .accept-line
 }
 
 zle -N accept-line reset-prompt-and-accept-line
