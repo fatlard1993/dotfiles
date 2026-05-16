@@ -4,5 +4,7 @@ fpath=($dotfilesPath/zshcompletion $fpath)
 
 # fpath=($binPath/completion $fpath)
 
-# Enable completions
-autoload -Uz compinit && compinit
+# Enable completions — single call with a fixed dump path.
+# Guard prevents re-init if something else already called compinit this session.
+autoload -Uz compinit
+(( ${+functions[compdef]} )) || compinit -d "$HOME/.zcompdump"
