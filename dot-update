@@ -5,6 +5,6 @@
 [[ -e $HOME/.dotfiles/dot-update.d/0_setup ]] && $HOME/.dotfiles/dot-update.d/0_setup $@
 
 echo "Fetching latest dotfiles"
-(cd $HOME/.dotfiles ; git pull)
+(cd $HOME/.dotfiles ; git pull && git submodule update --init --recursive)
 
 for file in $HOME/{.,.dotfiles/}dot-update.d/*; . "$file"
