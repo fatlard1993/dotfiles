@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pbpaste | "$DIR/fix-prose" | pbcopy
+osascript -e 'tell application "System Events" to keystroke "v" using command down'
