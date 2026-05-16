@@ -1,5 +1,7 @@
 brew "kubectl"
 brew "awscli"
+brew "glab"
+brew "go"
 
 cask "swiftbar"
 cask "figma"

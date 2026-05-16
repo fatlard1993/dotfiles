@@ -6,8 +6,6 @@ echo "Linking dotfiles to kitty config"
 
 mkdir -p $HOME/.config/kitty/
 
-ln -sf $dotfilesPath $HOME/.config/kitty/
-
 echo "Linking kitty config"
 
 ln -sf $dotfilesPath/kitty.conf $HOME/.config/kitty/kitty.conf

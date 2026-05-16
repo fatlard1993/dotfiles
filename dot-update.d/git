@@ -11,6 +11,5 @@
 
 	read -p "email?Enter your git user.email: "; git config --global user.email $email
 
-	git config --global credential.helper cache
-	git config --global credential.helper 'cache --timeout=3600'
+	[[ "$(uname -s)" == "Darwin" ]] && git config --global credential.helper osxkeychain || git config --global credential.helper 'cache --timeout=3600'
 }
