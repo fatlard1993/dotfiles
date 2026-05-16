@@ -1,0 +1,36 @@
+#!/bin/zsh
+
+name=${1}
+lockfileVersion="$(jq .lockfileVersion ./package-lock.json)"
+
+[[ "$lockfileVersion" = "1" ]] && {
+	echo "lockfileVersion:1 is .. difficult"
+	# jq 'del(..|select(.[0] == "'${1}'"))' ./package-lock.json > ./package-lock.tmp.json
+
+	exit 1
+}
+
+[[ "$lockfileVersion" = "3" ]] && {
+	echo "Current:"
+	jq '.packages | to_entries[] | select(.key | test("/'${1}'$")) | [.key, .value.version]' ./package-lock.json
+
+	print -P "[Return] to continue || [Ctrl + c] to cancel"
+	read REPLY\?""
+
+	jq '.packages|=with_entries(select(.key|test("/'${1}'$")|not))' ./package-lock.json > ./package-lock.tmp.json && mv ./package-lock.tmp.json ./package-lock.json
+
+	rm -rf ./node_modules
+	npm i
+
+	if [[ $? -ne 0 ]]; then
+		echo "Error occurred during reinstall $npm_tar"
+		exit 1
+	fi
+
+	echo "After:"
+	jq '.packages | to_entries[] | select(.key | test("/'${1}'$")) | [.key, .value.version]' ./package-lock.json
+
+	exit 0
+}
+
+echo "lockfileVersion: $lockfileVersion is currently untested and unsupported"

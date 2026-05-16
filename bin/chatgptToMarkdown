@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# Extract a minimal Markdown transcript from a saved ChatGPT webpage (HTML).
+# Usage: bash extract_chat_markdown.sh input.html > conversation.md
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 input.html [Title]" >&2
+  exit 1
+fi
+
+INPUT="$1"
+TITLE="${2:-ChatGPT Conversation}"
+
+# 1) Normalize the HTML a bit to make regex selection more reliable
+#   - collapse CRLF
+#   - ensure tags are on their own lines to simplify matching
+#   - keep a working copy in a temp file
+TMP="$(mktemp)"
+trap 'rm -f "$TMP" "$TMP.msgs" "$TMP.codes"' EXIT
+
+# Normalize: remove \r, condense multiple spaces, but keep code blocks intact later
+tr -d '\r' < "$INPUT" > "$TMP"
+
+# 2) Extract message blocks that carry data-message-author-role="assistant|user"
+#    We pull large <div ... data-message-author-role="...">...</div> blocks.
+#    This structure matches current ChatGPT saved pages (shared view & saved DOM).
+#    If OpenAI changes DOM, this may need a tweak.
+#
+#    We also capture code blocks inside so we can preserve them as ``` fences later.
+#
+# Notes:
+# - Use Perl for robust, multiline, non-greedy matching with lookaheads.
+perl -0777 -ne '
+  while (m{
+    <(div|article)\b[^>]*\bdata-message-author-role="(assistant|user)"[^>]*>
+      (.*?)
+    </\1>
+  }xmsg) {
+    my $role = $2;
+    my $inner = $3;
+
+    # Preserve <pre><code class="language-xyz">...</code></pre> blocks as placeholders
+    my @codes;
+    my $i = 0;
+    $inner =~ s{
+      <pre[^>]*>\s*<code\b([^>]*)>(.*?)</code>\s*</pre>
+    }{
+      my $attrs = $1 // "";
+      my $code  = $2 // "";
+      $attrs =~ m/class="([^"]+)"/;
+      my $cls = $1 // "";
+      my $lang = "text";
+      if ($cls =~ m/\blanguage-([A-Za-z0-9_+-]+)\b/) { $lang = $1; }
+      # Unescape basic HTML entities inside code
+      $code =~ s/&lt;/</g;  $code =~ s/&gt;/>/g;  $code =~ s/&amp;/&/g; $code =~ s/&quot;/"/g; $code =~ s/&#39;/'"'"'/g;
+      push @codes, "```$lang\n$code\n```";
+      "<<CODE_BLOCK_" . ($i++) . ">>"
+    }egsix;
+
+    # Convert inline <code>...</code> to backticks
+    $inner =~ s{<code\b[^>]*>(.*?)</code>}{"`". do {
+        my $t=$1; $t =~ s/<[^>]+>//g; $t =~ s/&lt;/</g; $t =~ s/&gt;/>/g; $t =~ s/&amp;/&/g; $t =~ s/&quot;/"/g; $t =~ s/&#39;/'"'"'/g; $t
+      } . "`"}egs;
+
+    # Replace <br> with newlines
+    $inner =~ s{<br\s*/?>}{\n}ig;
+
+    # Turn <a href="...">text</a> into "text (URL)"
+    $inner =~ s{<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>}{
+      my $url=$1; my $txt=$2;
+      $txt =~ s/<[^>]+>//g;
+      "$txt ($url)"
+    }egis;
+
+    # Replace list items with "- " prefix
+    $inner =~ s{</?(ul|ol)\b[^>]*>}{\n}ig;
+    $inner =~ s{<li\b[^>]*>\s*}{- }ig;
+    $inner =~ s{</li>}{\n}ig;
+
+    # Bold/italic minimal handling
+    $inner =~ s{<(strong|b)\b[^>]*>(.*?)</\1>}{"**".do{my $t=$2; $t =~ s/<[^>]+>//g; $t}."**"}egis;
+    $inner =~ s{<(em|i)\b[^>]*>(.*?)</\1>}{"*".do{my $t=$2; $t =~ s/<[^>]+>//g; $t}."*"}egis;
+
+    # Strip all remaining tags
+    $inner =~ s/<[^>]+>//g;
+
+    # Decode common HTML entities
+    $inner =~ s/&nbsp;/ /g; $inner =~ s/&amp;/&/g; $inner =~ s/&lt;/</g; $inner =~ s/&gt;/>/g;
+    $inner =~ s/&quot;/"/g; $inner =~ s/&#39;/'"'"'/g;
+
+    # Collapse overly long blank lines
+    $inner =~ s/[ \t]+\n/\n/g;
+    $inner =~ s/\n{3,}/\n\n/g;
+    $inner =~ s/^[ \t]+|[ \t]+$//g;
+
+    # Put code blocks back
+    my $j=0;
+    $inner =~ s/<<CODE_BLOCK_(\d+)>>/$codes[$1]/eg;
+
+    # Print as a tab-separated record: role \t content
+    print $role, "\t", $inner, "\n<<MSGSEP>>\n";
+  }
+' "$TMP" > "$TMP.msgs" || true
+
+# If nothing was found, give a helpful error
+if ! grep -q '<<MSGSEP>>' "$TMP.msgs"; then
+  echo "# $TITLE"
+  echo
+  echo "_No messages found using the expected ChatGPT DOM (data-message-author-role). You may need to export/share the conversation or save the full page source._"
+  exit 0
+fi
+
+# 3) Emit Markdown with minimal formatting: Speaker header + body
+echo "# $TITLE"
+echo
+
+awk -F '\t' '
+BEGIN{RS="<<MSGSEP>>\n"; ORS=""}
+{
+  role=$1; body=$2;
+  gsub(/\r/,"",body);
+  if (role=="assistant") speaker="Assistant";
+  else if (role=="user") speaker="User";
+  else speaker=role;
+
+  # Trim leading/trailing newlines
+  sub(/^[\n]+/, "", body);
+  sub(/[\n]+$/, "", body);
+
+  print "## " speaker "\n\n" body "\n\n";
+}
+' "$TMP.msgs"

@@ -1,2 +1,6 @@
 npm-check-updates
-pm2
+quicktype
+json-schema-to-typescript
+degit
+jscodeshift
+ts-morph
