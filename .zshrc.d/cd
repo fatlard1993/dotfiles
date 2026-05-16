@@ -10,23 +10,38 @@ cd() {
 		builtin cd $(git rev-parse --show-toplevel)
 	elif [[ "$@" == "...m" ]]; then
 		# cd MAGIC — frecent dirs first, then curated globs, deduplicated
-		local selected
-		selected=$(
-			{
-				command zoxide query -l 2>/dev/null
-				print -l \
-					~/Projects/*(N/e:'[[ -d $REPLY/.git ]]':) \
-					~/Projects/*/*(N/e:'[[ -d $REPLY/.git ]]':) \
-					~/*(N/) \
-					../*(N/) \
-					./*(N/) \
-					./*/*(N/e:'[[ -d $REPLY/.git ]]':)
-			} | awk '!seen[$0]++' | fzf \
-				--bind 'tab:reload(command ls -1d "{}"/*/  2>/dev/null | command sed "s|/$||")+clear-query' \
-				--bind 'shift-tab:reload(command ls -1d "$(dirname "{}")"/*/ 2>/dev/null | command sed "s|/$||")+clear-query'
+		# Invalidate any in-flight async prompt job so its SIGUSR1 doesn't fire
+		# while fzf owns the terminal and corrupt the display.
+		(( _prompt_async_gen++ ))
+		[[ -n "$_prompt_async_pid" ]] && kill "$_prompt_async_pid" 2>/dev/null
+
+		local _cdm_tmp _cdm_selected
+		_cdm_tmp=$(mktemp)
+
+		{
+			command zoxide query -l 2>/dev/null
+			print -l \
+				~/Projects/*(N/e:'[[ -d $REPLY/.git ]]':) \
+				~/Projects/*/*(N/e:'[[ -d $REPLY/.git ]]':) \
+				~/*(N/) \
+				../*(N/) \
+				./*(N/) \
+				./*/*(N/e:'[[ -d $REPLY/.git ]]':)
+		} | awk '!seen[$0]++' > "$_cdm_tmp"
+
+		_cdm_selected=$(
+			fzf \
+				--bind 'tab:reload(find {} -mindepth 1 -maxdepth 1 -type d 2>/dev/null | { grep . || echo {}/.; })+clear-query+first' \
+				--bind "btab:reload($HOME/.local/bin/fzf-cd-up {} $_cdm_tmp)+clear-query+first" \
+				--preview 'tree -C -L 2 --gitignore {} 2>/dev/null || ls --color=always -la {}' \
+				--preview-window 'right:40%' \
+				< "$_cdm_tmp"
 		)
-		if [[ -n "$selected" ]]; then
-			builtin cd "$selected"
+
+		rm -f "$_cdm_tmp"
+
+		if [[ -n "$_cdm_selected" ]]; then
+			builtin cd "$_cdm_selected"
 			command zoxide add "$PWD" 2>/dev/null
 		fi
 	else

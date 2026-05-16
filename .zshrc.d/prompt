@@ -246,6 +246,8 @@ preexec () {
 }
 
 precmd () {
+  printf '\r'
+
   lcmd=$cmd
 
   (( _start >= 0 )) && set -A _elapsed $_elapsed $(( SECONDS-_start ))

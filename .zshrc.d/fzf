@@ -4,3 +4,5 @@ source ~/Projects/fzf-tab-completion/zsh/fzf-zsh-completion.sh
 bindkey '^I' fzf_completion
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+export FZF_CTRL_R_OPTS="--bind 'tab:transform($HOME/.local/bin/fzf-history-similar {})'"
