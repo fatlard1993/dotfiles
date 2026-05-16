@@ -39,12 +39,26 @@ safe-rm() {
   alias unlink="safe-rm"
 }
 
+spinrand() {
+  local -a ids=()
+  while [[ $# -gt 0 && "$1" =~ ^[0-9]+$ ]]; do
+    ids+=$1
+    shift
+  done
+  SPINNER=${ids[$((RANDOM % ${#ids[@]} + 1))]} spinner "$@"
+}
+
 if [[ -z "$CLAUDECODE" ]]; then
-  alias sleep="spinner sleep"
-  alias cp="SPINNER=7 spinner cp"
-  alias mv="SPINNER=19 spinner mv"
-  alias rm="SPINNER=30 spinner rm"
-  alias tar="SPINNER=18 spinner tar"
+  alias sleep="spinrand 27 sleep"          # pulse — rhythmic waiting
+  alias cp="spinrand 22 14 cp"            # dot-in-bar, arrow — data moving
+  alias mv="spinrand 14 24 mv"            # arrow, compass — directional
+  alias rm="spinrand 21 rm"               # the fade — iconic, stays single
+  alias tar="spinrand 13 tar"             # binary — archive format
+  alias curl="spinrand 22 14 curl"        # dot-in-bar, arrow — streaming
+  alias rsync="spinrand 14 22 rsync"      # arrow, dot-in-bar — sync
+  alias unzip="spinrand 13 unzip"         # binary — archive format
+  alias make="spinrand 23 1 make"         # build-up wave, bar pump — construction
+  alias brew="spinrand 26 25 brew"        # star burst, dice — something new
 fi
 
 iap-cd() { cd `iap-which-app $@` }
