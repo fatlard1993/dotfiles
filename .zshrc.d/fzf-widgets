@@ -1,0 +1,73 @@
+#!/bin/zsh
+
+[[ -o interactive ]] || return
+
+# ── branch switcher ───────────────────────────────────────────────────────────
+# gco          → fuzzy-pick branch with log preview
+# gco <args>   → pass through to git checkout
+gco() {
+  if [[ $# -gt 0 ]]; then
+    git checkout "$@"
+    return
+  fi
+  git fetch --all --prune -q 2>/dev/null &
+  local branch
+  branch=$(
+    git branch -a --sort=-committerdate --color=always 2>/dev/null |
+      grep -v 'HEAD' |
+      sed -e 's/^[[:space:]*]*//' -e 's|^remotes/[^/]*/||' |
+      awk '!seen[$0]++' |
+      fzf --ansi \
+          --preview 'git log --oneline --color=always -20 {}' \
+          --preview-window 'right:60%'
+  ) || return
+  wait
+  [[ -n "$branch" ]] && git checkout "$branch"
+}
+
+# ── git log browser ───────────────────────────────────────────────────────────
+# glog [git-log-args]  → fuzzy commit browser; enter opens diff in pager; ctrl-y copies SHA
+glog() {
+  git log --oneline --color=always --decorate "$@" |
+    fzf --ansi --no-sort \
+        --preview 'git show --stat --color=always {1}' \
+        --preview-window 'right:60%' \
+        --bind 'enter:execute(git show --color=always {1} | less -R)' \
+        --bind 'ctrl-y:execute-silent(printf %s {1} | pbcopy)+abort'
+}
+
+# ── npm / bun script runner ───────────────────────────────────────────────────
+# s-  → pick a script from package.json and run it
+s-() {
+  [[ -f package.json ]] || { echo "no package.json in $(pwd)"; return 1 }
+  local runner script
+  [[ -f bunfig.toml ]] && runner=bun || runner=npm
+  script=$(
+    jq -r '.scripts // {} | to_entries[] | "\(.key)\t\(.value)"' package.json |
+      fzf --delimiter='\t' \
+          --with-nth=1 \
+          --preview 'echo {2}' \
+          --preview-window 'bottom:3:wrap'
+  ) || return
+  [[ -n "$script" ]] && $runner run "$(echo "$script" | cut -f1)"
+}
+
+# ── process killer ────────────────────────────────────────────────────────────
+# fkill [signal]  → multi-select processes to kill (default SIGTERM, pass 9 for SIGKILL)
+fkill() {
+  local pids
+  pids=$(
+    ps -eo pid,command | tail -n +2 |
+      fzf -m \
+          --header 'tab · select multiple   enter · kill' \
+          --preview 'ps -fp {1} 2>/dev/null' \
+          --preview-window 'bottom:6:wrap'
+  ) || return
+  echo "$pids" | awk '{print $1}' | xargs kill -${1:-TERM} 2>/dev/null
+}
+
+# ── ctrl+t file picker ────────────────────────────────────────────────────────
+# Scoped to git root when in a repo, cwd otherwise. fd respects .gitignore by
+# default so node_modules/dist/build are excluded without explicit flags.
+export FZF_CTRL_T_COMMAND='root=$(git rev-parse --show-toplevel 2>/dev/null); if [ -n "$root" ]; then fd --type f --hidden --follow --exclude .git . "$root" 2>/dev/null; else fd --type f --max-depth 4 . 2>/dev/null; fi'
+export FZF_CTRL_T_OPTS="--preview 'test -f {} && command bat --style=numbers --color=always {} 2>/dev/null' --preview-window 'right:50%'"
