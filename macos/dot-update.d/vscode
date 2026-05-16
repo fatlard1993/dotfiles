@@ -11,6 +11,6 @@ echo "Linking vscode settings config"
 ln -sf $dotfilesPath/vscode/settings.json "$HOME/Library/Application Support/Code/User/"
 
 echo "Linking vscode keybinds config"
-ln -sf $dotfilesPath/vscode/keybinds.json "$HOME/Library/Application Support/Code/User/"
+ln -sf $dotfilesPath/vscode/keybindings.json "$HOME/Library/Application Support/Code/User/"
 
 code-ext-restore

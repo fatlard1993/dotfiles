@@ -2,4 +2,6 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+brew update
 (cd $macosPath ; brew bundle --no-lock)
+brew upgrade
