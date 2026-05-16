@@ -6,18 +6,6 @@ export RIPGREP_CONFIG_PATH="$HOME/.dotfiles/.ripgreprc"
 # Base Path
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
-# Dotfiles Bin
-export PATH="$PATH:$HOME/.dotfiles/bin"
-
-# Local Scripts
-export PATH="$PATH:$PWD/scripts"
-
-# Local Bin
-export PATH="$PATH:$PWD/bin"
-
-# Local node_modules Bin
-export PATH="$PATH:$PWD/node_modules/.bin"
-
 # NPM Bin
 export PATH="$PATH:$HOME/.npm-global/bin"
 
@@ -26,3 +14,4 @@ export PATH="$PATH:$HOME/bin"
 
 # Local User Bin
 export PATH="$PATH:$HOME/.local/bin"
+
