@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# json-shape — structural view of JSON: keys and value types, not values
+# Arrays collapse to a single representative element
+# Usage: <cmd> | json-shape
+#        json-shape <file>
+
+set -euo pipefail
+
+jq '
+def shape:
+  if type == "object" then with_entries(.value |= shape)
+  elif type == "array" then
+    if length == 0 then "[]"
+    else [(first | shape)]
+    end
+  else type
+  end;
+shape
+' "${@:--}"

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# yaml-shape — structural view of YAML: keys and value types, not values
+# Usage: <cmd> | yaml-shape
+#        yaml-shape <file>
+
+set -euo pipefail
+
+command -v yq > /dev/null 2>&1 || { echo "yq not installed"; exit 1; }
+
+yq -o=json '.' "${@:--}" | json-shape

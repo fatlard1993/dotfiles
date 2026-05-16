@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# fuzz — fuzzy file find; handles typos and approximate names
+# Usage: fuzz <query> [path]
+
+set -euo pipefail
+
+query="${1:?usage: fuzz <query> [path]}"
+search_path="${2:-.}"
+
+fd --type f . "$search_path" | fzf --filter "$query" --exit-0 | head -10
