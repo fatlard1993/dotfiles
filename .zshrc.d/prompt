@@ -115,7 +115,7 @@ _prompt_gitBranch_compute() {
   local _ptmp
   _ptmp=$(mktemp -d)
   git status --porcelain > "$_ptmp/ch" 2>/dev/null &
-  git cherry -v         > "$_ptmp/up" 2>/dev/null &
+  git rev-list --count --left-right @{upstream}...HEAD > "$_ptmp/up" 2>/dev/null &
 
   # Fast sequential calls run while the parallel ones complete
   local gitBranch gitRoot gitCommit
@@ -142,9 +142,15 @@ _prompt_gitBranch_compute() {
 
   # Collect parallel results
   wait
-  local hasGitChanges hasUnpushedCommits
+  local hasGitChanges rawup gitAhead gitBehind hasUnpushedCommits
   hasGitChanges=$(cat "$_ptmp/ch")
-  hasUnpushedCommits=$(cat "$_ptmp/up")
+  rawup=$(cat "$_ptmp/up")
+  gitAhead=0; gitBehind=0
+  if [[ -n "$rawup" ]]; then
+    gitBehind=${rawup%%$'\t'*}
+    gitAhead=${rawup##*$'\t'}
+  fi
+  (( gitAhead > 0 )) && hasUnpushedCommits="1" || hasUnpushedCommits=""
   command rm -rf "$_ptmp"
 
   local gitStatusColor="green"
@@ -152,8 +158,12 @@ _prompt_gitBranch_compute() {
   [[ $hasUnpushedCommits ]] && gitStatusColor="magenta"
   [[ $isMidRebase ]] && gitStatusColor="red"
 
+  local aheadBehind=""
+  (( gitAhead > 0 )) && aheadBehind+="%F{magenta}+${gitAhead}%f"
+  (( gitBehind > 0 )) && aheadBehind+="%F{red}-${gitBehind}%f"
+
   local gitIcon="%F{${gitStatusColor}}%f "
-  local branch="%F{cyan}[$gitBranch%F{cyan}]%f"
+  local branch="%F{cyan}[$gitBranch%F{cyan}${aheadBehind}]%f"
   local commit="%F{cyan}[$gitCommit]%f"
   local packageVersion=""
   [[ -f "$gitRoot/package.json" ]] && packageVersion="%F{cyan}[$(jq -r .version "$gitRoot/package.json" 2>/dev/null)]%f"
