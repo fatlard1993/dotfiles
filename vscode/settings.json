@@ -469,5 +469,8 @@
   "claudeCode.selectedModel": "sonnet[1m]",
   "claudeCode.useTerminal": true,
   "claudeCode.preferredLocation": "panel",
-  "workbench.secondarySideBar.defaultVisibility": "hidden"
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
