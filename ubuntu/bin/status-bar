@@ -76,6 +76,8 @@ cpuStatus () {
 }
 
 batteryStatus() {
+	[ -f /sys/class/power_supply/BAT0/capacity ] || return
+
 	battery=`cat /sys/class/power_supply/BAT0/capacity`
 
 	if [ "$battery" -lt "30" ]; then

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Recreates the tiny_lappy daily layout: opens a set of apps into named bspwm
+# desktops, mirroring the old i3-workspace-init. Data lives at
+# ~/.dotfiles/profiles/<profile>/bspwm-workspace-init.
+
+profile_folder="$HOME/.dotfiles/profiles/$(cat $HOME/.dotfilesProfile)"
+
+source "$profile_folder/bspwm-workspace-init"
+
+wait_for_window_count() {
+	local target=$1
+	local timeout=50
+
+	while [ "$(wmctrl -l | wc -l)" -lt "$target" ] && [ $timeout -gt 0 ]; do
+		sleep 0.2
+		timeout=$((timeout - 1))
+	done
+}
+
+prevDesktop=""
+
+for x in "${!apps[@]}"; do
+	if [ "${desktops[$x]}" != "$prevDesktop" ]; then
+		bspc desktop -f "${desktops[$x]}"
+		prevDesktop="${desktops[$x]}"
+	fi
+
+	eval "${apps[$x]}" &
+
+	wait_for_window_count $((x + 1))
+
+	bspc desktop -n "${desktopNames[$x]}"
+done

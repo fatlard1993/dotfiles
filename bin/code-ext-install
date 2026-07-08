@@ -2,4 +2,4 @@
 
 code --install-extension "$1" --force
 
-code-ext-save
+$HOME/.dotfiles/bin/code-ext-save

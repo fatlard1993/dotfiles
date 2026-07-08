@@ -5,3 +5,5 @@ temp*
 **/.DS_Store
 
 .vscode/
+
+/ubuntu/dnsmasq/hosts.adblock

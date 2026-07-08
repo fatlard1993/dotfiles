@@ -1,0 +1,9 @@
+#!/usr/bin/env aptfile
+
+update
+
+package "gamemode"
+package "mesa-vulkan-drivers"
+package "mesa-va-drivers"
+package "vlc"
+package "mpv"

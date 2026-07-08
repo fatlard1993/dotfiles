@@ -1,9 +1,11 @@
 #!/bin/bash
 
-i3-msg [class=".*"] kill
+for id in $(bspc query -N -n .window); do
+	bspc node "$id" -c
+done
 
 sleep 1
 
 [ "$1" == "reboot" ] && sudo reboot
 [ "$1" == "shutdown" ] && sudo shutdown -h now
-[ "$1" == "exit" ] && i3-msg exit
+[ "$1" == "exit" ] && bspc quit

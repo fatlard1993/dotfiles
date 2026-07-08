@@ -4,5 +4,5 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 echo "Installing/Updating global npm packages"
 
-npm-global-import $dotfilesPath/npmfile
+$binPath/npm-global-import $dotfilesPath/npmfile
 

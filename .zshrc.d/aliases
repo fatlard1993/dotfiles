@@ -86,7 +86,17 @@ alias dirty='watch -n1 "cat /proc/meminfo | grep Dirty"'
 reload() {
   [[ -n "$KITTY_WINDOW_ID" ]] && kitty-bg reset
   unset CLAUDECODE
-  exec ${SHELL} -l
+
+  # $SHELL is whatever the session started with; it doesn't update after a
+  # chsh until you log out and back in. Look up the real login shell instead.
+  local login_shell
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    login_shell=$(dscl . -read ~/ UserShell 2>/dev/null | awk '{print $2}')
+  else
+    login_shell=$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)
+  fi
+
+  exec "${login_shell:-$SHELL}" -l
 }
 alias r!="reload"
 alias R!="printf '\033[3J'; clear; reload"

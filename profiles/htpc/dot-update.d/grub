@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Updating grub"
+
+sudo ln -sf $profilePath/etc/grub /etc/default/grub
+
+sudo update-grub2

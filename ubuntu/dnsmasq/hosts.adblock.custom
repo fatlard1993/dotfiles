@@ -1,0 +1,5 @@
+# Manual additions to the dnsmasq ad-block list.
+# One entry per line, same format as StevenBlack's hosts file:
+#   0.0.0.0 example.com
+# Merged into ubuntu/dnsmasq/hosts.adblock (gitignored, regenerated) by
+# ubuntu/bin/dnsmasq-update-blocklist.

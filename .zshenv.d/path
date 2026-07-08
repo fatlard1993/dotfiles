@@ -15,3 +15,9 @@ export PATH="$PATH:$HOME/bin"
 # Local User Bin
 export PATH="$PATH:$HOME/.local/bin"
 
+# Dotfiles Bin
+export PATH="$PATH:$HOME/.dotfiles/bin"
+
+# Bun
+export PATH="$PATH:$HOME/.bun/bin"
+

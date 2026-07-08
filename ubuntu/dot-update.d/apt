@@ -12,8 +12,8 @@
 
 echo "Installing ubuntu apps"
 
-sudo $HOME/.dotfiles/ubuntu/aptfile
+sudo env DEBIAN_FRONTEND=noninteractive $HOME/.dotfiles/ubuntu/aptfile
 
 echo "Autoinstalling drivers"
 
-sudo ubuntu-drivers autoinstall
+sudo ubuntu-drivers install

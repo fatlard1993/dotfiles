@@ -10,4 +10,4 @@ fi
 
 source "$dotfilesPath/.zshrc.d/nvm"
 
-$binPath/nvm-use ${GLOBAL_NODE_VERSION:-lts/*}
+$binPath/nvm-use "${GLOBAL_NODE_VERSION:-lts/*}"

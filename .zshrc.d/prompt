@@ -6,7 +6,11 @@
 _prompt_newline=$'\n'
 _prompt_directory="%F{blue}[%~]%f"
 _prompt_time="[%*]"
-_prompt_ip="%F{12}[$(ipconfig getifaddr en0)]%f"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  _prompt_ip="%F{12}[$(ipconfig getifaddr en0)]%f"
+else
+  _prompt_ip="%F{12}[$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')]%f"
+fi
 
 git-prompt-commit() {
   git status --porcelain

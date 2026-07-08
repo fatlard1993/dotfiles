@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+if [[ ! -d /home/linuxbrew/.linuxbrew ]]; then
+	echo "Installing Homebrew"
+
+	sudo apt install -y build-essential bubblewrap
+
+	NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+echo "Updating brew packages"
+
+brew update
+(cd $dotfilesPath ; brew bundle)
+brew upgrade

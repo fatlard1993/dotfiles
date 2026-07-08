@@ -1,6 +1,22 @@
 #!/bin/zsh
 
-bspc monitor -d 1 2 3 4 5 6 7 8 9
+bspc monitor eDP-1 -d 1 2 3 4 5 6 7 8 9
+
+# Any monitor other than the laptop panel gets its own dedicated desktop pool,
+# whether it's connected at startup or plugged in later.
+assign_secondary_desktops() {
+	[[ "$1" == "eDP-1" ]] && return
+
+	bspc monitor "$1" -d F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12
+}
+
+for monitor in $(bspc query -M --names); do
+	assign_secondary_desktops "$monitor"
+done
+
+bspc subscribe monitor_add | while read -r _ _ monitor _; do
+	assign_secondary_desktops "$monitor"
+done &
 
 bspc config border_width         2
 bspc config window_gap          12

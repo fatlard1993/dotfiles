@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Enabling i386 for Steam"
+
+sudo dpkg --add-architecture i386
+sudo apt update
+
+echo "Installing Steam"
+
+sudo env DEBIAN_FRONTEND=noninteractive apt install -y steam-installer

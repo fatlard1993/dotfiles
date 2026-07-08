@@ -2,4 +2,4 @@
 
 echo "Updating/Installing/Restoring Extensions"
 
-for extension in `cat $HOME/.dotfiles/vscode/extensions`; code-ext-install "$extension"
+for extension in `cat $HOME/.dotfiles/vscode/extensions`; $HOME/.dotfiles/bin/code-ext-install "$extension"

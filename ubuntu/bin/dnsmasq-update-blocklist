@@ -1,0 +1,29 @@
+#!/bin/bash
+
+blocklist_url="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+custom="$HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock.custom"
+target="$HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock"
+
+echo "Fetching blocklist from $blocklist_url"
+
+tmp=$(mktemp)
+
+curl -sL "$blocklist_url" | grep -E '^0\.0\.0\.0 ' > "$tmp"
+
+if [[ ! -s "$tmp" ]]; then
+	echo "Blocklist fetch returned no entries, leaving $target untouched"
+	rm -f "$tmp"
+	exit 1
+fi
+
+grep -E '^0\.0\.0\.0 ' "$custom" >> "$tmp"
+
+mv "$tmp" "$target"
+
+echo "Wrote $(wc -l < "$target") blocked domains to $target"
+
+if [[ -f /etc/hosts.adblock ]]; then
+	sudo cp -f "$target" /etc/hosts.adblock
+	sudo systemctl restart dnsmasq
+	echo "Refreshed live blocklist and restarted dnsmasq"
+fi

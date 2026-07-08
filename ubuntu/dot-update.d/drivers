@@ -2,4 +2,4 @@
 
 echo "Autoinstalling drivers"
 
-sudo ubuntu-drivers autoinstall
+sudo ubuntu-drivers install

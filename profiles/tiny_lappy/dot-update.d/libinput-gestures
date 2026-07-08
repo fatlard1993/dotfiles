@@ -2,6 +2,15 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+command -v libinput-gestures-setup > /dev/null || {
+	echo "Installing libinput-gestures"
+
+	tmpdir=$(mktemp -d)
+	git clone https://github.com/bulletmark/libinput-gestures.git "$tmpdir"
+	(cd "$tmpdir" && sudo ./libinput-gestures-setup install)
+	rm -rf "$tmpdir"
+}
+
 echo "Linking libinput-gestures config"
 
 ln -sf $profilePath/libinput-gestures.conf $HOME/.config/

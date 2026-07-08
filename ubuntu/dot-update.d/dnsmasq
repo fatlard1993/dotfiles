@@ -1,32 +1,43 @@
 #!/bin/zsh
 
+echo "Updating dnsmasq blocklist"
+
+$HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
+
 [[ -f $HOME/.dotfiles/temp/.dnsmasqSetup ]] || {
 	echo "Setting up dnsmasq"
 
-	sudo groupadd -r dnsmasq
+	mkdir -p $HOME/.dotfiles/temp
 
-	sudo service resolvconf stop
+	getent group dnsmasq > /dev/null || sudo groupadd -r dnsmasq
 
-	sudo update-rc.d resolvconf remove
+	systemctl list-unit-files resolvconf.service > /dev/null 2>&1 && sudo systemctl disable --now resolvconf
 
 	sudo systemctl stop systemd-resolved
 	sudo systemctl disable systemd-resolved
 
 	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
-	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
-	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
 	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
 
-	sudo systemctl enable dnsmasq
+	# dnsmasq runs as an unprivileged user and can't traverse into $HOME (mode 750),
+	# so these two (read post-privilege-drop) must be real files, not symlinks into $HOME.
+	sudo cp -f $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
+	sudo cp -f $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
 
-	sudo service network-manager restart
+	# Without this, dnsmasq's resolvconf integration adds its own resolv-file
+	# alongside ours and refuses to start ("only one resolv.conf file allowed in no-poll mode").
+	sudo sed -i 's/^#IGNORE_RESOLVCONF=yes/IGNORE_RESOLVCONF=yes/' /etc/default/dnsmasq
 
-	sudo service dnsmasq restart
+	# NetworkManager.conf sets dns=none, so it no longer manages resolv.conf;
+	# dnsmasq (not NM's internal dns=dnsmasq plugin) owns port 53 and adblock/upstream resolution.
+	sudo rm -f /etc/resolv.conf
+	echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf > /dev/null
 
+	sudo systemctl restart NetworkManager
+
+	sudo systemctl enable --now dnsmasq
 	sudo systemctl restart dnsmasq
-
-	sudo ln -sf /var/run/NetworkManager/resolv.conf /etc/resolv.conf
 
 	echo "1" > $HOME/.dotfiles/temp/.dnsmasqSetup
 }

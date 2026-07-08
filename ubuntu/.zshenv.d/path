@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# Homebrew
+[[ -d /home/linuxbrew/.linuxbrew ]] && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
 # Ubuntu dotfiles Bin
 export PATH="$HOME/.dotfiles/ubuntu/bin:$PATH"
 

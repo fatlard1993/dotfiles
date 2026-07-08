@@ -112,12 +112,6 @@ super + ctrl + s : {a,w,s,d}
 # XF86AudioMute
 # 	pactl set-sink-mute   0 toggle
 
-## Backlight
-# XF86MonBrightnessUp
-# 	xbacklight -inc 10 -time 10 && pnotify-brightness
-# XF86MonBrightnessDown
-# 	xbacklight -dec 10 -time 10 && pnotify-brightness
-
 # Screenshot
 # Print
 # 	scrot "Pictures/Screenshots/%Y_%m_%d_%H-%M-%S.png" && notify-send "Screenshot!"

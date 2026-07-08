@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+repo_dir="$HOME/Projects/dotfiles"
+
+echo "Installing base dependencies..."
+sudo apt update -y
+sudo apt install -y git zsh curl
+
+if [ -d "$repo_dir/.git" ]; then
+	echo "dotfiles already cloned at $repo_dir, pulling latest"
+	git -C "$repo_dir" pull
+else
+	echo "Cloning dotfiles to $repo_dir"
+	mkdir -p "$(dirname "$repo_dir")"
+	git clone https://github.com/fatlard1993/dotfiles "$repo_dir"
+fi
+
+cd "$repo_dir"
+exec ./dot-update "$@"

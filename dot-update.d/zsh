@@ -8,4 +8,4 @@ ln -sf $profilePath/.zshenv $HOME/.zshenv
 ln -sf $profilePath/.zshrc $HOME/.zshrc
 ln -sf $profilePath/.zprofile $HOME/.zprofile
 
-[[ "$SHELL" != "/bin/zsh" ]] && chsh -s $(which zsh)
+[[ "$SHELL" != "/bin/zsh" ]] && sudo chsh -s $(which zsh) $USER

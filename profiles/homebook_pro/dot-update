@@ -2,10 +2,10 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-[[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
+[[ "$SHELL" = "/bin/zsh" ]] || sudo chsh -s /bin/zsh $USER
 
 $macosPath/dot-update
 
 $dotfilesPath/macos/macos-config.d/ssd
 
-(cd $profilePath ; brew bundle --no-lock)
+(cd $profilePath ; brew bundle)

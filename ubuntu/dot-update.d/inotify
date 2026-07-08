@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+echo "Raising inotify watch limit"
+
+echo "fs.inotify.max_user_watches=524288" | sudo tee /etc/sysctl.d/60-inotify-watches.conf > /dev/null
+
+sudo sysctl -p /etc/sysctl.d/60-inotify-watches.conf > /dev/null

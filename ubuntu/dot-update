@@ -2,7 +2,7 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-[[ "$SHELL" = "/bin/zsh" ]] || chsh -s /bin/zsh
+[[ "$SHELL" = "/bin/zsh" ]] || sudo chsh -s /bin/zsh $USER
 
 # TODO switch over to skhdrc
 # echo "Linking skhd config"
