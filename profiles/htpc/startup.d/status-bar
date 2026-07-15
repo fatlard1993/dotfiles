@@ -1,11 +1,11 @@
 #!/bin/zsh
 
 # Shadows ubuntu/startup.d/status-bar only to reshape the bar for this
-# machine before delegating to the shared launcher: adds the slideshow
-# button (photo backups live on this box - see ubuntu/bin/slideshow) and
+# machine before delegating to the shared launcher: adds the steam big-picture and slideshow
+# buttons (photo backups live on this box - see ubuntu/bin/slideshow) and
 # drops battery/brightness, which mean nothing on a plugged-in box driving
 # a TV. Keep this list in step with the default in
 # ubuntu/polybar/config.ini when modules change there.
-export POLYBAR_MODULES_RIGHT="slideshow terminal wallpaper clipboard disk volume cpu temp ram network bluetooth power"
+export POLYBAR_MODULES_RIGHT="steam slideshow terminal wallpaper clipboard disk volume cpu temp ram network bluetooth power"
 
 . $HOME/.dotfiles/ubuntu/startup.d/status-bar
