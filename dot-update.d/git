@@ -1,15 +1,19 @@
 #!/bin/zsh
 
+# zsh read prompts are "var?prompt" (matching .zshrc.d/prompt's usage), not
+# bash's -p flag - in zsh -p means "read from coprocess", which made these
+# prompts error out ("no coprocess") and silently leave the identity unset
+# on a fresh machine.
 [[ `git config --global user.name` = "" ]] && {
 	echo "Setting up global git username"
 
-	read -p "username?Enter your git user.name: "; git config --global user.name $username
+	read "username?Enter your git user.name: "; git config --global user.name "$username"
 }
 
 [[ `git config --global user.email` = "" ]] && {
 	echo "Setting up global git email"
 
-	read -p "email?Enter your git user.email: "; git config --global user.email $email
+	read "email?Enter your git user.email: "; git config --global user.email "$email"
 
 	[[ "$(uname -s)" == "Darwin" ]] && git config --global credential.helper osxkeychain || git config --global credential.helper 'cache --timeout=3600'
 }
