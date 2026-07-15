@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+# Empty on purpose - shadows ubuntu/startup.d/screenlock so no idle locker
+# runs on this machine. Controller input doesn't reset X's idle counter, so
+# xautolock's 10-minute timer would fire mid-game in Big Picture; and with
+# greetd autologin (see dot-update.d/greetd-autologin) a lock buys nothing -
+# a reboot lands back in the session anyway.

@@ -22,5 +22,6 @@
 	// Do not edit this value.
 	"crash-reporter-id": "dbd5effe-6b8e-403e-bc1a-28fac5a1d253",
 
-	"disable-hardware-acceleration": true
+	"disable-hardware-acceleration": true,
+	"password-store": "basic"
 }

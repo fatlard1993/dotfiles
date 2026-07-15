@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+# Watches for input devices going "floating slave" (the 2026-07-13 lockout:
+# all keyboards silently detached from the core hierarchy while locked) -
+# logs forensics and reattaches them. Diagnostic until the culprit is
+# caught; the auto-reattach is what keeps the lockscreen answerable.
+# The pgrep is anchored to the exact cmdline: a bare -f "input-watchdog"
+# also matches an editor open on this file, silently skipping the start.
+pgrep -f "^/bin/zsh $HOME/.dotfiles/ubuntu/bin/input-watchdog" > /dev/null \
+	|| $HOME/.dotfiles/ubuntu/bin/input-watchdog &

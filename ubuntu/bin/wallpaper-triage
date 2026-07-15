@@ -1,0 +1,96 @@
+#!/bin/bash
+# Fullscreen one-key triage walk over the wallpaper rotation pool:
+#   1 / space   keep in rotation (just advance)
+#   2           stash - out of rotation, kept on disk, blacklisted
+#   3           delete & blacklist
+#   q / Esc     stop early
+# feh advances automatically after a numbered action and exits after the
+# last image (--on-last-slide quit), so a full pass is exactly one
+# keypress per wallpaper.
+#
+# stash/delete also work as standalone subcommands on an arbitrary file -
+# polybar-menu's stash action and wallpaper-delete share them, so the
+# menu, the quick actions, and this walk can't drift apart semantically.
+#
+# Usage: wallpaper-triage                 walk the whole rotation pool
+#        wallpaper-triage <files...>      walk specific files
+#        wallpaper-triage stash <file>    move to stashed/ + blacklist
+#        wallpaper-triage delete <file>   blacklist + remove
+
+shopt -s nullglob
+
+WALLPAPER_DIR=~/Pictures/Wallpapers
+METADATA_FILE=$WALLPAPER_DIR/.metadata
+SELF="$HOME/.dotfiles/ubuntu/bin/wallpaper-triage"
+
+# Blacklist = append to .ignore, which the downloader checks before saving
+# a new image (see bin/wallpaper). Carries the metadata line (subreddit,
+# source URL, resolution) over when we have it, so "why did I block this"
+# stays answerable. Stashing blacklists too: the stashed copy is already
+# on disk, so re-downloading it into rotation would just undo the stash.
+blacklist() {
+	local sum meta
+	sum=$(md5sum "$1" | cut -d' ' -f1)
+	meta=$(grep "^${sum}|" "$METADATA_FILE" 2>/dev/null)
+	echo "${meta:-$sum}" >>"$WALLPAPER_DIR/.ignore"
+	echo "$sum"
+}
+
+case $1 in
+stash)
+	[ -f "$2" ] || exit 1
+	sum=$(blacklist "$2")
+	mkdir -p "$WALLPAPER_DIR/stashed"
+	mv "$2" "$WALLPAPER_DIR/stashed/${sum}.${2##*.}"
+	[ -n "$TRIAGE_LOG" ] && echo stash >>"$TRIAGE_LOG"
+	exit 0
+	;;
+delete)
+	[ -f "$2" ] || exit 1
+	blacklist "$2" >/dev/null
+	rm -f "$2"
+	[ -n "$TRIAGE_LOG" ] && echo delete >>"$TRIAGE_LOG"
+	exit 0
+	;;
+esac
+
+files=("$@")
+[ ${#files[@]} -eq 0 ] && files=("$WALLPAPER_DIR"/*.*)
+[ ${#files[@]} -eq 0 ] && {
+	notify-send "Wallpaper" "Nothing to triage"
+	exit 0
+}
+
+# The numbered actions run in separate shells, so tallying happens through
+# a shared log file handed down via the environment.
+TRIAGE_LOG=$(mktemp)
+export TRIAGE_LOG
+
+# The legend is drawn bottom-left via --info instead of feh's own
+# --draw-actions/--draw-filename: those render top-left where polybar
+# overlays the fullscreen window, and in feh's default bitmap font they're
+# unreadably small on a HiDPI panel anyway. --info undergoes feh's format
+# expansion (%u/%l progress, %n filename) before the shell runs it.
+legend='[1 / space] keep      [2] stash      [3] delete + blacklist      [q / esc] quit'
+
+feh --fullscreen --auto-zoom --image-bg black \
+	--on-last-slide quit \
+	--fontpath "$HOME/.local/share/fonts" \
+	--font 'HackNerdFontMono-Regular/32' \
+	--info "echo '%u / %l   %n'; echo '$legend'" \
+	--action1 "[keep]true" \
+	--action2 "[stash]\"$SELF\" stash %F" \
+	--action3 "[delete & blacklist]\"$SELF\" delete %F" \
+	"${files[@]}"
+
+stashed=$(grep -cx stash "$TRIAGE_LOG")
+deleted=$(grep -cx delete "$TRIAGE_LOG")
+rm -f "$TRIAGE_LOG"
+
+# Repaint any desktop whose mapped wallpaper just got removed - apply
+# self-heals missing map entries (see wallpaper-per-desktop).
+if [ "$stashed" -gt 0 ] || [ "$deleted" -gt 0 ]; then
+	"$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop" apply
+fi
+
+notify-send "Wallpaper" "Triage done: ${stashed} stashed, ${deleted} deleted & blacklisted"

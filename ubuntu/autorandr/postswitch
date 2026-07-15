@@ -1,0 +1,28 @@
+#!/bin/bash
+# autorandr runs this after every profile switch, including a monitor
+# hotplug.
+
+# A profile switch is what changes the X primary flag, and the desktop pools
+# (1-9 vs F1-F12) follow that flag - bspwm's own hotplug events fire before
+# the flag lands, so this is the trigger that actually converges the layout.
+"$HOME/.dotfiles/ubuntu/bin/bspwm-desktop-pools"
+
+# feh only paints whatever outputs RandR reports *at the time it
+# runs* - so a display added by this switch has never been painted at all
+# and shows raw framebuffer garbage until something redraws the background.
+# Restarting the per-desktop wallpaper daemon re-triggers its apply-on-start
+# feh call against the now-current layout, covering the new output too.
+pkill -f "$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop"
+"$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop" &
+disown
+
+# A monitor coming or going while slock is up: slock resizes its window on
+# the RandR event and rescales its cached image itself, but that image is
+# still a screenshot of the *old* geometry - a two-monitor canvas squished
+# onto one screen - and every lock-tick keeps compositing onto that stale
+# base. Re-shoot the base at the new geometry, exactly what the resume hook
+# (profiles/tiny_lappy/systemd/system-sleep/relock) does for the same
+# staleness after suspend; slock picks the refreshed frame up by mtime.
+if pgrep -x slock > /dev/null; then
+	"$HOME/.dotfiles/ubuntu/bin/system-lock" recapture
+fi

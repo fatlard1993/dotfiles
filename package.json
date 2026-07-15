@@ -1,6 +1,6 @@
 {
 	"name": "dotfiles",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "",
 	"main": "",
 	"scripts": {},
@@ -16,7 +16,6 @@
 	"dependencies": {
 		"argi": "github:fatlard1993/argi",
 		"ffmetadata": "github:cgnik/node-ffmetadata",
-		"i3": "^0.3.0",
 		"log": "github:fatlard1993/log#3.x.x",
 		"movie-art": "^2.0.3",
 		"request": "^2.88.2"

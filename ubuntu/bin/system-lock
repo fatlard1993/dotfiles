@@ -1,12 +1,104 @@
 #!/bin/sh
 
-screenCap=$HOME/.config/i3/.screen_locked.png
+# Not every machine installs a locker (the htpc autologins, so its profile
+# never builds slock). Bail before paying for the screenshot/blur pipeline
+# below, with a notification instead of a silent no-op from a polybar click.
+command -v slock > /dev/null || {
+	notify-send "No screen locker" "slock isn't installed on this machine"
+	exit 1
+}
+
+# /tmp, not ~/.cache: slock (see profiles/tiny_lappy/slock, installed setuid) drops
+# privileges to nobody:nogroup before it ever reads the image file (the
+# point of that is so a bug in the image-loading code we added can't
+# leverage the brief setuid-root window slock holds to read /etc/shadow).
+# nobody can't traverse into $HOME (verified: `namei -l` on ~/.cache showed
+# 750/700 the whole way down), so the image has to live somewhere
+# world-traversable. /tmp's sticky bit still means only chase/root can
+# replace it once written.
+mkdir -p /tmp/system-lock
+
+base=/tmp/system-lock/base.png
 lockImg=$HOME/.dotfiles/ubuntu/lock.png
+tickInterval=1.5
 
-scrot -o $screenCap && convert $screenCap -blur 8x8 $screenCap
+# The expensive half: screenshot + blur + static badge. Composited once at
+# lock time (and again on resume, since autorandr may have changed the
+# resolution while slock was already up - see the resume relock hook,
+# profiles/tiny_lappy/systemd/system-sleep/relock). The animated HUD layer
+# (gen_lock_hud.py, rotating rings/sweep/clock) is composited on top of
+# *this* by lock-tick every $tickInterval, so a tick never re-pays this
+# capture's cost.
+capture() {
+	scrot -o $base && convert $base -blur 8x8 $base
 
-if [ -f $lockImg ]; then
-	composite -blend 40 $lockImg $screenCap $screenCap
+	if [ -f $lockImg ]; then
+		# -gravity center targets the middle of the full captured canvas
+		# (all monitors combined) - with a second monitor attached that
+		# lands the badge split across the seam between screens instead
+		# of centered on either one. Center it on the primary monitor's
+		# own bounds instead; when the primary flag can't be read, treat
+		# the whole canvas as the one monitor (equivalent on one screen).
+		geom=$(xrandr --query 2>/dev/null | awk '/ primary /{print $4; exit}')
+
+		if [ -n "$geom" ]; then
+			pw=${geom%%x*}
+			rest=${geom#*x}
+			ph=${rest%%+*}
+			rest=${rest#*+}
+			px=${rest%%+*}
+			py=${rest#*+}
+		else
+			set -- $(identify -format "%w %h" $base)
+			pw=$1
+			ph=$2
+			px=0
+			py=0
+		fi
+
+		# Size the badge relative to the monitor it lands on (1620 = the
+		# laptop panel height all the lock art was tuned against, same
+		# reference gen_lock_hud.py scales by) - at its natural pixel
+		# size it renders visibly undersized on the 4K external. The
+		# size half of -geometry makes composite do the resize itself.
+		set -- $(identify -format "%w %h" $lockImg)
+		lw=$(($1 * ph / 1620))
+		lh=$(($2 * ph / 1620))
+
+		gx=$((px + (pw - lw) / 2))
+		gy=$((py + (ph - lh) / 2))
+
+		composite -geometry ${lw}x${lh}+${gx}+${gy} -blend 40 $lockImg $base $base
+	fi
+}
+
+# Resume hook calls `system-lock recapture` (a separate short-lived
+# invocation - the original system-lock/slock from before suspend is still
+# running, this just refreshes the shared base.png and forces one tick) -
+# it does not touch slock's process lifetime itself.
+if [ "$1" = "recapture" ]; then
+	capture
+	$HOME/.dotfiles/ubuntu/bin/lock-tick
+	exit 0
 fi
 
-i3lock -i $screenCap
+capture
+$HOME/.dotfiles/ubuntu/bin/lock-tick
+
+# Our slock fork (see profiles/tiny_lappy/slock/) polls this file's mtime
+# and reloads its background itself when it changes, instead of needing to
+# be killed and relaunched (stock slock/i3lock have no such mechanism) - so
+# there's never a window where the X input grab is released and the screen
+# is genuinely unlocked, and we get a live-ish (~1.5s tick) animated HUD
+# without repeatedly tearing the lock down.
+(
+	while true; do
+		sleep $tickInterval
+		$HOME/.dotfiles/ubuntu/bin/lock-tick
+	done
+) &
+refresher=$!
+
+slock
+
+kill $refresher 2>/dev/null

@@ -1,0 +1,34 @@
+configuration {
+	modes: "window,windowcd,run,drun,ssh";
+	matching: "fuzzy";
+	// fuzzy matching only filters - without sort the results keep raw scan
+	// order, which floats ~/.local/share/applications (the polybar-menu
+	// entries) above better matches from the system dirs
+	sort: true;
+	sorting-method: "fzf";
+	// drop exec from the default match fields - these entries' absolute
+	// Exec paths fuzzy-match nearly any query
+	drun-match-fields: "name,generic,keywords";
+	font: "Hack Nerd Font Mono 12";
+	dpi: 192;
+	kb-row-tab: "Alt+Tab";
+	kb-accept-entry: "Return,KP_Enter";
+	kb-cancel: "Escape";
+	kb-move-word-back: "Control+Left";
+	kb-move-word-forward: "Control+Right";
+	kb-remove-word-forward: "Control+Delete";
+	kb-mode-next: "Control+Tab";
+	kb-mode-previous: "Control+Shift+Tab";
+	kb-select-1: "Control+1";
+	kb-select-2: "Control+2";
+	kb-select-3: "Control+3";
+	kb-select-4: "Control+4";
+	kb-select-5: "Control+5";
+	kb-select-6: "Control+6";
+	kb-select-7: "Control+7";
+	kb-select-8: "Control+8";
+	kb-select-9: "Control+9";
+	kb-select-10: "Control+0";
+}
+
+@theme "~/.dotfiles/ubuntu/rofi/theme.rasi"

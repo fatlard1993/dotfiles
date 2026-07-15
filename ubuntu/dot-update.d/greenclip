@@ -1,5 +1,12 @@
 #!/bin/zsh
 
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking greenclip config"
+
+mkdir -p $HOME/.config
+ln -sf $ubuntuPath/greenclip.toml $HOME/.config/greenclip.toml
+
 [[ -f  /usr/local/bin/greenclip ]] || (
 	echo "Setting up greenclip"
 

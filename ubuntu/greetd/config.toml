@@ -1,0 +1,31 @@
+# See ubuntu/dot-update.d/greetd - installed to /etc/greetd/config.toml.
+#
+# tuigreet's --theme takes hex colors (confirmed in its source,
+# src/ui/common/style.rs), but the raw Linux console (TERM=linux, no
+# compositor - this runs on a bare VT, not inside a terminal emulator) can
+# only display its fixed 16-slot palette, not arbitrary 24-bit RGB. So
+# instead of hex, --theme uses the 16 named ANSI colors here, and
+# ExecStartPre/Post in the greetd.service override (see
+# ubuntu/greetd/greetd-override.conf) reprograms that 16-slot palette to
+# the same Tomorrow Night values used by kitty/rofi/polybar/the slock fork
+# (see ubuntu/greetd/tomorrow-night.vtrgb) before tuigreet ever draws a
+# frame. One deliberate deviation from kitty's own palette: slot 0 (black)
+# is true #000000 here, not kitty's #373b41 ANSI-black - kitty needs that
+# lighter shade so black *text* stays legible against its own black
+# background, but nothing in this theme uses black as a foreground color,
+# and the VT's single black slot also serves as the default background
+# (container, below) - matching dunst/kitty's actual background/slock's
+# true black there is more important than matching kitty's ANSI-black.
+#
+# Uses the gold/orange/green trio that shows up across the rest of the
+# desktop (polybar-metric's threshold coloring, slock's INPUT/successcolor,
+# kitty's color3/color11/color10) rather than a single restrained accent:
+# lightyellow = gold #f0c674, yellow = orange #de935f, lightgreen = green
+# #b5bd68. button is darkgray rather than green - green sat too close to
+# input's white to read cleanly, same issue the original cyan button had.
+[terminal]
+vt = 7
+
+[default_session]
+command = "tuigreet --remember --remember-session --time --asterisks --xsessions /usr/share/xsessions --theme 'text=gray;time=white;border=lightyellow;greet=lightgreen;prompt=lightyellow;input=white;action=darkgray;button=darkgray;container=black'"
+user = "_greetd"

@@ -15,6 +15,63 @@ ulimit -Sl unlimited
 
 echo "Purgeing unwanted default apt packages"
 
-$ubuntuPath/bin/apt-autopurge totem thunderbird
+# whoopsie-preferences is a hard Depends of gnome-control-center (which our
+# own polybar menus shell out to for bluetooth/power/datetime settings) -
+# purging it cascades into removing gnome-control-center, gnome-shell,
+# ubuntu-session and gdm3 right along with it (confirmed via `apt purge -s`).
+# whoopsie itself (the actual crash-report daemon) has no such entanglement.
+#
+# gdm3 (+ its auto-installed libgdm1/gir1.2-gdm-1.0) is dead weight now that
+# greetd/tuigreet owns display-manager.service (see ubuntu/dot-update.d/greetd)
+# - purging those three together also cascades into gnome-initial-setup,
+# gnome-shell, gnome-shell-ubuntu-extensions and ubuntu-session, all
+# GNOME-session-only and equally unused under bspwm (confirmed via
+# `apt purge -s`; gnome-control-center itself is NOT part of that cascade,
+# so the polybar-menu panels above keep working). Losing gdm3 also loses the
+# easy `systemctl enable gdm3` rollback if greetd ever misbehaves, so this
+# was deliberately left commented out until greetd's been solid across a
+# few real reboots - uncomment once confident.
+# nothing in these dotfiles sends mail - no reason for an MTA to listen
+# on every box (postfix/mailutils also purge anywhere already installed).
+$ubuntuPath/bin/apt-autopurge \
+	totem thunderbird firefox \
+	apport apport-core-dump-handler apport-gtk apport-symptoms whoopsie ubuntu-report \
+	gnome-characters gnome-clocks gnome-disk-utility gnome-font-viewer gnome-logs \
+	gnome-user-docs yelp yelp-xsl \
+	cloud-init kdump-tools \
+	postfix mailutils
+	# gdm3 libgdm1 gir1.2-gdm-1.0 gnome-initial-setup gnome-shell \
+	# gnome-shell-ubuntu-extensions ubuntu-session
+
+# kdump-tools' own postrm hook regenerates grub.cfg too, but empirically
+# still left the crashkernel= reservation in place until run again here -
+# cheap and idempotent either way, so just always run it explicitly.
+sudo update-grub2
+
+echo "Purging unwanted default snaps"
+
+$ubuntuPath/bin/snap-autopurge firefox snap-store
+
+echo "Disabling unused default services"
+
+# No enterprise directory (sssd), no VPN configs (openvpn), no Ubuntu Pro
+# subscription (ubuntu-advantage/ua-timer), and the motd-news/update-notifier
+# timers are either pure network chatter (promotional MOTD) or GUI
+# update-notifier prefetch with no tray to ever show it in bspwm - apt-daily
+# timers already handle real updates. NetworkManager-wait-online blocks boot
+# completion until the network is fully up (measured 10.5s via
+# `systemd-analyze blame`) for no benefit here - NetworkManager.service
+# itself still connects in the background regardless, nothing in this
+# startup chain needs "fully online" confirmed before proceeding.
+# `systemctl disable --now` is already idempotent, no need to guard it.
+sudo systemctl disable --now \
+	sssd.service sssd-autofs.socket sssd-nss.socket sssd-pac.socket \
+	sssd-pam.socket sssd-ssh.socket sssd-sudo.socket \
+	openvpn.service \
+	ubuntu-advantage.service ua-timer.timer \
+	motd-news.timer \
+	update-notifier-download.timer update-notifier-motd.timer \
+	NetworkManager-wait-online.service \
+	2>/dev/null
 
 for file in $ubuntuPath/dot-update.d/*; . "$file"

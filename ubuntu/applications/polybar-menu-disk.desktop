@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Disk Menu
+Comment=Disk usage, file manager, disk analyzer
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu disk
+Icon=drive-harddisk
+Terminal=false
+Categories=System;

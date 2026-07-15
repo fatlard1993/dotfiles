@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Date & Time Menu
+Comment=Date, time, timezone, NTP sync
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu datetime
+Icon=x-office-calendar
+Terminal=false
+Categories=System;

@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking pipewire combine-sink config"
+
+configTarget=$HOME/.config/pipewire/pipewire.conf.d/combine-sink.conf
+
+mkdir -p $(dirname $configTarget)
+
+# Only bounce pipewire when the link is actually new - a restart is a brief
+# audio dropout, not something every dot-update run should cause. (Edits to
+# the already-linked file need a manual restart of these same services.)
+if [[ $(readlink $configTarget 2>/dev/null) != $profilePath/pipewire/combine-sink.conf ]]; then
+	ln -sf $profilePath/pipewire/combine-sink.conf $configTarget
+
+	systemctl --user restart pipewire pipewire-pulse wireplumber
+fi

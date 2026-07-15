@@ -1,0 +1,27 @@
+#!/bin/bash
+# Deletes and blacklists the focused desktop's current wallpaper, then
+# assigns a fresh one. Shared by the wallpaper polybar menu ("Delete &
+# Blacklist" in polybar-menu) and the bar button's shift+left-click quick
+# action (wallpaper-click).
+
+wallpaper_dir="$HOME/Pictures/Wallpapers"
+map_file="$wallpaper_dir/.desktop-wallpapers"
+
+# When invoked from a polybar click, MONITOR names the clicked bar's
+# monitor (see startup.d/status-bar) - target its visible desktop, since a
+# bar click doesn't move input focus. Falls back to the focused desktop
+# when run outside polybar.
+desktop=$(bspc query -D -m "${MONITOR:-focused}" -d .active --names)
+current=$(grep "^${desktop}:" "$map_file" 2>/dev/null | tail -1 | cut -d: -f2-)
+
+if [ -z "$current" ] || [ ! -f "$current" ]; then
+	notify-send "Wallpaper" "No wallpaper to delete"
+	exit 1
+fi
+
+# blacklist + removal live in wallpaper-triage so the menu, the bar's
+# shift+click, and the triage walk all share one implementation
+"$HOME/.dotfiles/ubuntu/bin/wallpaper-triage" delete "$current" || exit 1
+
+"$HOME/.dotfiles/ubuntu/bin/wallpaper-next" "$desktop" \
+	&& notify-send "Wallpaper" "Deleted & blacklisted, picked a new wallpaper"

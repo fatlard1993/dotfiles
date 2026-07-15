@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The subreddit list is per-machine data ($profilePath/.wallpaper_subreddits);
+# the linking logic is shared - profiles without the data file skip it.
+[[ -f $profilePath/.wallpaper_subreddits ]] && {
+	echo "Linking wallpaper config"
+
+	mkdir -p $HOME/Pictures/Wallpapers
+	ln -sf $profilePath/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+}

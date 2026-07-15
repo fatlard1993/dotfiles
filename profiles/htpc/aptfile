@@ -7,3 +7,26 @@ package "mesa-vulkan-drivers"
 package "mesa-va-drivers"
 package "vlc"
 package "mpv"
+
+# udev rules granting Steam/uinput access to game controllers (8BitDo pads
+# included) - without these, controllers work at the evdev level but Steam
+# Input can't remap or emulate them
+package "steam-devices"
+
+# AirPlay receiver (mirroring/video/audio from Apple devices) + DLNA/UPnP
+# renderer as the cast target for everything else - the actual Google Cast
+# protocol is proprietary with no open receiver, so DLNA-capable phone apps
+# (VLC, BubbleUPnP, most "cast to TV" apps) are the practical path. Run from
+# startup.d/airplay and startup.d/dlna-renderer.
+package "avahi-daemon"
+package "uxplay"
+package "gmediarender"
+
+# dot-update.d/minecraft parses Mojang's version manifest with this
+package "jq"
+
+# Hardware H.264 decode for uxplay's mirror stream through the
+# mesa-va-drivers above - uxplay's decodebin prefers it when present. The
+# software fallback (gstreamer1.0-libav) is already a hard Depends of the
+# uxplay package itself; this one isn't pulled in by anything.
+package "gstreamer1.0-vaapi"

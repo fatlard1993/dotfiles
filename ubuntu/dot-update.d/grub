@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Grub config is per-machine data ($profilePath/etc/grub); the linking
+# logic is shared - profiles without the data file skip it.
+[[ -f $profilePath/etc/grub ]] && {
+	echo "Updating grub"
+
+	sudo ln -sf $profilePath/etc/grub /etc/default/grub
+
+	sudo update-grub2
+}

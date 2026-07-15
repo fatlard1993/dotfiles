@@ -19,6 +19,8 @@ alias egrep='egrep --color=auto'
 
 alias l!="spinner"
 
+alias C="claude"
+
 safe-rm() {
   local paths=()
   for arg in "$@"; do

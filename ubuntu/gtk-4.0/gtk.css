@@ -1,0 +1,58 @@
+/* Translucent nautilus, in the shared Tomorrow Night base16 palette
+ * (kitty.conf.d/theme.conf, ubuntu/rofi/theme.rasi,
+ * ubuntu/polybar/config.ini) - since alpha can't be layered onto the
+ * theme's own values in place (a var can't reference itself), the colors
+ * have to be restated anyway, so restate them as ours instead of Yaru's.
+ * Alpha is 0.9 to match kitty's background_opacity.
+ *
+ * Scoped to the .nautilus-window class (added by nautilus in code, not
+ * its .ui) so no other GTK4/libadwaita app is affected - which is also
+ * why these are CSS variable overrides and not @define-color:
+ * define-color is file-global and can't be scoped to one app's window.
+ * Descendants resolve var() through the cascade, so everything that
+ * paints these surfaces (view, sidebar, flat headerbars, floating status
+ * bar, selections) follows automatically. Backdrop variants keep the
+ * same alpha so windows stay translucent when unfocused. Needs a
+ * compositor (picom, see ubuntu/startup.d/display) to render.
+ */
+window.nautilus-window {
+	/* black, matching kitty/polybar backgrounds; the pane the wallpaper
+	 * mostly shows through */
+	--view-bg-color: rgba(0, 0, 0, 0.9);
+	/* base00/base01 keep the sidebar/headerbar visibly a step above the
+	 * view, same relationship the Yaru dark originals had; unfocused
+	 * (backdrop) drops each a step darker, also like Yaru */
+	--window-bg-color: rgba(29, 31, 33, 0.9);
+	--sidebar-bg-color: rgba(40, 42, 46, 0.9);
+	--sidebar-backdrop-color: rgba(29, 31, 33, 0.9);
+	--headerbar-bg-color: rgba(40, 42, 46, 0.9);
+	--headerbar-backdrop-color: rgba(29, 31, 33, 0.9);
+
+	/* base06 foreground, same as kitty/polybar */
+	--window-fg-color: #e0e0e0;
+	--view-fg-color: #e0e0e0;
+	--sidebar-fg-color: #e0e0e0;
+	--headerbar-fg-color: #e0e0e0;
+
+	/* base0A - the "focused/selected" yellow everywhere else (bspwm
+	 * focused border, polybar focused desktop, rofi highlight), with
+	 * black text on it like polybar's label-focused */
+	--accent-bg-color: #f0c674;
+	--accent-fg-color: #000000;
+	--accent-color: #f0c674;
+
+	/* Translucent layers stack: the window node (.background.view) paints
+	 * view-bg under the whole window, then .sidebar-pane paints
+	 * sidebar-bg on top - two 0.9 coats composite to ~0.99, an opaque
+	 * sidebar. Paint nothing at the window level and let each pane lay
+	 * down exactly one coat instead. */
+	background: none;
+}
+
+/* The content side has no paint of its own once the window stops
+ * painting (its headerbar/toolbars are libadwaita-flat - background:
+ * none - and lean on whatever is beneath), so lay its single coat here.
+ * .sidebar-pane already paints itself (see above). */
+window.nautilus-window .content-pane {
+	background-color: var(--view-bg-color);
+}

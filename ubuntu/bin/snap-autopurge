@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source sudo-enforce
+
+echo "Purging snaps"
+
+for package in "$@"; do
+	if snap list "$package" > /dev/null 2>&1; then sudo snap remove "$package"; fi
+done

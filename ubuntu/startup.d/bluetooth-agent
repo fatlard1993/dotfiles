@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+# bluetoothd needs an active pairing agent registered to confirm
+# authentication requests (SSP / LE Secure "just works", etc) - without
+# one, every pairing attempt fails outright with AuthenticationFailed
+# ("No agent available for request type 2" in bluetoothd's log). This
+# machine has no desktop environment providing one (no gnome-shell,
+# blueman, etc running under bspwm), and polybar-menu's one-shot
+# `bluetoothctl pair` calls don't reliably register one in time on their
+# own - so keep one persistent bluetoothctl instance alive for the whole
+# session instead, the same way a desktop's bluetooth applet would.
+# NoInputNoOutput auto-confirms "just works" pairing without a prompt,
+# which is what BLE peripherals like mice/keyboards use.
+pgrep -x bluetoothctl > /dev/null || { printf 'agent NoInputNoOutput\ndefault-agent\n'; sleep infinity; } | bluetoothctl > /dev/null 2>&1 &

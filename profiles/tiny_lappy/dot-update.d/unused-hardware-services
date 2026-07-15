@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Disabling services for hardware this machine doesn't have"
+
+# XPS 13 9360's only radio is the QCA6174 WiFi/BT combo card - no WWAN modem
+# for ModemManager to manage. GPU is Intel HD 620 only (no discrete/hybrid
+# graphics) - nothing for switcheroo-control to switch between.
+# `systemctl disable --now` is already idempotent, no need to guard it.
+sudo systemctl disable --now \
+	ModemManager.service \
+	switcheroo-control.service

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Brightness Menu
+Comment=Screen and keyboard backlight brightness
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu brightness
+Icon=display-brightness
+Terminal=false
+Categories=System;

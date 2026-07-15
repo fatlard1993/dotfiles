@@ -1,124 +1,24 @@
-## $HOME/.skhdrc
-# A list of all built-in modifier and literal keywords can be found at
-# https://github.com/koekeishiya/skhd/issues/1
+## htpc overlay - loaded alongside the shared base (ubuntu/.sxhkdrc, linked
+## as ~/.config/sxhkd/sxhkdrc.common). Only chords that are
+## machine-specific or bound differently per machine live here.
 
-# Help
-super + F1
-	$HOME/.dotfiles/ubuntu/bin/sxhkd-help
-
-# Quick Terminal
-super + ctrl + Return
-	kitty
-
-# Program Launcher
+# Program Launcher (couch-habit chord, kept alongside the base's
+# super+space)
 ctrl + @space
 	rofi -show drun -show-icons=true
 
-# Reload bspwm & sxhkd
-super + ctrl + Escape
-	pkill -USR1 -x sxhkd; bspc wm -r; notify-send 'Reloaded bspwm & sxhkd'
-
-# Logout
-super + ctrl + l
-	bspc quit
-
-# Reboot / Shutdown
-ctrl + XF86PowerOff
-	$HOME/.dotfiles/ubuntu/bin/pc-leave reboot
-super + XF86PowerOff
+# Physical power button: this is an appliance - a bare press shuts the box
+# down, no menu, no confirm (reachable because the shared
+# ubuntu/systemd/logind.conf sets HandlePowerKey=ignore, so the keypress
+# lands here instead of logind acting on it). ctrl held = reboot (base).
+XF86PowerOff
 	$HOME/.dotfiles/ubuntu/bin/pc-leave shutdown
+
+# Close and Kill (plain bspwm close here - the laptop's ctrl+w forwarding
+# trick is for browser-tab-heavy use, not the couch)
+super + {_,shift + }w
+	bspc node -{c,k}
 
 # Notes
 super + n
 	mousepad $HOME/.priv-config/profiles/personal/notes.md
-
-# Close and Kill
-super + {_,shift + }w
-	bspc node -{c,k}
-
-# Alternate between the tiled and monocle layout
-super + ctrl + m
-	bspc desktop -l next
-
-# Send the newest marked node to the newest preselected node
-# super + ctrl + y
-	# bspc node newest.marked.local -n newest.!automatic.local
-
-# Swap the current node and the biggest window
-super + ctrl + @space
-	bspc node -s biggest.window
-
-# Set the window state
-# super + ctrl + {t,shift + t,s,f}
-	# bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
-
-# Set the node flags
-# super + ctrl + {m,x,y,z}
-	# bspc node -g {marked,locked,sticky,private}
-
-# Focus the node in the given direction
-super + {_,shift + }{Left,Down,Up,Right}
-	bspc node -{f,s} {west,south,north,east}
-
-# Focus the node for the given path jump
-# super + ctrl + {p,b,comma,period}
-	# bspc node -f @{parent,brother,first,second}
-
-# Focus the next/previous window in the current desktop
-# super + ctrl + {_,shift + }c
-	# bspc node -f {next,prev}.local.!hidden.window
-
-# Focus the next/previous desktop in the current monitor
-# super + ctrl + bracket{left,right}
-	# bspc desktop -f {prev,next}.local
-
-# Focus the last node/desktop
-super + {grave,Tab}
-	bspc {node,desktop} -f last
-
-# Focus the older or newer node in the focus history
-# super + ctrl + {o,i}
-# 	bspc wm -h off; \
-# 	bspc node {older,newer} -f; \
-# 	bspc wm -h on
-
-# Focus the given desktop
-{ctrl,super} + {1-9}
-	{bspc, bspc} desktop -f '^{1-9}'; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
-
-# Send to the given desktop
-{ctrl,super} + shift + {1-9}
-	id=$(bspc query -N -n); {bspc, bspc} node -d '^{1-9}'; bspc node -f ${id}; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
-
-# Rotate tree
-super + ctrl + {Right,Left}
-    bspc node @/ -C {forward,backward}
-
-# Expand/contract a window by moving one of its side outward/inward
-super + ctrl + s : {a,w,s,d}
-    STEP=20; SELECTION={1,2,3,4}; \
-    bspc node -z $(echo "left -$STEP 0,bottom 0 $STEP,top 0 -$STEP,right $STEP 0" | cut -d',' -f$SELECTION) || \
-    bspc node -z $(echo "right -$STEP 0,top 0 $STEP,bottom 0 -$STEP,left $STEP 0" | cut -d',' -f$SELECTION)
-
-# Move a floating window
-# super + {Left,Down,Up,Right}
-	# bspc node -v {-20 0,0 20,0 -20,20 0}
-
-## Volume
-# XF86AudioRaiseVolume
-# 	pactl set-sink-volume 0 +6% && pnotify-volume
-# XF86AudioLowerVolume
-# 	pactl set-sink-volume 0 -6% && pnotify-volume
-# XF86AudioMute
-# 	pactl set-sink-mute   0 toggle
-
-# Screenshot
-# Print
-# 	scrot "Pictures/Screenshots/%Y_%m_%d_%H-%M-%S.png" && notify-send "Screenshot!"
-
-# Scratchpad
-# ctrl + 0
-# 	$HOME/.dotfiles/ubuntu/bin/bspwm-scratchpad
-
-## Focus window by name, find name with: wmctrl -l
-	#bspc node  -f `xdotool search --name "window_name"`

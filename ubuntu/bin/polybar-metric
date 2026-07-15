@@ -1,0 +1,267 @@
+#!/bin/bash
+# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|volume|wallpaper|brightness|clipboard|power
+# Outputs a polybar-formatted icon with threshold coloring (and, where it
+# makes sense, a contextual icon swap at the critical threshold). Detail
+# lives in the rofi menu (ubuntu/bin/polybar-menu), the bar itself stays
+# icon-only - except while that menu is open, when the icon highlights
+# (yellow bg, black fg) so it's obvious which menu is active.
+
+metric=$1
+tmp_file="$HOME/.dotfiles/temp/.polybar-cpu-prev"
+active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
+
+render() {
+	local icon=$1 color=$2 tier=${3:-T2}
+	local active
+	active=$(cat "$active_menu_file" 2>/dev/null)
+
+	if [ "$active" = "$metric" ]; then
+		echo "%{${tier}}%{F#f0c674}${icon}%{T-}%{F-}"
+	else
+		echo "%{${tier}}%{F${color}}${icon}%{T-}%{F-}"
+	fi
+}
+
+case "$metric" in
+	cpu)
+		read -r _ user nice system idle iowait irq softirq steal _ < /proc/stat
+		idle_all=$((idle + iowait))
+		non_idle=$((user + nice + system + irq + softirq + steal))
+		total=$((idle_all + non_idle))
+
+		if [ -f "$tmp_file" ]; then
+			read -r prev_idle prev_total < "$tmp_file"
+		else
+			prev_idle=0
+			prev_total=0
+		fi
+
+		diff_total=$((total - prev_total))
+		diff_idle=$((idle_all - prev_idle))
+
+		if [ "$diff_total" -gt 0 ]; then
+			value=$(( (100 * (diff_total - diff_idle)) / diff_total ))
+		else
+			value=0
+		fi
+
+		echo "$idle_all $total" > "$tmp_file"
+
+		if [ "$value" -ge 80 ]; then
+			icon=""
+			color="#cc6666"
+		elif [ "$value" -ge 50 ]; then
+			icon=""
+			color="#de935f"
+		else
+			icon=""
+			color="#b5bd68"
+		fi
+
+		render "$icon" "$color"
+		;;
+	temp)
+		zone_type_file=$(grep -l '^x86_pkg_temp$' /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
+
+		if [ -n "$zone_type_file" ]; then
+			value=$(( $(cat "${zone_type_file%type}temp") / 1000 ))
+		else
+			value=0
+		fi
+
+		if [ "$value" -ge 90 ]; then
+			icon=""
+		elif [ "$value" -ge 75 ]; then
+			icon=""
+		elif [ "$value" -ge 60 ]; then
+			icon=""
+		elif [ "$value" -ge 45 ]; then
+			icon=""
+		else
+			icon=""
+		fi
+
+		if [ "$value" -ge 85 ]; then
+			color="#cc6666"
+		elif [ "$value" -ge 60 ]; then
+			color="#de935f"
+		else
+			color="#b5bd68"
+		fi
+
+		render "$icon" "$color" T1
+		;;
+	ram)
+		value=$(free | awk '/^Mem:/ { printf "%.0f", ($2-$7)/$2 * 100 }')
+
+		if [ "$value" -ge 80 ]; then
+			icon=""
+			color="#cc6666"
+		elif [ "$value" -ge 50 ]; then
+			icon=""
+			color="#de935f"
+		else
+			icon=""
+			color="#b5bd68"
+		fi
+
+		render "$icon" "$color"
+		;;
+	disk)
+		read -r pct_used <<<"$(df -P / | awk 'NR==2 { gsub(/%/,"",$5); print $5 }')"
+
+		if [ "$pct_used" -ge 90 ]; then
+			icon=""
+			color="#cc6666"
+		elif [ "$pct_used" -ge 75 ]; then
+			icon=""
+			color="#de935f"
+		else
+			icon=""
+			color="#b5bd68"
+		fi
+
+		render "$icon" "$color"
+		;;
+	network)
+		iface=wlan0
+		tier_file="$HOME/.dotfiles/temp/.polybar-network-tier"
+		link=$(iw dev "$iface" link 2>/dev/null)
+
+		if [[ "$link" == "Not connected."* || -z "$link" ]]; then
+			rm -f "$tier_file"
+			render "" "#de935f"
+			exit 0
+		fi
+
+		dbm=$(awk '/signal:/ {print $2}' <<<"$link")
+		prev_tier=$(cat "$tier_file" 2>/dev/null || echo "medium")
+
+		# hysteresis: entering strong/weak needs a stronger reading than
+		# leaving them, so a signal hovering near a boundary doesn't flicker
+		strong_enter=-50; strong_exit=-60
+		weak_enter=-75; weak_exit=-65
+
+		case "$prev_tier" in
+			strong)
+				if [ "$dbm" -ge "$strong_exit" ]; then
+					tier=strong
+				elif [ "$dbm" -lt "$weak_enter" ]; then
+					tier=weak
+				else
+					tier=medium
+				fi
+				;;
+			weak)
+				if [ "$dbm" -lt "$weak_exit" ]; then
+					tier=weak
+				elif [ "$dbm" -ge "$strong_enter" ]; then
+					tier=strong
+				else
+					tier=medium
+				fi
+				;;
+			*)
+				if [ "$dbm" -ge "$strong_enter" ]; then
+					tier=strong
+				elif [ "$dbm" -lt "$weak_enter" ]; then
+					tier=weak
+				else
+					tier=medium
+				fi
+				;;
+		esac
+
+		echo "$tier" > "$tier_file"
+
+		case "$tier" in
+			strong) color="#b5bd68" ;;
+			medium) color="#de935f" ;;
+			weak) color="#cc6666" ;;
+		esac
+
+		render "" "$color"
+		;;
+	bluetooth)
+		powered=$(bluetoothctl show 2>/dev/null | awk -F': ' '/Powered:/ {print $2}')
+
+		if [ "$powered" != "yes" ]; then
+			render "󰂲" "#373b41" T1
+			exit 0
+		fi
+
+		connected=$(bluetoothctl devices Connected 2>/dev/null)
+
+		if [ -n "$connected" ]; then
+			render "󰂰" "#b5bd68" T1
+		else
+			render "󰂯" "#de935f" T1
+		fi
+		;;
+	battery)
+		value=$(cat /sys/class/power_supply/BAT0/capacity)
+		status=$(cat /sys/class/power_supply/BAT0/status)
+
+		tier=T2
+
+		if [ "$status" = "Charging" ]; then
+			icon=""
+			color="#b5bd68"
+			tier=T1
+		elif [ "$status" = "Not charging" ]; then
+			icon=""
+			color="#de935f"
+		else
+			if [ "$value" -ge 90 ]; then
+				icon=""
+			elif [ "$value" -ge 65 ]; then
+				icon=""
+			elif [ "$value" -ge 35 ]; then
+				icon=""
+			elif [ "$value" -ge 10 ]; then
+				icon=""
+			else
+				icon=""
+			fi
+
+			if [ "$value" -le 20 ]; then
+				color="#cc6666"
+			elif [ "$value" -le 50 ]; then
+				color="#de935f"
+			else
+				color="#b5bd68"
+			fi
+		fi
+
+		render "$icon" "$color" "$tier"
+		;;
+	volume)
+		vol_output=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
+		pct=$(awk '{printf "%.0f", $2*100}' <<<"$vol_output")
+
+		if [[ "$vol_output" == *MUTED* ]]; then
+			icon=""
+			color="#de935f"
+		elif [ "$pct" -lt 50 ]; then
+			icon=""
+			color="#b5bd68"
+		else
+			icon=""
+			color="#b5bd68"
+		fi
+
+		render "$icon" "$color"
+		;;
+	wallpaper)
+		render "" "#b5bd68"
+		;;
+	brightness)
+		render "" "#b5bd68"
+		;;
+	clipboard)
+		render "" "#b5bd68"
+		;;
+	power)
+		render "" "#b5bd68"
+		;;
+esac

@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""Regenerates the animated HUD layer (rotating rings, sweep, clock) and
+composites it over the cached static base (blurred desktop + badge, see
+ubuntu/bin/system-lock's capture()). slock (our fork, see
+profiles/tiny_lappy/slock/) polls this file's mtime itself and reloads when
+it changes - it used to be signal-driven (SIGUSR1 from this script), but
+slock drops privileges to nobody:nogroup right after reading the shadow
+hash, and a chase-owned process can't signal a process owned by a different
+user without being root. mtime polling only needs read access, which the
+world-traversable /tmp path already grants.
+
+Split from the static background so each tick only pays for what actually
+changes: ImageMagick's `composite` on two full-canvas images measured ~1.5s
+(too slow for a ~1.5s tick budget on its own), Pillow's alpha_composite on
+the same images measured ~0.01s - the bottleneck was the tool, not the
+operation.
+"""
+import re
+import subprocess
+import time
+from pathlib import Path
+
+from PIL import Image
+
+DOTFILES = Path.home() / ".dotfiles"
+CACHE = Path("/tmp/system-lock")
+BASE = CACHE / "base.png"
+HUD_SVG = CACHE / "hud.svg"
+HUD_PNG = CACHE / "hud.png"
+OUT = CACHE / "screen_locked.png"
+OUT_TMP = CACHE / "screen_locked.png.tmp"
+
+
+def primary_geometry(fallback_w, fallback_h):
+    """(x, y, w, h) of the primary output, so the HUD centers on the actual
+    laptop screen instead of the middle of the full multi-monitor canvas -
+    with a second monitor attached, that middle point falls on the seam
+    between screens rather than inside either one."""
+    try:
+        out = subprocess.run(["xrandr", "--query"], check=True, capture_output=True, text=True).stdout
+        for line in out.splitlines():
+            if " primary " in line:
+                m = re.search(r"(\d+)x(\d+)\+(\d+)\+(\d+)", line)
+                if m:
+                    w, h, x, y = map(int, m.groups())
+                    return x, y, w, h
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return 0, 0, fallback_w, fallback_h
+
+
+def main():
+    if not BASE.exists():
+        return
+
+    base = Image.open(BASE).convert("RGBA")
+    W, H = base.size
+    px, py, pw, ph = primary_geometry(W, H)
+    cx, cy = px + pw // 2, py + ph // 2
+
+    t = time.time()
+    # ph lets the HUD scale itself to the primary monitor's height instead
+    # of drawing its laptop-panel-tuned pixel sizes on whatever screen it
+    # lands on (undersized on the 4K external, see gen_lock_hud.py).
+    subprocess.run(
+        ["python3", str(DOTFILES / "ubuntu/gen_lock_hud.py"), str(HUD_SVG), str(t), str(W), str(H), str(cx), str(cy), str(ph)],
+        check=True,
+    )
+    subprocess.run(
+        ["rsvg-convert", "-w", str(W), "-h", str(H), str(HUD_SVG), "-o", str(HUD_PNG)],
+        check=True,
+    )
+
+    hud = Image.open(HUD_PNG).convert("RGBA")
+    base.alpha_composite(hud)
+    # write-then-rename: slock (as nobody) polls OUT's mtime and reads it
+    # independently of this script's timing - writing OUT directly risks it
+    # reading a partially-written file mid-save. rename() on the same
+    # filesystem is atomic, so slock only ever sees the old or new file
+    # whole, never a torn one.
+    base.convert("RGB").save(OUT_TMP, format="PNG", compress_level=1)
+    OUT_TMP.rename(OUT)
+
+
+if __name__ == "__main__":
+    main()

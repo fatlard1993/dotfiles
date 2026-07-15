@@ -1,0 +1,27 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Screen/keyboard backlight brightness sysfs nodes are root:root by default,
+# so writing to them (from sxhkd hotkeys or the polybar brightness menu)
+# would otherwise need a pkexec prompt on every single adjustment. Granting
+# the video group write access is the standard fix.
+udevRulesFile=/etc/udev/rules.d/90-backlight.rules
+
+if [[ ! -f $udevRulesFile ]]; then
+	echo "Granting video group write access to backlight devices"
+
+	sudo tee $udevRulesFile > /dev/null <<-'EOF'
+	SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/chgrp video $sys$devpath/brightness", RUN+="/bin/chmod g+w $sys$devpath/brightness"
+	SUBSYSTEM=="leds", KERNEL=="*kbd_backlight", ACTION=="add", RUN+="/bin/chgrp video $sys$devpath/brightness", RUN+="/bin/chmod g+w $sys$devpath/brightness"
+	EOF
+
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --subsystem-match=backlight --subsystem-match=leds
+fi
+
+groups $USER | grep -qw video || {
+	echo "Adding $USER to the video group (needs a new login session to take effect)"
+
+	sudo usermod -aG video $USER
+}

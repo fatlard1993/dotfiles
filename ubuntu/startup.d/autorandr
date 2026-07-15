@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+# Applies whatever saved autorandr profile matches the monitors connected
+# right now (see `autorandr --list`) - the udev-triggered service only
+# handles hotplugs *during* the session, this covers the initial state at
+# login/reload. No --batch here: that flag is for the root-invoked systemd
+# service to go find a user session; this script already runs as the user,
+# inside the real session with DISPLAY set, which is what --batch refuses to
+# run under ("--batch mode can only be used by root and if $DISPLAY is
+# unset"). One-shot command, no persistent process, so no guard needed.
+autorandr --change --default default

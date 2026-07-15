@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# AirPlay receiver (uxplay) - the box shows up as "HTPC" in Apple devices'
+# AirPlay picker for screen mirroring, video, and audio (-nh keeps it from
+# advertising as HTPC@hostname). Sits idle waiting for connections; the
+# mirror window only exists during an active session, and -fs makes it
+# true-fullscreen rather than a tile. Discovery rides on avahi-daemon
+# (mDNS), which the aptfile installs and Ubuntu enables by default.
+pgrep -x uxplay > /dev/null || uxplay -n HTPC -nh -fs > /dev/null 2>&1 &

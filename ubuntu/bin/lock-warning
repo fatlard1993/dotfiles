@@ -1,0 +1,17 @@
+#!/bin/bash
+# Usage: lock-warning <seconds>
+#
+# xautolock's -notifier for the pre-lock warning (see
+# ubuntu/startup.d/screenlock). Plain notify-send -u critical would stay on
+# screen forever once the lock screen is up - dunstrc's urgency_critical
+# deliberately sets timeout=0 so a warning like this can't get missed - so
+# this tracks its own notification id and closes it right before
+# xautolock's own countdown reaches the locker, instead of leaving it
+# stacked on top of slock.
+
+seconds=${1:-10}
+id=$(notify-send -p -u critical "Screen Lock" "Locking in ${seconds} seconds...")
+
+clear_at=$((seconds > 1 ? seconds - 1 : 0))
+sleep "$clear_at"
+dunstctl close "$id" 2>/dev/null

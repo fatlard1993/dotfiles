@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+xinput set-prop "Logitech MX Master 4" "libinput Natural Scrolling Enabled" 1

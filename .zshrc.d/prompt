@@ -252,7 +252,17 @@ _prompt_lastCommand() {
   fi
 }
 
+# -1 = no command pending; unset would read as 0 in precmd's arithmetic and
+# record shell startup time as the first command's elapsed time
+typeset -ig _start=-1
+
+# Blank-line separator between a command's output and the next prompt block;
+# empty on the first prompt so a fresh window starts flush at the top
+_prompt_separator=""
+
 preexec () {
+  _prompt_separator="${_prompt_newline}${_prompt_newline}"
+
   if [ "$cmd" ]; then
     (( $#_elapsed > 100 )) && set -A _elapsed $_elapsed[-100,-1]
     typeset -ig _start=SECONDS
@@ -319,7 +329,7 @@ setopt prompt_subst
 trap _prompt_redraw WINCH
 
 _prompt_line0='$(_prompt_lastCommand)'
-_prompt_line1='${_prompt_newline}${_prompt_newline}┏${_prompt_time}${_prompt_ip}${tty}$(_prompt_user)${_prompt_directory}'
+_prompt_line1='${_prompt_separator}┏${_prompt_time}${_prompt_ip}${tty}$(_prompt_user)${_prompt_directory}'
 _prompt_line2='$(_prompt_gitBranch)'
 _prompt_line3='${_prompt_newline}$(_prompt_commandPipe)%# '
 

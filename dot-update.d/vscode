@@ -2,15 +2,13 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+# vscode is per-machine (tiny_lappy's dot-update.d/vscode, mac Brewfiles) -
+# skip the settings hooks on machines without it, like the htpc.
+command -v code > /dev/null || return 0
+
 mkdir -p $HOME/.vscode
 
 echo "Linking vscode argv config"
 ln -sf $dotfilesPath/vscode/argv.json $HOME/.vscode/
-
-echo "Linking vscode settings config"
-ln -sf $dotfilesPath/vscode/settings.json $HOME/.vscode/
-
-echo "Linking vscode keybinds config"
-ln -sf $dotfilesPath/vscode/keybindings.json $HOME/.vscode/
 
 $binPath/code-ext-restore

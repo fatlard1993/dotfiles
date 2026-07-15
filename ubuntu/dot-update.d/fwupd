@@ -1,0 +1,26 @@
+#!/bin/zsh
+
+echo "Updating device firmware"
+
+# Firmware comes from LVFS via fwupd; for most devices (UEFI capsules
+# especially) `update` only *stages* the payload - the actual flash happens
+# during the next reboot. --no-reboot-check stops fwupdmgr from prompting
+# for (or, with -y, immediately triggering) that reboot in the middle of a
+# dot-update run; a staged update is surfaced as a notification instead so
+# the reboot happens on the user's schedule.
+# No sudo: fwupd is a system daemon and polkit mediates the privilege (it
+# prompts in-terminal if a specific update needs admin auth). fwupdmgr also
+# sends its own desktop notifications - as the session user those reach
+# dunst; as root they'd target root's nonexistent session bus and hang
+# until the dbus timeout.
+fwupdmgr refresh --force
+fwupdmgr update -y --no-reboot-check
+
+# UpdateState 4 == needs-reboot in the JSON output (2 == success) - it's
+# set on a device once an update is staged and waiting on a reboot. The
+# "needs-reboot" *Flag* is NOT this: that one is a static capability
+# ("this device applies updates via reboot") present even when nothing is
+# pending.
+if fwupdmgr get-devices --json 2>/dev/null | jq -e '[.Devices[]? | select(.UpdateState == 4)] | length > 0' > /dev/null; then
+	notify-send -u critical "Firmware" "Reboot required to finish installing firmware updates"
+fi

@@ -1,0 +1,12 @@
+# Linked into ~/.config/systemd/user by dot-update.d/dnsmasq-lan; fired
+# weekly by blocklist-update.timer. Runs as the user because the script
+# writes the refreshed list into the dotfiles repo (the source of truth)
+# before sudo-copying it live - machine-wide NOPASSWD sudo (see
+# ubuntu/dot-update.d/sudo) is what lets the internal sudo steps run
+# unattended.
+[Unit]
+Description=Refresh dnsmasq adblock hosts (StevenBlack + custom)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist

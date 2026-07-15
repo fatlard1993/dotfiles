@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# The shared startup.d/display already disables X's screensaver blanking
+# (xset s off), but DPMS is separate and would still blank the output after
+# its default timeouts - which, like the idle lock this profile opts out of
+# (see startup.d/screenlock), controller input does nothing to prevent. The
+# TV handles its own power via no-signal detection, so X managing the
+# display's power state buys nothing here.
+xset -dpms

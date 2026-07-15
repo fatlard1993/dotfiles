@@ -3,4 +3,4 @@
 echo "Linking rofi config"
 
 mkdir -p $HOME/.config/rofi
-ln -sf $ubuntuPath/rofi/config $HOME/.config/rofi/config
+ln -sf $ubuntuPath/rofi/config.rasi $HOME/.config/rofi/config.rasi

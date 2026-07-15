@@ -1,0 +1,38 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Self-hosted game servers for the house (humanity :8032, void-driller
+# :1040, sorcery-and-savagery :3040 - no collisions with htpc-remote :8793
+# or land-ledger :7450). All the same shape: bun apps whose `prepare` script
+# builds the client during install, run by the shared bun-server@ template
+# unit (see systemd/bun-server@.service).
+
+ensureBun
+
+echo "Linking bun-server@ template unit"
+
+mkdir -p $HOME/.config/systemd/user
+ln -sf $profilePath/systemd/bun-server@.service $HOME/.config/systemd/user/
+systemctl --user daemon-reload
+
+# the servers shouldn't depend on the couch session being logged in
+ensureLinger
+
+# Adding a game? Give it a *.home name + port in dot-update.d/lan-names too.
+for game in humanity void-driller sorcery-and-savagery; do
+	syncRepo https://github.com/fatlard1993/$game.git $HOME/Projects/$game
+
+	# bun install runs each game's `prepare` (client build) as a side effect
+	(cd $HOME/Projects/$game ; bun install)
+
+	if ! systemctl --user is-active --quiet bun-server@$game.service; then
+		echo "Starting $game"
+
+		systemctl --user enable --now bun-server@$game.service
+	elif [[ $repoUpdated == true ]]; then
+		echo "Restarting $game (updated)"
+
+		systemctl --user restart bun-server@$game.service
+	fi
+done

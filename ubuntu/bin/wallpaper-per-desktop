@@ -1,0 +1,258 @@
+#!/bin/bash
+# Gives each bspwm desktop its own persistent wallpaper. bspwm has a single
+# shared X root window (no native per-desktop background), so this fakes it
+# by swapping the background via feh whenever a desktop is focused.
+#
+# This is the single owner of the desktop->wallpaper map and of repainting.
+# It grew subcommands after the map handling was duplicated across
+# wallpaper-rotate-all, wallpaper-next, and polybar-menu, and two of those
+# copies appended map lines instead of replacing them - the daemon's lookup
+# then matched multiple lines and handed feh one garbage multi-line path, so
+# switches silently stopped repainting. Those scripts are thin wrappers over
+# the subcommands now:
+#   (none)     daemon: repair map, repaint, then follow desktop_focus
+#   apply      one-shot repaint of every monitor's active desktop
+#   next       new (unique) wallpaper for the focused desktop + repaint
+#   rotate-all fresh unique wallpaper for every desktop + repaint
+#   prewarm    pre-scale every mapped wallpaper for every monitor
+#
+# feh sets multi-monitor backgrounds from a single call: one image per
+# Xinerama output, first arg -> output 0, second -> output 1, etc (see
+# feh(1)). Call it with only one image while N>1 monitors are connected and
+# it paints that same image across all of them - so repainting must always
+# gather every monitor's own active desktop and set the whole list at once,
+# even though only one monitor's desktop actually changed.
+
+shopt -s nullglob
+
+WALLPAPER_DIR=~/Pictures/Wallpapers
+MAP_FILE=$WALLPAPER_DIR/.desktop-wallpapers
+CACHE_DIR=~/.cache/wallpapers-scaled
+
+mkdir -p "$CACHE_DIR"
+touch "$MAP_FILE"
+
+# xrandr's listing order is what feh's Xinerama indices follow - bspwm's
+# own `query -M` order isn't guaranteed to match it. Emits "name WxH".
+monitors() {
+	xrandr --listmonitors | awk 'NR>1 {
+		split($3, g, "[/x+]")
+		print $NF, g[1] "x" g[3]
+	}'
+}
+
+# Writes (or overwrites) this desktop's single mapping line, instead of
+# ever appending - the map is current *state* (one desktop -> one
+# wallpaper), not a history, and an append-only version of it grew to over
+# a thousand lines for just ~20 desktop slots before this was fixed.
+set_mapping() {
+	local desktop=$1 wallpaper=$2 tmp=$MAP_FILE.tmp.$$
+
+	grep -v "^$desktop:" $MAP_FILE > $tmp 2>/dev/null
+	echo "$desktop:$wallpaper" >> $tmp
+	mv $tmp $MAP_FILE
+}
+
+# Repairs the two kinds of damage older writers left behind: appended
+# history (multiple lines per desktop - last write wins, matching the
+# tail -1 readers) and entries whose file is gone or was never a file at
+# all (a no-nullglob run once wrote a literal "*.*" into the map).
+clean_map() {
+	local tmp=$MAP_FILE.tmp.$$ line desktop wallpaper
+
+	: > $tmp
+
+	tac $MAP_FILE | while IFS= read -r line; do
+		desktop=${line%%:*}
+		wallpaper=${line#*:}
+
+		grep -q "^$desktop:" $tmp && continue
+		[ -f "$wallpaper" ] || continue
+
+		echo "$line" >> $tmp
+	done
+
+	mv $tmp $MAP_FILE
+}
+
+# Picks a wallpaper not mapped to *any* desktop, so every desktop looks
+# different and a repaint is visibly a repaint. Only repeats once there
+# are more desktops than wallpapers.
+pick_new() {
+	local candidates=($WALLPAPER_DIR/*.*)
+	[ ${#candidates[@]} -eq 0 ] && return 1
+
+	local used unused=() c
+	used=$(cut -d: -f2- $MAP_FILE)
+
+	for c in "${candidates[@]}"; do
+		grep -qxF "$c" <<< "$used" || unused+=("$c")
+	done
+
+	local pool=("${unused[@]}")
+	[ ${#pool[@]} -eq 0 ] && pool=("${candidates[@]}")
+
+	printf '%s\n' "${pool[@]}" | shuf -n 1
+}
+
+wallpaper_for() {
+	local desktop=$1 wallpaper
+
+	wallpaper=$(grep "^$desktop:" $MAP_FILE | tail -1 | cut -d: -f2-)
+
+	# Unmapped desktop, or mapped file was deleted/stashed out from
+	# under us - assign a fresh one instead of failing the repaint.
+	if [ ! -f "$wallpaper" ]; then
+		wallpaper=$(pick_new) || return 1
+		set_mapping "$desktop" "$wallpaper"
+	fi
+
+	echo "$wallpaper"
+}
+
+# Returns a copy of $1 pre-scaled to monitor resolution $2 (cached). feh
+# --bg-fill on a full-res photo decodes + rescales the whole thing on every
+# desktop switch - that decode was most of the visible switch lag. Scaling
+# once here makes every later repaint of this image nearly free. Falls back
+# to the original (slow path, still correct) if ImageMagick chokes on it.
+scaled() {
+	local src=$1 geom=$2
+	# Separate local line on purpose: all args of one `local` expand
+	# before any of its assignments land, so $src would still be empty.
+	local out=$CACHE_DIR/${src##*/}.$geom.jpg
+
+	if [ ! -s "$out" ] || [ "$src" -nt "$out" ]; then
+		if ! magick "$src" -resize "${geom}^" -gravity center -extent "$geom" -quality 92 "$out" 2>/dev/null; then
+			rm -f "$out"
+
+			# Only fall back if the source really is an image magick
+			# just couldn't convert. An HTML error page saved as .jpeg
+			# once reached this fallback, and feh aborts its whole
+			# multi-monitor call on an unloadable file - every output
+			# stayed unpainted, not just the bad one.
+			case $(file -b --mime-type "$src") in
+				image/*) echo "$src"; return ;;
+				*) return 1 ;;
+			esac
+		fi
+	fi
+
+	echo "$out"
+}
+
+# Moves a file feh can't use out of the pool - leaving it in place means
+# pick_new hands it right back to the next remap and the repaint failure
+# loops forever. Kept (not deleted) so "what was this" stays answerable.
+quarantine() {
+	mkdir -p $WALLPAPER_DIR/broken
+	mv "$1" $WALLPAPER_DIR/broken/ 2>/dev/null
+}
+
+# LAST_APPLIED makes repeated events for an unchanged view (bounce to a
+# desktop and back, event bursts) skip the feh call entirely.
+LAST_APPLIED=
+apply_all() {
+	local monitor geom desktop wallpaper images=()
+
+	while read -r monitor geom; do
+		desktop=$(bspc query -D -m "$monitor" -d .active --names 2>/dev/null)
+		[ -z "$desktop" ] && continue
+
+		wallpaper=$(wallpaper_for "$desktop") || continue
+
+		# A bad file gets quarantined and the desktop remapped, so one
+		# poisoned download degrades to "this desktop gets a different
+		# wallpaper" instead of "no monitor gets painted at all".
+		if ! image=$(scaled "$wallpaper" "$geom"); then
+			quarantine "$wallpaper"
+			wallpaper=$(wallpaper_for "$desktop") || continue
+			image=$(scaled "$wallpaper" "$geom") || continue
+		fi
+
+		images+=("$image")
+	done < <(monitors)
+
+	[ ${#images[@]} -eq 0 ] && return
+	[ "${images[*]}" = "$LAST_APPLIED" ] && return
+
+	feh --bg-fill "${images[@]}" && LAST_APPLIED="${images[*]}"
+}
+
+# Fills the scaled cache for everything currently mapped so the first
+# focus of a desktop never pays the ImageMagick cost mid-switch. Run in
+# the background - it's pure cache warming.
+prewarm() {
+	local geoms geom line wallpaper
+
+	geoms=$(monitors | awk '{print $2}' | sort -u)
+
+	while IFS= read -r line; do
+		wallpaper=${line#*:}
+		[ -f "$wallpaper" ] || continue
+
+		for geom in $geoms; do
+			scaled "$wallpaper" "$geom" > /dev/null
+		done
+	done < $MAP_FILE
+}
+
+# One pass over a single shuffled pool (round-robin if it's shorter than
+# the desktop list) instead of N independent random picks - uniqueness is
+# guaranteed by construction, not by hoping the pool doesn't run dry
+# mid-loop.
+rotate_all() {
+	local candidates=($WALLPAPER_DIR/*.*)
+	[ ${#candidates[@]} -eq 0 ] && { notify-send "Wallpaper" "No wallpapers available"; return 1; }
+
+	local desktops pool desktop i=0
+	mapfile -t desktops < <(bspc query -D --names)
+	mapfile -t pool < <(printf '%s\n' "${candidates[@]}" | shuf)
+
+	for desktop in "${desktops[@]}"; do
+		set_mapping "$desktop" "${pool[i % ${#pool[@]}]}"
+		(( i++ ))
+	done
+
+	apply_all
+	prewarm &
+}
+
+# Optional $1: target desktop by name. The polybar click handlers pass the
+# clicked bar's own monitor's visible desktop - a bar click doesn't move
+# input focus, so "focused" would silently target whichever monitor last
+# had focus instead of the one the click happened on. Defaults to the
+# focused desktop for terminal/keybind use.
+next_for() {
+	local desktop=${1:-$(bspc query -D -d focused --names)} wallpaper
+
+	wallpaper=$(pick_new) || { notify-send "Wallpaper" "No wallpapers available"; return 1; }
+
+	set_mapping "$desktop" "$wallpaper"
+	apply_all
+}
+
+case ${1:-daemon} in
+	apply) clean_map; apply_all ;;
+	next) clean_map; next_for "$2" ;;
+	rotate-all) clean_map; rotate_all ;;
+	prewarm) prewarm ;;
+	daemon)
+		clean_map
+		apply_all
+		prewarm &
+
+		# Drain event bursts (rapid desktop cycling queues one event
+		# per hop) and repaint once for wherever we actually landed,
+		# instead of replaying every intermediate wallpaper.
+		bspc subscribe desktop_focus | while read -r _; do
+			while read -r -t 0.05 _; do :; done
+
+			apply_all
+		done
+		;;
+	*)
+		echo "Usage: wallpaper-per-desktop [daemon|apply|next|rotate-all|prewarm]"
+
+		exit 1
+		;;
+esac

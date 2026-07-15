@@ -1,0 +1,72 @@
+#!/bin/zsh
+
+# Tripwire + auto-repair for the 2026-07-13 incident: something detached
+# every physical input device from the X core hierarchy overnight (floating
+# slaves receive no core events), which made the lockscreen unanswerable -
+# the machine looked frozen from the chair. X neither logs hierarchy changes
+# nor attributes them to a client, so the only way to identify the culprit
+# is to be watching when it happens again. Until then, the reattach below
+# also guarantees a recurrence can't lock anyone out.
+#
+# Detection is event-driven (XI2 HierarchyChanged), not polled: the forensic
+# process snapshot is only useful if it runs while the culprit still exists.
+# The sweep at loop start covers floats that happened while we weren't
+# running (login, X restart).
+
+[ -n "$DISPLAY" ] || export DISPLAY=:0
+
+logDir=$HOME/.cache/input-watchdog
+log=$logDir/incidents.log
+events=$logDir/hierarchy-events.log
+
+mkdir -p $logDir
+
+# dock hotplugs append here forever; don't let it become a slow leak
+[ -f $events ] && [ $(stat -c%s $events) -gt 1000000 ] && mv $events $events.1
+
+capture_and_fix() {
+	local floating=$(xinput list | grep 'floating' | grep -v XTEST)
+	[ -z "$floating" ] && return
+
+	{
+		echo "=== FLOAT DETECTED $(date '+%F %T') ==="
+		echo "$floating"
+		echo "--- xinput list ---"
+		xinput list
+		echo "--- X clients ---"
+		xlsclients -la 2>&1
+		echo "--- processes (newest first) ---"
+		ps aux --sort=-start_time | head -40
+		echo "--- journal last 5 min ---"
+		journalctl --since '-5 min' --no-pager 2>/dev/null | tail -40
+	} >> $log 2>&1
+
+	# Reattach to the core masters: pointer (2) first, keyboard (3) as the
+	# fallback - the X server rejects the wrong pairing, so the failed
+	# attempt is a no-op rather than a misattachment.
+	echo "$floating" | grep -o 'id=[0-9]*' | cut -d= -f2 | while read -r id; do
+		xinput reattach $id 2 2>/dev/null || xinput reattach $id 3 2>/dev/null
+		echo "$(date '+%F %T') reattached $id" >> $log
+	done
+
+	notify-send -u critical "input-watchdog" "Input devices were floating - reattached. Forensics: $log"
+}
+
+while true; do
+	capture_and_fix
+
+	# grep prefilters in C so the shell loop never sees the motion/key event
+	# firehose - only hierarchy blocks arrive here. Reattaching emits
+	# [slave attached] events, which are logged but don't re-trigger.
+	xinput test-xi2 --root 2> /dev/null |
+		grep --line-buffered -A 12 'HierarchyChanged' |
+		while read -r line; do
+			echo "$(date '+%F %T') $line" >> $events
+			case $line in
+				(*'slave detached'*|*'master removed'*) capture_and_fix ;;
+			esac
+		done
+
+	# only reached when X (or xinput) went away - wait and re-arm
+	sleep 10
+done

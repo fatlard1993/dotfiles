@@ -1,0 +1,35 @@
+#!/bin/bash
+# Usage: bar-height <monitor>
+# Prints "<dpi> <height>" for the given monitor's polybar - the single
+# source of truth for bar sizing, used by startup.d/status-bar to launch
+# the bars and by bin/rofi to sit flush underneath them.
+#
+# eDP-1 is special-cased to the original hardcoded dpi=192/height=35 -
+# confirmed (by trial) that those were already tuned to look right on it
+# specifically, not derived from its true physical DPI (which actually
+# measures ~248 and visibly overshoots the original look when used
+# directly), likely because of the separate 2x GTK scaling
+# (dot-update.d/gtk) layered on top. Every other monitor uses its own true
+# physical DPI directly (confirmed correct for DP-1 by trial) - scaling it
+# *relative* to eDP-1's ratio instead undershot badly, since an external
+# display is usually farther from the eyes than a laptop panel, so matching
+# physical size isn't actually the right goal here.
+
+mon=$1
+dpi=192
+height=35
+
+if [ -n "$mon" ] && [ "$mon" != "eDP-1" ]; then
+	line=$(xrandr --query | grep "^${mon} connected")
+	px=$(grep -oP '\d+x\d+\+' <<<"$line" | head -1 | grep -oP '^\d+')
+	mm=$(grep -oP '\d+mm x \d+mm' <<<"$line" | grep -oP '^\d+')
+	if [[ -n "$px" && -n "$mm" && "$mm" -gt 0 ]]; then
+		mon_dpi=$((px * 254 / mm / 10))
+		if [ "$mon_dpi" -gt 0 ]; then
+			dpi=$mon_dpi
+			height=$((35 * dpi / 192))
+		fi
+	fi
+fi
+
+echo "$dpi $height"

@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The gmediarender package auto-enables its system unit on install
+# (confirmed in the deb's postinst), which runs headless as a DynamicUser
+# with bare-ALSA access - no X, no session PipeWire - so it claims the
+# renderer identity on the network while being unable to actually render
+# video. The session instance (startup.d/dlna-renderer) is the real
+# renderer; keep the system one off. `systemctl disable --now` is already
+# idempotent, no need to guard it.
+sudo systemctl disable --now gmediarender.service 2>/dev/null

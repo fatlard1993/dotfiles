@@ -1,0 +1,15 @@
+#!/bin/zsh
+
+echo "Linking autorandr postswitch hook"
+
+mkdir -p $HOME/.config/autorandr
+ln -sf $ubuntuPath/autorandr/postswitch $HOME/.config/autorandr/postswitch
+chmod +x $ubuntuPath/autorandr/postswitch
+
+echo "Installing autorandr.service override (boot's drm hotplug burst trips"
+echo "the stock unit's start rate limit into red 'Failed to start' noise -"
+echo "see autorandr-override.conf)"
+
+sudo mkdir -p /etc/systemd/system/autorandr.service.d
+sudo cp $ubuntuPath/autorandr/autorandr-override.conf /etc/systemd/system/autorandr.service.d/override.conf
+sudo systemctl daemon-reload

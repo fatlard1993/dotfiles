@@ -1,0 +1,14 @@
+[greenclip]
+  history_file = "/home/chase/.cache/greenclip.history"
+  max_history_length = 50
+  max_selection_size_bytes = 0
+  trim_space_from_selection = true
+  use_primary_selection_as_input = false
+  # Best-effort: greenclip matches on the X11 clipboard-selection owner's
+  # window name, which a lot of apps (especially Electron ones) either leave
+  # blank or set to something generic - run `greenclip daemon` in a terminal
+  # and copy from your actual password manager to confirm/adjust these names.
+  blacklisted_applications = ["KeePassXC", "Bitwarden", "1Password", "gnome-keyring"]
+  enable_image_support = true
+  image_cache_directory = "/tmp/greenclip"
+  static_history = []

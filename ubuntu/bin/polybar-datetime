@@ -1,0 +1,31 @@
+#!/bin/bash
+# Outputs the polybar date/time label with the separator dot guaranteed to
+# be the exact center character of the whole string - computed at each
+# tick so it stays correct no matter how the date/time format widths
+# change (locale, format edits, etc), rather than relying on fixed padding
+# that only happens to work for the current format strings.
+
+date_str=$(date '+%m/%d/%y')
+time_str=$(date '+%H:%M:%S')
+
+diff=$((${#date_str} - ${#time_str}))
+
+before=""
+after=""
+
+if [ "$diff" -gt 0 ]; then
+	after=$(printf '%*s' "$diff" '')
+elif [ "$diff" -lt 0 ]; then
+	before=$(printf '%*s' "$((-diff))" '')
+fi
+
+label="${date_str} ${before}·${after} ${time_str}"
+
+active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
+active=$(cat "$active_menu_file" 2>/dev/null)
+
+if [ "$active" = "datetime" ]; then
+	echo "%{F#f0c674}${label}%{F-}"
+else
+	echo "$label"
+fi

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Fullscreen shuffled photo slideshow - running it again (or clicking the
+# polybar button again) stops it, so one button toggles. mpv because it's
+# already installed everywhere here; HEIC from iPhone backups works if the
+# distro ffmpeg has libheif, and undecodable files get skipped.
+
+dir="${1:-$HOME/Pictures}"
+
+if pgrep -f "mpv --title=slideshow" > /dev/null; then
+	pkill -f "mpv --title=slideshow"
+
+	exit 0
+fi
+
+find "$dir" -type f \( \
+	-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o \
+	-iname '*.gif' -o -iname '*.webp' -o -iname '*.heic' \
+	\) | mpv --title=slideshow --fs --shuffle --loop-playlist=inf \
+	--image-display-duration=8 --playlist=- > /dev/null 2>&1 &

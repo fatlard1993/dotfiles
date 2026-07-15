@@ -1,0 +1,52 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Swaps GDM out for greetd + tuigreet (TUI login screen, themed to match
+# the rest of the desktop - see ubuntu/greetd/config.toml). Only flips which
+# display manager wins at the *next* boot (systemd's display-manager.service
+# alias) - doesn't touch a currently-running gdm session, so this is safe to
+# rerun without logging out.
+
+echo "Installing greetd + tuigreet"
+
+command -v greetd >/dev/null || sudo apt install -y greetd tuigreet
+
+echo "Installing greetd config"
+
+# Copied, not symlinked: no ProtectHome on greetd.service today, but see
+# ubuntu/dot-update.d/logind for why a symlink into $HOME is a bad bet for
+# any systemd service long-term.
+sudo cp $HOME/.dotfiles/ubuntu/greetd/config.toml /etc/greetd/config.toml
+sudo cp $HOME/.dotfiles/ubuntu/greetd/tomorrow-night.vtrgb /etc/greetd/tomorrow-night.vtrgb
+
+echo "Installing greetd.service override (reprograms the VT's 16-color"
+echo "palette to Tomorrow Night before tuigreet starts - see config.toml's"
+echo "comment on why this runs on a bare VT instead of getting hex colors)"
+
+sudo mkdir -p /etc/systemd/system/greetd.service.d
+sudo cp $HOME/.dotfiles/ubuntu/greetd/greetd-override.conf /etc/systemd/system/greetd.service.d/override.conf
+sudo systemctl daemon-reload
+
+echo "Switching the display manager to greetd (takes effect next boot/logout)"
+
+sudo systemctl disable gdm3.service
+sudo systemctl enable greetd.service
+
+echo "Quieting boot messages (tuigreet draws into the same raw VT text"
+echo "buffer the kernel/systemd write boot log lines to - unlike GDM, which"
+echo "takes exclusive DRM control and never shows console text at all - so"
+echo "a late-starting service's log line can corrupt the greeter on screen)"
+
+grubFile=/etc/default/grub
+current=$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' $grubFile)
+newVal=$current
+for tok in quiet systemd.show_status=0; do
+	[[ " $newVal " == *" $tok "* ]] || newVal="$newVal $tok"
+done
+newVal=$(echo $newVal | xargs)
+
+if [[ "$newVal" != "$current" ]]; then
+	sudo sed -i -E "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$newVal\"|" $grubFile
+	sudo update-grub
+fi

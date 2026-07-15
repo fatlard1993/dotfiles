@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The raw consoles (ctrl+alt+F1-F6) are the escape hatch when X is broken,
+# so they get tuned too: a readable font (stock 8x16 at native res is
+# microscopic on HiDPI panels - 400x112 cells on a 13" 3200x1800) and a
+# Shift+Tab that actually transmits. The default console keymap folds
+# Shift+Tab into plain Tab, so TUI apps (Claude Code mode cycling, anything
+# expecting back-tab) never see it; F100 emits the standard CSI Z sequence.
+
+consoleSetup=/etc/default/console-setup
+remap=/etc/console-setup/remap.inc
+
+changed=
+
+if ! grep -q '^FONTFACE="TerminusBold"' $consoleSetup || ! grep -q '^FONTSIZE="16x32"' $consoleSetup; then
+	echo "Setting console font (TerminusBold 16x32)"
+
+	sudo sed -i 's/^FONTFACE=.*/FONTFACE="TerminusBold"/; s/^FONTSIZE=.*/FONTSIZE="16x32"/' $consoleSetup
+	changed=1
+fi
+
+if ! grep -qs 'F100' $remap; then
+	echo "Mapping console Shift+Tab to back-tab (CSI Z)"
+
+	printf 'shift keycode 15 = F100\nstring F100 = "\\033[Z"\n' | sudo tee $remap > /dev/null
+	changed=1
+fi
+
+if [[ -n $changed ]]; then
+	sudo setupcon
+fi

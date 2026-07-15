@@ -1,9 +1,18 @@
 #!/bin/zsh
 
-[[ -f $HOME/.config/dunst ]] || {
-	echo "Setting up dunst"
+echo "Linking dunst config"
 
-	mkdir -p $HOME/.config/dunst
+mkdir -p $HOME/.config/dunst
+ln -sf $HOME/.dotfiles/ubuntu/dunst/dunstrc $HOME/.config/dunst/
 
-	ln -sf $HOME/.dotfiles/ubuntu/dunst/dunstrc $HOME/.config/dunst/ && sudo pkill dunst
-}
+# dunst only reads its config at startup, so bounce it to apply changes -
+# but it MUST be relaunched here, not just killed. The old version of this
+# file guarded with -f against what is actually a directory, so it pkill'd
+# dunst on *every* run and never restarted it, leaving the session with no
+# notification daemon at all: dbus activation of dunst.service can't take
+# over (it starts without DISPLAY under systemd and aborts), so every
+# notify-send just hung until the dbus timeout. The subshell double-fork
+# detaches dunst from the dot-update terminal so it survives it closing.
+pkill -x dunst
+sleep 0.2
+(dunst > /dev/null 2>&1 &)

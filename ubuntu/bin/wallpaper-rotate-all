@@ -1,0 +1,12 @@
+#!/bin/bash
+# Assigns a fresh wallpaper to every bspwm desktop, not just the focused one.
+# Used by the hourly rotation and the "Rotate All Desktops" wallpaper menu
+# entry - kept as a thin wrapper so those call sites don't change.
+#
+# All map handling lives in wallpaper-per-desktop now. This script used to
+# maintain the map itself and *appended* lines instead of replacing them
+# (and once wrote a literal "*.*" glob into the map when run with no
+# wallpapers on disk) - that corrupted the per-desktop lookups and is why
+# the logic was consolidated.
+
+exec "$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop" rotate-all

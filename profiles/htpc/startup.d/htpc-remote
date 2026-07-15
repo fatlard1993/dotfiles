@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+# BYOD phone control of this box (github.com/fatlard1993/htpc-remote, serves
+# its web UI on :8793) - installed/updated by dot-update.d/htpc-remote. Runs
+# here rather than as a systemd unit because robotjs drives the pointer/keys
+# through X, so it needs this session's DISPLAY. Full path to bun because
+# this runs from the session startup chain, before any .zshrc has put
+# ~/.bun/bin on PATH. The entrypoint is an absolute path (not
+# `cd && bun server/index.js`) so the pgrep guard can find it in the
+# command line; the cd stays because the server resolves its client/build
+# assets from cwd.
+pgrep -f "htpc-remote/server" > /dev/null || \
+	(cd $HOME/Projects/htpc-remote && NODE_ENV=production $HOME/.bun/bin/bun $HOME/Projects/htpc-remote/server/index.js > /dev/null 2>&1 &)

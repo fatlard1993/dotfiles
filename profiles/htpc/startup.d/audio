@@ -1,0 +1,23 @@
+#!/bin/zsh
+
+# Route everything through the combine sink (HDMI receiver + headphone-jack
+# house zones - see pipewire/combine-sink.conf) by default. Backgrounded
+# with a readiness wait because pipewire comes up in parallel with this
+# startup chain via systemd --user, and the rest of startup.d shouldn't
+# block on it. Re-asserted every login on purpose - dual-output is how
+# this machine is meant to run.
+#
+# First-boot note (hardware-specific, can't be automated blind): for the
+# receiver to get real surround, the HDMI card profile must be a surround
+# one - check with `pactl list cards`, set with e.g.
+# `pactl set-card-profile <card> output:hdmi-surround-extra1` (wireplumber
+# remembers it). Volume keys move the combine sink, i.e. both outputs
+# together; per-zone level lives on the amps themselves.
+{
+	for _ in {1..20}; do
+		pactl info > /dev/null 2>&1 && break
+		sleep 0.5
+	done
+
+	pactl set-default-sink combine_sink
+} > /dev/null 2>&1 &

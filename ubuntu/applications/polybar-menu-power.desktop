@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Power Menu
+Comment=Lock, suspend, log out, reboot, shutdown
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu power
+Icon=system-shutdown
+Terminal=false
+Categories=System;

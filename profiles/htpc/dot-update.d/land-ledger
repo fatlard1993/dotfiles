@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# land-ledger ships its own idempotent installer (fresh install and update
+# are the same command) that owns the whole lifecycle: bun
+# bootstrap, clone to ~/.land-ledger, client build, its systemd user
+# service (scripts/service.js - only reloaded when an update landed),
+# linger, and a health check on :7450. Delegate to it rather than
+# reimplementing any of that here.
+echo "Installing/updating land-ledger"
+
+curl -fsSL https://raw.githubusercontent.com/fatlard1993/land-ledger/main/scripts/install.sh | sh

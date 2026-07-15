@@ -1,0 +1,29 @@
+#!/bin/bash
+# Usage: quit-or-close
+#
+# Forwards ctrl+q to the focused window, which acts as "Quit" in the few
+# apps that still honor it (Firefox, GIMP, LibreOffice, ...). Most modern
+# GTK/libadwaita apps ignore ctrl+q entirely, which left super+q a silent
+# no-op there. If the window is still around after a beat with no new
+# window having appeared (e.g. a save-changes dialog, which we don't want
+# to steamroll), fall back to a regular close (bspc node -c).
+#
+# No --window flag: that makes xdotool use XSendEvent, which most modern
+# apps (Chromium-based ones included) discard as synthetic. Plain xdotool
+# key uses XTestFakeKeyEvent instead, indistinguishable from a real
+# keypress, and goes to whatever currently holds input focus - the window
+# this hotkey fired on.
+
+wid=$(xdotool getactivewindow)
+before=$(bspc query -N any.window | wc -l)
+
+# forward-key, not bare xdotool - it repairs the stuck-modifier race
+# --clearmodifiers has when super is released mid-forward.
+"$HOME/.dotfiles/ubuntu/bin/forward-key" ctrl+q
+
+sleep 0.3
+
+if xdotool getwindowname "$wid" &>/dev/null; then
+	after=$(bspc query -N any.window | wc -l)
+	[ "$after" -le "$before" ] && bspc node "$wid" -c
+fi

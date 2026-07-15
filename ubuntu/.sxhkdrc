@@ -1,0 +1,153 @@
+## Shared sxhkd base - every ubuntu machine loads this alongside its
+## profile overlay: ~/.config/sxhkd/sxhkdrc.common (this file) +
+## ~/.config/sxhkd/sxhkdrc (the profile's .sxhkdrc), both linked by
+## ubuntu/dot-update.d/bspwm and launched together by
+## ubuntu/startup.d/sxhkd. A chord must live in exactly one layer - repeat
+## it in an overlay and both commands fire. Machine-specific chords, and
+## anything two machines want bound differently (the bare power button,
+## close/kill behavior), belong in the overlays.
+# A list of all built-in modifier and literal keywords can be found at
+# https://github.com/koekeishiya/skhd/issues/1
+
+# Quick Terminal
+super + ctrl + Return
+	kitty
+
+# Quake Terminal (drops a terminal at the focused app's cwd)
+super + grave
+	$HOME/.dotfiles/ubuntu/bin/terminal-smart
+
+# Program Launcher
+super + @space
+	rofi -show drun -show-icons=true
+
+# Program Launcher (magnifying-glass / search function key)
+XF86Search
+	rofi -show drun -show-icons=true
+
+# Clipboard history (paste something other than the most recent copy)
+super + shift + v
+	rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
+
+# Reload bspwm & sxhkd (the bspwm restart re-runs startup.d/sxhkd, which
+# also replaces a running sxhkd whose config-file set went stale - USR1
+# alone only rereads the files it was started with)
+super + ctrl + Escape
+	pkill -USR1 -x sxhkd; bspc wm -r; notify-send 'Reloaded bspwm & sxhkd'
+
+# Logout
+super + ctrl + l
+	bspc quit
+
+# Reboot / Shutdown (the bare power button is bound per profile - power
+# menu on the laptop, straight shutdown on the htpc appliance)
+ctrl + XF86PowerOff
+	$HOME/.dotfiles/ubuntu/bin/pc-leave reboot
+super + XF86PowerOff
+	$HOME/.dotfiles/ubuntu/bin/pc-leave shutdown
+
+# Alternate between the tiled and monocle layout
+super + ctrl + m
+	bspc desktop -l next
+
+# Send the newest marked node to the newest preselected node
+# super + ctrl + y
+	# bspc node newest.marked.local -n newest.!automatic.local
+
+# Swap the current node and the biggest window
+super + ctrl + @space
+	bspc node -s biggest.window
+
+# Set the window state
+# super + ctrl + {t,shift + t,s,f}
+	# bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
+
+# Set the node flags
+# super + ctrl + {m,x,y,z}
+	# bspc node -g {marked,locked,sticky,private}
+
+# Focus the node in the given direction
+super + {_,shift + }{Left,Down,Up,Right}
+	bspc node -{f,s} {west,south,north,east}
+
+# Focus the node for the given path jump
+# super + ctrl + {p,b,comma,period}
+	# bspc node -f @{parent,brother,first,second}
+
+# Focus the next/previous window in the current desktop
+# super + ctrl + {_,shift + }c
+	# bspc node -f {next,prev}.local.!hidden.window
+
+# Focus the last desktop
+super + Tab
+	bspc desktop -f last
+
+# Focus the older or newer node in the focus history
+# super + ctrl + {o,i}
+# 	bspc wm -h off; \
+# 	bspc node {older,newer} -f; \
+# 	bspc wm -h on
+
+# Focus the previous/next desktop
+super + {comma,period}
+	bspc desktop -f {prev,next}.local
+
+# Focus the given desktop
+{ctrl,super} + {1-9}
+	{bspc, bspc} desktop -f '^{1-9}'
+
+# Send to the given desktop (super+ctrl, not shift: super+shift+3/4 are
+# the mac-style screenshot chords below, and shift+number is what typing
+# symbols looks like - both modifiers together never collide with either)
+super + ctrl + {1-9}
+	id=$(bspc query -N -n); bspc node -d '^{1-9}'; bspc node -f ${id}
+
+# Focus/send to a secondary monitor's desktop (named F1-F12, not positional -
+# see ubuntu/bin/bspwm-desktop-pools) by its matching physical
+# key. sxhkd's A-Z range syntax only spans single characters, so F10-F12
+# need spelling out.
+{ctrl,super} + {F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12}
+	{bspc, bspc} desktop -f {F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12}
+super + ctrl + {F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12}
+	id=$(bspc query -N -n); bspc node -d {F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12}; bspc node -f ${id}
+
+# Rotate tree
+super + ctrl + {Right,Left}
+    bspc node @/ -C {forward,backward}
+
+# Expand/contract a window by moving one of its side outward/inward
+super + ctrl + s : {a,w,s,d}
+    STEP=20; SELECTION={1,2,3,4}; \
+    bspc node -z $(echo "left -$STEP 0,bottom 0 $STEP,top 0 -$STEP,right $STEP 0" | cut -d',' -f$SELECTION) || \
+    bspc node -z $(echo "right -$STEP 0,top 0 $STEP,bottom 0 -$STEP,left $STEP 0" | cut -d',' -f$SELECTION)
+
+# Move a floating window
+# super + {Left,Down,Up,Right}
+	# bspc node -v {-20 0,0 20,0 -20,20 0}
+
+## Volume
+XF86AudioRaiseVolume
+	$HOME/.dotfiles/ubuntu/bin/volume up
+XF86AudioLowerVolume
+	$HOME/.dotfiles/ubuntu/bin/volume down
+XF86AudioMute
+	$HOME/.dotfiles/ubuntu/bin/volume mute
+
+# Screenshots, on the actual mac chords (shift+cmd+4 selection,
+# shift+cmd+3 full - send-to-desktop moved to super+ctrl to make room):
+# both save to ~/Pictures/Screenshots and copy to the clipboard.
+# Selection is release-triggered (@) - scrot -s needs its own grab, and
+# firing on press races it against sxhkd's still-held passive grab.
+super + shift + @4
+	$HOME/.dotfiles/ubuntu/bin/screenshot selection
+super + shift + @3
+	$HOME/.dotfiles/ubuntu/bin/screenshot full
+Print
+	$HOME/.dotfiles/ubuntu/bin/screenshot full
+
+# Scratchpad
+# ctrl + 0
+# 	$HOME/.dotfiles/ubuntu/bin/bspwm-scratchpad
+
+## Focus window by name, find name with: wmctrl -l
+	#bspc node  -f `xdotool search --name "window_name"`

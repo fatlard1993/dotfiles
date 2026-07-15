@@ -1,0 +1,52 @@
+#!/bin/bash
+# Usage: brightness screen up|down|<percent> [step_percent]
+#        brightness kbd cycle
+#
+# Writes directly to the backlight sysfs nodes (video group has write access
+# via profiles/tiny_lappy/dot-update.d/backlight-permissions - no pkexec
+# prompt needed, since this gets called on every hotkey press).
+
+target=$1
+action=$2
+
+screen_file=/sys/class/backlight/intel_backlight/brightness
+screen_max=$(cat /sys/class/backlight/intel_backlight/max_brightness)
+
+kbd_file=/sys/class/leds/dell::kbd_backlight/brightness
+kbd_max=$(cat /sys/class/leds/dell::kbd_backlight/max_brightness)
+
+case "$target" in
+screen)
+	current=$(cat "$screen_file")
+	step_pct=${3:-10}
+	step=$((screen_max * step_pct / 100))
+
+	case "$action" in
+	up)
+		new=$((current + step))
+		;;
+	down)
+		new=$((current - step))
+		;;
+	*)
+		new=$(( action * screen_max / 100 ))
+		;;
+	esac
+
+	[ "$new" -gt "$screen_max" ] && new=$screen_max
+	[ "$new" -lt 0 ] && new=0
+
+	echo "$new" > "$screen_file"
+
+	pct=$((new * 100 / screen_max))
+	notify-send -h int:value:"$pct" -h string:x-canonical-private-synchronous:brightness "Screen Brightness" "${pct}%"
+	;;
+kbd)
+	current=$(cat "$kbd_file")
+	new=$(( (current + 1) % (kbd_max + 1) ))
+
+	echo "$new" > "$kbd_file"
+
+	notify-send "Keyboard Backlight" "Level ${new}/${kbd_max}"
+	;;
+esac

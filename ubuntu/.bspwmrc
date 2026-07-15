@@ -1,31 +1,112 @@
 #!/bin/zsh
 
-bspc monitor eDP-1 -d 1 2 3 4 5 6 7 8 9
+# GDM launches bspwm directly (no session script sets this up like GNOME does),
+# but systemd's per-user dbus socket is already running - just point apps at it
+# so they don't fall back to spawning the nonexistent dbus-launch.
+[[ -z "$DBUS_SESSION_BUS_ADDRESS" ]] && export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
 
-# Any monitor other than the laptop panel gets its own dedicated desktop pool,
-# whether it's connected at startup or plugged in later.
-assign_secondary_desktops() {
-	[[ "$1" == "eDP-1" ]] && return
+# GDM's greeter runs on Wayland, and that leaks into systemd-logind's session
+# type even for this Xorg session (bspwm is X11-only) - XDG_SESSION_TYPE ends
+# up "wayland" regardless. Ozone-based apps (Chrome, VS Code, other
+# Electron/CEF apps) trust that variable over reality, try to connect to a
+# Wayland display that doesn't exist, and die on launch. sxhkd and everything
+# it spawns (rofi, and apps rofi execs) are sourced from this same shell
+# below, so this export reaches all of them.
+export XDG_SESSION_TYPE=x11
 
-	bspc monitor "$1" -d F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12
-}
+# The two exports above only fix *this shell* and its children. Apps with
+# DBusActivatable=true (nautilus, most GNOME apps) aren't exec'd by their
+# launcher - rofi asks the session bus to activate them, and dbus/systemd
+# spawn the service with their own stored environment, which GDM never
+# seeded with the display vars (no DISPLAY, session type '') - so the app
+# dies with "Failed to open display" and, worse, a windowless primary
+# instance can linger on the bus eating every later launch attempt. Push
+# the repaired env into both the dbus activation environment and the
+# systemd user manager (--systemd does both); this also cures the 120s
+# xdg-desktop-portal activation timeouts, which hang on the same missing
+# DISPLAY. Must run after the XDG_SESSION_TYPE fix so the corrected value
+# is what gets pushed.
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
 
-for monitor in $(bspc query -M --names); do
-	assign_secondary_desktops "$monitor"
-done
+# GTK apps pick up cursor-theme/cursor-size from dconf (set in
+# dot-update.d/gtk) via gsd-xsettings just fine, but GLFW-based apps (kitty)
+# read the XCURSOR_THEME/XCURSOR_SIZE env vars directly instead and ignore
+# both dconf and the Xcursor.* X resources - without these unset, kitty falls
+# back to its own smaller default, so the cursor visibly changes size
+# depending on which window it's over. Reading from gsettings instead of
+# hardcoding a value here keeps dot-update.d/gtk the single source of truth.
+export XCURSOR_THEME=$(gsettings get org.gnome.desktop.interface cursor-theme | tr -d "'")
+export XCURSOR_SIZE=$(gsettings get org.gnome.desktop.interface cursor-size)
 
-bspc subscribe monitor_add | while read -r _ _ monitor _; do
-	assign_secondary_desktops "$monitor"
+# Without this, unplugging a secondary monitor leaves it as a "disabled" but
+# still-tracked monitor - its desktops (and any windows on them) stay
+# assigned to it, invisible and unreachable via normal desktop navigation
+# until it's reconnected. This merges them onto a remaining monitor instead.
+bspc config remove_unplugged_monitors true
+
+# The 1-9 pool lives on the X primary output, F1-F12 on the secondary (see
+# bin/bspwm-desktop-pools) - which output is primary is decided per docking
+# setup by the autorandr profiles. These two triggers cover startup and raw
+# hotplug; autorandr's postswitch hook re-runs it when a profile switch
+# changes the primary flag itself.
+$HOME/.dotfiles/ubuntu/bin/bspwm-desktop-pools
+
+bspc subscribe monitor_add monitor_remove | while read -r _; do
+	$HOME/.dotfiles/ubuntu/bin/bspwm-desktop-pools
 done &
 
-bspc config border_width         2
+bspc config border_width         1
 bspc config window_gap          12
 
-bspc config split_ratio          0.52
+# base0A/base02/orange from the shared Tomorrow Night palette
+# (ubuntu/rofi/theme.rasi, ubuntu/polybar/config.ini) - keep the
+# "this is focused/active" accent consistent.
+bspc config focused_border_color "#f0c674"
+bspc config normal_border_color  "#373b41"
+# focused window on a monitor that isn't itself focused - otherwise
+# indistinguishable from a plain unfocused window on multi-monitor setups.
+bspc config active_border_color  "#de935f"
+
+bspc config split_ratio          0.5
 bspc config borderless_monocle   true
 bspc config gapless_monocle      true
-bspc config click_to_focus       true
+# auto-switch to monocle (and drop the border) when only one tiled window is
+# left, so a lone window always renders clean without manually toggling layout.
+bspc config single_monocle       true
+bspc config borderless_singleton true
+# click_to_focus takes button1/button2/button3/any/none, not a boolean - "true"
+# was silently invalid and falling back to bspwm's own button1 default.
+bspc config click_to_focus       any
+# respect apps' preferred aspect ratio for floating/pseudo-tiled windows only
+# (quakeTerm, Gimp, etc.) - tiled windows still fill their tile as normal.
+bspc config honor_size_hints     floating
+
+# super+drag to move/resize floating windows, matching the super-centric
+# convention already used throughout sxhkdrc.
+bspc config pointer_modifier      mod4
+bspc config pointer_action1       move
+bspc config pointer_action3       resize_corner
 
 bspc rule -a Gimp state=floating follow=on
 
-for file in $HOME/.dotfiles/ubuntu/startup.d/*; . "$file"
+# Quake-style dropdown terminal (see ubuntu/bin/terminal-smart) - floats and
+# stays put across desktop switches so the hidden-flag toggle in
+# terminal-smart always has the same window to show/hide. Sizing/position is
+# added per-spawn by terminal-smart itself (via a one-shot rule) since it
+# needs the current monitor's resolution, which this shared bspwmrc (sourced
+# by every ubuntu profile, not just this laptop) has no business assuming.
+bspc rule -a quakeTerm state=floating sticky=on follow=on
+
+# Profiles can shape this shared startup set: a same-named file in the
+# profile's startup.d shadows the shared one (so a file that's only a comment
+# opts that machine out entirely - see profiles/htpc/startup.d/screenlock),
+# and any other files there run after the shared set. Machine-specific
+# startup (panel resolution, touchpad props, appliance services) lives in
+# the profiles, not here.
+profileStartupPath="$HOME/.dotfiles/profiles/$(cat $HOME/.dotfilesProfile)/startup.d"
+
+for file in $HOME/.dotfiles/ubuntu/startup.d/*; do
+	[[ -e "$profileStartupPath/${file:t}" ]] || . "$file"
+done
+
+for file in $profileStartupPath/*(N); . "$file"

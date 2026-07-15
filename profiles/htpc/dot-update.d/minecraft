@@ -1,0 +1,79 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Vanilla Minecraft server, always the newest release. Both the version and
+# the Java it needs come from Mojang's manifest rather than being hardcoded
+# - the required JDK moves with releases (26.2 already wants Java 25), so
+# a pinned openjdk package would go stale. The client (the official
+# launcher deb, which bundles its own game runtime) installs at the bottom.
+
+mcDir=$HOME/minecraft-server
+manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+
+manifest=$(curl -sf $manifestUrl)
+
+if [[ -z $manifest ]]; then
+	echo "Couldn't reach the Mojang version manifest - skipping minecraft"
+
+	return
+fi
+
+latest=$(echo $manifest | jq -r '.latest.release')
+current=$(cat $mcDir/.version 2>/dev/null)
+versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$latest\") | .url"))
+
+javaMajor=$(echo $versionJson | jq -r '.javaVersion.majorVersion')
+
+dpkg -s openjdk-$javaMajor-jre-headless > /dev/null 2>&1 || {
+	echo "Installing Java $javaMajor (required by Minecraft $latest)"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre-headless
+}
+
+if [[ $latest != $current ]]; then
+	echo "Installing Minecraft server $latest${current:+ (updating from $current)}"
+
+	mkdir -p $mcDir
+
+	# .new + mv so a dropped connection can't leave a truncated jar where a
+	# working one used to be
+	curl -sf -o $mcDir/server.jar.new $(echo $versionJson | jq -r '.downloads.server.url') \
+		&& mv $mcDir/server.jar.new $mcDir/server.jar \
+		&& echo $latest > $mcDir/.version
+fi
+
+# The server refuses to start until Mojang's EULA (aka.ms/MinecraftEULA)
+# is accepted; setting up an auto-running server implies accepting it.
+[[ -f $mcDir/eula.txt ]] || echo "eula=true" > $mcDir/eula.txt
+
+echo "Linking minecraft server service"
+
+mkdir -p $HOME/.config/systemd/user
+ln -sf $profilePath/systemd/minecraft-server.service $HOME/.config/systemd/user/
+systemctl --user daemon-reload
+
+# the server shouldn't die because the couch session logged out
+ensureLinger
+
+if systemctl --user is-active --quiet minecraft-server.service; then
+	if [[ $latest != $current ]]; then
+		echo "Restarting minecraft server for $latest"
+
+		systemctl --user restart minecraft-server.service
+	fi
+else
+	echo "Starting minecraft server"
+
+	systemctl --user enable --now minecraft-server.service
+fi
+
+# Official launcher; its deb depends on default-jre and friends, which apt
+# resolves when installing from the local file
+dpkg -s minecraft-launcher > /dev/null 2>&1 || {
+	echo "Installing Minecraft launcher"
+
+	curl -sf -o /tmp/Minecraft.deb https://launcher.mojang.com/download/Minecraft.deb
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft.deb
+	rm -f /tmp/Minecraft.deb
+}

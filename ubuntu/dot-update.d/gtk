@@ -7,3 +7,35 @@ if [ ! -s "$HOME/.dotfiles/temp/.gtkSetup" ]; then
 
 	echo "1" > $HOME/.dotfiles/temp/.gtkSetup
 fi
+
+# GTK4/libadwaita apps read this per-user stylesheet at startup
+# (translucent nautilus - see the file itself for the why)
+echo "Linking gtk4 user stylesheet"
+
+mkdir -p $HOME/.config/gtk-4.0
+ln -sf $HOME/.dotfiles/ubuntu/gtk-4.0/gtk.css $HOME/.config/gtk-4.0/gtk.css
+
+# HiDPI scale (this panel is ~249 physical DPI - without an explicit value,
+# gsd-xsettings can't reach org.gnome.Mutter.X11 (no Mutter on bspwm) to
+# auto-detect it, and unset GTK apps independently guess from raw EDID DPI,
+# each landing on a different, often oversized, result (see the GtkFileChooser
+# dialog bug this was fixed alongside). scaling-factor only takes integers;
+# text-scaling-factor makes up the rest so text isn't tiny at a clean 2x.
+echo "Setting HiDPI scale"
+
+dconf write /org/gnome/desktop/interface/scaling-factor "uint32 2"
+dconf write /org/gnome/desktop/interface/text-scaling-factor "1.5"
+
+# Theme/icons/cursor - previously just whatever Ubuntu happened to have set
+# already on this machine, not reproducible on a fresh install. Packages
+# providing these (yaru-theme-gtk, yaru-theme-icon, adwaita-icon-theme) are
+# declared in the aptfile so this is guaranteed to actually be available,
+# not just a name that silently falls back to a default if missing.
+echo "Setting gtk/icon/cursor theme"
+
+dconf write /org/gnome/desktop/interface/gtk-theme "'Yaru-yellow-dark'"
+# generated from Yaru-yellow-dark by dot-update.d/folder-icons (runs
+# before this hook alphabetically) - folders in Tomorrow Night base0A
+dconf write /org/gnome/desktop/interface/icon-theme "'Yaru-tomorrow'"
+dconf write /org/gnome/desktop/interface/cursor-theme "'Adwaita'"
+dconf write /org/gnome/desktop/interface/cursor-size "32"

@@ -4,16 +4,36 @@ shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
 TMP_DIR=/tmp/wallpapers
+METADATA_FILE=$WALLPAPER_DIR/.metadata
+LOG_FILE=$WALLPAPER_DIR/.log
 
-touch $WALLPAPER_DIR/.ignore
+# Single source of truth for what counts as a usable image - used both at
+# download time and at selection time, so a future extension (or bugfix,
+# like the missing "jpeg" case this was rewritten to catch) only needs to
+# change in one place instead of silently drifting apart in two.
+VALID_EXT='jpe?g|png'
+
+touch $WALLPAPER_DIR/.ignore $METADATA_FILE $LOG_FILE
 
 mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $WALLPAPER_DIR/stashed
 
 COMMAND=$1
 OPTION=$2
 
+log_run() {
+	echo "$(date -Iseconds) $1 $2 $3" >> $LOG_FILE
+}
+
+record_metadata() {
+	local hash=$1 subreddit=$2 url=$3 file=$4
+	local dims
+	dims=$(identify -format '%wx%h' "$file" 2>/dev/null)
+
+	echo "$hash|$subreddit|$url|${dims:-?}|$(date -Iseconds)" >> $METADATA_FILE
+}
+
 if [ "$COMMAND" = "get" ]; then
-	if [ -f $TMP_DIR/subreddits ]; then
+	if [ -s $TMP_DIR/subreddits ]; then
 		read -a SUBREDDITS < $TMP_DIR/subreddits
 	else
 		if [ -f $WALLPAPER_DIR/.subreddits ]; then
@@ -35,19 +55,65 @@ if [ "$COMMAND" = "get" ]; then
 	IMAGE_COUNT_TO_DOWNLOAD=${2:-3}
 	SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
 
-	LINKS=$(wget -q $REDDIT${SUBREDDIT}.rss -O - | grep -Po 'http((?!&quot;|"|icon|thumb).)*j?pn?g' | shuf)
+	RSS_FILE=$TMP_DIR/$SUBREDDIT.rss
+	HTTP_STATUS=$(wget -q --server-response $REDDIT${SUBREDDIT}.rss -O $RSS_FILE 2>&1 | awk '/^  HTTP/{print $2}' | tail -1)
+
+	# A failed/rate-limited fetch (no response, or non-2xx) looks nothing
+	# like "this subreddit has no new images" and shouldn't be treated as
+	# such - that would strip it from today's rotation and cascade into
+	# retrying every other subreddit in the same breath, which is exactly
+	# how a single rate limit turns into "no new images from any
+	# subreddit today" for a reason that has nothing to do with images.
+	if [ -z "$HTTP_STATUS" ] || [ "${HTTP_STATUS:0:1}" != "2" ]; then
+		echo -e "Fetch failed for r/$SUBREDDIT (HTTP ${HTTP_STATUS:-none}) - leaving it in rotation\n"
+
+		log_run "$SUBREDDIT" "fetch-failed:${HTTP_STATUS:-none}" 0
+
+		notify-send "Wallpaper" "Fetch failed for r/$SUBREDDIT (HTTP ${HTTP_STATUS:-none}), try again later"
+
+		rm -f $RSS_FILE
+
+		exit 1
+	fi
+
+	LINKS=$(grep -Po "http((?!&quot;|\"|icon|thumb|preview).)*\.($VALID_EXT)" $RSS_FILE | shuf)
+	rm -f $RSS_FILE
 	DOWNLOADED_COUNT=0
 
 	for LINK in $LINKS
 	do
 		echo -e "Downloading: $LINK\n"
 
-		FILENAME=$(echo $LINK | grep -Po '(?=\w+\.\w{3,4}$).+')
+		FILENAME=$(basename "${LINK%%\?*}")
 		TMP_FILE=$TMP_DIR/$FILENAME
 
 		wget -qc $LINK -O $TMP_FILE
 
+		if [ ! -s $TMP_FILE ]; then
+			echo -e "Download failed (empty): $LINK\n"
+
+			rm -f $TMP_FILE
+
+			continue
+		fi
+
 		FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
+
+		# The extension filter only vets the URL - servers happily return
+		# an HTML error/bot page with a 200 for a ".jpeg" link. One such
+		# page landed in the pool, got mapped to a desktop, and made feh
+		# abort its whole multi-monitor repaint (a freshly docked monitor
+		# just never got painted). Vet the *content*, and record the hash
+		# in .ignore so the same page isn't refetched every run.
+		if ! identify "$TMP_FILE" >/dev/null 2>&1 ; then
+			echo -e "Not an image ($(file -b --mime-type $TMP_FILE)): $LINK\n"
+
+			echo "$FILE_SUM|$SUBREDDIT|$LINK|not-an-image|$(date -Iseconds)" >> $WALLPAPER_DIR/.ignore
+
+			rm $TMP_FILE
+
+			continue
+		fi
 
 		if stat -t $WALLPAPER_DIR/**/$FILE_SUM.* >/dev/null 2>&1 ; then
 			echo -e "Already have: $FILE_SUM\n"
@@ -62,7 +128,10 @@ if [ "$COMMAND" = "get" ]; then
 
 			rm $TMP_FILE
 		else
-			mv $TMP_FILE $WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
+			SAVED_FILE=$WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
+
+			mv $TMP_FILE $SAVED_FILE
+			record_metadata "$FILE_SUM" "$SUBREDDIT" "$LINK" "$SAVED_FILE"
 
 			echo -e "Saved: $FILE_SUM\n"
 
@@ -75,12 +144,22 @@ if [ "$COMMAND" = "get" ]; then
 	done
 
 	if [ $DOWNLOADED_COUNT = 0 ]; then
-		notify-send "Wallpaper" "No new images from $SUBREDDIT today"
+		echo -e "No new images from $SUBREDDIT today\n"
+
+		log_run "$SUBREDDIT" "no-new-images" 0
 
 		sed -i -e "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
 
+		if [ -n "$(cat $TMP_DIR/subreddits)" ]; then
+			$0 get $IMAGE_COUNT_TO_DOWNLOAD
+		else
+			notify-send "Wallpaper" "No new images available from any subreddit today"
+		fi
+
 		exit 0
 	fi
+
+	log_run "$SUBREDDIT" "ok" "$DOWNLOADED_COUNT"
 
 	notify-send "Wallpaper" "Downloaded $DOWNLOADED_COUNT wallpapers from $SUBREDDIT"
 
@@ -93,19 +172,24 @@ if [ "$COMMAND" = "get" ]; then
 	fi
 elif [ "$COMMAND" = "change" ]; then
 	if [ "$OPTION" = "saved" ]; then
-		WALLPAPER=$(ls $WALLPAPER_DIR/saved/*.* | shuf -n 1)
-	elif [ "$OPTION" = "unsorted" ]; then
-		WALLPAPER=$(ls $WALLPAPER_DIR/*.* | shuf -n 1)
+		CANDIDATES=($WALLPAPER_DIR/saved/*.*)
+	else
+		OPTION="unsorted"
+		CANDIDATES=($WALLPAPER_DIR/*.*)
 	fi
 
-	if echo "$WALLPAPER" | grep -P "\.j?pn?g$" ; then
+	WALLPAPER=$(printf '%s\n' "${CANDIDATES[@]}" | shuf -n 1)
+
+	if [ -n "$WALLPAPER" ] && [ -s "$WALLPAPER" ] && echo "$WALLPAPER" | grep -P "\.($VALID_EXT)\$" > /dev/null; then
 		feh --bg-fill $WALLPAPER
 
 		echo $WALLPAPER > $WALLPAPER_DIR/.current
-	else
-		echo "$WALLPAPER is not supported .. Must be one of: jpg, png"
+	elif [ "$OPTION" = "unsorted" ]; then
+		echo "No usable unsorted wallpaper, trying saved"
 
 		$0 change saved
+	else
+		notify-send "Wallpaper" "No usable wallpapers available"
 	fi
 elif [ "$COMMAND" = "sort" ]; then
 	CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
@@ -119,15 +203,21 @@ elif [ "$COMMAND" = "sort" ]; then
 	FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
 
 	if [ "$OPTION" = "delete" ] || [ "$OPTION" = "stash" ]; then
-		echo $FILE_SUM >> $WALLPAPER_DIR/.ignore
+		# Carry over whatever we know about this image (subreddit,
+		# source URL, resolution) so a future "why did I block this"
+		# is answerable straight from .ignore instead of just a bare
+		# hash with no context.
+		META_LINE=$(grep "^$FILE_SUM|" $METADATA_FILE)
+
+		echo "${META_LINE:-$FILE_SUM}" >> $WALLPAPER_DIR/.ignore
 	fi
 
 	if [ "$OPTION" = "delete" ]; then
 		rm $CURRENT_WALLPAPER
 	else
-		if [ "$OPTION" == "save" ]; then OPTION = 'sav'; fi
+		declare -A SORT_FOLDERS=([save]="saved" [stash]="stashed")
 
-		SUBFOLDER=${3:-"${OPTION}ed"}
+		SUBFOLDER=${3:-${SORT_FOLDERS[$OPTION]}}
 
 		mkdir -p $WALLPAPER_DIR/$SUBFOLDER
 

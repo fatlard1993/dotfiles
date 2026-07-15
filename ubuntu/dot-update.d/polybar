@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking polybar config"
+
+mkdir -p $HOME/.config/polybar
+
+ln -sf $ubuntuPath/polybar/config.ini $HOME/.config/polybar/config.ini

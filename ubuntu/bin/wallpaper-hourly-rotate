@@ -1,0 +1,10 @@
+#!/bin/bash
+# Rotates the wallpaper on every bspwm desktop at the top of each hour.
+# Sleeps to the next :00 rather than a fixed interval, so it stays aligned
+# to the clock even across suspend/resume.
+
+while true; do
+	sleep "$(( 3600 - $(date +%s) % 3600 ))"
+
+	"$HOME/.dotfiles/ubuntu/bin/wallpaper-rotate-all"
+done

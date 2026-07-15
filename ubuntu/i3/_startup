@@ -1,9 +1,0 @@
-$ex wallpaper change unsorted
-
-$ex wallpaper get
-
-$ex greenclip daemon &
-
-$ex caffeine-indicator &
-
-$ex i3-workspace-init &

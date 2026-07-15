@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# The "full pc use" layout for when this box is being driven from the phone
+# (htpc-remote) or a keyboard rather than a controller - Big Picture itself
+# is not in this list because it's already launched at session start (see
+# startup.d/steam-bigpicture).
+
+export apps=(
+	"google-chrome"
+	"kitty --directory $HOME/Projects"
+)
+
+export desktops=(
+	"1"
+	"4"
+)
+
+export desktopNames=(
+	"1 Web"
+	"4 Term"
+)

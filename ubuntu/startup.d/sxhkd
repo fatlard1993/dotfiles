@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+# Two-layer config: the shared base (sxhkdrc.common <- ubuntu/.sxhkdrc)
+# plus the profile overlay (sxhkdrc <- $profilePath/.sxhkdrc), both linked
+# by ubuntu/dot-update.d/bspwm. A chord must live in exactly one layer.
+# The existence guard keeps sxhkd startable (degraded to overlay-only
+# bindings) if this ever runs before dot-update has linked the base.
+configs=($HOME/.config/sxhkd/sxhkdrc)
+[[ -f $HOME/.config/sxhkd/sxhkdrc.common ]] && configs+=($HOME/.config/sxhkd/sxhkdrc.common)
+
+# USR1 only rereads the files sxhkd was *started* with, so a change to the
+# config-file set itself needs a real restart - detect a running instance
+# with stale args and replace it. This runs on every `bspc wm -r`, which is
+# how the reload keybind (super+ctrl+Escape) heals a set change too.
+if pgrep -x sxhkd > /dev/null; then
+	current=$(tr '\0' ' ' < /proc/$(pgrep -x sxhkd | head -1)/cmdline)
+
+	[[ "$current" != "sxhkd -c $configs " ]] && pkill -x sxhkd && sleep 0.2
+fi
+
+pgrep -x sxhkd > /dev/null || sxhkd -c $configs &

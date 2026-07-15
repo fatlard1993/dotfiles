@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+echo "Installing systemd-logind config"
+
+sudo mkdir -p /etc/systemd
+# Copied, not symlinked: systemd-logind.service has ProtectHome=yes, which
+# hides /home from the service's mount namespace - a symlink pointing into
+# $HOME resolves to nothing there, so logind silently falls back to its
+# compiled-in defaults instead of erroring.
+sudo cp $HOME/.dotfiles/ubuntu/systemd/logind.conf /etc/systemd/logind.conf
+
+sudo systemctl restart systemd-logind

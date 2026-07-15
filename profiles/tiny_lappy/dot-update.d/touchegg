@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# touchegg has no apt/PPA package - it's only distributed as a .deb via
+# GitHub releases (https://github.com/JoseExposito/touchegg/releases).
+command -v touchegg > /dev/null || {
+	echo "Installing touchegg"
+
+	version="2.0.18"
+	tmpdeb=$(mktemp --suffix=.deb)
+
+	wget -q "https://github.com/JoseExposito/touchegg/releases/download/$version/touchegg_${version}_amd64.deb" -O "$tmpdeb"
+	sudo apt install -y "$tmpdeb"
+
+	rm -f "$tmpdeb"
+}
+
+echo "Linking touchegg config"
+
+mkdir -p $HOME/.config/touchegg
+ln -sf $ubuntuPath/touchegg.conf $HOME/.config/touchegg/touchegg.conf
+
+sudo systemctl restart touchegg

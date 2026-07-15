@@ -1,0 +1,14 @@
+# Weekly refresh, same cadence as pi-hole's default gravity update -
+# without this, the house's blocklist would only move when someone happens
+# to run dot-update. Persistent=true catches up after downtime, and the
+# small randomized delay keeps the fetch polite to the upstream repo.
+[Unit]
+Description=Weekly adblock hosts refresh
+
+[Timer]
+OnCalendar=Sun 03:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

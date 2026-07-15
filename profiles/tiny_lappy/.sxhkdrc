@@ -1,130 +1,74 @@
-## $HOME/.skhdrc
-# A list of all built-in modifier and literal keywords can be found at
-# https://github.com/koekeishiya/skhd/issues/1
+## tiny_lappy overlay - loaded alongside the shared base (ubuntu/.sxhkdrc,
+## linked as ~/.config/sxhkd/sxhkdrc.common). Only chords that are
+## machine-specific or bound differently per machine live here.
 
-# Help
-super + F1
-	$HOME/.dotfiles/ubuntu/bin/sxhkd-help
+# AI Search: natural-language file/content search across the computer,
+# via claude -p (see ubuntu/bin/ai-search)
+super + shift + space
+	$HOME/.dotfiles/ubuntu/bin/ai-search
 
-# Quick Terminal
-super + ctrl + Return
-	kitty
+# Mac-like copy/cut/paste: forward as ctrl+c/x/v to whatever's focused, so
+# super acts as a global stand-in for ctrl on these three regardless of app.
+# Release-triggered (@) so holding the combo doesn't fire it repeatedly via
+# X11 key auto-repeat - each repeat would spawn another xdotool call and
+# their overlapping --clearmodifiers dances corrupt the modifier state.
+# forward-key (not bare xdotool): releasing super mid-forward used to leave
+# it synthetically re-pressed and stuck - every click a super+click - until
+# forward-key started re-syncing logical modifier state to physical truth.
+super + @c
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+c
+super + @x
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+x
+super + @v
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+v
 
-# Program Launcher
-ctrl + @space
-	rofi -show drun -show-icons=true
+# Rest of the Mac-like set, same release-triggered forwarding pattern
+super + @a
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+a
+super + @z
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+z
+super + shift + @z
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+shift+z
+super + @s
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+s
+super + @f
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+f
+super + @r
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+r
+super + @t
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+t
+super + @q
+	$HOME/.dotfiles/ubuntu/bin/quit-or-close
 
-# Reload bspwm & sxhkd
-super + ctrl + Escape
-	pkill -USR1 -x sxhkd; bspc wm -r; notify-send 'Reloaded bspwm & sxhkd'
+# Delete to line start/end (readline-style; not every GTK app honors these,
+# same caveat as redo). super+arrow is deliberately not remapped to cursor
+# movement - it's already bspwm's window-focus navigation.
+super + @BackSpace
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+u
+super + @Delete
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+k
 
-# Logout
-super + ctrl + l
-	bspc quit
+# Physical power button: open the power menu (lock/suspend/log out/reboot/
+# shutdown, each behind its own confirm) rather than act immediately -
+# see ubuntu/systemd/logind.conf, which sets HandlePowerKey=ignore so this
+# keypress reaches sxhkd instead of logind handling it directly.
+XF86PowerOff
+	$HOME/.dotfiles/ubuntu/bin/polybar-menu power
 
-# Reboot / Shutdown
-ctrl + XF86PowerOff
-	$HOME/.dotfiles/ubuntu/bin/pc-leave reboot
-super + XF86PowerOff
-	$HOME/.dotfiles/ubuntu/bin/pc-leave shutdown
-
-# Notes
-super + n
-	mousepad $HOME/.priv-config/profiles/personal/notes.md
-
-# Close and Kill
-super + {_,shift + }w
-	bspc node -{c,k}
-
-# Alternate between the tiled and monocle layout
-super + ctrl + m
-	bspc desktop -l next
-
-# Send the newest marked node to the newest preselected node
-# super + ctrl + y
-	# bspc node newest.marked.local -n newest.!automatic.local
-
-# Swap the current node and the biggest window
-super + ctrl + @space
-	bspc node -s biggest.window
-
-# Set the window state
-# super + ctrl + {t,shift + t,s,f}
-	# bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
-
-# Set the node flags
-# super + ctrl + {m,x,y,z}
-	# bspc node -g {marked,locked,sticky,private}
-
-# Focus the node in the given direction
-super + {_,shift + }{Left,Down,Up,Right}
-	bspc node -{f,s} {west,south,north,east}
-
-# Focus the node for the given path jump
-# super + ctrl + {p,b,comma,period}
-	# bspc node -f @{parent,brother,first,second}
-
-# Focus the next/previous window in the current desktop
-# super + ctrl + {_,shift + }c
-	# bspc node -f {next,prev}.local.!hidden.window
-
-# Focus the next/previous desktop in the current monitor
-# super + ctrl + bracket{left,right}
-	# bspc desktop -f {prev,next}.local
-
-# Focus the last node/desktop
-super + {grave,Tab}
-	bspc {node,desktop} -f last
-
-# Focus the older or newer node in the focus history
-# super + ctrl + {o,i}
-# 	bspc wm -h off; \
-# 	bspc node {older,newer} -f; \
-# 	bspc wm -h on
-
-# Focus the given desktop
-{ctrl,super} + {1-9}
-	{bspc, bspc} desktop -f '^{1-9}'; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
-
-# Send to the given desktop
-{ctrl,super} + shift + {1-9}
-	id=$(bspc query -N -n); {bspc, bspc} node -d '^{1-9}'; bspc node -f ${id}; kill $(<$HOME/.dotfiles/temp/status-bar-sleep.pid)
-
-# Rotate tree
-super + ctrl + {Right,Left}
-    bspc node @/ -C {forward,backward}
-
-# Expand/contract a window by moving one of its side outward/inward
-super + ctrl + s : {a,w,s,d}
-    STEP=20; SELECTION={1,2,3,4}; \
-    bspc node -z $(echo "left -$STEP 0,bottom 0 $STEP,top 0 -$STEP,right $STEP 0" | cut -d',' -f$SELECTION) || \
-    bspc node -z $(echo "right -$STEP 0,top 0 $STEP,bottom 0 -$STEP,left $STEP 0" | cut -d',' -f$SELECTION)
-
-# Move a floating window
-# super + {Left,Down,Up,Right}
-	# bspc node -v {-20 0,0 20,0 -20,20 0}
-
-## Volume
-# XF86AudioRaiseVolume
-# 	pactl set-sink-volume 0 +6% && pnotify-volume
-# XF86AudioLowerVolume
-# 	pactl set-sink-volume 0 -6% && pnotify-volume
-# XF86AudioMute
-# 	pactl set-sink-mute   0 toggle
+# Close (forwards ctrl+w, release-triggered like the Mac-like forwards
+# above so Super is already up when it fires - see
+# ubuntu/bin/close-tab-or-window) and Kill
+super + @w
+	$HOME/.dotfiles/ubuntu/bin/close-tab-or-window
+super + shift + w
+	bspc node -k
 
 ## Backlight
-# XF86MonBrightnessUp
-# 	xbacklight -inc 10 -time 10 && pnotify-brightness
-# XF86MonBrightnessDown
-# 	xbacklight -dec 10 -time 10 && pnotify-brightness
-
-# Screenshot
-# Print
-# 	scrot "Pictures/Screenshots/%Y_%m_%d_%H-%M-%S.png" && notify-send "Screenshot!"
-
-# Scratchpad
-# ctrl + 0
-# 	$HOME/.dotfiles/ubuntu/bin/bspwm-scratchpad
-
-## Focus window by name, find name with: wmctrl -l
-	#bspc node  -f `xdotool search --name "window_name"`
+XF86MonBrightnessUp
+	$HOME/.dotfiles/ubuntu/bin/brightness screen up
+XF86MonBrightnessDown
+	$HOME/.dotfiles/ubuntu/bin/brightness screen down
+XF86KbdBrightnessUp
+	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle
+XF86KbdBrightnessDown
+	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle

@@ -2,32 +2,17 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-command -v bun > /dev/null || {
-	echo "Installing bun"
-
-	curl -fsSL https://bun.sh/install | bash
-}
-
-export PATH="$HOME/.bun/bin:$PATH"
-
-if [[ -d $HOME/Projects/home-page/.git ]]; then
-	echo "Updating home-page"
-
-	git -C $HOME/Projects/home-page pull
-else
-	echo "Cloning home-page"
-
-	git clone https://github.com/fatlard1993/home-page.git $HOME/Projects/home-page
-fi
+ensureBun
+syncRepo https://github.com/fatlard1993/home-page.git $HOME/Projects/home-page
 
 (cd $HOME/Projects/home-page ; bun install)
 
-if systemctl --user is-enabled home-page.service > /dev/null 2>&1; then
-	echo "Reloading home-page service"
-
-	(cd $HOME/Projects/home-page ; bun scripts/service.js reload)
-else
+if ! systemctl --user is-enabled home-page.service > /dev/null 2>&1; then
 	echo "Enabling home-page service"
 
 	(cd $HOME/Projects/home-page ; bun scripts/service.js enable)
+elif [[ $repoUpdated == true ]]; then
+	echo "Reloading home-page service"
+
+	(cd $HOME/Projects/home-page ; bun scripts/service.js reload)
 fi

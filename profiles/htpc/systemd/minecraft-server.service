@@ -1,0 +1,21 @@
+# Linked into ~/.config/systemd/user by dot-update.d/minecraft, which also
+# owns version updates and enables lingering so this runs from boot and
+# survives logout, no login session required.
+[Unit]
+Description=Minecraft server (vanilla, managed by dot-update.d/minecraft)
+
+[Service]
+WorkingDirectory=%h/minecraft-server
+# /usr/bin/java is update-alternatives' pick, i.e. the newest installed
+# JDK - dot-update.d/minecraft installs whichever major version the current
+# Minecraft release declares it needs, so this stays correct across
+# updates. Heap: -Xmx is a guess at a fair share of the box; tune it if
+# worlds grow or Steam needs the RAM back.
+ExecStart=/usr/bin/java -Xms1G -Xmx4G -jar server.jar nogui
+# The server saves and exits cleanly on SIGTERM (systemd's default stop
+# signal); java reports that as 143 (128+15), which is still a clean stop.
+SuccessExitStatus=0 143
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

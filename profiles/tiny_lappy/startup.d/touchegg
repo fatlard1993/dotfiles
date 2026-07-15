@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+# The touchegg systemd service only runs the daemon (gathers gestures, executes
+# no actions - see `touchegg --help`). The client that actually runs the
+# configured actions needs to be started per X session; bspwm doesn't process
+# /etc/xdg/autostart/touchegg.desktop the way a full DE would.
+# `pgrep -x` alone would also match the daemon (same comm, different args:
+# `/usr/bin/touchegg --daemon`), so match on the client's bare invocation
+# instead of just the process name.
+pgrep -x -f "touchegg" > /dev/null || touchegg &

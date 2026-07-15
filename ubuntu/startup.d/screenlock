@@ -1,3 +1,11 @@
 #!/bin/zsh
 
-xautolock -time 10 -locker "system-lock"
+# Bridges systemd-logind's Lock request (e.g. from the power button, see
+# ubuntu/systemd/logind.conf's HandlePowerKey=lock) to the actual locker -
+# logind only emits the request, something has to be listening for it.
+pgrep -x xss-lock > /dev/null || xss-lock -- $HOME/.dotfiles/ubuntu/bin/system-lock &
+
+# xautolock refuses a second instance on its own (logs "already running" and
+# exits), but guard it anyway for consistency/to skip the spawn+immediate-exit.
+warnSeconds=10
+pgrep -x xautolock > /dev/null || xautolock -time 10 -locker "system-lock" -notify $warnSeconds -notifier "$HOME/.dotfiles/ubuntu/bin/lock-warning $warnSeconds" &

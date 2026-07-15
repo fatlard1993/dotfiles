@@ -1,0 +1,41 @@
+#!/bin/bash
+# Usage: screenshot [selection|full]
+#
+# Mac-style screenshots: selection (default, shift+cmd+4 equivalent) drags
+# out a region, full (shift+cmd+3) grabs everything. Either way the shot
+# is saved to ~/Pictures/Screenshots AND copied to the clipboard, so it
+# pastes straight into chats without a file-picker detour.
+#
+# The sxhkd binding fires on @release: scrot -s needs its own keyboard/
+# pointer grab, and firing on press would race it against sxhkd's still-
+# held passive grab.
+
+mode=${1:-selection}
+dir=$HOME/Pictures/Screenshots
+file=$dir/$(date +%Y-%m-%d_%H-%M-%S).png
+
+mkdir -p "$dir"
+
+case $mode in
+	selection)
+		# -f freezes the screen while dragging so moving content (video,
+		# animations) doesn't shift under the crosshair. Esc cancels the
+		# selection - scrot exits nonzero and there's nothing to save.
+		scrot -s -f -l style=dash "$file" || exit 0
+		;;
+	full)
+		scrot "$file"
+		;;
+	*)
+		echo "Usage: screenshot [selection|full]"
+
+		exit 1
+		;;
+esac
+
+# The stdio redirect matters: xclip forks a child that owns the clipboard
+# and inherits these fds - without it, any caller capturing this script's
+# output hangs until the clipboard changes hands.
+xclip -selection clipboard -t image/png -i "$file" >/dev/null 2>&1
+
+notify-send "Screenshot" "Saved ${file##*/} (copied to clipboard)"

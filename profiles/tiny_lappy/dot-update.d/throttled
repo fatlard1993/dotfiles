@@ -1,0 +1,31 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Stock XPS 13 9360 thermals: single small fan, i7-7500U (15W TDP) pegs near
+# TjMax (100C) under normal desktop load with the fan already pinned at
+# 100%. throttled (https://github.com/erpalma/throttled) undervolts the CPU
+# and caps PL1/PL2 to the chip's actual rated TDP - see
+# profiles/tiny_lappy/etc/throttled.conf for the tuned values and why the
+# tool's own shipped defaults (from a different reference laptop) aren't
+# used as-is. Pinned to a specific tested commit rather than floating on
+# master.
+throttledRef="c8ec0470697b81426a6e96f15e0c55d5757afcc8"
+throttledSrc="$HOME/.cache/dotfiles-src/throttled"
+
+echo "Linking throttled config"
+
+sudo ln -sf $profilePath/etc/throttled.conf /etc/throttled.conf
+
+echo "Setting up throttled"
+
+mkdir -p $(dirname $throttledSrc)
+
+if [[ -d $throttledSrc ]]; then
+	(cd $throttledSrc && git fetch --quiet && git checkout --quiet $throttledRef)
+else
+	git clone --quiet https://github.com/erpalma/throttled.git $throttledSrc
+	(cd $throttledSrc && git checkout --quiet $throttledRef)
+fi
+
+sudo $throttledSrc/install.sh

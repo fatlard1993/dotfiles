@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Volume Menu
+Comment=Audio output device, mute
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu volume
+Icon=audio-volume-high
+Terminal=false
+Categories=System;

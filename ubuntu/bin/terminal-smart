@@ -1,5 +1,24 @@
 #!/bin/bash
 
+QUAKE_CLASS=quakeTerm
+
+# If it's already running, just toggle its bspwm "hidden" flag (drop it down
+# or send it away) instead of spawning a second one or doing any of the
+# cwd-detection work below.
+existing=$(xdotool search --class "^${QUAKE_CLASS}$" 2>/dev/null | head -1)
+if [ -n "$existing" ]; then
+	node_id=$(printf '0x%x' "$existing")
+
+	if bspc query -N -n "${node_id}.hidden" >/dev/null 2>&1; then
+		bspc node "$node_id" -g hidden=off
+		bspc node -f "$node_id"
+	else
+		bspc node "$node_id" -g hidden=on
+	fi
+
+	exit 0
+fi
+
 ID=`xdpyinfo | grep focus | cut -f4 -d " "`
 PID=`xprop -id "$ID" | grep -m 1 PID | cut -d " " -f 3`
 APP=`ps -ho "%c" $PID`
@@ -43,5 +62,24 @@ elif [ $CWD_COUNT == 0 ]; then
 fi
 
 if [ $CWD != "" ]; then
-	gnome-terminal --class quakeTerm --working-directory=$CWD
+	# One-shot: size/position this spawn as a top strip on whichever monitor
+	# is focused right now, without baking a resolution into a persistent rule.
+	# bspwm's monitor rectangle isn't padded for polybar (no top_padding is
+	# configured), so drop below the bar ourselves or its top rows render
+	# underneath it and get clipped.
+	read -r mon_x mon_y mon_w mon_h < <(bspc query -T -m focused | jq -r '"\(.rectangle.x) \(.rectangle.y) \(.rectangle.width) \(.rectangle.height)"')
+	bar_h=$(xdotool search --class "^Polybar$" getwindowgeometry --shell 2>/dev/null | awk -F= '/^HEIGHT/{print $2; exit}')
+	bar_h=${bar_h:-0}
+
+	# bspc's rectangle= is the raw window size; the border bspwm draws is
+	# added outside of it, so an edge-to-edge width overflows the screen by
+	# 2x border_width unless we shrink the request to compensate.
+	border_w=$(bspc config border_width)
+
+	quake_y=$(( mon_y + bar_h ))
+	quake_w=$(( mon_w - border_w * 2 ))
+	quake_h=$(( (mon_h - bar_h) * 45 / 100 - border_w * 2 ))
+	bspc rule -a "$QUAKE_CLASS" -o rectangle=${quake_w}x${quake_h}+${mon_x}+${quake_y}
+
+	kitty --class "$QUAKE_CLASS" --directory=$CWD
 fi

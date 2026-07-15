@@ -1,3 +1,27 @@
 #!/bin/zsh
 
-$HOME/.dotfiles/ubuntu/bin/status-bar &
+# One polybar instance per connected monitor, each sized by bin/bar-height
+# (shared with the rofi wrapper so menus sit flush under the bar).
+#
+# Unlike the pgrep-guard pattern used for other daemons in this directory,
+# "already running" isn't a single yes/no here - it needs one instance per
+# monitor, and that set changes on hotplug. Killing all and relaunching for
+# the current monitor list is simpler and correct for both add and remove;
+# polybar starts fast enough that the brief flicker doesn't matter.
+launch_bars() {
+	pkill -x polybar 2>/dev/null
+
+	for mon in $(bspc query -M --names); do
+		local dpi height
+		read -r dpi height <<<"$($HOME/.dotfiles/ubuntu/bin/bar-height "$mon")"
+
+		MONITOR="$mon" BAR_DPI="$dpi" BAR_HEIGHT="$height" polybar main &
+	done
+}
+
+launch_bars
+
+bspc subscribe monitor_add monitor_remove | while read -r _; do
+	sleep 1
+	launch_bars
+done &

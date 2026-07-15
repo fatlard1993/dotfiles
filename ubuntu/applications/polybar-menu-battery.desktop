@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Battery Menu
+Comment=Battery status, power profile, charge mode
+Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu battery
+Icon=battery
+Terminal=false
+Categories=System;

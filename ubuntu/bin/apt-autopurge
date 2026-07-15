@@ -4,6 +4,6 @@ source sudo-enforce
 
 echo "Purging apt packages"
 
-for package in $1; do
+for package in "$@"; do
 	if [ "$(dpkg -s $package | grep Status)" == "Status: install ok installed" ]; then sudo apt purge -y $package; fi
 done

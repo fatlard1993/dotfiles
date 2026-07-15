@@ -1,0 +1,52 @@
+#!/bin/bash
+# Usage: forward-key <xdotool keystroke spec, e.g. ctrl+c>
+#
+# `xdotool key --clearmodifiers` with a real modifier held is a four-step
+# dance: read the held modifiers, synthetically release them, inject the
+# keystroke, synthetically re-press what was cleared. The sxhkd bindings
+# that use this fire on @release - i.e. exactly while fingers are lifting -
+# so the physical modifier release regularly lands *inside* that dance. X
+# consumes the real release, xdotool re-presses synthetically, and the
+# modifier is now logically held with no physical key down: no release
+# event is ever coming, and every subsequent click is a modifier-click
+# until the key is tapped again.
+#
+# The repair below re-syncs logical state to physical truth after the
+# forward: any modifier keysym none of whose keycodes is down on a real
+# keyboard gets a synthetic keyup. keyup on an already-released key is
+# discarded by the server, so the seven not-stuck modifiers cost nothing,
+# and a modifier that IS physically held (a chained super+c super+v without
+# letting go) is left alone.
+
+xdotool key --clearmodifiers "$1"
+
+# Physical slave keyboards only - the XTEST virtual device is excluded
+# deliberately, because the stuck synthetic press lives *there*; including
+# it would make the stuck modifier look legitimately held.
+down=$(
+	xinput list --short | awk -F'id=' '/slave +keyboard/ && !/XTEST/ {print $2+0}' |
+		while read -r id; do
+			xinput query-state "$id" 2>/dev/null
+		done | grep -oP 'key\[\K[0-9]+(?=\]=down)' | sort -u
+)
+
+# xmodmap, not hardcoded keycodes: this machine swaps ctrl<->alt at the
+# keycode level (see close-tab-or-window), so keysym->keycode has to be
+# looked up, and several keysyms own two keycodes each here.
+modmap=$(xmodmap -pke)
+
+stuck=()
+
+for sym in Super_L Super_R Control_L Control_R Alt_L Alt_R Shift_L Shift_R; do
+	held=
+
+	for code in $(awk -v s="$sym" '$4 == s {print $2}' <<< "$modmap"); do
+		grep -qx "$code" <<< "$down" && { held=1; break; }
+	done
+
+	[ -z "$held" ] && stuck+=("$sym")
+done
+
+[ ${#stuck[@]} -gt 0 ] && xdotool keyup "${stuck[@]}"
+
+exit 0

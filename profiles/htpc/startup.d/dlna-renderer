@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+# DLNA/UPnP renderer (gmediarender) - the cast target for non-Apple senders
+# (see the aptfile for why DLNA and not Google Cast). Runs in the session
+# (not the package's system unit - see dot-update.d/dlna-renderer) because
+# video needs this session's DISPLAY and audio should go through the
+# session's PipeWire, not bare ALSA.
+pgrep -x gmediarender > /dev/null || gmediarender -f HTPC > /dev/null 2>&1 &

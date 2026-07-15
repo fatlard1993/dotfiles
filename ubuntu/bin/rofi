@@ -1,0 +1,30 @@
+#!/bin/bash
+# PATH-shadowing wrapper (ubuntu/bin sits first in the session PATH) so
+# every rofi launch site - sxhkd binds, polybar click handlers, the other
+# bin scripts - gets a per-monitor y-offset without each call site having
+# to compute it. The theme's static `y-offset: 35px` (rofi/theme.rasi) is
+# only right for eDP-1's bar; bar height scales with each monitor's DPI
+# (see bin/bar-height), so on any other monitor rofi floats with a gap
+# above it.
+#
+# rofi's default placement monitor (-1) is the focused monitor, which is
+# the same thing bspc reports as focused - the two agree on where rofi
+# lands. The override is prepended so a call site's own -theme-str still
+# wins (later flags take precedence within rofi).
+
+if mon=$(bspc query -M -m focused --names 2>/dev/null) && [ -n "$mon" ]; then
+	read -r _ height <<<"$("$HOME/.dotfiles/ubuntu/bin/bar-height" "$mon")"
+	set -- -theme-str "window { y-offset: ${height}px; }" "$@"
+fi
+
+# find the real rofi, skipping this wrapper regardless of where the distro
+# put the binary
+self=$(readlink -f "$0")
+for candidate in $(type -aP rofi); do
+	if [ "$(readlink -f "$candidate")" != "$self" ]; then
+		exec "$candidate" "$@"
+	fi
+done
+
+echo "rofi wrapper: no real rofi binary found in PATH" >&2
+exit 127

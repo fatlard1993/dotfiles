@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking Xorg touchpad quirk"
+
+sudo mkdir -p /etc/X11/xorg.conf.d
+sudo ln -sf $profilePath/xorg/10-touchpad-quirks.conf /etc/X11/xorg.conf.d/10-touchpad-quirks.conf
+
+# 20-intel.conf (forces the legacy intel DDX driver with AccelMethod uxa) is
+# tracked at $profilePath/xorg/20-intel.conf but deliberately not linked here -
+# it was a workaround for compton tearing on this GPU; link it manually if
+# that resurfaces:
+#   sudo ln -sf $profilePath/xorg/20-intel.conf /etc/X11/xorg.conf.d/20-intel.conf

@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Promotes the shared localhost-only dnsmasq adblock resolver (set up by
+# ubuntu/dot-update.d/dnsmasq via 0_ubuntu, which has already run by the
+# time this sorts in) to LAN-facing - see dnsmasq/dnsmasq.conf for the
+# what and why. The restart is unconditional: it's a cache flush, not a
+# service interruption anyone would notice, and it doubles as the reload
+# path for config edits.
+echo "Linking LAN-facing dnsmasq config"
+
+sudo ln -sf $profilePath/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
+sudo systemctl restart dnsmasq
+
+echo "Linking weekly blocklist refresh timer"
+
+mkdir -p $HOME/.config/systemd/user
+ln -sf $profilePath/systemd/blocklist-update.service $HOME/.config/systemd/user/
+ln -sf $profilePath/systemd/blocklist-update.timer $HOME/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now blocklist-update.timer

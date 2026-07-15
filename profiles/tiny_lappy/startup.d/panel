@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# This machine's built-in panel - output names/modes are per-machine, so
+# this lives here rather than the shared startup.d/display.
+xrandr --output eDP-1 --mode 2880x1620

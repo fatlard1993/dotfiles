@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+echo "Setting default session to bspwm"
+
+accountsFile=/var/lib/AccountsService/users/$USER
+
+if sudo test -f $accountsFile; then
+	sudo grep -q "^Session=" $accountsFile \
+		&& sudo sed -i "s/^Session=.*/Session=bspwm/" $accountsFile \
+		|| echo "Session=bspwm" | sudo tee -a $accountsFile > /dev/null
+
+	sudo grep -q "^XSession=" $accountsFile \
+		&& sudo sed -i "s/^XSession=.*/XSession=bspwm/" $accountsFile \
+		|| sudo sed -i "/^Session=bspwm/a XSession=bspwm" $accountsFile
+else
+	sudo mkdir -p /var/lib/AccountsService/users
+	printf '[User]\nSession=bspwm\nXSession=bspwm\nSystemAccount=false\n' | sudo tee $accountsFile > /dev/null
+fi
+
+sudo systemctl restart accounts-daemon

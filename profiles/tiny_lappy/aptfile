@@ -2,6 +2,13 @@
 
 update
 
+# build deps for the slock fork this profile builds from source (see
+# dot-update.d/slock)
+package "libx11-dev"
+package "libxext-dev"
+package "libxrandr-dev"
+package "libimlib2-dev"
+
 package "gimp"
 package "gpick"
 package "code"
@@ -9,3 +16,5 @@ package "vlc"
 package "mpv"
 package "onboard"
 package "android-tools-adb"
+package "python3-venv"
+package "python3-wheel"

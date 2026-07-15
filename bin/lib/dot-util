@@ -119,3 +119,45 @@ ask_for_sudo() {
     done &> /dev/null &
 
 }
+# Bootstrap bun and make it reachable in this shell - shared by every hook
+# that installs a bun app (home-page, htpc-remote, game-servers, ...).
+ensureBun() {
+	command -v bun > /dev/null || {
+		echo "Installing bun"
+
+		curl -fsSL https://bun.sh/install | bash
+	}
+
+	export PATH="$HOME/.bun/bin:$PATH"
+}
+
+# Clone or update a repo. Sets $repoUpdated (true/false) so callers can
+# skip service restarts when nothing actually changed - a routine
+# dot-update run shouldn't bounce a server people are using.
+syncRepo() {
+	local url=$1 path=$2
+	local before
+
+	repoUpdated=false
+
+	if [[ -d $path/.git ]]; then
+		echo "Updating $(basename $path)"
+
+		before=$(git -C $path rev-parse HEAD)
+		git -C $path pull
+
+		[[ $(git -C $path rev-parse HEAD) != $before ]] && repoUpdated=true
+	else
+		echo "Cloning $(basename $path)"
+
+		git clone $url $path
+		repoUpdated=true
+	fi
+}
+
+# User units that must run from boot / survive logout need lingering; every
+# hook that relies on it asserts it rather than trusting another hook ran.
+ensureLinger() {
+	loginctl show-user $USER --property=Linger 2>/dev/null | grep -q "Linger=yes" \
+		|| sudo loginctl enable-linger $USER
+}

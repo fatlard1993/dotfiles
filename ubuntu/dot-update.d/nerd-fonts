@@ -21,24 +21,38 @@ Ubuntu
 UbuntuMono
 )
 
-version='2.1.0'
+version='3.4.0'
 fonts_dir="$HOME/.local/share/fonts"
+tmp_dir=$(mktemp -d)
 
 mkdir -p $fonts_dir/.downloaded
 
 for font in $fonts; do
 	[[ -e "$fonts_dir/.downloaded/$font" ]] || {
-        zip_file="$font.zip"
-        download_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v$version/$zip_file"
+        zip_file="$tmp_dir/$font.zip"
+        download_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v$version/$font.zip"
 
         echo "Downloading $download_url"
 
-        wget "$download_url"
-        unzip "$zip_file" -d "$fonts_dir"
-        rm "$zip_file"
-        echo "1" > $fonts_dir/.downloaded/$font
+        wget -q "$download_url" -O "$zip_file"
+
+        if [[ ! -s "$zip_file" ]]; then
+        	echo "Download failed for $font, skipping"
+        	rm -f "$zip_file"
+        	continue
+        fi
+
+        if unzip -o "$zip_file" -d "$fonts_dir" > /dev/null; then
+        	echo "1" > $fonts_dir/.downloaded/$font
+        else
+        	echo "Extraction failed for $font, skipping"
+        fi
+
+        rm -f "$zip_file"
     }
 done
+
+rm -rf $tmp_dir
 
 find "$fonts_dir" -name '*Windows Compatible*' -delete
 

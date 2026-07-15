@@ -19,31 +19,36 @@
 	base0E: #b294bb;
 	base0F: #a3685a;
 
-	borderColor: @base0D;
+	borderColor: @base0A;
 	separatorColor: @base04;
 	foregroundColor: @base07;
 
-	font: "Source Code Pro 36";
-	background-color: @base01;
+	font: "Hack Nerd Font Mono 12";
+	background-color: @black;
 	text-color: @foregroundColor;
 
 	active-background: @base0C;
 	urgent-background: @base08;
 	active-foreground: @black;
 	urgent-foreground: @black;
-	selected-background: @base0D;
+	selected-background: @base0A;
 	selected-urgent-background: @urgent-background;
 	selected-active-background: @selected-background;
 }
 
 #window {
-	border: 4;
+	location: north;
+	x-offset: 0;
+	y-offset: 35px;
+	width: 100%;
+	border: 0px 0px 2px 0px;
 	border-color: @borderColor;
 	padding: 5;
 }
 #mainbox {
 	border: 0;
 	padding: 0;
+	background-color: inherit;
 }
 #message {
 	border: 1px dash 0px 0px;
@@ -60,17 +65,19 @@
 	spacing: 2px;
 	scrollbar: false;
 	padding: 2px 0px 0px;
+	background-color: inherit;
 }
 #element {
 	border: 0;
 	padding: 1px;
+	background-color: inherit;
 }
 #element.normal.normal {
 	text-color: @foregroundColor;
 }
 #element.normal.urgent {
 	background-color: @urgent-background;
-	text-color: @urgent-foregroundColor;
+	text-color: @urgent-foreground;
 }
 #element.normal.active {
 	background-color: @active-background;
@@ -79,6 +86,13 @@
 #element.selected.normal {
 	background-color: @selected-background;
 	text-color: @black;
+}
+#element-text {
+	background-color: inherit;
+	text-color: inherit;
+}
+#element-icon {
+	background-color: inherit;
 }
 #element.selected.urgent {
 	background-color: @selected-urgent-background;

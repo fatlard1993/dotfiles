@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+echo "Linking polybar menu .desktop files so they show up in rofi drun"
+
+mkdir -p $HOME/.local/share/applications
+
+for file in $ubuntuPath/applications/*.desktop; do
+	ln -sf $file $HOME/.local/share/applications/$(basename $file)
+done

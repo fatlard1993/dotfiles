@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+[[ -f $HOME/.config/picom.conf ]] || {
+	echo "Setting up picom"
+
+	ln -sf $HOME/.dotfiles/ubuntu/picom.conf $HOME/.config/
+}

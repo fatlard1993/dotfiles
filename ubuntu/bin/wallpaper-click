@@ -1,0 +1,24 @@
+#!/bin/bash
+# Left-click handler for polybar's wallpaper module. Polybar has no
+# per-modifier click actions (click-left is a single fixed command), so
+# whether Shift is held at click time is checked directly against the X
+# server's pointer state instead - same approach as brightness-click.
+# Plain click rotates to a new wallpaper; shift+click deletes and
+# blacklists the current one.
+
+mask=$(python3 -c "
+from Xlib import display
+print(display.Display().screen().root.query_pointer()._data['mask'])
+")
+
+shift_mask=1
+
+# Target the clicked bar's monitor (polybar exports MONITOR per instance),
+# not the focused desktop - wallpaper-delete does the same internally.
+desktop=$(bspc query -D -m "${MONITOR:-focused}" -d .active --names)
+
+if ((mask & shift_mask)); then
+	$HOME/.dotfiles/ubuntu/bin/wallpaper-delete
+else
+	$HOME/.dotfiles/ubuntu/bin/wallpaper-next "$desktop" && notify-send "Wallpaper" "Rotated"
+fi

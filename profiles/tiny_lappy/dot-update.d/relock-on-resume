@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking resume relock hook"
+
+sudo mkdir -p /usr/lib/systemd/system-sleep
+sudo ln -sf $profilePath/systemd/system-sleep/relock /usr/lib/systemd/system-sleep/relock
+sudo chmod +x $profilePath/systemd/system-sleep/relock

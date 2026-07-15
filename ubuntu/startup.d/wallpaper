@@ -1,5 +1,7 @@
 #!/bin/zsh
 
-$HOME/.dotfiles/ubuntu/bin/wallpaper change unsorted
+pgrep -f "wallpaper get" > /dev/null || $HOME/.dotfiles/ubuntu/bin/wallpaper get 15 &
 
-$HOME/.dotfiles/ubuntu/bin/wallpaper get
+pgrep -f "wallpaper-per-desktop" > /dev/null || $HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop &
+
+pgrep -f "wallpaper-hourly-rotate" > /dev/null || $HOME/.dotfiles/ubuntu/bin/wallpaper-hourly-rotate &

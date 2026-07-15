@@ -2,29 +2,19 @@
 
 export NVM_DIR="$HOME/.nvm"
 
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# Put the default node on PATH without paying nvm.sh's ~2s startup cost:
+# resolve the alias file against installed versions directly
+if [[ -r "$NVM_DIR/alias/default" && -d "$NVM_DIR/versions/node" ]]; then
+  _nvm_default=$(<"$NVM_DIR/alias/default")
+  _nvm_match=$(command ls "$NVM_DIR/versions/node" | grep "^v${_nvm_default#v}" | sort -V | tail -1)
+  [[ -n "$_nvm_match" ]] && export PATH="$NVM_DIR/versions/node/$_nvm_match/bin:$PATH"
+  unset _nvm_default _nvm_match
+fi
 
-[[ -o interactive ]] || return
-[[ -n "$CLAUDECODE" ]] && return
-
-autoload -U add-zsh-hook
-load-nvmrc() {
-  local node_version="$(nvm version)"
-  local nvmrc_path="$(nvm_find_nvmrc)"
-
-  if [ -n "$nvmrc_path" ]; then
-    local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
-
-    if [ "$nvmrc_node_version" = "N/A" ]; then
-      nvm install &> /dev/null
-    elif [ "$nvmrc_node_version" != "$node_version" ]; then
-      nvm use &> /dev/null
-    fi
-  elif [ "$node_version" != "$(nvm version default)" ]; then
-    # echo "Reverting to nvm default version"
-    nvm use default &> /dev/null
-  fi
+# Lazy-load: the real nvm.sh is only sourced on first invocation
+nvm() {
+  unfunction nvm
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+  nvm "$@"
 }
-add-zsh-hook chpwd load-nvmrc
-load-nvmrc

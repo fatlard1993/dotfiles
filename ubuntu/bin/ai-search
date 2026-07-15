@@ -1,0 +1,112 @@
+#!/bin/bash
+# Usage: ai-search
+#
+# Prompts for a natural-language query via rofi, hands it to claude -p to
+# search the filesystem, and shows hits in a second rofi menu. Selecting a
+# hit opens an action menu - contextual entries first (e.g. VS Code for
+# anything inside a git repo), then the generic ones (open, show in file
+# manager, copy path, copy contents, open a terminal there).
+#
+# Search is scoped to $HOME plus a curated set of likely-useful system
+# locations (extra_dirs below), not the whole filesystem - wide enough to
+# catch config files outside $HOME, narrow enough that an LLM-driven
+# Grep/Glob search isn't wandering /proc or /sys. --allowedTools is
+# deliberately just Read/Grep/Glob (no Bash, no bypassPermissions) so this
+# can only read, never modify or delete anything, regardless of what the
+# query says.
+
+query=$(rofi -dmenu -i -p "AI Search" -mesg "Search your computer (natural language)")
+[ -z "$query" ] && exit 0
+
+# claude -p can take a while, so show a notification immediately and
+# replace it once results are in - otherwise the delay looks like nothing
+# happened.
+notif_id=$(notify-send -p -u low -t 30000 "AI Search" "Searching for: $query...")
+
+extra_dirs=()
+for d in /etc /opt /usr/local /media/"$USER" /mnt; do
+	[ -d "$d" ] && extra_dirs+=(--add-dir "$d")
+done
+
+prompt="Search this computer for files or content matching: \"$query\"
+
+Search broadly under \$HOME (dotfiles, Projects, Documents, Downloads,
+Pictures, config directories) and, if relevant, common system locations
+like /etc, /opt, /usr/local, and any mounted media. Skip noise like .git
+internals, node_modules, build output, and caches unless specifically
+asked for. Return at most 20 of the most relevant hits, best matches
+first.
+
+Output ONLY plain text, one hit per line, formatted exactly as:
+<absolute path><TAB><one-line reason it matches>
+No markdown, no headers, no numbering, no other commentary. If nothing
+matches, output nothing."
+
+results=$(cd "$HOME" && claude -p "$prompt" \
+	"${extra_dirs[@]}" \
+	--allowedTools "Read Grep Glob" \
+	--output-format text < /dev/null 2>/dev/null | \
+	awk -F'\t' 'NF>=2 && $1 ~ /^\//')
+
+if [ -z "$results" ]; then
+	notify-send -r "$notif_id" -t 4000 "AI Search" "No hits for: $query"
+	exit 0
+fi
+
+hit_count=$(wc -l <<<"$results")
+notify-send -r "$notif_id" -t 2000 "AI Search" "Found $hit_count hit(s) for: $query"
+
+# ~-collapse the path for display only; $path (extracted from the raw,
+# uncollapsed line below) stays absolute for every downstream command.
+display=$(awk -F'\t' -v home="$HOME" '{ p = $1; sub("^" home, "~", p); printf "%s :: %s\n", p, $2 }' <<<"$results")
+
+selected_display=$(rofi -dmenu -i -p "Hits" <<<"$display")
+[ -z "$selected_display" ] && exit 0
+
+selected_path="${selected_display%% :: *}"
+path="$selected_path"
+[ "${path:0:1}" = "~" ] && path="$HOME${path:1}"
+
+dir=$path
+[ -f "$path" ] && dir=$(dirname "$path")
+
+# Contextual actions first, based on what the path actually is - more get
+# added here over time as they come up.
+labels=()
+
+if command -v code >/dev/null && git -C "$dir" rev-parse --show-toplevel >/dev/null 2>&1; then
+	repo_root=$(git -C "$dir" rev-parse --show-toplevel)
+	vscode_line=" Open in VS Code"
+	labels+=("$vscode_line")
+fi
+
+# Generic actions, always available.
+open_line=" Open"
+files_line=" Show in File Manager"
+copy_path_line=" Copy Path"
+copy_contents_line=" Copy Contents"
+terminal_line=" Open Terminal Here"
+labels+=("$open_line" "$files_line" "$copy_path_line" "$copy_contents_line" "$terminal_line")
+
+action=$(printf '%s\n' "${labels[@]}" | rofi -dmenu -i -p "$(basename "$path")")
+
+case "$action" in
+"$open_line")
+	xdg-open "$path" &
+	;;
+"$files_line")
+	nautilus --select "$path" &
+	;;
+"$copy_path_line")
+	printf '%s' "$path" | xclip -selection clipboard
+	;;
+"$copy_contents_line")
+	[ -f "$path" ] && xclip -selection clipboard < "$path"
+	;;
+"$terminal_line")
+	kitty --directory="$dir" &
+	;;
+"$vscode_line")
+	code "$repo_root" "$path" &
+	;;
+esac

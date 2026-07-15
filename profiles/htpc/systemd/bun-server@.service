@@ -1,0 +1,18 @@
+# Linked into ~/.config/systemd/user by dot-update.d/game-servers. One
+# template for the self-hosted bun servers cloned to ~/Projects - the
+# instance name is the project folder: bun-server@humanity,
+# bun-server@void-driller, bun-server@sorcery-and-savagery. Each project's
+# own `start` script stays authoritative for how it runs (they all set
+# NODE_ENV=production themselves).
+[Unit]
+Description=%i bun server
+
+[Service]
+WorkingDirectory=%h/Projects/%i
+# Absolute path - systemd user units don't get the shell PATH that knows
+# about ~/.bun/bin.
+ExecStart=%h/.bun/bin/bun run start
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

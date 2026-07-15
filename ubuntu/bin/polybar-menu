@@ -1,0 +1,637 @@
+#!/bin/bash
+# Usage: polybar-menu cpu|temp|ram|disk|battery|volume|network|bluetooth|datetime|wallpaper|brightness|clipboard
+# Right-click handler for polybar's icon-only modules - shows detail and
+# lets you act on it via rofi, since the bar itself only has room for an icon.
+# (right-click, not left: polybar's internal pulseaudio module owns left-click
+# for its own mute-toggle default and would otherwise fight this script)
+
+metric=$1
+
+active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
+echo "$metric" > "$active_menu_file"
+polybar-msg action "#${metric}.hook.0" 2>/dev/null
+
+cleanup() {
+	rm -f "$active_menu_file"
+	polybar-msg action "#${metric}.hook.0" 2>/dev/null
+}
+trap cleanup EXIT
+
+rofi_menu() {
+	rofi -dmenu -i -p "$1" -mesg "$2"
+}
+
+case "$metric" in
+cpu)
+	cores=$(nproc)
+	load=$(cut -d' ' -f1-3 /proc/loadavg)
+
+	read -r _ a_user a_nice a_system a_idle a_iowait a_irq a_softirq a_steal _ < /proc/stat
+	sleep 0.2
+	read -r _ b_user b_nice b_system b_idle b_iowait b_irq b_softirq b_steal _ < /proc/stat
+
+	idle_a=$((a_idle + a_iowait)); idle_b=$((b_idle + b_iowait))
+	total_a=$((idle_a + a_user + a_nice + a_system + a_irq + a_softirq + a_steal))
+	total_b=$((idle_b + b_user + b_nice + b_system + b_irq + b_softirq + b_steal))
+	diff_total=$((total_b - total_a)); diff_idle=$((idle_b - idle_a))
+	pct=$(( diff_total > 0 ? (100 * (diff_total - diff_idle)) / diff_total : 0 ))
+
+	declare -A pid_by_label
+	menu_lines=()
+	while read -r pid cpu comm; do
+		label=" Close ${comm} (${cpu}%, pid ${pid})"
+		pid_by_label["$label"]=$pid
+		menu_lines+=("$label")
+	done < <(ps -eo pid,%cpu,comm --sort=-%cpu --no-headers | grep -vE ' (ps|grep|head)$' | head -8)
+
+	choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "CPU" "${pct}% used across ${cores} cores | load avg ${load}")
+
+	[ -z "$choice" ] && exit 0
+	if [ -n "${pid_by_label[$choice]}" ]; then
+		kill -TERM "${pid_by_label[$choice]}" 2>/dev/null && notify-send "Closed ${choice#*Close }"
+	fi
+	;;
+temp)
+	zone_type_file=$(grep -l '^x86_pkg_temp$' /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
+
+	if [ -n "$zone_type_file" ]; then
+		value=$(( $(cat "${zone_type_file%type}temp") / 1000 ))
+	else
+		value="n/a"
+	fi
+
+	settings_line=" Open Power Settings"
+
+	choice=$(printf '%s' "$settings_line" | rofi_menu "Temperature" "CPU package: ${value}°C")
+
+	case "$choice" in
+	"$settings_line")
+		XDG_CURRENT_DESKTOP=GNOME gnome-control-center power &
+		;;
+	esac
+	;;
+ram)
+	read -r total used free shared cache available <<<"$(free -h | awk '/^Mem:/ {print $2, $3, $4, $5, $6, $7}')"
+
+	declare -A pid_by_label
+	menu_lines=()
+	while read -r pid mem rss comm; do
+		gb=$(awk -v k="$rss" 'BEGIN{printf "%.1f", k/1024/1024}')
+		label=" Close ${comm} (${gb}GB, pid ${pid})"
+		pid_by_label["$label"]=$pid
+		menu_lines+=("$label")
+	done < <(ps -eo pid,%mem,rss,comm --sort=-%mem --no-headers | grep -vE ' (ps|grep|head)$' | head -8)
+
+	free_line=" Free Memory (drop OS cache)"
+	menu_lines+=("$free_line")
+
+	choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "RAM" "used ${used} / ${total}  |  free ${free}  |  cached ${cache}  |  available ${available}")
+
+	[ -z "$choice" ] && exit 0
+	case "$choice" in
+	"$free_line")
+		pkexec sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && notify-send "Dropped OS page cache"
+		;;
+	*)
+		if [ -n "${pid_by_label[$choice]}" ]; then
+			kill -TERM "${pid_by_label[$choice]}" 2>/dev/null && notify-send "Closed ${choice#*Close }"
+		fi
+		;;
+	esac
+	;;
+disk)
+	read -r size used avail pct_used <<<"$(df -h --output=size,used,avail,pcent / | tail -1)"
+
+	trash_dir="$HOME/.local/share/Trash"
+	trash_count=$(trash-list 2>/dev/null | wc -l)
+	trash_size=$(du -sh "$trash_dir" 2>/dev/null | cut -f1)
+	trash_size=${trash_size:-0}
+
+	analyze_line=" Open Disk Usage Analyzer"
+	files_line=" Open File Manager"
+	trash_open_line=" Open Trash"
+	trash_empty_line=" Empty Trash (${trash_count} items, ${trash_size})"
+
+	choice=$(printf '%s\n%s\n%s\n%s' "$analyze_line" "$files_line" "$trash_open_line" "$trash_empty_line" | rofi_menu "Disk" "/ : ${used} used / ${size} (${pct_used}) | ${avail} free | trash: ${trash_count} items (${trash_size})")
+
+	case "$choice" in
+	"$analyze_line") baobab & ;;
+	"$files_line") nautilus & ;;
+	"$trash_open_line") nautilus trash:// & ;;
+	"$trash_empty_line")
+		if [ "$trash_count" -gt 0 ]; then
+			trash-empty -f && notify-send "Trash" "Emptied ${trash_count} items (${trash_size})"
+		else
+			notify-send "Trash" "Already empty"
+		fi
+		;;
+	esac
+	;;
+battery)
+	dev=$(upower -e | grep BAT)
+	info=$(upower -i "$dev")
+
+	state=$(awk -F: '/state:/ {gsub(/^ +/, "", $2); print $2}' <<<"$info")
+	pct=$(awk -F: '/percentage:/ {gsub(/^ +/, "", $2); print $2}' <<<"$info")
+	time_line=$(awk -F: '/time to (empty|full):/ {gsub(/^ +/, "", $1); gsub(/^ +/, "", $2); print $1": "$2}' <<<"$info")
+	energy_full=$(awk -F: '/energy-full:/ {gsub(/[^0-9.]/, "", $2); print $2}' <<<"$info")
+	energy_design=$(awk -F: '/energy-full-design:/ {gsub(/[^0-9.]/, "", $2); print $2}' <<<"$info")
+	health=$(awk -v f="$energy_full" -v d="$energy_design" 'BEGIN { if (d > 0) printf "%.0f", (f/d)*100; else print "n/a" }')
+
+	charge_types_file="/sys/class/power_supply/BAT0/charge_types"
+	charge_type="n/a"
+	[ -f "$charge_types_file" ] && charge_type=$(grep -oP '(?<=\[)[^\]]+' "$charge_types_file")
+
+	current_profile=$(powerprofilesctl get)
+	if [ "$current_profile" = "power-saver" ]; then
+		power_saver_line=" Disable Power Saver Mode"
+	else
+		power_saver_line=" Enable Power Saver Mode"
+	fi
+
+	settings_line=" Open Power Settings"
+
+	if [ "$charge_type" = "Adaptive" ]; then
+		charge_type_line=" Switch to Standard Charging (currently Adaptive)"
+	else
+		charge_type_line=" Switch to Adaptive Charging (currently ${charge_type})"
+	fi
+
+	choice=$(printf '%s\n%s\n%s' "$power_saver_line" "$settings_line" "$charge_type_line" | rofi_menu "Battery" "${pct} (${state}) | ${time_line} | health ${health}% (${energy_full}Wh / ${energy_design}Wh design)")
+
+	case "$choice" in
+	"$power_saver_line")
+		if [ "$current_profile" = "power-saver" ]; then
+			powerprofilesctl set balanced
+			notify-send "Power profile: balanced"
+		else
+			powerprofilesctl set power-saver
+			notify-send "Power profile: power-saver"
+		fi
+		;;
+	"$settings_line")
+		XDG_CURRENT_DESKTOP=GNOME gnome-control-center power &
+		;;
+	"$charge_type_line")
+		if [ "$charge_type" = "Adaptive" ]; then
+			new_type="Standard"
+		else
+			new_type="Adaptive"
+		fi
+		pkexec sh -c "echo '$new_type' > '$charge_types_file'" && notify-send "Charge mode: $new_type"
+		;;
+	esac
+	;;
+volume)
+	volume_pct=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{printf "%.0f", $2*100}')
+
+	mapfile -t sink_lines < <(wpctl status | awk '/Sinks:/{f=1; next} /Sources:/{f=0} f && NF' | grep -E '[0-9]+\.')
+
+	declare -A id_by_label
+	declare -A label_by_display
+	menu_lines=()
+	default_label=""
+	for line in "${sink_lines[@]}"; do
+		id=$(awk '{for (i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.$/) {print $i; exit}}' <<<"$line" | tr -d '.')
+		label=$(sed -E 's/^[^0-9]*[0-9]+\.\s*//; s/\s*\[vol:.*\]//' <<<"$line")
+
+		case "$label" in
+		*[Hh]eadphone*) device_icon="" ;;
+		*[Bb]luetooth*) device_icon="" ;;
+		*HDMI*|*[Dd]isplay*|*[Mm]onitor*) device_icon="" ;;
+		*) device_icon="" ;;
+		esac
+
+		marker=" "
+		if grep -q '\*' <<<"$line"; then
+			marker=""
+			default_label="$label"
+		fi
+		display="${marker} ${device_icon} ${label}"
+		id_by_label["$display"]=$id
+		label_by_display["$display"]="$label"
+		menu_lines+=("$display")
+	done
+
+	mute_line=" Toggle Mute"
+	menu_lines+=("$mute_line")
+
+	choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "Volume" "${volume_pct}% on ${default_label} (type a number to set exact level)")
+
+	[ -z "$choice" ] && exit 0
+	if [ "$choice" = "$mute_line" ]; then
+		wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+	elif [ -n "${id_by_label[$choice]}" ]; then
+		wpctl set-default "${id_by_label[$choice]}"
+		notify-send "Audio output: ${label_by_display[$choice]}"
+	elif [[ "$choice" =~ ^[0-9]+%?$ ]]; then
+		level=${choice%\%}
+		(( level > 150 )) && level=150
+		wpctl set-volume @DEFAULT_AUDIO_SINK@ "${level}%"
+	fi
+	;;
+network)
+	while true; do
+		iface=wlan0
+		ip=$(ip -4 -o addr show "$iface" | awk '{print $4}' | cut -d/ -f1)
+
+		# --rescan no: reuse NetworkManager's own periodically-refreshed scan
+		# cache instead of blocking on a fresh wifi scan - a forced scan is
+		# slow (several seconds), so it only happens via the explicit Rescan entry.
+		mapfile -t ap_lines < <(nmcli -t -f active,ssid,signal,security dev wifi list --rescan no | awk -F: '!seen[$2]++ && $2!=""' | sort -t: -k3 -rn)
+
+		current_ssid=""
+		menu_lines=()
+		declare -A sec_by_ssid
+		declare -A ssid_by_display
+		for line in "${ap_lines[@]}"; do
+			active=$(cut -d: -f1 <<<"$line")
+			ssid=$(cut -d: -f2 <<<"$line")
+			signal=$(cut -d: -f3 <<<"$line")
+			security=$(cut -d: -f4 <<<"$line")
+
+			marker=" "
+			if [ "$active" = "yes" ]; then
+				marker=""
+				current_ssid="$ssid"
+			fi
+
+			sec_icon=""
+			[ -n "$security" ] && [ "$security" != "--" ] && sec_icon=""
+
+			display="${marker} ${sec_icon} ${ssid}  (${signal}%)  ${security}"
+			menu_lines+=("$display")
+			sec_by_ssid["$ssid"]="$security"
+			ssid_by_display["$display"]="$ssid"
+		done
+
+		rescan_line=" Rescan Networks"
+		menu_lines+=("$rescan_line")
+		manager_line=" Open Network Manager"
+		menu_lines+=("$manager_line")
+
+		choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "Network" "connected: ${current_ssid:-none} | IP: ${ip:-none}")
+
+		[ -z "$choice" ] && break
+		if [ "$choice" = "$rescan_line" ]; then
+			notify-send "Network" "Rescanning..."
+			nmcli dev wifi list --rescan yes >/dev/null 2>&1
+			unset sec_by_ssid ssid_by_display
+			continue
+		elif [ "$choice" = "$manager_line" ]; then
+			nm-connection-editor &
+			break
+		else
+			ssid="${ssid_by_display[$choice]}"
+			if [ "${sec_by_ssid[$ssid]}" = "--" ] || [ -z "${sec_by_ssid[$ssid]}" ]; then
+				nmcli dev wifi connect "$ssid" && notify-send "Connected to $ssid"
+			else
+				password=$(rofi -dmenu -password -p "Password for $ssid")
+				[ -n "$password" ] && nmcli dev wifi connect "$ssid" password "$password" && notify-send "Connected to $ssid"
+			fi
+			break
+		fi
+	done
+	;;
+bluetooth)
+	while true; do
+		powered=$(bluetoothctl show 2>/dev/null | awk -F': ' '/Powered:/ {print $2}')
+
+		if [ "$powered" != "yes" ]; then
+			enable_line="󰂯 Enable Bluetooth"
+			settings_line=" Open Bluetooth Settings"
+
+			choice=$(printf '%s\n%s' "$enable_line" "$settings_line" | rofi_menu "Bluetooth" "disabled")
+
+			case "$choice" in
+			"$enable_line")
+				bluetoothctl power on >/dev/null 2>&1 && notify-send "Bluetooth" "Enabled"
+				continue
+				;;
+			"$settings_line")
+				XDG_CURRENT_DESKTOP=GNOME gnome-control-center bluetooth &
+				;;
+			esac
+			break
+		fi
+
+		mapfile -t dev_lines < <(bluetoothctl devices)
+
+		unset mac_by_display
+		declare -A mac_by_display
+		menu_lines=()
+		connected_names=()
+		for line in "${dev_lines[@]}"; do
+			mac=$(awk '{print $2}' <<<"$line")
+			name=$(cut -d' ' -f3- <<<"$line")
+			info=$(bluetoothctl info "$mac")
+			connected=$(awk -F': ' '/Connected:/ {print $2}' <<<"$info")
+
+			if [ "$connected" = "yes" ]; then
+				marker=""
+			else
+				marker=" "
+			fi
+
+			# bluetoothctl falls back to printing the address itself as the
+			# "name" when no advertised/resolved name is known yet - which
+			# looks like a name but isn't. Swap in the device type + signal
+			# strength instead so unnamed devices are still distinguishable.
+			label="$name"
+			if [ "${name^^}" = "${mac^^}" ]; then
+				icon_type=$(awk -F': ' '/Icon:/ {print $2}' <<<"$info")
+				case "$icon_type" in
+				audio-card | audio-headset | audio-headphones) type_label="headphones" ;;
+				phone) type_label="phone" ;;
+				computer) type_label="computer" ;;
+				input-keyboard) type_label="keyboard" ;;
+				input-mouse) type_label="mouse" ;;
+				input-gaming) type_label="controller" ;;
+				multimedia-player) type_label="media player" ;;
+				*) type_label="" ;;
+				esac
+
+				label="Unknown device ($mac)"
+				[ -n "$type_label" ] && label="Unknown $type_label ($mac)"
+			fi
+
+			# BLE devices (Logitech MX mice especially) advertise under a
+			# new random address each pairing session, leaving stale entries
+			# with identical names behind. RSSI only shows up for devices
+			# actually advertising right now, so it doubles as a liveness
+			# marker - after a scan, the entry without one is the dead one.
+			if [ "$connected" != "yes" ]; then
+				# bluez >=5.66 prints "RSSI: 0xffffffc4 (-60)", older
+				# prints the bare number - take the parenthesized decimal
+				# when present, field 2 otherwise.
+				rssi=$(awk '/RSSI:/ { if (match($0, /\(-?[0-9]+\)/)) print substr($0, RSTART + 1, RLENGTH - 2); else print $2 }' <<<"$info")
+				[ -n "$rssi" ] && label="$label ${rssi}dBm"
+			fi
+
+			[ "$connected" = "yes" ] && connected_names+=("$label")
+
+			display="${marker} ${label}"
+			mac_by_display["$display"]=$mac
+			menu_lines+=("$display")
+		done
+
+		scan_line=" Scan for Devices"
+		menu_lines+=("$scan_line")
+		disable_line="󰂲 Disable Bluetooth"
+		menu_lines+=("$disable_line")
+		settings_line=" Open Bluetooth Settings"
+		menu_lines+=("$settings_line")
+
+		choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "Bluetooth" "connected: ${connected_names[*]:-none}")
+
+		[ -z "$choice" ] && break
+		case "$choice" in
+		"$scan_line")
+			notify-send "Bluetooth" "Scanning..."
+			bluetoothctl --timeout 10 scan on >/dev/null 2>&1
+			continue
+			;;
+		"$disable_line")
+			bluetoothctl power off >/dev/null 2>&1 && notify-send "Bluetooth" "Disabled"
+			break
+			;;
+		"$settings_line")
+			XDG_CURRENT_DESKTOP=GNOME gnome-control-center bluetooth &
+			break
+			;;
+		*)
+			mac="${mac_by_display[$choice]}"
+			[ -z "$mac" ] && break
+			name=${choice#* }
+			info=$(bluetoothctl info "$mac")
+			paired=$(awk -F': ' '/Paired:/ {print $2}' <<<"$info")
+			connected=$(awk -F': ' '/Connected:/ {print $2}' <<<"$info")
+
+			if [ "$connected" = "yes" ]; then
+				bluetoothctl disconnect "$mac" >/dev/null 2>&1 && notify-send "Bluetooth" "Disconnected from $name"
+			else
+				if [ "$paired" != "yes" ]; then
+					# pairing needs an agent registered to confirm the
+					# handshake (see ubuntu/startup.d/bluetooth-agent) -
+					# without one this fails outright, silently, and used
+					# to be ignored here regardless. It also blocks for
+					# minutes when the target address is stale or asleep
+					# (bluetoothd's own pair timeout), hanging the menu.
+					timeout 20 bluetoothctl pair "$mac" >/dev/null 2>&1 && bluetoothctl trust "$mac" >/dev/null 2>&1
+				fi
+				timeout 15 bluetoothctl connect "$mac" >/dev/null 2>&1
+
+				# bluetoothctl's own exit status isn't reliable here - it
+				# can report success even when the device never actually
+				# finishes connecting (seen with a mouse still sitting in
+				# its sync/pairing mode rather than genuinely connectable).
+				# Give the handshake a moment, then check the real state.
+				sleep 1
+				if [ "$(bluetoothctl info "$mac" | awk -F': ' '/Connected:/ {print $2}')" = "yes" ]; then
+					notify-send "Bluetooth" "Connected to $name"
+				else
+					notify-send "Bluetooth" "Failed to connect to $name"
+				fi
+			fi
+			continue
+			;;
+		esac
+	done
+	;;
+datetime)
+	full_date=$(date '+%A, %B %d %Y')
+	day_of_year=$(date '+%-j')
+	days_in_year=365
+	[ "$(date '+%Y' | awk '{print (($1%4==0 && $1%100!=0) || $1%400==0) ? 1 : 0}')" = "1" ] && days_in_year=366
+	week_num=$(date '+%V')
+	timezone=$(timedatectl show -p Timezone --value)
+	ntp_active=$(timedatectl show -p NTPSynchronized --value)
+	uptime_str=$(uptime -p)
+
+	copy_line=" Copy Date & Time"
+	if [ "$ntp_active" = "yes" ]; then
+		ntp_line=" Disable Automatic Time Sync (NTP)"
+	else
+		ntp_line=" Enable Automatic Time Sync (NTP)"
+	fi
+	settings_line=" Open Date & Time Settings"
+
+	choice=$(printf '%s\n%s\n%s' "$copy_line" "$ntp_line" "$settings_line" | rofi_menu "Date & Time" "${full_date} | week ${week_num} | day ${day_of_year}/${days_in_year} | ${timezone} | ${uptime_str}")
+
+	case "$choice" in
+	"$copy_line")
+		printf '%s' "$(date '+%Y-%m-%d %H:%M:%S')" | xclip -selection clipboard
+		notify-send "Copied date/time to clipboard"
+		;;
+	"$ntp_line")
+		if [ "$ntp_active" = "yes" ]; then
+			pkexec timedatectl set-ntp false && notify-send "Automatic time sync disabled"
+		else
+			pkexec timedatectl set-ntp true && notify-send "Automatic time sync enabled"
+		fi
+		;;
+	"$settings_line")
+		XDG_CURRENT_DESKTOP=GNOME gnome-control-center "system datetime" &
+		;;
+	esac
+	;;
+wallpaper)
+	wallpaper_dir="$HOME/Pictures/Wallpapers"
+	map_file="$wallpaper_dir/.desktop-wallpapers"
+	# The bar that spawned this menu exported its own MONITOR (see
+	# startup.d/status-bar); a bar click doesn't move input focus, so
+	# "focused" would target whichever monitor happened to have focus
+	# instead of the one whose bar was clicked. Act on the clicked
+	# monitor's visible desktop.
+	desktop=$(bspc query -D -m "${MONITOR:-focused}" -d .active --names)
+	touch "$map_file"
+
+	current=$(grep "^${desktop}:" "$map_file" | tail -1 | cut -d: -f2-)
+
+	assign_new() {
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper-next" "$desktop"
+	}
+
+	next_line=" Next Wallpaper"
+	rotate_all_line=" Rotate All Desktops"
+	save_line=" Save Permanently"
+	stash_line=" Stash (out of rotation)"
+	delete_line=" Delete & Blacklist"
+	triage_line=" Triage Collection"
+	get_line=" Download More Wallpapers"
+	subs_line=" Edit Subreddit List"
+	folder_line=" Open Wallpaper Folder"
+
+	choice=$(printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s' "$next_line" "$rotate_all_line" "$save_line" "$stash_line" "$delete_line" "$triage_line" "$get_line" "$subs_line" "$folder_line" | rofi_menu "Wallpaper" "Desktop ${desktop}: $(basename "${current:-none}")")
+
+	case "$choice" in
+	"$next_line")
+		assign_new && notify-send "Wallpaper" "New wallpaper for desktop ${desktop}"
+		;;
+	"$rotate_all_line")
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper-rotate-all" && notify-send "Wallpaper" "Rotated wallpaper on all desktops"
+		;;
+	"$save_line")
+		if [ -n "$current" ] && [ -f "$current" ]; then
+			sum=$(md5sum "$current" | cut -d' ' -f1)
+			mkdir -p "$wallpaper_dir/saved"
+			cp "$current" "$wallpaper_dir/saved/${sum}.${current##*.}"
+			notify-send "Wallpaper" "Saved $(basename "$current")"
+		fi
+		;;
+	"$stash_line")
+		if [ -n "$current" ] && [ -f "$current" ]; then
+			# stash semantics (move + blacklist) live in wallpaper-triage
+			"$HOME/.dotfiles/ubuntu/bin/wallpaper-triage" stash "$current" \
+				&& assign_new && notify-send "Wallpaper" "Stashed, picked a new wallpaper"
+		fi
+		;;
+	"$delete_line")
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper-delete"
+		;;
+	"$triage_line")
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper-triage" &
+		;;
+	"$get_line")
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper" get 15 &
+		notify-send "Wallpaper" "Downloading more wallpapers..."
+		;;
+	"$subs_line")
+		if [ -f "$wallpaper_dir/.subreddits" ]; then
+			read -a current_subs < "$wallpaper_dir/.subreddits"
+		else
+			current_subs=(wallpapers ShittyMsPaint)
+		fi
+
+		menu_lines=()
+		for sub in "${current_subs[@]}"; do
+			menu_lines+=("x $sub")
+		done
+
+		choice=$(printf '%s\n' "${menu_lines[@]}" | rofi -dmenu -i -p "Subreddits" -mesg "select to remove, or type space-separated names to add")
+
+		if [[ "$choice" == "x "* ]]; then
+			removed=${choice#x }
+			kept=()
+			for sub in "${current_subs[@]}"; do
+				[ "$sub" = "$removed" ] || kept+=("$sub")
+			done
+			current_subs=("${kept[@]}")
+		elif [ -n "$choice" ]; then
+			read -a added <<< "$choice"
+			for sub in "${added[@]}"; do
+				printf '%s\n' "${current_subs[@]}" | grep -qxF "$sub" || current_subs+=("$sub")
+			done
+		fi
+
+		if [ -n "$choice" ]; then
+			printf '%s\n' "${current_subs[*]}" > "$wallpaper_dir/.subreddits"
+			rm -f /tmp/wallpapers/subreddits
+			notify-send "Wallpaper" "Subreddits: ${current_subs[*]}"
+		fi
+		;;
+	"$folder_line")
+		nautilus "$wallpaper_dir" &
+		;;
+	esac
+	;;
+brightness)
+	screen_pct=$(( $(cat /sys/class/backlight/intel_backlight/brightness) * 100 / $(cat /sys/class/backlight/intel_backlight/max_brightness) ))
+	kbd_level=$(cat /sys/class/leds/dell::kbd_backlight/brightness)
+	kbd_max=$(cat /sys/class/leds/dell::kbd_backlight/max_brightness)
+
+	kbd_line=" Cycle Keyboard Backlight"
+
+	choice=$(printf '%s' "$kbd_line" | rofi_menu "Brightness" "screen ${screen_pct}% | keyboard ${kbd_level}/${kbd_max} (type a number to set exact screen level)")
+
+	[ -z "$choice" ] && exit 0
+	if [ "$choice" = "$kbd_line" ]; then
+		"$HOME/.dotfiles/ubuntu/bin/brightness" kbd cycle
+	elif [[ "$choice" =~ ^[0-9]+%?$ ]]; then
+		level=${choice%\%}
+		(( level > 100 )) && level=100
+		"$HOME/.dotfiles/ubuntu/bin/brightness" screen "$level"
+	fi
+	;;
+clipboard)
+	rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
+	;;
+power)
+	lock_line=" Lock"
+	suspend_line=" Suspend"
+	update_line="󰚰 Update System"
+	logout_line=" Log Out"
+	reboot_line=" Reboot"
+	shutdown_line=" Shutdown"
+
+	choice=$(printf '%s\n%s\n%s\n%s\n%s\n%s' "$lock_line" "$suspend_line" "$update_line" "$logout_line" "$reboot_line" "$shutdown_line" | rofi_menu "Power" "")
+
+	confirm() {
+		rofi -dmenu -i -p "$1" -mesg "Are you sure?" <<<$' No\n Yes'
+	}
+
+	case "$choice" in
+	"$lock_line")
+		system-lock &
+		;;
+	"$suspend_line")
+		systemctl suspend
+		;;
+	"$update_line")
+		# dot-update is a long interactive terminal process (sudo prompts,
+		# apt/brew output), so give it a real terminal instead of running
+		# it headless from the menu.
+		kitty --title dot-update zsh -c '"$HOME/.dotfiles/dot-update"; print; print "dot-update finished - press enter to close"; read -r _' &
+		;;
+	"$logout_line")
+		[[ "$(confirm 'Log Out')" == *Yes ]] && $HOME/.dotfiles/ubuntu/bin/pc-leave exit
+		;;
+	"$reboot_line")
+		[[ "$(confirm 'Reboot')" == *Yes ]] && $HOME/.dotfiles/ubuntu/bin/pc-leave reboot
+		;;
+	"$shutdown_line")
+		[[ "$(confirm 'Shutdown')" == *Yes ]] && $HOME/.dotfiles/ubuntu/bin/pc-leave shutdown
+		;;
+	esac
+	;;
+esac

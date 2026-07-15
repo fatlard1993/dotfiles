@@ -9,4 +9,8 @@ sudo apt update
 
 echo "Installing Steam"
 
-sudo env DEBIAN_FRONTEND=noninteractive apt install -y steam-installer
+# mesa-vulkan-drivers:i386 lives here rather than the aptfile because it
+# needs the i386 architecture enabled above first - the Steam deb pulls its
+# own 32-bit GL dependencies, but not 32-bit Vulkan, which Proton and any
+# 32-bit native Vulkan titles need on this AMD GPU.
+sudo env DEBIAN_FRONTEND=noninteractive apt install -y steam-installer mesa-vulkan-drivers:i386

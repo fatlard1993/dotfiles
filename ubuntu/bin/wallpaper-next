@@ -1,0 +1,11 @@
+#!/bin/bash
+# Assigns and applies a new wallpaper for a bspwm desktop ($1, defaulting
+# to the focused one), preferring one not already in use elsewhere. Shared
+# by the wallpaper polybar menu ("Next Wallpaper") and its left-click quick
+# action - kept as a thin wrapper so those call sites don't change.
+#
+# All map handling lives in wallpaper-per-desktop now. This script used to
+# append its own map lines instead of replacing them, which corrupted the
+# per-desktop lookups - see wallpaper-per-desktop's header.
+
+exec "$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop" next "$@"

@@ -1,0 +1,118 @@
+#!/bin/bash
+
+# The 1-9 desktop pool belongs to whichever output holds the X primary flag,
+# F1-F12 to the secondary - autorandr profiles set the primary per docking
+# setup (a monitor's EDID-matched profile can promote it), so the pools have
+# to follow the flag instead of being hardcoded to the laptop panel.
+#
+# Desktops are *moved* between monitors rather than reset with `monitor -d`,
+# so a pool's windows travel with it on dock/undock instead of being renamed
+# or dumped onto neighbors.
+#
+# Called from ubuntu/.bspwmrc (startup + monitor hotplug) and from
+# ubuntu/autorandr/postswitch - the primary flag changes when autorandr
+# applies a profile, not when bspwm sees the hotplug, so the bspwmrc
+# triggers alone would race the flag. Each individual trigger may run
+# against a half-transitioned layout; that's fine, the script is idempotent
+# and whichever trigger fires last converges the layout.
+
+bspc wm -g >/dev/null 2>&1 || exit 0
+
+main_pool=(1 2 3 4 5 6 7 8 9)
+f_pool=(F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12)
+
+mapfile -t monitors < <(bspc query -M --names)
+[ ${#monitors[@]} -eq 0 ] && exit 0
+
+primary=$(bspc query -M --names -m primary 2>/dev/null | head -1)
+[ -z "$primary" ] && primary=${monitors[0]}
+
+secondaries=()
+for m in "${monitors[@]}"; do
+	[ "$m" != "$primary" ] && secondaries+=("$m")
+done
+
+# Move each pool desktop to its home monitor, creating any that don't exist
+# yet. Skipping desktops already in place keeps reruns from churning the
+# desktop order.
+ensure_pool() {
+	local mon=$1
+	shift
+	local d
+	for d in "$@"; do
+		if bspc query -D -d "$d" >/dev/null 2>&1; then
+			[ "$(bspc query -M -d "$d" --names)" = "$mon" ] || bspc desktop "$d" -m "$mon"
+		else
+			bspc monitor "$mon" -a "$d"
+		fi
+	done
+}
+
+# Two passes: bspwm refuses to move a monitor's last desktop away, so when
+# the pools fully swap sides (dock/undock), the final desktop of each pool
+# gets stuck on the first pass - it's only movable after the other pool has
+# landed on its monitor. The second pass is a no-op when nothing got stuck.
+for _ in 1 2; do
+	ensure_pool "$primary" "${main_pool[@]}"
+	[ ${#secondaries[@]} -gt 0 ] && ensure_pool "${secondaries[0]}" "${f_pool[@]}"
+done
+
+# A third or later monitor keeps the old blunt reset: its own duplicate-named
+# F pool. Desktop names stop being globally unique there, so the move-based
+# logic above can't target them reliably anyway.
+for ((i = 1; i < ${#secondaries[@]}; i++)); do
+	bspc monitor "${secondaries[i]}" -d "${f_pool[@]}"
+done
+
+# Prune empty desktops a monitor shouldn't hold: the "Desktop" placeholder
+# bspwm puts on a fresh monitor, or F1-F12 stranded on the laptop after an
+# undock merge (see remove_unplugged_monitors in ubuntu/.bspwmrc). Non-empty
+# strays stay put and reachable - `desktop -r` on them would silently dump
+# their windows onto a neighboring desktop. Removal goes by id, not name,
+# since names can repeat across monitors.
+allowed_for() {
+	case $1 in
+	"$primary") printf '%s\n' "${main_pool[@]}" ;;
+	*) printf '%s\n' "${f_pool[@]}" ;;
+	esac
+}
+
+for m in "${monitors[@]}"; do
+	allowed=$(allowed_for "$m")
+	for id in $(bspc query -D -m "$m"); do
+		name=$(bspc query -D -d "$id" --names)
+		grep -qx "$name" <<<"$allowed" && continue
+		bspc query -N -d "$id" | grep -q . || bspc desktop "$id" -r 2>/dev/null
+	done
+done
+
+# Restore canonical order inside each monitor (pool order first, non-empty
+# strays after) and put the primary monitor first globally - the ctrl/super
+# +1-9 binds focus positionally (`^n`, see the profile sxhkdrcs), so global
+# positions 1-9 must be the primary's pool.
+order_monitor() {
+	local mon=$1
+	shift
+	mapfile -t current < <(bspc query -D -m "$mon" --names)
+	local desired=() d
+	for d in "$@"; do
+		for c in "${current[@]}"; do
+			[ "$c" = "$d" ] && desired+=("$d") && break
+		done
+	done
+	for c in "${current[@]}"; do
+		found=
+		for d in "$@"; do
+			[ "$c" = "$d" ] && found=1 && break
+		done
+		[ -z "$found" ] && desired+=("$c")
+	done
+	[ ${#desired[@]} -gt 1 ] && bspc monitor "$mon" -o "${desired[@]}"
+}
+
+order_monitor "$primary" "${main_pool[@]}"
+[ ${#secondaries[@]} -gt 0 ] && order_monitor "${secondaries[0]}" "${f_pool[@]}"
+
+[ ${#monitors[@]} -gt 1 ] && bspc wm -O "$primary" "${secondaries[@]}"
+
+exit 0

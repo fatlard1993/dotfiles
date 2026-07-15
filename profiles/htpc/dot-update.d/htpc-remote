@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# BYOD phone control of this box - clone/update + install only; it starts
+# with the session (see startup.d/htpc-remote) since robotjs needs DISPLAY.
+ensureBun
+syncRepo https://github.com/fatlard1993/htpc-remote.git $HOME/Projects/htpc-remote
+
+# prepare script builds the client bundle as part of install
+(cd $HOME/Projects/htpc-remote ; bun install)
+
+# An updated server only takes effect once relaunched (it's session-bound
+# for DISPLAY) - kick the running one over now if it changed, then let the
+# startup script relaunch it so the launch command lives in exactly one
+# place (its pgrep guard passes once the old instance is dead).
+if [[ $repoUpdated == true ]] && pgrep -f "htpc-remote/server" > /dev/null; then
+	echo "Restarting htpc-remote (updated)"
+
+	pkill -f "htpc-remote/server"
+	sleep 0.2
+
+	. $profilePath/startup.d/htpc-remote
+fi
