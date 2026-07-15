@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The shared gtk hook (run via 0_ubuntu, which sorts before this file) sets
+# cursor-size 32, tuned for the laptop panel - on the 4K TV that renders a
+# cursor small enough to lose, most painfully in Sims 4 under Proton (the
+# game has UI scaling but no cursor scaling of its own). The chain that
+# makes this one dconf key fix the *game*: ubuntu/.bspwmrc exports
+# XCURSOR_SIZE from this key at session start, startup.d/steam-bigpicture
+# launches Steam from that same shell, and Proton's cursor tracks
+# XCURSOR_SIZE (the standard ProtonDB fix for this title, values 24-96).
+#
+# Takes effect at next login - the export is read once by .bspwmrc, and
+# Steam/games only inherit env at launch.
+echo "Setting TV cursor size"
+
+dconf write /org/gnome/desktop/interface/cursor-size "64"
