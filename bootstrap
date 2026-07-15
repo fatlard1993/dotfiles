@@ -4,6 +4,14 @@ set -e
 repo_dir="$HOME/Projects/dotfiles"
 
 echo "Installing base dependencies..."
+
+# A fresh install's unattended-upgrades holds the dpkg lock for many
+# minutes right after first boot - on the htpc's first bootstrap that
+# starved nearly every apt call in the chain, leaving half a profile.
+# This makes apt wait for the lock (up to 10min per call) instead of
+# failing, for this run and every dot-update after it.
+echo 'DPkg::Lock::Timeout "600";' | sudo tee /etc/apt/apt.conf.d/90dpkg-lock-timeout > /dev/null
+
 sudo apt update -y
 sudo apt install -y git zsh curl
 

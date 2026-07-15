@@ -1,10 +1,28 @@
 #!/bin/zsh
 
+# Installs its own package (like the greetd hook) instead of trusting the
+# aptfile: packages install via the *profile's* 1_apt, which sorts after
+# the whole ubuntu chain - so on a never-bootstrapped machine this hook
+# always runs before the aptfile has installed anything. On the htpc's
+# first bootstrap, that ordering meant the setup block below disabled
+# systemd-resolved and pointed resolv.conf at a dnsmasq that didn't exist,
+# and the box rebooted into a total DNS blackout.
+command -v dnsmasq > /dev/null || {
+	echo "Installing dnsmasq"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y dnsmasq
+}
+
 echo "Updating dnsmasq blocklist"
 
 $HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
 
-[[ -f $HOME/.dotfiles/temp/.dnsmasqSetup ]] || {
+if [[ ! -f $HOME/.dotfiles/temp/.dnsmasqSetup ]] && ! command -v dnsmasq > /dev/null; then
+	# Belt to the install's suspenders: never hand the system resolver to
+	# a daemon that isn't there. Setup (and its marker) wait for a run
+	# where the install worked, so this self-heals on the next dot-update.
+	echo "dnsmasq still missing (apt failed?) - NOT switching the system resolver"
+elif [[ ! -f $HOME/.dotfiles/temp/.dnsmasqSetup ]]; then
 	echo "Setting up dnsmasq"
 
 	mkdir -p $HOME/.dotfiles/temp
@@ -40,4 +58,4 @@ $HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
 	sudo systemctl restart dnsmasq
 
 	echo "1" > $HOME/.dotfiles/temp/.dnsmasqSetup
-}
+fi

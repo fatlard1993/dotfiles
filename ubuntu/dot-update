@@ -13,6 +13,13 @@ echo "Expanding file limits"
 ulimit -Sn unlimited
 ulimit -Sl unlimited
 
+# Asserted here as well as in bootstrap (which only ever runs once, so
+# machines bootstrapped before this existed never got it): every apt call
+# below waits out unattended-upgrades' dpkg lock instead of failing - see
+# bootstrap for the htpc first-boot incident this encodes.
+[[ -f /etc/apt/apt.conf.d/90dpkg-lock-timeout ]] ||
+	echo 'DPkg::Lock::Timeout "600";' | sudo tee /etc/apt/apt.conf.d/90dpkg-lock-timeout > /dev/null
+
 echo "Purgeing unwanted default apt packages"
 
 # whoopsie-preferences is a hard Depends of gnome-control-center (which our
