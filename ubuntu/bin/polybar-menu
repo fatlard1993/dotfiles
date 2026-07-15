@@ -440,6 +440,7 @@ bluetooth)
 	;;
 datetime)
 	full_date=$(date '+%A, %B %d %Y')
+	ampm_time=$(date '+%-I:%M %p')
 	day_of_year=$(date '+%-j')
 	days_in_year=365
 	[ "$(date '+%Y' | awk '{print (($1%4==0 && $1%100!=0) || $1%400==0) ? 1 : 0}')" = "1" ] && days_in_year=366
@@ -447,6 +448,8 @@ datetime)
 	timezone=$(timedatectl show -p Timezone --value)
 	ntp_active=$(timedatectl show -p NTPSynchronized --value)
 	uptime_str=$(uptime -p)
+
+	moon_line=$("$HOME/.dotfiles/ubuntu/bin/moon-phase" full)
 
 	copy_line=" Copy Date & Time"
 	if [ "$ntp_active" = "yes" ]; then
@@ -456,7 +459,7 @@ datetime)
 	fi
 	settings_line=" Open Date & Time Settings"
 
-	choice=$(printf '%s\n%s\n%s' "$copy_line" "$ntp_line" "$settings_line" | rofi_menu "Date & Time" "${full_date} | week ${week_num} | day ${day_of_year}/${days_in_year} | ${timezone} | ${uptime_str}")
+	choice=$(printf '%s\n%s\n%s' "$copy_line" "$ntp_line" "$settings_line" | rofi_menu "Date & Time" "${full_date} ${ampm_time} | ${moon_line} | week ${week_num} | day ${day_of_year}/${days_in_year} | ${timezone} | ${uptime_str}")
 
 	case "$choice" in
 	"$copy_line")

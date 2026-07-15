@@ -1,0 +1,36 @@
+#!/bin/bash
+# Usage: moon-phase [icon|name|full]
+#
+# Current moon phase, no external deps: days since a reference new moon
+# (2000-01-06 18:14 UTC, epoch 947182440) folded into the 29.53-day
+# synodic month, bucketed into the usual eight phases. int()-based fold
+# instead of %: awk's % is fmod in gawk but not guaranteed everywhere.
+# Sanity-checked against the 2026-08-12 solar eclipse (a new moon) and
+# the 2026-08-28 total lunar eclipse (a full moon).
+#
+# Shared by polybar-datetime (icon as the label's center separator) and
+# polybar-menu's datetime detail line.
+
+read -r idx name <<< "$(awk -v now="$(date +%s)" 'BEGIN {
+	p = 29.53058867
+	age = (now - 947182440) / 86400
+	age -= int(age / p) * p
+	split("New Moon,Waxing Crescent,First Quarter,Waxing Gibbous,Full Moon,Waning Gibbous,Third Quarter,Waning Crescent", names, ",")
+	i = int(age * 8 / p + 0.5) % 8
+	printf "%d %s", i, names[i + 1]
+}')"
+
+# nf-weather moon glyphs, one per phase index - by codepoint, since the
+# literal characters are indistinguishable blobs in an editor
+icons=($'\ue38d' $'\ue390' $'\ue394' $'\ue398' $'\ue39b' $'\ue39f' $'\ue3a2' $'\ue3a5')
+
+case ${1:-full} in
+	icon) echo "${icons[idx]}" ;;
+	name) echo "$name" ;;
+	full) echo "${icons[idx]} ${name}" ;;
+	*)
+		echo "Usage: moon-phase [icon|name|full]"
+
+		exit 1
+		;;
+esac
