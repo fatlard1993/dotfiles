@@ -26,16 +26,22 @@ dconf write /org/gnome/desktop/interface/cursor-size "64"
 # isn't up (it rewrites user.reg on exit, discarding our edit).
 simsReg="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/user.reg"
 
-if [[ -f $simsReg ]] && ! grep -q '"LogPixels"' $simsReg; then
+# Enforces the value, not just the key's presence - the prefix writes its
+# own default (dword:60 = 96 DPI) so "already there" usually means "wrong".
+if [[ -f $simsReg ]] && ! grep -q '"LogPixels"=dword:000000c0' $simsReg; then
 	if pgrep -f wineserver > /dev/null; then
 		echo "Sims 4 prefix is live - skipping LogPixels (rerun dot-update with the game closed)"
+	elif grep -q '^"LogPixels"' $simsReg; then
+		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
+
+		sed -i 's/^"LogPixels"=dword:.*/"LogPixels"=dword:000000c0/' $simsReg
+	elif grep -q '^\[Control Panel\\\\Desktop\]' $simsReg; then
+		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
+
+		sed -i '/^\[Control Panel\\\\Desktop\]/s/$/\n"LogPixels"=dword:000000c0/' $simsReg
 	else
 		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
 
-		if grep -q '^\[Control Panel\\\\Desktop\]' $simsReg; then
-			sed -i '/^\[Control Panel\\\\Desktop\]/s/$/\n"LogPixels"=dword:000000c0/' $simsReg
-		else
-			printf '\n[Control Panel\\\\Desktop] %s\n"LogPixels"=dword:000000c0\n' "$(date +%s)" >> $simsReg
-		fi
+		printf '\n[Control Panel\\\\Desktop] %s\n"LogPixels"=dword:000000c0\n' "$(date +%s)" >> $simsReg
 	fi
 fi
