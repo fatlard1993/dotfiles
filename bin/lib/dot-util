@@ -134,23 +134,29 @@ ensureBun() {
 # Clone or update a repo. Sets $repoUpdated (true/false) so callers can
 # skip service restarts when nothing actually changed - a routine
 # dot-update run shouldn't bounce a server people are using.
+#
+# The destination var is "dest", NOT "path": in zsh, path is the special
+# array tied to $PATH, so `local path=$2` silently replaces the function's
+# entire PATH with the clone destination - every command inside becomes
+# "command not found". That one word cost the htpc's first bootstrap all
+# of its app repos.
 syncRepo() {
-	local url=$1 path=$2
+	local url=$1 dest=$2
 	local before
 
 	repoUpdated=false
 
-	if [[ -d $path/.git ]]; then
-		echo "Updating $(basename $path)"
+	if [[ -d $dest/.git ]]; then
+		echo "Updating $(basename $dest)"
 
-		before=$(git -C $path rev-parse HEAD)
-		git -C $path pull
+		before=$(git -C $dest rev-parse HEAD)
+		git -C $dest pull
 
-		[[ $(git -C $path rev-parse HEAD) != $before ]] && repoUpdated=true
+		[[ $(git -C $dest rev-parse HEAD) != $before ]] && repoUpdated=true
 	else
-		echo "Cloning $(basename $path)"
+		echo "Cloning $(basename $dest)"
 
-		git clone $url $path
+		git clone $url $dest
 		repoUpdated=true
 	fi
 }
