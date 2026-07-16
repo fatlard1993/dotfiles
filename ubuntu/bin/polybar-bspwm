@@ -1,0 +1,46 @@
+#!/bin/bash
+# Replaces polybar's internal/bspwm module: the internal module sanitizes
+# custom %{A} tags out of its labels (confirmed via `polybar -l trace` - an
+# A3 tag embedded in label-occupied renders as if parsed but never
+# dispatches), so per-desktop right-click needs to own the render. Mirrors
+# the internal module's styling: focused gold block, occupied plain, empty
+# dim, urgent red block (colors matching [colors] in polybar/config.ini,
+# hardcoded hex like polybar-metric does).
+#
+# Left-click: focus that desktop (what the internal module did).
+# Right-click: focus AND open the app launcher - one couch/mouse gesture
+# to land somewhere and launch into it (the htpc is the motivating case).
+#
+# Runs as a tail module; bspc subscribe report emits the current state
+# immediately and again on every change, so the first line paints without
+# waiting for an event.
+
+launcher="rofi -show drun -show-icons=true"
+
+line() {
+	local focused occupied urgent out="" d style
+
+	focused=$(bspc query -D -m "$MONITOR" -d .active --names 2>/dev/null)
+	occupied=$(bspc query -D -m "$MONITOR" -d .occupied --names 2>/dev/null)
+	urgent=$(bspc query -D -m "$MONITOR" -d .urgent --names 2>/dev/null)
+
+	while read -r d; do
+		if grep -qxF "$d" <<< "$urgent"; then
+			style="%{B#cc6666} $d %{B-}"
+		elif [ "$d" = "$focused" ]; then
+			style="%{B#f0c674}%{F#000000} $d %{F-}%{B-}"
+		elif grep -qxF "$d" <<< "$occupied"; then
+			style=" $d "
+		else
+			style="%{F#969896} $d %{F-}"
+		fi
+
+		out+="%{A1:bspc desktop -f $d:}%{A3:bspc desktop -f $d && $launcher:}${style}%{A}%{A}"
+	done < <(bspc query -D -m "$MONITOR" --names)
+
+	echo "$out"
+}
+
+bspc subscribe report | while read -r _; do
+	line
+done

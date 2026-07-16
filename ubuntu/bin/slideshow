@@ -12,8 +12,12 @@ if pgrep -f "mpv --title=slideshow" > /dev/null; then
 	exit 0
 fi
 
+# Left-click on the slideshow itself also quits: fullscreen covers the
+# bar, so the toggle button can't be reached by mouse while it's running -
+# from the couch that made it exitable only by keyboard.
 find "$dir" -type f \( \
 	-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o \
 	-iname '*.gif' -o -iname '*.webp' -o -iname '*.heic' \
 	\) | mpv --title=slideshow --fs --shuffle --loop-playlist=inf \
-	--image-display-duration=8 --playlist=- > /dev/null 2>&1 &
+	--image-display-duration=8 --input-conf=<(echo "MBTN_LEFT quit") \
+	--playlist=- > /dev/null 2>&1 &

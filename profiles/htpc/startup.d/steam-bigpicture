@@ -3,4 +3,6 @@
 # Boot (via greetd autologin, see dot-update.d/greetd-autologin) lands
 # straight in Big Picture. Steam refuses a second instance on its own, but
 # guard it anyway to skip the spawn+immediate-exit on bspwm reloads.
-pgrep -x steam > /dev/null || steam -bigpicture > /dev/null 2>&1 &
+# Absolute path: steam lives in /usr/games on Ubuntu, which not every
+# launching context has in PATH.
+pgrep -x steam > /dev/null || /usr/games/steam -bigpicture > /dev/null 2>&1 &
