@@ -19,6 +19,14 @@ systemctl --user daemon-reload
 # the servers shouldn't depend on the couch session being logged in
 ensureLinger
 
+# The games share one engine via a file:../web-game-framework dependency -
+# a sibling checkout, not a registry package. It has to exist (with its own
+# node_modules) before any game's install can link it; on a fresh machine
+# nothing else clones it, and every game server crash-loops on a missing
+# module without it.
+syncRepo https://github.com/fatlard1993/web-game-framework.git $HOME/Projects/web-game-framework
+(cd $HOME/Projects/web-game-framework ; bun install)
+
 # Adding a game? Give it a *.home name + port in dot-update.d/lan-names too.
 for game in humanity void-driller sorcery-and-savagery; do
 	syncRepo https://github.com/fatlard1993/$game.git $HOME/Projects/$game
