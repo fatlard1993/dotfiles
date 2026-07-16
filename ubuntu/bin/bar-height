@@ -32,4 +32,17 @@ if [ -n "$mon" ] && [ "$mon" != "eDP-1" ]; then
 	fi
 fi
 
+# True physical DPI assumes desk viewing distance; a TV is meters away, so
+# the same math renders a couch-invisible bar (the htpc's 32" 4K measures
+# 137 DPI -> a 24px bar on 2160 lines). A profile can ship a .bar-scale
+# (integer) multiplier applied on top of the EDID-derived base - viewing
+# distance correction, not a per-monitor hardcode, so a different TV on
+# the same profile still sizes itself from its own EDID first.
+scaleFile="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/.bar-scale"
+if [ -f "$scaleFile" ]; then
+	scale=$(cat "$scaleFile")
+	dpi=$((dpi * scale))
+	height=$((height * scale))
+fi
+
 echo "$dpi $height"
