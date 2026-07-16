@@ -1,0 +1,25 @@
+#!/bin/bash
+# Prints the CPU package temperature in whole °C (0 if unreadable) - the
+# single source for polybar-metric's temp module and polybar-menu's temp
+# panel. Intel exposes the package sensor as the x86_pkg_temp thermal
+# zone; AMD has no thermal-zone equivalent and puts it in the k10temp
+# hwmon (temp1 = Tctl) - the htpc's AMD tower showed 0°C forever until
+# that second path existed.
+
+zone=$(grep -l '^x86_pkg_temp$' /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
+
+if [ -n "$zone" ]; then
+	echo $(( $(cat "${zone%type}temp") / 1000 ))
+
+	exit 0
+fi
+
+hwmon=$(grep -l '^k10temp$' /sys/class/hwmon/hwmon*/name 2>/dev/null | head -1)
+
+if [ -n "$hwmon" ]; then
+	echo $(( $(cat "${hwmon%name}temp1_input") / 1000 ))
+
+	exit 0
+fi
+
+echo 0

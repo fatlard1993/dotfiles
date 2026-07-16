@@ -52,13 +52,9 @@ cpu)
 	fi
 	;;
 temp)
-	zone_type_file=$(grep -l '^x86_pkg_temp$' /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
-
-	if [ -n "$zone_type_file" ]; then
-		value=$(( $(cat "${zone_type_file%type}temp") / 1000 ))
-	else
-		value="n/a"
-	fi
+	# cpu-temp handles the Intel thermal-zone vs AMD k10temp split
+	value=$($HOME/.dotfiles/ubuntu/bin/cpu-temp)
+	[ "$value" = "0" ] && value="n/a"
 
 	settings_line=" Open Power Settings"
 
