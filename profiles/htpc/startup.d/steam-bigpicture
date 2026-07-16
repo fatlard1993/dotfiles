@@ -4,5 +4,7 @@
 # straight in Big Picture. Steam refuses a second instance on its own, but
 # guard it anyway to skip the spawn+immediate-exit on bspwm reloads.
 # Absolute path: steam lives in /usr/games on Ubuntu, which not every
-# launching context has in PATH.
-pgrep -x steam > /dev/null || /usr/games/steam -bigpicture > /dev/null 2>&1 &
+# launching context has in PATH. XCURSOR_SIZE inline rather than trusting
+# inheritance from .bspwmrc - same reasoning as the polybar steam button
+# (see [module/steam] in ubuntu/polybar/config.ini).
+pgrep -x steam > /dev/null || XCURSOR_SIZE=$(gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null) /usr/games/steam -bigpicture > /dev/null 2>&1 &
