@@ -16,3 +16,26 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 echo "Setting TV cursor size"
 
 dconf write /org/gnome/desktop/interface/cursor-size "64"
+
+# XCURSOR_SIZE handles every X-side cursor, but the Sims 4 draws its
+# in-game cursor Windows-side and Wine ignores the X size for it (tested:
+# env verified inside the game's process, cursor still tiny). Wine scales
+# that cursor from the prefix's DPI instead - LogPixels 192 (dword:c0) =
+# 2x, matching the 2x X cursor above. Only touched when the prefix exists
+# (the game has run once), the key isn't set, and the prefix's wineserver
+# isn't up (it rewrites user.reg on exit, discarding our edit).
+simsReg="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/user.reg"
+
+if [[ -f $simsReg ]] && ! grep -q '"LogPixels"' $simsReg; then
+	if pgrep -f wineserver > /dev/null; then
+		echo "Sims 4 prefix is live - skipping LogPixels (rerun dot-update with the game closed)"
+	else
+		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
+
+		if grep -q '^\[Control Panel\\\\Desktop\]' $simsReg; then
+			sed -i '/^\[Control Panel\\\\Desktop\]/s/$/\n"LogPixels"=dword:000000c0/' $simsReg
+		else
+			printf '\n[Control Panel\\\\Desktop] %s\n"LogPixels"=dword:000000c0\n' "$(date +%s)" >> $simsReg
+		fi
+	fi
+fi
