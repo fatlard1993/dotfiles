@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# This box is the house DNS (see dnsmasq-lan) and the Starlink router
+# can't do DHCP reservations - a floating lease under the router's fixed
+# Custom DNS handout would take the whole house's name resolution down
+# whenever the lease moved. Pin the address on the box instead: static,
+# same subnet and same IP the original lease granted, so the router's
+# Custom DNS entry can point at it forever. Targets whatever connection
+# holds the default route (same convention as lan-names), so moving from
+# wifi to ethernet later re-pins the new connection on the next run.
+staticIp="192.168.1.151"
+gateway="192.168.1.1"
+
+lanDev=$(ip route show default | awk '{print $5; exit}')
+lanConn=$(nmcli -t -f NAME,DEVICE connection show --active | awk -F: -v d=$lanDev '$2 == d {print $1; exit}')
+
+if [[ -z $lanConn ]]; then
+	echo "No active connection on the default route - skipping static IP"
+elif [[ $(nmcli -g ipv4.method connection show $lanConn) == "manual" ]]; then
+	echo "Static IP already pinned ($lanConn)"
+else
+	echo "Pinning $lanConn to $staticIp"
+
+	sudo nmcli connection modify $lanConn ipv4.method manual ipv4.addresses "$staticIp/24" ipv4.gateway "$gateway" ipv4.dns 127.0.0.1
+	sudo nmcli connection up $lanConn
+fi
