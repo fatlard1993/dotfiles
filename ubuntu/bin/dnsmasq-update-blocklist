@@ -20,10 +20,17 @@ grep -E '^0\.0\.0\.0 ' "$custom" >> "$tmp"
 
 mv "$tmp" "$target"
 
+# mktemp creates mode 600 and mv/cp carry it forward - but dnsmasq reads
+# the live copy *after* dropping privileges, so anything less than
+# world-readable means "failed to load names: Permission denied" in the
+# journal and an adblock that silently blocks nothing (how the htpc
+# shipped). install -m instead of cp for the live copy, same reason.
+chmod 644 "$target"
+
 echo "Wrote $(wc -l < "$target") blocked domains to $target"
 
 if [[ -f /etc/hosts.adblock ]]; then
-	sudo cp -f "$target" /etc/hosts.adblock
+	sudo install -m 644 "$target" /etc/hosts.adblock
 	sudo systemctl restart dnsmasq
 	echo "Refreshed live blocklist and restarted dnsmasq"
 fi

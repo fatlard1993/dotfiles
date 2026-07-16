@@ -40,8 +40,11 @@ elif [[ ! -f $HOME/.dotfiles/temp/.dnsmasqSetup ]]; then
 
 	# dnsmasq runs as an unprivileged user and can't traverse into $HOME (mode 750),
 	# so these two (read post-privilege-drop) must be real files, not symlinks into $HOME.
-	sudo cp -f $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
-	sudo cp -f $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
+	# install -m, not cp: dnsmasq reads both post-privilege-drop, and cp
+	# preserves whatever mode the repo copy has (mktemp in the blocklist
+	# updater once left it 600 - adblock silently loaded nothing).
+	sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
+	sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
 
 	# Without this, dnsmasq's resolvconf integration adds its own resolv-file
 	# alongside ours and refuses to start ("only one resolv.conf file allowed in no-poll mode").
