@@ -19,49 +19,27 @@ dconf write /org/gnome/desktop/interface/cursor-size "64"
 
 # XCURSOR_SIZE handles every X-side cursor, but the Sims 4 draws its
 # in-game cursor Windows-side and Wine ignores the X size for it (tested:
-# env verified inside the game's process, cursor still tiny). A cursor
-# mod can't help either - the game hard-caps cursor resources at 32x32,
-# override mods only reskin. Wine scales that cursor from the prefix's
-# DPI - LogPixels 192 (dword:c0) = 2x, matching the 2x X cursor above.
-#
-# The first LogPixels attempt shrank the whole game: Options.ini ships
-# useosdpi = 1, so the game reads the OS DPI too and resizes itself from
-# it (badly - same class of bug as Sims 4 on Windows >100% scaling). The
-# pairing below is the whole fix: LogPixels 192 scales the Wine cursor,
-# useosdpi 0 stops the game from reacting to the same value. Both files
-# are rewritten on game exit (discarding live edits), so both blocks skip
-# while the prefix's wineserver is up.
-simsPfx="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx"
-simsReg="$simsPfx/user.reg"
-simsIni="$simsPfx/drive_c/users/steamuser/Documents/Electronic Arts/The Sims 4/Options.ini"
+# env verified inside the game's process, cursor still tiny). Dead ends,
+# so nobody retries them: cursor mods only reskin (the game caps cursor
+# resources at 32x32); prefix DPI (LogPixels 192) does reach the game but
+# backwards - the game reads it and shrinks its whole UI (useosdpi below)
+# while Wine never scales the cursor, and every session rewrites the key
+# back to 96 on exit anyway. What works is gamescope (launch options
+# below): the game renders native 4K, gamescope composites the cursor
+# itself and scales it 2x.
+simsIni="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/drive_c/users/steamuser/Documents/Electronic Arts/The Sims 4/Options.ini"
 
-# Enforces the value, not just the key's presence - the prefix writes its
-# own default (dword:60 = 96 DPI) so "already there" usually means "wrong".
-if [[ -f $simsReg ]] && ! grep -q '"LogPixels"=dword:000000c0' $simsReg; then
-	if pgrep -f wineserver > /dev/null; then
-		echo "Sims 4 prefix is live - skipping LogPixels (rerun dot-update with the game closed)"
-	elif grep -q '^"LogPixels"' $simsReg; then
-		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
-
-		sed -i 's/^"LogPixels"=dword:.*/"LogPixels"=dword:000000c0/' $simsReg
-	elif grep -q '^\[Control Panel\\\\Desktop\]' $simsReg; then
-		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
-
-		sed -i '/^\[Control Panel\\\\Desktop\]/s/$/\n"LogPixels"=dword:000000c0/' $simsReg
-	else
-		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
-
-		printf '\n[Control Panel\\\\Desktop] %s\n"LogPixels"=dword:000000c0\n' "$(date +%s)" >> $simsReg
-	fi
-fi
-
-# Options.ini is CRLF - patterns match and re-emit the \r so the game's
-# parser stays happy.
+# useosdpi = 1 ships by default and makes the game resize itself from the
+# prefix DPI (badly - same class of bug as Sims 4 on Windows >100%
+# scaling). Off is pure hardening now that LogPixels stays 96. The game
+# rewrites Options.ini on exit (discarding live edits), so skip while the
+# prefix's wineserver is up. The file is CRLF - patterns match and
+# re-emit the \r so the game's parser stays happy.
 if [[ -f $simsIni ]] && grep -q $'^useosdpi = 1\r' $simsIni; then
 	if pgrep -f wineserver > /dev/null; then
 		echo "Sims 4 prefix is live - skipping useosdpi (rerun dot-update with the game closed)"
 	else
-		echo "Disabling Sims 4 OS-DPI tracking (keeps LogPixels cursor-only)"
+		echo "Disabling Sims 4 OS-DPI tracking"
 
 		# The useosdpi era also saved a DPI-mangled window size (2023x1138
 		# on the 4K TV) - repair it in the same pass, then never touch
@@ -69,5 +47,51 @@ if [[ -f $simsIni ]] && grep -q $'^useosdpi = 1\r' $simsIni; then
 		sed -i -e $'s/^useosdpi = .*/useosdpi = 0\r/' \
 			-e $'s/^resolutionwidth = .*/resolutionwidth = 3840\r/' \
 			-e $'s/^resolutionheight = .*/resolutionheight = 2160\r/' $simsIni
+	fi
+fi
+
+# The actual cursor fix: gamescope wraps the game, rendering at native 4K
+# (-w/-h) while compositing the cursor itself at 2x (--cursor-scale-height
+# 1080 against the 2160 output). --force-grab-cursor is load-bearing -
+# without it nested gamescope forwards the host cursor unscaled and the
+# scale flag never engages. PATH prefix because Debian ships
+# gamescopereaper in /usr/games, which the greetd session PATH lacks (same
+# trap as steam itself, see startup.d/steam-bigpicture). Steam holds
+# localconfig.vdf in memory and rewrites it on exit, so only touched while
+# steam is down.
+simsLaunchOptions='PATH=/usr/games:$PATH gamescope -w 3840 -h 2160 -f --cursor-scale-height 1080 --force-grab-cursor -- %command%'
+steamCfg="$HOME/.steam/debian-installation/userdata/71499228/config/localconfig.vdf"
+
+if [[ -f $steamCfg ]] && ! grep -qF "$simsLaunchOptions" $steamCfg; then
+	if pgrep -x steam > /dev/null; then
+		echo "Steam is live - skipping Sims 4 launch options (rerun dot-update with steam closed)"
+	else
+		echo "Setting Sims 4 gamescope launch options (cursor scale)"
+
+		python3 - "$steamCfg" "$simsLaunchOptions" <<'EOF'
+import sys
+
+path, lo = sys.argv[1], sys.argv[2]
+s = open(path, encoding='utf-8', errors='surrogateescape').read()
+
+# The eula key is the stable landmark inside the Sims 4 app block.
+anchor = s.find('"1222670_eula_0"')
+if anchor == -1:
+    sys.exit('sims 4 app block not found in localconfig.vdf')
+
+line = '\t\t\t\t\t\t"LaunchOptions"\t\t"' + lo + '"\n'
+block = s[max(0, anchor - 400):anchor]
+
+if '"LaunchOptions"' in block:
+    start = max(0, anchor - 400) + block.rindex('"LaunchOptions"')
+    end = s.index('\n', start) + 1
+    start = s.rindex('\n', 0, start) + 1
+    s = s[:start] + line + s[end:]
+else:
+    start = s.rindex('\n', 0, anchor) + 1
+    s = s[:start] + line + s[start:]
+
+open(path, 'w', encoding='utf-8', errors='surrogateescape').write(s)
+EOF
 	fi
 fi

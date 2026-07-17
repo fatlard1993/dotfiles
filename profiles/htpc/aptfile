@@ -3,6 +3,10 @@
 update
 
 package "gamemode"
+
+# Wraps Sims 4 to composite a 2x cursor over the native-4K game - see
+# dot-update.d/cursor for the launch options that use it
+package "gamescope"
 package "mesa-vulkan-drivers"
 package "mesa-va-drivers"
 package "vlc"
