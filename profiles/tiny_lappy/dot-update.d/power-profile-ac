@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# power-profiles-daemon persists whatever profile was last set (including
+# the polybar battery module's shift+click power-saver toggle, see
+# ubuntu/bin/battery-click) across reboots and AC plug events. A forgotten
+# power-saver pins every core at its minimum frequency indefinitely, so
+# snap back to balanced whenever mains power appears - power-saver can then
+# only linger while actually on battery. Matched on type rather than
+# KERNEL=="AC" since this machine also charges over USB-C.
+udevRulesFile=/etc/udev/rules.d/85-power-profile-ac.rules
+
+if [[ ! -f $udevRulesFile ]]; then
+	echo "Installing AC power-profile reset udev rule"
+
+	sudo tee $udevRulesFile > /dev/null <<-'EOF'
+	SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/powerprofilesctl set balanced"
+	EOF
+
+	sudo udevadm control --reload-rules
+fi
