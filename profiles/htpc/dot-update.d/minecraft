@@ -69,11 +69,25 @@ else
 fi
 
 # Official launcher; its deb depends on default-jre and friends, which apt
-# resolves when installing from the local file
+# resolves when installing from the local file. Mojang hasn't touched the
+# deb's control file in years: it names libgdk-pixbuf2.0-0, dead since the
+# gdk-pixbuf rename and the only Depends entry current Ubuntu doesn't
+# satisfy via Provides (the t64 transition packages cover the rest). The
+# installed libgdk-pixbuf-2.0-0 satisfies the real >= 2.22 requirement, so
+# rewrite the name and repack. If a future release trips on another dead
+# name, extend the sed.
 dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 	echo "Installing Minecraft launcher"
 
 	curl -sf -o /tmp/Minecraft.deb https://launcher.mojang.com/download/Minecraft.deb
-	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft.deb
-	rm -f /tmp/Minecraft.deb
+
+	rm -rf /tmp/Minecraft.deb.d
+	dpkg-deb -R /tmp/Minecraft.deb /tmp/Minecraft.deb.d
+	sed -i 's/libgdk-pixbuf2\.0-0/libgdk-pixbuf-2.0-0/' /tmp/Minecraft.deb.d/DEBIAN/control
+	# --root-owner-group: the extracted tree is owned by this user, and a
+	# plain repack would bake that uid into the installed files
+	dpkg-deb -b --root-owner-group /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft-fixed.deb
+	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
 }
