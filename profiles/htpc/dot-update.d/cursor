@@ -19,12 +19,21 @@ dconf write /org/gnome/desktop/interface/cursor-size "64"
 
 # XCURSOR_SIZE handles every X-side cursor, but the Sims 4 draws its
 # in-game cursor Windows-side and Wine ignores the X size for it (tested:
-# env verified inside the game's process, cursor still tiny). Wine scales
-# that cursor from the prefix's DPI instead - LogPixels 192 (dword:c0) =
-# 2x, matching the 2x X cursor above. Only touched when the prefix exists
-# (the game has run once), the key isn't set, and the prefix's wineserver
-# isn't up (it rewrites user.reg on exit, discarding our edit).
-simsReg="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/user.reg"
+# env verified inside the game's process, cursor still tiny). A cursor
+# mod can't help either - the game hard-caps cursor resources at 32x32,
+# override mods only reskin. Wine scales that cursor from the prefix's
+# DPI - LogPixels 192 (dword:c0) = 2x, matching the 2x X cursor above.
+#
+# The first LogPixels attempt shrank the whole game: Options.ini ships
+# useosdpi = 1, so the game reads the OS DPI too and resizes itself from
+# it (badly - same class of bug as Sims 4 on Windows >100% scaling). The
+# pairing below is the whole fix: LogPixels 192 scales the Wine cursor,
+# useosdpi 0 stops the game from reacting to the same value. Both files
+# are rewritten on game exit (discarding live edits), so both blocks skip
+# while the prefix's wineserver is up.
+simsPfx="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx"
+simsReg="$simsPfx/user.reg"
+simsIni="$simsPfx/drive_c/users/steamuser/Documents/Electronic Arts/The Sims 4/Options.ini"
 
 # Enforces the value, not just the key's presence - the prefix writes its
 # own default (dword:60 = 96 DPI) so "already there" usually means "wrong".
@@ -43,5 +52,22 @@ if [[ -f $simsReg ]] && ! grep -q '"LogPixels"=dword:000000c0' $simsReg; then
 		echo "Setting Sims 4 prefix DPI (in-game cursor scale)"
 
 		printf '\n[Control Panel\\\\Desktop] %s\n"LogPixels"=dword:000000c0\n' "$(date +%s)" >> $simsReg
+	fi
+fi
+
+# Options.ini is CRLF - patterns match and re-emit the \r so the game's
+# parser stays happy.
+if [[ -f $simsIni ]] && grep -q $'^useosdpi = 1\r' $simsIni; then
+	if pgrep -f wineserver > /dev/null; then
+		echo "Sims 4 prefix is live - skipping useosdpi (rerun dot-update with the game closed)"
+	else
+		echo "Disabling Sims 4 OS-DPI tracking (keeps LogPixels cursor-only)"
+
+		# The useosdpi era also saved a DPI-mangled window size (2023x1138
+		# on the 4K TV) - repair it in the same pass, then never touch
+		# resolution again once useosdpi is 0.
+		sed -i -e $'s/^useosdpi = .*/useosdpi = 0\r/' \
+			-e $'s/^resolutionwidth = .*/resolutionwidth = 3840\r/' \
+			-e $'s/^resolutionheight = .*/resolutionheight = 2160\r/' $simsIni
 	fi
 fi
