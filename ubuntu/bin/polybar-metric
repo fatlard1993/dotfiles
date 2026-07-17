@@ -228,6 +228,19 @@ case "$metric" in
 			fi
 		fi
 
+		# The power-saver profile (shift+click, see battery-click) is brutal
+		# to forget about - the CPU sits at its floor clock until someone
+		# notices - so while it's active the whole module becomes a leaf.
+		# Read via sysfs
+		# (EPP is "power" only under power-saver) rather than
+		# powerprofilesctl, which costs a python+dbus round trip per poll.
+		epp=/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference
+		if [ "$(cat $epp 2>/dev/null)" = "power" ]; then
+			icon="󰌪"
+			color="#de935f"
+			tier=T1
+		fi
+
 		render "$icon" "$color" "$tier"
 		;;
 	volume)
