@@ -13,12 +13,14 @@ typeset -A services=(
 	[humanity]=8032
 	[void-driller]=1040
 	[sorcery-and-savagery]=3040
+	[game-night]=8034
+	[games]=8034
 	[land-ledger]=7450
 	[remote]=8793
 )
 # htpc -> home-page (the landing server every machine runs); remote ->
-# htpc-remote. The three games also appear in dot-update.d/game-servers'
-# loop - a new game needs both.
+# htpc-remote; games -> a second name for game-night. The four games also
+# appear in dot-update.d/game-servers' loop - a new game needs both.
 
 command -v caddy > /dev/null || {
 	echo "Installing caddy"
