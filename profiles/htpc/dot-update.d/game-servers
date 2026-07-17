@@ -25,14 +25,18 @@ ensureLinger
 # nothing else clones it, and every game server crash-loops on a missing
 # module without it.
 syncRepo https://github.com/fatlard1993/web-game-framework.git $HOME/Projects/web-game-framework
-(cd $HOME/Projects/web-game-framework ; bun install)
+(cd $HOME/Projects/web-game-framework ; bun install --frozen-lockfile)
 
 # Adding a game? Give it a *.home name + port in dot-update.d/lan-names too.
 for game in humanity void-driller sorcery-and-savagery; do
 	syncRepo https://github.com/fatlard1993/$game.git $HOME/Projects/$game
 
-	# bun install runs each game's `prepare` (client build) as a side effect
-	(cd $HOME/Projects/$game ; bun install)
+	# bun install runs each game's `prepare` (client build) as a side effect.
+	# --frozen-lockfile: a plain install rewrites bun.lock whenever the
+	# framework drifts ahead of the game's lockfile, and that dirty file
+	# blocks every future pull. Frozen fails loudly instead - the fix is
+	# regenerating the lockfile in the game's repo, never on the htpc.
+	(cd $HOME/Projects/$game ; bun install --frozen-lockfile)
 
 	if ! systemctl --user is-active --quiet bun-server@$game.service; then
 		echo "Starting $game"
