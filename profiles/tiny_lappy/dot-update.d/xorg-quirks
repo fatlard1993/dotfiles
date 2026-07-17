@@ -2,10 +2,12 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-echo "Linking Xorg touchpad quirk"
+echo "Linking Xorg input quirks"
 
 sudo mkdir -p /etc/X11/xorg.conf.d
 sudo ln -sf $profilePath/xorg/10-touchpad-quirks.conf /etc/X11/xorg.conf.d/10-touchpad-quirks.conf
+sudo ln -sf $profilePath/xorg/30-mouse.conf /etc/X11/xorg.conf.d/30-mouse.conf
+sudo ln -sf $profilePath/xorg/40-keyboard.conf /etc/X11/xorg.conf.d/40-keyboard.conf
 
 # 20-intel.conf (forces the legacy intel DDX driver with AccelMethod uxa) is
 # tracked at $profilePath/xorg/20-intel.conf but deliberately not linked here -

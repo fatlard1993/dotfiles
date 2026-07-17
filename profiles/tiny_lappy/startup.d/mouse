@@ -1,3 +1,6 @@
 #!/bin/zsh
 
+# Login-time fallback only: xorg/30-mouse.conf is the real setting - it
+# reapplies on bluetooth re-pair, which resets libinput props and this
+# script can't see.
 xinput set-prop "Logitech MX Master 4" "libinput Natural Scrolling Enabled" 1

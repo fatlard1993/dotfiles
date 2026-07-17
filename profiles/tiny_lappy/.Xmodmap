@@ -1,5 +1,12 @@
 !----------------------------------------------------------
 ! Swap Control and Alt keys, both sides
+!
+! Login-time fallback only: xorg/40-keyboard.conf is the real
+! setting - xmodmap only patches keyboards present when it runs,
+! so hotplugged externals kept stock Ctrl/Alt (broke super+ctrl
+! chords). The one thing only this file does is Menu -> Alt_R
+! (keycode 135); no stock XKB option covers that, and it won't
+! apply to keyboards plugged in after login.
 !----------------------------------------------------------
 
 ! First clear all modifiers & control
