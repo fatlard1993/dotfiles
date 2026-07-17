@@ -9,9 +9,11 @@ elif [ "$1" ] && [ -d "$dotfilesPath/profiles/$1" ]; then
 else
 	echo -e "\n\"$1\" is not a valid profile. You can provide one as an argument, eg: $0 <profile>\n\n$(ls $dotfilesPath/profiles)\n"
 
-	read profileName
-
-	return 1
+	# read fails on EOF, so a non-interactive run (piped bootstrap, no tty)
+	# bails out here instead of spinning on the prompt
+	until [ "$profileName" ] && [ -d "$dotfilesPath/profiles/$profileName" ]; do
+		read "profileName?Profile: " || return 1
+	done
 fi
 
 echo $profileName > $HOME/.dotfilesProfile
