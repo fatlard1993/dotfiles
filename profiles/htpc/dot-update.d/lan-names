@@ -16,10 +16,29 @@ typeset -A services=(
 	[games]=8034
 	[land-ledger]=7450
 	[remote]=8793
+	[llm]=11434
 )
 # htpc -> home-page (the landing server every machine runs); remote ->
-# htpc-remote; games -> game-night. The four games also appear in
-# dot-update.d/game-servers' loop - a new game needs both.
+# htpc-remote; games -> game-night; llm -> ollama (dot-update.d/ollama),
+# port 11434 is Ollama's own default, nothing custom to remember. The four
+# games also appear in dot-update.d/game-servers' loop - a new game needs
+# both.
+
+# Names in here get Caddy's automatic HTTPS (internal CA) instead of plain
+# HTTP. Chrome now refuses fetch()/XHR from a plain-HTTP page to any LAN
+# address ("Local Network Access" - the page isn't a secure context), which
+# breaks in-page writes; games is the first service that does that. Every
+# device that needs to edit games.home has to trust Caddy's root CA once
+# (see the echo below for the cert path).
+typeset -a tlsNames=(games)
+
+# Some upstreams validate the incoming Host header themselves (DNS-rebinding
+# protection) and 403 anything that isn't localhost/127.0.0.1 - forwarding
+# "llm.home" straight through, like every other service here, trips exactly
+# that on Ollama. Rewrite the Host header Caddy sends upstream for these.
+typeset -A hostRewrite=(
+	[llm]=localhost:11434
+)
 
 command -v caddy > /dev/null || {
 	echo "Installing caddy"
@@ -54,11 +73,12 @@ sudo systemctl restart dnsmasq
 
 echo "Generating Caddyfile"
 
-# The explicit http:// prefixes matter: without them caddy would auto-HTTPS
-# these private names with certs from its internal CA, and every phone in
-# the house would throw trust warnings. Plain HTTP on the LAN matches how
-# these services are already reached by IP:port. WebSockets (the games'
-# transport) proxy through reverse_proxy natively.
+# The explicit http:// prefixes matter for everything not in tlsNames:
+# without them caddy would auto-HTTPS these private names with certs from
+# its internal CA, and every phone in the house would throw trust warnings.
+# Plain HTTP on the LAN matches how these services are already reached by
+# IP:port. WebSockets (the games' transport) proxy through reverse_proxy
+# natively either way.
 caddyfile=$(mktemp)
 
 {
@@ -66,8 +86,18 @@ caddyfile=$(mktemp)
 
 	for name in ${(k)services}; do
 		echo ""
-		echo "http://$name.home {"
-		echo "	reverse_proxy localhost:$services[$name]"
+		if (( ${tlsNames[(Ie)$name]} )); then
+			echo "$name.home {"
+		else
+			echo "http://$name.home {"
+		fi
+		if [[ -n $hostRewrite[$name] ]]; then
+			echo "	reverse_proxy localhost:$services[$name] {"
+			echo "		header_up Host $hostRewrite[$name]"
+			echo "	}"
+		else
+			echo "	reverse_proxy localhost:$services[$name]"
+		fi
 		echo "}"
 	done
 } > $caddyfile
@@ -76,6 +106,13 @@ caddyfile=$(mktemp)
 if caddy validate --config $caddyfile --adapter caddyfile > /dev/null 2>&1; then
 	sudo cp $caddyfile /etc/caddy/Caddyfile
 	sudo systemctl reload-or-restart caddy
+
+	if (( ${#tlsNames} )); then
+		rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+		echo "TLS names (${tlsNames[*]}) need Caddy's root CA trusted on any"
+		echo "device that will use them: copy $rootCert"
+		echo "off this box and install it as a trusted root cert."
+	fi
 else
 	echo "Generated Caddyfile failed validation - keeping the existing one:"
 	caddy validate --config $caddyfile --adapter caddyfile
