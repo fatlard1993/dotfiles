@@ -14,7 +14,7 @@ TITLE="${2:-ChatGPT Conversation}"
 
 # 1) Normalize the HTML a bit to make regex selection more reliable
 #   - collapse CRLF
-#   - ensure tags are on their own lines to simplify matching
+#   - put tags on their own lines to simplify matching
 #   - keep a working copy in a temp file
 TMP="$(mktemp)"
 trap 'rm -f "$TMP" "$TMP.msgs" "$TMP.codes"' EXIT
@@ -30,7 +30,7 @@ tr -d '\r' < "$INPUT" > "$TMP"
 #    We also capture code blocks inside so we can preserve them as ``` fences later.
 #
 # Notes:
-# - Use Perl for robust, multiline, non-greedy matching with lookaheads.
+# - Use Perl for multiline, non-greedy matching with lookaheads.
 perl -0777 -ne '
   while (m{
     <(div|article)\b[^>]*\bdata-message-author-role="(assistant|user)"[^>]*>

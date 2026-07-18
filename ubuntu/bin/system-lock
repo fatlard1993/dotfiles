@@ -11,7 +11,7 @@ command -v slock > /dev/null || {
 # /tmp, not ~/.cache: slock (see profiles/tiny_lappy/slock, installed setuid) drops
 # privileges to nobody:nogroup before it ever reads the image file (the
 # point of that is so a bug in the image-loading code we added can't
-# leverage the brief setuid-root window slock holds to read /etc/shadow).
+# use the brief setuid-root window slock holds to read /etc/shadow).
 # nobody can't traverse into $HOME (verified: `namei -l` on ~/.cache showed
 # 750/700 the whole way down), so the image has to live somewhere
 # world-traversable. /tmp's sticky bit still means only chase/root can

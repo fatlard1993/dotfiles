@@ -13,7 +13,7 @@
 # is true #000000 here, not kitty's #373b41 ANSI-black - kitty needs that
 # lighter shade so black *text* stays legible against its own black
 # background, but nothing in this theme uses black as a foreground color,
-# and the VT's single black slot also serves as the default background
+# and the VT's single black slot is also the default background
 # (container, below) - matching dunst/kitty's actual background/slock's
 # true black there is more important than matching kitty's ANSI-black.
 #

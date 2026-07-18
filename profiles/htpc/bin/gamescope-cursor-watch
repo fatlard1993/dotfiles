@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # gamescope --force-grab-cursor (see profiles/htpc/dot-update.d/cursor)
-# scales the Sims 4 cursor correctly, but locks gamescope into relative
+# scales the Sims 4 cursor to size, but locks gamescope into relative
 # mouse mode permanently on the first camera-drag - after that its
 # compositor cursor plane never comes back (matches
 # github.com/ValveSoftware/gamescope#1285: grab stops respecting flips

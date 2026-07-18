@@ -31,7 +31,7 @@
 # 		This is done automatically if you extract the language databases from WITHIN the "tesseract-2.04" directory (and allow overwriting).
 # 		This script allows the use of multiple language databases. Default is English and French. For adding others see comments below.
 #		You NEED at least one language database or tesseract will not work.
-# *2 	Simply change the occurance of "soffice -writer" below to a text editor of your choice, ie: gedit, KWrite, etc
+# *2 	Change the occurance of "soffice -writer" below to a text editor of your choice, ie: gedit, KWrite, etc
 # 		Some systems call on OpenOffice Writer differently. If unsure, check the properties tab of your Writer launcher.
 # 		Ie: On customized versions of OOo (such as the ones provided by Linux Mandrake or Gentoo), you start Writer with: oowriter
 # *3	If you install ocrad also, TextRipper will recognize this and prompt you to choose between the two offering better recognition or page format support
@@ -49,7 +49,7 @@
 # Some preliminiaries
 IFS=
 
-#trap to ensure we stay clean
+#trap to remove temp files on exit
 clean_up(){
 cd "$DN_FILE"
 rm -f *converted_from_pdf*
@@ -132,7 +132,7 @@ echo "20"
 echo "40"
 		fi
 
-		# Since the file is a .tiff image, ensure tesseract compatibility with ImageMagick
+		# Since the file is a .tiff image, convert it for tesseract compatibility with ImageMagick
 		IS_TIF=`echo "$1" | grep -i -c -E [.]tiff\|[.]tif`
 		if [ $IS_TIF -eq 1 ] ; then
 echo "20"

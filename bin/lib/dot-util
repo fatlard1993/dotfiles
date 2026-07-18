@@ -189,7 +189,7 @@ ensureLinger() {
 # tokens at 6.78 tok/s prompt-eval, versus effectively free on htpc's GPU
 # at 300-470 tok/s) - a bad trade for a fallback meant to be usable when
 # you're blocked. Without the flag, falls back to addendum-only anyway
-# when the files are simply absent (not every machine has priv-config
+# when the files are absent (not every machine has priv-config
 # cloned - htpc doesn't, so it hits this path naturally, no flag needed).
 buildCodeModel() {
 	local generated=$(mktemp)
