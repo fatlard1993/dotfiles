@@ -1,0 +1,124 @@
+#!/bin/zsh
+
+# Claude stand-in for offline moments or spent usage limits - wraps the real
+# `aider` binary (uv-installed, see profiles/tiny_lappy/dot-update.d/aider)
+# with the right Ollama backend pre-selected, so there's one command to
+# remember regardless of what's reachable:
+#   - htpc up (llm.home answers)  -> its models (qwen2.5-coder:14b for
+#                                    `code`, :7b for `quickcode`)
+#   - htpc down / off the LAN     -> this machine's own `code` model,
+#                                    qwen2.5-coder:7b (see dot-update.d/ollama
+#                                    in whichever profile is active) -
+#                                    `quickcode` doesn't exist here, see the
+#                                    comment in tiny_lappy's dot-update.d/ollama
+#                                    for why
+# No-ops to nothing if aider isn't installed on this machine - htpc itself
+# doesn't run aider, only serves the model.
+#
+#   aider ...                    - `code`: as capable as this hardware
+#                                   gets, ~6 tok/s on htpc. Well-specified
+#                                   or open-ended tasks you're willing to
+#                                   wait on.
+#   aider --tier quickcode ...   - chat-speed, code-aware, mechanical tasks
+#                                   only (version bumps, commit messages,
+#                                   find/replace). ~26 tok/s on htpc. Only
+#                                   exists there - errors if htpc's down.
+command -v aider > /dev/null && aider() {
+	local base=http://localhost:11434
+	local model=code
+
+	if [[ $1 == --tier ]]; then
+		model=$2
+		shift 2
+	fi
+
+	if curl -sf -m 2 http://llm.home/api/tags > /dev/null 2>&1; then
+		base=http://llm.home
+
+		echo "aider: htpc reachable - using its $model"
+	else
+		echo "aider: htpc unreachable - falling back to this machine's $model"
+	fi
+
+	OLLAMA_API_BASE=$base command aider --model ollama_chat/$model "$@"
+}
+
+# Fire-and-forget: `code`'s pace (~6 tok/s on htpc, worse CPU-only) doesn't
+# suit holding a terminal open, so this detaches the run and logs to a file
+# instead - kick off a task, go do something else, check back. `--yes` is
+# load-bearing here (no TTY to answer prompts once backgrounded) - it does
+# also mean auto-commit stays on (aider's default): the result lands as a
+# real commit you review with `git log`/`git show` afterward, not
+# uncommitted working-tree state waiting to collide with whatever else you
+# touch in the meantime.
+#
+#   aider-bg --message "..." file.py   - starts it, prints the log path
+#   aider-bg-status                    - lists recent runs, newest first
+#   aider-bg-tail <log>                - follows one (tab-complete the name
+#                                         from aider-bg-status's output)
+command -v aider > /dev/null && aider-bg() {
+	local logDir=$HOME/.aider-bg
+	mkdir -p $logDir
+	local log=$logDir/$(date +%Y-%m-%d_%H-%M-%S)_$(basename $PWD).log
+
+	# `nohup` execs its argument via a PATH lookup - it has no concept of
+	# shell functions, so `nohup aider ...` silently ran the raw binary
+	# with no model/host configured instead of this wrapper. zsh's own `&`
+	# backgrounds the function call within the same shell (functions and
+	# all), so it actually sees `aider`; `disown` detaches it from job
+	# control so it survives this shell exiting.
+	aider --yes "$@" > $log 2>&1 &
+	disown
+
+	echo "aider-bg: started (pid $!), logging to $log"
+	echo "aider-bg: aider-bg-tail $(basename $log)  -  or  aider-bg-status  to list runs"
+}
+
+command -v aider > /dev/null && aider-bg-status() {
+	local logDir=$HOME/.aider-bg
+
+	if [[ ! -d $logDir ]]; then
+		echo "no aider-bg runs yet"
+
+		return
+	fi
+
+	ls -t $logDir
+}
+
+command -v aider > /dev/null && aider-bg-tail() {
+	if [[ -z $1 ]]; then
+		echo "usage: aider-bg-tail <log-name>  (see aider-bg-status)" >&2
+
+		return 1
+	fi
+
+	tail -f "$HOME/.aider-bg/$1"
+}
+
+# Claude Code slash commands (~/.claude/commands/*.md) are plain
+# markdown task instructions with no Claude-specific syntax baked in for
+# most of them - they work as a one-shot aider prompt as-is. Commands that
+# lean on Claude-only tools (WebSearch, Agent, deferred ToolSearch tools)
+# will have those instructions land on a model with nothing behind them to
+# actually call - it'll ignore or hallucinate around that part.
+#
+#   aider-cmd dump                 - runs commands/dump.md as the prompt
+#   aider-cmd vision src/main.py   - same, plus adds a file to context
+command -v aider > /dev/null && aider-cmd() {
+	local name=$1
+	local cmdFile=$HOME/.claude/commands/$name.md
+
+	if [[ -z $name ]]; then
+		echo "usage: aider-cmd <command-name> [aider args...]" >&2
+		return 1
+	fi
+
+	if [[ ! -f $cmdFile ]]; then
+		echo "aider-cmd: no such command '$name' ($cmdFile)" >&2
+		return 1
+	fi
+
+	shift
+	aider --message "$(cat $cmdFile)" "$@"
+}

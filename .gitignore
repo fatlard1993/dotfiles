@@ -9,3 +9,4 @@ temp*
 .vscode/
 
 /ubuntu/dnsmasq/hosts.adblock
+.aider*
