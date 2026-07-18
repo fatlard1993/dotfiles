@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Turns a Claude Code agent definition (~/.claude/agents/*.md) into
+# a local Ollama model - the agent's markdown body (everything after the
+# --- frontmatter) becomes the model's SYSTEM prompt. Whatever the agent's
+# `tools:` frontmatter grants (WebSearch, Agent, etc.) does NOT carry over -
+# Ollama has no tool-calling harness behind it here, so anything relying on
+# those capabilities (e.g. fabric-mod-specialist's "WebSearch before any
+# project setup" mandate) just won't function. Only the persona, embedded
+# knowledge, and conventions in the body actually transfer.
+#
+# Runs against whichever machine's local ollama you invoke it on - same as
+# `ollama create` itself, no remote option.
+#
+# Usage: claude-agent-to-ollama <agent-name> [base-model]
+
+set -e
+
+name=$1
+base=${2:-code}
+agentFile="$HOME/.claude/agents/$name.md"
+
+[ -n "$name" ] || {
+	echo "Usage: $(basename "$0") <agent-name> [base-model]" >&2
+	exit 1
+}
+
+[ -f "$agentFile" ] || {
+	echo "no such agent: $name ($agentFile)" >&2
+	exit 1
+}
+
+# Drop the --- frontmatter block (name/description/tools), keep the body.
+# Naive but fine for personal use - doesn't handle a body that itself
+# contains a literal """ sequence.
+body=$(awk 'BEGIN{n=0} /^---$/{n++; next} n>=2{print}' "$agentFile")
+
+modelfile=$(mktemp)
+{
+	echo "FROM $base"
+	echo
+	echo 'SYSTEM """'
+	echo "$body"
+	echo '"""'
+} > "$modelfile"
+
+echo "Building '$name' from $base + ${agentFile#"$HOME"/}"
+ollama create "$name" -f "$modelfile"
+rm -f "$modelfile"

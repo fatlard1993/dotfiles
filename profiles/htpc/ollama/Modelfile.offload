@@ -1,0 +1,39 @@
+# Built by dot-update.d/ollama as the `offload` model - `ollama run offload`
+# locally, or http://llm.home from any other machine on the LAN.
+#
+# Same role as tiny_lappy's Modelfile.offload (low-stakes tasks offloaded
+# from Claude to save cost) but tuned for what this box actually has:
+# Ryzen 5 5500 (6c/12t) and an 8GB card, vs. the laptop's CPU-only 2c/4t.
+# Built FROM the 7b model (better reasoning/coding than the 3b one also
+# pulled here) with a bigger num_ctx - there's headroom for it once a
+# request is running, and OLLAMA_KEEP_ALIVE (set in dot-update.d/ollama's
+# systemd drop-in) releases that headroom back to the house between calls.
+# This is the one worth waiting on; tiny_lappy's is the instant-but-dumber
+# fallback for when htpc/the LAN isn't reachable.
+#
+# Tuned for fast, low-stakes tasks handed down from Claude to save cost:
+# formatting, summarizing, extracting data, boilerplate, straightforward
+# lookups. Not for code review or anything reasoning-heavy - that stays
+# with Claude.
+#
+# Copy this file (Modelfile.<name>) and change FROM / PARAMETER / SYSTEM to
+# build other tuned variants, then:
+#   ollama create <name> -f ollama/Modelfile.<name>
+# No re-download - relayering an already-pulled base is instant.
+#
+# Full parameter reference: https://github.com/ollama/ollama/blob/main/docs/modelfile.md
+
+FROM qwen2.5:7b
+
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+PARAMETER repeat_penalty 1.1
+
+SYSTEM """
+You are a fast local assistant handling small, well-defined tasks offloaded
+from a larger assistant to save cost - formatting, summarizing, extracting
+data, boilerplate generation, straightforward lookups. Answer directly and
+concisely. If a task needs deep reasoning, broad context, or a judgment call
+you're not confident in, say so plainly instead of guessing.
+"""

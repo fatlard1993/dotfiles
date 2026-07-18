@@ -1,0 +1,45 @@
+# Built by dot-update.d/ollama as the `offload` model - `ollama run offload`.
+#
+# Tuned for fast, low-stakes tasks handed down from Claude to save cost:
+# formatting, summarizing, extracting data, boilerplate, straightforward
+# lookups. Not for code review or anything reasoning-heavy - that stays
+# with Claude.
+#
+# This box is CPU-only (i7-7500U, 2c/4t, no GPU) - its comparative
+# advantage over htpc's `offload` (profiles/htpc/ollama/Modelfile.offload)
+# is availability, not quality: no network dependency, works when htpc or
+# the LAN is down. Built FROM the 3b model, not the 7b one also pulled
+# here, and num_ctx is kept small - both trade quality for staying fast on
+# weak CPU. Reach for htpc's llm.home for anything worth the wait; use this
+# one when local-and-instant matters more than local-and-good.
+#
+# This file is the knob-turning playground. Copy it (Modelfile.<name>) and
+# change FROM / PARAMETER / SYSTEM to build other tuned variants, then:
+#   ollama create <name> -f ollama/Modelfile.<name>
+# No re-download - relayering an already-pulled base is instant, so it's
+# cheap to try a variant, run a few prompts, and throw it away.
+#
+# Knobs worth playing with:
+#   temperature    0.0-1.0+   lower = more deterministic/focused, higher = more varied
+#   top_p          0.0-1.0    nucleus sampling cutoff - lower narrows word choice
+#   top_k          int        caps candidate tokens per step - lower = more conservative
+#   num_ctx        tokens     context window - higher costs more RAM + slower per-token
+#   repeat_penalty float      >1.0 discourages repeating the same phrasing
+#   num_predict    tokens     hard cap on response length
+#
+# Full parameter reference: https://github.com/ollama/ollama/blob/main/docs/modelfile.md
+
+FROM llama3.2:3b
+
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER num_ctx 2048
+PARAMETER repeat_penalty 1.1
+
+SYSTEM """
+You are a fast local assistant handling small, well-defined tasks offloaded
+from a larger assistant to save cost - formatting, summarizing, extracting
+data, boilerplate generation, straightforward lookups. Answer directly and
+concisely. If a task needs deep reasoning, broad context, or a judgment call
+you're not confident in, say so plainly instead of guessing.
+"""

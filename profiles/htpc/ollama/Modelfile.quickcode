@@ -1,0 +1,33 @@
+# Built by dot-update.d/ollama as the `quickcode` model - the tier `code`
+# can't cover: mechanical, well-scoped coding tasks at chat speed (version
+# bumps, commit messages, find/replace, simple queries about a file) rather
+# than `code`'s "as capable as this hardware gets, speed be damned"
+# tradeoff.
+#
+# The actual gap this fills: `offload` is fast but not code-aware
+# (qwen2.5:7b, the general base). `code` is code-aware but slow on this
+# card (qwen2.5-coder:14b, ~6 tok/s, partial CPU spill - measured). This is
+# qwen2.5-coder:7b instead of 14b specifically because 7b fits fully in the
+# 8GB card the way offload's qwen2.5:7b does - expect throughput close to
+# offload's ~26 tok/s, not code's ~6. Confirm with `ollama ps` after a
+# request (PROCESSOR column should read 100% GPU, not a CPU/GPU split).
+#
+# No workbench/garden identity layer here, same reasoning as offload: this
+# tier's whole value is speed, and 150+ lines of philosophy on every quick
+# call works against that.
+
+FROM qwen2.5-coder:7b
+
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER num_ctx 4096
+PARAMETER repeat_penalty 1.1
+
+SYSTEM """
+You handle small, mechanical coding tasks fast: version bumps, commit
+messages, straightforward find/replace, simple queries about a file or
+codebase. Keep answers short and direct - skip explanation unless asked.
+If a task turns out to need real judgment calls, multi-file reasoning, or
+design decisions, say so rather than guessing - that's not this model's
+job, escalate it instead of improvising.
+"""

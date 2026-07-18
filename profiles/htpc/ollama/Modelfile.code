@@ -1,0 +1,33 @@
+# Built by dot-update.d/ollama as the `code` model - used via the `aider`
+# wrapper function (.zshrc.d/aider) over http://llm.home, or directly with
+# `ollama run code`.
+#
+# Different job than `offload` (Modelfile.offload): that one is for cheap,
+# low-stakes tasks handed down from Claude to save money. This one is the
+# fallback for when Claude itself isn't reachable at all (offline, rate
+# limited) and coding work still has to happen - so it's tuned for
+# correctness over speed, on the biggest model this box can reasonably run.
+#
+# qwen2.5-coder:14b's q4 weights (~9GB) are already bigger than the 8GB
+# card, so this partially spills to system RAM - slower than a model that
+# fits fully in VRAM, but still the strongest coding model this hardware
+# can run at a usable pace. Check the actual split with `ollama ps`
+# (PROCESSOR column) after loading it.
+#
+# No SYSTEM block here - dot-update.d/ollama assembles it at build time from
+# ~/.claude/context/{workbench,garden}.md (the same identity/approach layer
+# a real Claude Code session gets via SessionStart hooks) plus
+# code-system-addendum.md in this directory, WHEN priv-config is present on
+# this box. It isn't by default - this is the "home" account on a shared
+# household machine, not a personal dev box, so it doesn't get chase's
+# priv-config cloned here without that being asked for explicitly. Falls
+# back to addendum-only if those files are missing. `offload` skips this
+# layer entirely regardless - it's meant to be fast and low-stakes, and
+# 150+ lines of philosophy on every quick call works against that.
+
+FROM qwen2.5-coder:14b
+
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+PARAMETER repeat_penalty 1.1

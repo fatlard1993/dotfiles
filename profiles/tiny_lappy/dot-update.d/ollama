@@ -1,0 +1,94 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Local LLM setup, two distinct jobs (two Modelfiles below):
+#   offload - cheap, low-stakes tasks (formatting, summarizing, extracting,
+#             boilerplate) routed away from Claude to save money.
+#   code    - a coding-capable fallback for when Claude itself isn't
+#             reachable at all (offline, usage limits). Weaker than htpc's
+#             version of the same model, but doesn't depend on htpc/the LAN
+#             being up either.
+# This machine has no discrete GPU (Kaby Lake HD 620 - no useful ML
+# acceleration), so everything below runs CPU-only on 4 threads / 16GB RAM.
+# That caps model size to ~3B-8B quantized - don't expect Claude-tier
+# output from either model, just the closest this hardware gets.
+
+command -v ollama > /dev/null || {
+	echo "Installing Ollama"
+
+	curl -fsSL https://ollama.com/install.sh | sh
+}
+
+echo "Capping ollama's scheduling priority below the interactive session"
+
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+
+# Only 4 threads total on this box - a generation job at full tilt is
+# noticeable against whatever's running in the foreground (this very
+# Claude Code session included). Same fix as htpc's drop-in, different
+# reason: there it protects a housemate's game, here it protects you.
+sudo tee /etc/systemd/system/ollama.service.d/override.conf > /dev/null <<'EOF'
+[Service]
+Nice=10
+CPUWeight=20
+EOF
+
+sudo systemctl daemon-reload
+
+# The installer enables+starts this on Debian/Ubuntu already, but dot-update
+# should be able to fix a manually-stopped service without a reinstall, and
+# needs to pick up the drop-in above either way.
+if systemctl is-active --quiet ollama; then
+	sudo systemctl restart ollama
+else
+	sudo systemctl enable --now ollama
+fi
+
+pullModel() {
+	# awk isolates the NAME column - a bare grep would false-positive
+	# "llama3.2:3b" against an installed "llama3.2:3b-instruct-q8" etc.
+	ollama list | awk '{print $1}' | grep -qx "$1" || {
+		echo "Pulling $1"
+
+		ollama pull $1
+	}
+}
+
+# llama3.2:3b - fastest (~2GB), good enough for quick/simple asks.
+# qwen2.5:7b  - noticeably better reasoning/coding for its size (~4.7GB q4),
+# still usable CPU-only at this RAM budget. Measure with
+# `ollama run qwen2.5:7b --verbose` before leaning on it for anything
+# latency-sensitive.
+pullModel llama3.2:3b
+pullModel qwen2.5:7b
+
+# qwen2.5-coder:7b - the `code` model's base (Modelfile.code): the Claude
+# stand-in for when Claude itself is unreachable. This is the one that
+# matters when htpc/the LAN is also down, not just Claude - weaker than
+# htpc's 14b, but doesn't depend on anything else being up.
+#
+# No `quickcode` tier on this box, unlike htpc - that model exists to be
+# code-aware at chat speed by using a smaller base than `code`, but here
+# qwen2.5-coder:7b already IS `code`'s base. A second model with the same
+# weights and different PARAMETER tuning wouldn't run meaningfully faster
+# on CPU-only inference (generation speed is governed by model size and
+# hardware, not context window or temperature) - it'd just be a second
+# ~4.7GB model with no real benefit.
+pullModel qwen2.5-coder:7b
+
+echo "Building tuned 'offload' and 'code' models from their Modelfiles"
+
+# Rebuilding is instant (relayers the already-pulled base weights with new
+# params/system prompt, no re-download) - safe to run every dot-update.
+ollama create offload -f $profilePath/ollama/Modelfile.offload
+
+# code's SYSTEM prompt isn't in its Modelfile - buildCodeModel (bin/lib/dot-util)
+# assembles it at build time from ~/.claude/context/ + code-system-addendum.md.
+# --addendum-only here even though priv-config IS cloned on this box:
+# measured, the full workbench+garden prompt costs ~10min on a cold start
+# on this CPU (2106 tokens at 6.78 tok/s prompt-eval) versus ~1min without
+# it - a bad trade on the machine that's meant to work when you're blocked
+# and can't wait. htpc keeps the full layer; it's essentially free there
+# (300-470 tok/s prompt-eval on GPU).
+buildCodeModel --addendum-only

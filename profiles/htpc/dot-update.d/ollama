@@ -1,0 +1,87 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Local LLM offload, same idea as tiny_lappy's - but htpc is the house's
+# workhorse (Ryzen 5 5500, 6c/12t, RX 470/480/570/580-class 8GB VRAM) so it
+# runs a real API other machines (the laptop included) can call instead of
+# doing everything CPU-only. Its actual job is game servers and whoever's
+# on the couch - this is a guest, not a tenant, hence the Nice/CPUWeight
+# drop-in below and the explicit short OLLAMA_KEEP_ALIVE (model has to
+# vacate VRAM/RAM between calls, not squat on it while someone's gaming).
+# Reachable at http://llm.home via the Caddy/dnsmasq wiring in lan-names.
+
+command -v ollama > /dev/null || {
+	echo "Installing Ollama"
+
+	curl -fsSL https://ollama.com/install.sh | sh
+}
+
+echo "Capping ollama's scheduling priority below game/server duties"
+
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+
+sudo tee /etc/systemd/system/ollama.service.d/override.conf > /dev/null <<'EOF'
+[Service]
+# This box's real job is game servers + whoever's on the couch - local
+# inference is a guest and should never win contention against Sims 4,
+# minecraft-server, or the bun game servers.
+Nice=10
+CPUWeight=20
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+# Default is already 5m, but pinned explicitly since it's load-bearing
+# here: the model must leave VRAM/RAM between calls, not sit resident.
+Environment=OLLAMA_KEEP_ALIVE=5m
+EOF
+
+sudo systemctl daemon-reload
+
+if systemctl is-active --quiet ollama; then
+	sudo systemctl restart ollama
+else
+	sudo systemctl enable --now ollama
+fi
+
+pullModel() {
+	# awk isolates the NAME column - a bare grep would false-positive
+	# "llama3.2:3b" against an installed "llama3.2:3b-instruct-q8" etc.
+	ollama list | awk '{print $1}' | grep -qx "$1" || {
+		echo "Pulling $1"
+
+		ollama pull $1
+	}
+}
+
+# Same models as tiny_lappy so `offload` behaves the same regardless of
+# which machine actually answers a request. qwen2.5:7b is sized to fit
+# inside the 8GB card with headroom left for whatever's rendering (Sims 4
+# at 4K wants VRAM too) - go bigger only after confirming real GPU offload
+# (see the note below) and watching for stutter under a live game.
+pullModel llama3.2:3b
+pullModel qwen2.5:7b
+
+# qwen2.5-coder:14b is the `code` model's base - the Claude stand-in for
+# when Claude itself is unreachable (see Modelfile.code). Confirmed
+# GPU-accelerated on this card despite Polaris being past ROCm's officially
+# supported range: Ollama falls back to its Vulkan backend automatically
+# and finds it fine (verified via `ollama ps` showing 100% GPU on this
+# generation of card - no ROCm needed). 14b's weights don't fully fit the
+# 8GB card though, so expect a partial CPU/GPU split, not the clean 100%
+# GPU that qwen2.5:7b gets.
+pullModel qwen2.5-coder:14b
+
+# quickcode's base - same size class as offload's qwen2.5:7b, so it fits
+# fully in the 8GB card too (see Modelfile.quickcode for the full reasoning
+# on why this tier needed its own model rather than reusing code/offload).
+pullModel qwen2.5-coder:7b
+
+echo "Building tuned 'offload', 'code', and 'quickcode' models from their Modelfiles"
+
+ollama create offload -f $profilePath/ollama/Modelfile.offload
+ollama create quickcode -f $profilePath/ollama/Modelfile.quickcode
+
+# code's SYSTEM prompt isn't in its Modelfile - buildCodeModel (bin/lib/dot-util)
+# assembles it at build time from ~/.claude/context/ + code-system-addendum.md
+# (falls back to addendum-only here - priv-config isn't cloned on this box).
+buildCodeModel
