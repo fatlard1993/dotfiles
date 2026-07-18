@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+
+# gamescope --force-grab-cursor (see profiles/htpc/dot-update.d/cursor)
+# scales the Sims 4 cursor correctly, but locks gamescope into relative
+# mouse mode permanently on the first camera-drag - after that its
+# compositor cursor plane never comes back (matches
+# github.com/ValveSoftware/gamescope#1285: grab stops respecting flips
+# after a window/workspace interaction; confirmed live on this box: no
+# in-game menu or camera release ever restored it, only a relaunch did).
+#
+# This polls the nested XFixes cursor image (found via STEAM_GAME_DISPLAY_0
+# in a game-side process's environ, not the host :0) and, when it's been
+# fully transparent for STUCK_THRESHOLD seconds straight, tries the
+# built-in Super+F fullscreen-toggle hotkey as a soft reset - it forces
+# gamescope to re-init its window/input state without touching the game
+# process, so a false trigger costs a screen flicker instead of a save.
+# Only kills gamescope (never the game directly) if that doesn't clear it,
+# and only notifies rather than auto-relaunching, since resuming play is a
+# choice that belongs to whoever's holding the controller.
+
+import os
+import subprocess
+import time
+
+GAMESCOPE_PATTERN = "^gamescope -w"
+POLL_INTERVAL = 3
+STUCK_THRESHOLD = 25
+RECOVERY_WAIT = 4
+STARTUP_GRACE = 20
+IDLE_POLL = 5
+
+HOST_ENV = {**os.environ, "DISPLAY": ":0"}
+
+
+def log(msg):
+	print(f"[gamescope-cursor-watch] {msg}", flush=True)
+
+
+def find_gamescope_pid():
+	out = subprocess.run(["pgrep", "-f", GAMESCOPE_PATTERN], capture_output=True, text=True)
+	pids = out.stdout.split()
+	return int(pids[0]) if pids else None
+
+
+def pid_alive(pid):
+	return os.path.exists(f"/proc/{pid}")
+
+
+def find_nested_display(timeout=30):
+	# gamescope stamps every child of the game it launches with this var
+	# pointing at the Xwayland display it spun up for that session.
+	deadline = time.time() + timeout
+
+	while time.time() < deadline:
+		for pid in os.listdir("/proc"):
+			if not pid.isdigit():
+				continue
+
+			try:
+				with open(f"/proc/{pid}/environ", "rb") as f:
+					data = f.read()
+			except (FileNotFoundError, PermissionError, ProcessLookupError):
+				continue
+
+			for entry in data.split(b"\0"):
+				if entry.startswith(b"STEAM_GAME_DISPLAY_0="):
+					return entry.split(b"=", 1)[1].decode()
+
+		time.sleep(1)
+
+	return None
+
+
+def cursor_invisible(nested_display):
+	from Xlib import display as xdisplay
+
+	d = xdisplay.Display(nested_display)
+
+	try:
+		d.xfixes_query_version()
+		img = d.xfixes_get_cursor_image(d.screen().root)
+
+		if img.width == 0 or img.height == 0:
+			return True
+
+		return all((p >> 24) & 0xFF == 0 for p in img.cursor_image)
+	finally:
+		d.close()
+
+
+def notify(msg, urgency="normal"):
+	subprocess.run(["notify-send", "-u", urgency, "Sims 4 cursor watcher", msg], env=HOST_ENV)
+
+
+def toggle_fullscreen():
+	for _ in range(2):
+		subprocess.run(["xdotool", "key", "--clearmodifiers", "super+f"], env=HOST_ENV)
+		time.sleep(1)
+
+
+def watch(gamescope_pid, nested_display):
+	log(f"watching {nested_display} (gamescope pid {gamescope_pid})")
+	invisible_since = None
+
+	while pid_alive(gamescope_pid):
+		try:
+			invisible = cursor_invisible(nested_display)
+		except Exception as e:
+			log(f"cursor query failed, retrying: {e}")
+			time.sleep(POLL_INTERVAL)
+			continue
+
+		if not invisible:
+			invisible_since = None
+			time.sleep(POLL_INTERVAL)
+			continue
+
+		invisible_since = invisible_since or time.time()
+		stuck_for = time.time() - invisible_since
+
+		if stuck_for < STUCK_THRESHOLD:
+			time.sleep(POLL_INTERVAL)
+			continue
+
+		log(f"cursor invisible for {stuck_for:.0f}s, trying fullscreen-toggle recovery")
+		notify("Cursor stuck - trying a soft reset…")
+		toggle_fullscreen()
+		time.sleep(RECOVERY_WAIT)
+
+		if not pid_alive(gamescope_pid):
+			return
+
+		try:
+			still_invisible = cursor_invisible(nested_display)
+		except Exception:
+			still_invisible = True
+
+		if still_invisible:
+			log("soft reset failed, killing gamescope")
+			notify("Cursor still stuck - closing Sims 4, relaunch from Steam", urgency="critical")
+			subprocess.run(["kill", str(gamescope_pid)])
+			return
+
+		log("soft reset worked, cursor is back")
+		notify("Cursor recovered")
+		invisible_since = None
+		time.sleep(POLL_INTERVAL)
+
+	log("gamescope exited")
+
+
+def main():
+	while True:
+		pid = find_gamescope_pid()
+
+		if pid is None:
+			time.sleep(IDLE_POLL)
+			continue
+
+		log(f"gamescope detected (pid {pid}), waiting for nested display")
+		nested_display = find_nested_display()
+
+		if nested_display is None:
+			log("never found a nested display for this session, skipping it")
+			while pid_alive(pid):
+				time.sleep(IDLE_POLL)
+			continue
+
+		log(f"nested display {nested_display} up, {STARTUP_GRACE}s grace period before watching")
+		time.sleep(STARTUP_GRACE)
+
+		if pid_alive(pid):
+			watch(pid, nested_display)
+
+
+if __name__ == "__main__":
+	main()

@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# See profiles/htpc/bin/gamescope-cursor-watch for the why. Idles at
+# negligible cost when no game is running (5s pgrep poll), so it's safe to
+# leave up for the whole session rather than tying it to any one game's
+# launch options.
+pgrep -f "gamescope-cursor-watch" > /dev/null || \
+	$HOME/.dotfiles/profiles/htpc/bin/gamescope-cursor-watch \
+		> $HOME/.cache/gamescope-cursor-watch.log 2>&1 &
