@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+# Bun (bun.sh) - installed by ensureBun (bin/lib/dot-util) wherever a
+# dot-update hook needs it (game-servers, ctx-* tooling). Guarded so this
+# is a no-op on machines where bun was never installed, rather than every
+# hook's install step also having to remember to touch .zshrc.
+[[ -d "$HOME/.bun" ]] || return
+
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+[ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun"
