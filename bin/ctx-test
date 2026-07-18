@@ -298,8 +298,8 @@ resolveTargetKind() {
 # without hitting the network, else exit 127.
 # Walks up from $root through ancestor directories checking node_modules/.bin/
 # at each level — mirrors Node's own module resolution so hoisted monorepo
-# layouts (where mocha lives at the repo root above the service, not the package itself)
-# are handled naturally. Falls back to PATH after the walk.
+# layouts (where mocha lives at the repo root above the service, not the
+# package itself) are handled naturally. Falls back to PATH after the walk.
 resolveBin() {
 	local name="$1"
 	local dir="$root" prev=""

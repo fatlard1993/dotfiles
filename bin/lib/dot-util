@@ -233,15 +233,13 @@ buildCodeModel() {
 }
 
 # --- ctx-* support ------------------------------------------------------
-# Everything below exists for bin/ctx-* (repo-analysis tools, being pulled
-# in as a trimmed, standalone layer). Ported from that
-# repo's scripts/lib/{util,execute,safety} - trimmed to just what ctx-*
-# actually calls (grep for logError/logWarning/logInfo/logHuman/logDebug/
-# execute/saferRm across bin/ctx-* to re-check that surface).
-# Left behind entirely: per-branch node/mongo/python/redis version
-# resolution, platform-specific helpers, the confirmation-prompt padding
-# math, statusOk/Warn/Fail/Dim - all real in the source it was trimmed from, none of it
-# applicable to a personal analysis toolkit with no branches to resolve.
+# Everything below exists for bin/ctx-* (repo-analysis tools) - a trimmed,
+# standalone logging/execute/safety layer (grep for logError/logWarning/
+# logInfo/logHuman/logDebug/execute/saferRm across bin/ctx-* to re-check
+# that surface). Deliberately skips per-branch node/mongo/python/redis
+# version resolution, confirmation-prompt padding math, and status-icon
+# helpers - none of that applies to a personal analysis toolkit with no
+# branches to resolve.
 
 # Mirrors ctx-log.js (bin/lib/ctx-log.js) - same env vars, same color
 # codes, same stderr-for-process-messages/stdout-for-content split - so
@@ -279,11 +277,10 @@ execute() {
 }
 
 # saferRm [flags] <path>... — refuses anything outside /tmp, /var/folders,
-# or $TMPDIR before deleting. Ported down from the prior tool's lib/safety,
-# which exists because a leaked env var once let a bats run `rm -rf` a real
-# ~/Projects tree - this keeps only the generic shape (refuse anything that
-# isn't clearly scratch space) and drops everything specific to that
-# incident's specific cause. Only caller today is
+# or $TMPDIR before deleting. Exists because a leaked env var once let a
+# test run `rm -rf` a real ~/Projects tree - this keeps only the generic
+# shape (refuse anything that isn't clearly scratch space) rather than
+# detecting that specific incident's cause. Only caller today is
 # ctx-duplicates cleaning up its mktemp -d workdir on exit.
 saferRm() {
 	local flags=() targets=() arg
