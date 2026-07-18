@@ -45,6 +45,8 @@ else
 	sudo systemctl enable --now ollama
 fi
 
+waitForOllama
+
 pullModel() {
 	# awk isolates the NAME column - a bare grep would false-positive
 	# "llama3.2:3b" against an installed "llama3.2:3b-instruct-q8" etc.

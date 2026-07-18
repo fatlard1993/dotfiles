@@ -174,6 +174,24 @@ ensureLinger() {
 		|| sudo loginctl enable-linger $USER
 }
 
+# Blocks until ollama's API answers, up to 30s. Both profiles' ollama
+# scripts restart the service then immediately call pullModel, which shells
+# out to `ollama list` to check what's already pulled - right after a
+# restart that loses the race almost every time (service not listening
+# yet), so `ollama list` fails, pullModel reads that as "not installed",
+# and every model gets redundantly re-pulled (harmless but slow - ollama
+# dedupes by digest, so it's a wasted round-trip through the manifest, not
+# a real re-download, but still not the no-op a rerun should be).
+waitForOllama() {
+	local tries=0
+
+	until ollama list > /dev/null 2>&1; do
+		(( tries++ >= 30 )) && { logError "ollama did not come up within 30s of restart"; exit 1; }
+
+		sleep 1
+	done
+}
+
 # Builds the `code` Ollama model (see */ollama/dot-update.d/ollama and
 # */ollama/Modelfile.code): the static FROM/PARAMETER block plus a SYSTEM
 # prompt assembled at build time from ~/.claude/context/{workbench,garden}.md
