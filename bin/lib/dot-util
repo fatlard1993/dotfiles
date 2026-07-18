@@ -219,7 +219,7 @@ buildCodeModel() {
 # in as a trimmed, standalone layer). Ported from that
 # repo's scripts/lib/{util,execute,safety} - trimmed to just what ctx-*
 # actually calls (grep for logError/logWarning/logInfo/logHuman/logDebug/
-# execute/loadNode/saferRm across bin/ctx-* to re-check that surface).
+# execute/saferRm across bin/ctx-* to re-check that surface).
 # Left behind entirely: per-branch node/mongo/python/redis version
 # resolution, platform-specific helpers, the confirmation-prompt padding
 # math, statusOk/Warn/Fail/Dim - all real in the source it was trimmed from, none of it
@@ -258,24 +258,6 @@ execute() {
 
 		return $rc
 	fi
-}
-
-# Resolves whichever node nvm currently has active into $nodeBin (see
-# tool-shelf.md: "nvm loaded; nvm use <version> to switch"). the prior tool's
-# loadNode supports five different version managers plus per-branch
-# pinning; none of that applies on a personal machine with one nvm default.
-loadNode() {
-	[[ $SIMULATE ]] && { nodeBin="node"; logInfo "$(colorWrap 36 "[SIMULATE]") loadNode"; return; }
-
-	[[ -z "$(command -v nvm)" ]] && {
-		export NVM_DIR="$HOME/.nvm"
-
-		[[ -s "$NVM_DIR/nvm.sh" ]] && . "$NVM_DIR/nvm.sh"
-	}
-
-	nodeBin="$(command -v node)"
-
-	[[ -z "$nodeBin" ]] && { logError "no node found - is nvm installed and a version selected? (nvm use <version>)"; exit 1; }
 }
 
 # saferRm [flags] <path>... — refuses anything outside /tmp, /var/folders,

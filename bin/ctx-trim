@@ -1,0 +1,97 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+
+# ctx-trim — trim command output by signal: errors and structure first, noise dropped
+# Usage: <cmd> | ctx-trim [line-budget]
+# Default budget: 200 lines
+#
+# High-signal lines (errors, warnings, failures, file locations, code signatures)
+# are always preserved. Remaining budget is filled with normal lines in order.
+# Noise (blank lines, bare braces) is dropped first.
+# Omissions are marked in-place: ... (N lines omitted)
+
+setopt errexit pipefail
+
+budget=${1:-200}
+
+awk -v budget="$budget" '
+function score(line) {
+    # Errors and failures — highest priority
+    if (line ~ /[Ee]rror[^s]|ERROR|FAIL[^A-Z]|[Ff]ailed|[Ee]xception|[Tt]hrown?/) return 3
+    # Warnings
+    if (line ~ /[Ww]arning|WARN/) return 2
+    # Test outcomes
+    if (line ~ /PASS|✓|✗|×|●|passing|failing|pending|not ok|^ok /) return 2
+    # File locations (file.ext:line or file.ext:line:col)
+    if (line ~ /[a-zA-Z0-9_\/-]+\.[a-z]+:[0-9]/) return 2
+    # Assertion failures
+    if (line ~ /[Ee]xpect(ed)?|[Aa]ssert|[Ss]hould/) return 2
+    # Git diff structure
+    if (line ~ /^(diff --git|---|[+][+][+]|@@|index )/) return 2
+    # Code structure signatures
+    if (line ~ /^[[:space:]]*(export |async |function |class |const |let |var |def |func |type |interface |impl |pub )/) return 1
+    # Noise: blank lines, bare punctuation
+    if (line ~ /^[[:space:]]*$/) return -1
+    if (line ~ /^[[:space:]]*[{}\[\](),;]*[[:space:]]*$/) return -1
+    return 0
+}
+
+{
+    lines[NR] = $0
+    scores[NR] = score($0)
+}
+
+END {
+    kept = 0
+    total = NR
+
+    # First pass: mark all high-signal lines (score > 0)
+    for (i = 1; i <= total; i++) {
+        if (scores[i] > 0) {
+            include[i] = 1
+            kept++
+        }
+    }
+
+    # Cap high-signal at 2x budget to prevent flooding on pathological output
+    if (kept > budget * 2) {
+        excess = 0
+        kept = 0
+        for (i = 1; i <= total; i++) {
+            if (include[i]) {
+                kept++
+                if (kept > budget * 2) {
+                    include[i] = 0
+                    excess++
+                }
+            }
+        }
+    }
+
+    # Second pass: fill remaining budget with normal lines in order
+    for (i = 1; i <= total && kept < budget; i++) {
+        if (!include[i] && scores[i] == 0) {
+            include[i] = 1
+            kept++
+        }
+    }
+
+    # Output in original order, marking omissions in-place
+    omitted = 0
+    for (i = 1; i <= total; i++) {
+        if (include[i]) {
+            if (omitted > 0) {
+                print "... (" omitted (omitted == 1 ? " line" : " lines") " omitted)"
+                omitted = 0
+            }
+            print lines[i]
+        } else {
+            omitted++
+        }
+    }
+    if (omitted > 0) {
+        print "... (" omitted (omitted == 1 ? " line" : " lines") " omitted)"
+    }
+}
+'

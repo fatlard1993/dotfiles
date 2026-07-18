@@ -1,0 +1,141 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+
+# ctx-file — structural view of a source file, or line-range extraction
+#
+# Usage:
+#   ctx-file <file> [file2 ...]           structural view (imports, exports, declarations)
+#   ctx-file --lines N:M <file>           extract lines N through M (1-based, inclusive)
+#   ctx-file --lines N+M <file>           extract M lines starting at line N
+#   ctx-file --lines N <file>             extract from line N to end of file
+
+setopt errexit pipefail
+
+# Parse --lines flag before sourcing util (which consumes args)
+line_range=""
+files=()
+while (( $# )); do
+    case "$1" in
+        --lines)
+            line_range="$2"
+            shift 2
+            ;;
+        --lines=*)
+            line_range="${1#--lines=}"
+            shift
+            ;;
+        *)
+            files+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ -n "$line_range" ]]; then
+    for file in "${files[@]}"; do
+        [[ -f "$file" ]] || { echo "# not found: $file"; continue; }
+        if [[ "$line_range" == *:* ]]; then
+            start="${line_range%%:*}"
+            end="${line_range##*:}"
+            awk "NR==${start},NR==${end} { printf \"%d\t%s\n\", NR, \$0 }" "$file"
+        elif [[ "$line_range" == *+* ]]; then
+            start="${line_range%%+*}"
+            count="${line_range##*+}"
+            end=$(( start + count - 1 ))
+            awk "NR==${start},NR==${end} { printf \"%d\t%s\n\", NR, \$0 }" "$file"
+        else
+            awk "NR>=${line_range} { printf \"%d\t%s\n\", NR, \$0 }" "$file"
+        fi
+    done
+    exit 0
+fi
+
+for file in "${files[@]}"; do
+    [[ -f "$file" ]] || { echo "# not found: $file"; continue; }
+
+    ext="${file##*.}"
+    echo "# $file"
+
+    case "$ext" in
+        ts|tsx|js|jsx|mjs|cjs)
+            grep -n \
+                -e "^import " \
+                -e "^export " \
+                -e "^const " \
+                -e "^let " \
+                -e "^function " \
+                -e "^async function " \
+                -e "^class " \
+                -e "^abstract class " \
+                -e "^interface " \
+                -e "^type [A-Z]" \
+                -e "^enum " \
+                -e "^declare " \
+                "$file" 2>/dev/null || true
+            ;;
+        py)
+            grep -n \
+                -e "^import " \
+                -e "^from " \
+                -e "^def " \
+                -e "^async def " \
+                -e "^class " \
+                -e "^    def " \
+                -e "^    async def " \
+                "$file" 2>/dev/null || true
+            ;;
+        go)
+            grep -n \
+                -e "^package " \
+                -e "^import" \
+                -e "^func " \
+                -e "^type " \
+                -e "^var " \
+                -e "^const " \
+                "$file" 2>/dev/null || true
+            ;;
+        java|kt)
+            grep -n \
+                -e "^package " \
+                -e "^import " \
+                -e "^public \|^private \|^protected \|^internal " \
+                -e "^class \|^interface \|^enum \|^object " \
+                "$file" 2>/dev/null || true
+            ;;
+        sh|bash|zsh)
+            grep -n \
+                -e "^function [a-zA-Z]" \
+                -e "^[a-zA-Z_][a-zA-Z0-9_-]*()" \
+                -e "^[a-zA-Z_][a-zA-Z0-9_-]*() {" \
+                -e "^source " \
+                -e "^\. " \
+                -e "^export " \
+                -e "^readonly " \
+                -e "^[A-Z_][A-Z0-9_]*=" \
+                "$file" 2>/dev/null || true
+            ;;
+        json)
+            # top-level keys only
+            grep -n '^\s*"[^"]\+"\s*:' "$file" 2>/dev/null | head -40 || true
+            ;;
+        yaml|yml)
+            grep -n '^[a-zA-Z_][a-zA-Z0-9_]*:' "$file" 2>/dev/null || true
+            ;;
+        env|properties)
+            grep -n '^[A-Za-z_][A-Za-z0-9_]*=' "$file" 2>/dev/null || true
+            ;;
+        *)
+            grep -n \
+                -e "^import " \
+                -e "^export " \
+                -e "^function " \
+                -e "^class " \
+                -e "^def " \
+                -e "^func " \
+                "$file" 2>/dev/null || true
+            ;;
+    esac
+
+    echo ""
+done

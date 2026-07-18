@@ -1,0 +1,47 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+
+# ctx-stack — parse a stack trace, filter library frames, show project code frames
+# Usage: <cmd> 2>&1 | ctx-stack
+
+setopt errexit pipefail
+
+awk '
+function is_library(line) {
+    return (line ~ /node_modules\// ||
+            line ~ /node:internal\// ||
+            line ~ /node:[a-z_]+:[0-9]/ ||
+            line ~ /processTicksAndRejections/ ||
+            line ~ /runMicrotasks/ ||
+            line ~ /Generator\.next/ ||
+            line ~ /site-packages\// ||
+            line ~ /lib\/python[0-9]/)
+}
+
+{
+    if (/^[[:space:]]+(at |File "|  File )/) {
+        if (is_library($0)) {
+            skipped++
+        } else {
+            if (skipped > 0) {
+                print "  ... (" skipped (skipped == 1 ? " library frame" : " library frames") " hidden)"
+                skipped = 0
+            }
+            print
+        }
+    } else {
+        if (skipped > 0) {
+            print "  ... (" skipped (skipped == 1 ? " library frame" : " library frames") " hidden)"
+            skipped = 0
+        }
+        print
+    }
+}
+
+END {
+    if (skipped > 0) {
+        print "  ... (" skipped (skipped == 1 ? " library frame" : " library frames") " hidden)"
+    }
+}
+'

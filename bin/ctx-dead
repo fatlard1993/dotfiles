@@ -1,0 +1,74 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-dead — find exported symbols with no usages outside their own file
+# Usage: ctx-dead <file|dir> [search-path]
+
+setopt errexit pipefail
+
+target="${1:?usage: ctx-dead <file|dir> [search-path]}"
+search_path="${2:-.}"
+
+echo "## Dead Exports: $target"
+echo ""
+
+dead=0
+live=0
+
+# Process substitution avoids subshell — counter increments propagate back
+while IFS= read -r line; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+    # Extract symbol name from export line
+    name=$(echo "$line" | grep -oE 'export\s+(const|function|class|interface|type|enum|async function|default)\s+[A-Za-z_$][A-Za-z0-9_$]*' \
+        | grep -oE '[A-Za-z_$][A-Za-z0-9_$]*$' | head -1 || true)
+
+    [[ -z "$name" ]] && continue
+    [[ "$name" =~ ^(const|function|class|interface|type|enum|async|export|default)$ ]] && continue
+
+    # Count files using this symbol outside the target
+    if [[ -f "$target" ]]; then
+        external=$(
+            { rg --no-heading --color=never -l -w "$name" "$search_path" 2>/dev/null || true; } \
+            | { grep -v "$(basename "$target")" || true; } \
+            | wc -l | tr -d ' '
+        )
+    else
+        external=$(
+            { rg --no-heading --color=never -l -w "$name" "$search_path" 2>/dev/null || true; } \
+            | { grep -v "${line%%:*}" || true; } \
+            | wc -l | tr -d ' '
+        )
+    fi
+
+    if [[ "$external" -eq 0 ]]; then
+        echo "  $name  ($(echo "$line" | sed 's/^[0-9]*://'))" | sed 's/^/  DEAD /'
+        dead=$((dead + 1))
+    else
+        live=$((live + 1))
+    fi
+done < <(ctx-file "$target" 2>/dev/null)
+
+echo ""
+echo "$dead dead, $live live exports found"
+
+# Guard: check if the target file(s) are referenced via dynamic loader calls
+# (.require(), discovery.require(), etc.) anywhere in the search path.
+# Dead exports in dynamically-loaded files are not actually dead — the static
+# import graph can't see them.
+if [[ $dead -gt 0 ]]; then
+    if [[ -f "$target" ]]; then
+        file_base=$(basename "$target" | sed 's/\.[^.]*$//')
+        # Look for .require() method calls (non-standard loaders like discovery.require)
+        # pointing at this file by name
+        dynamic_refs=$(rg -l "\.require[^(]*\(.*${file_base}" \
+            "$search_path" --glob='*.js' --glob='*.ts' 2>/dev/null \
+            | grep -v "$(basename "$target")" | head -5 || true)
+        if [[ -n "$dynamic_refs" ]]; then
+            echo ""
+            echo "  ⚠ Dynamic loader references to $(basename "$target") found — exports may not be dead:"
+            echo "$dynamic_refs" | sed 's/^/    /'
+            echo "  Verify with: ctx-reachability <caller-file> [symbol]"
+        fi
+    fi
+fi

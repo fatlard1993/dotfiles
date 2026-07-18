@@ -1,0 +1,91 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-scaffold — create a new file skeleton; show example structure to model from
+# Usage: ctx-scaffold <new-file> [--like <example-file>]
+
+setopt errexit pipefail
+
+new_file="${1:?usage: ctx-scaffold <new-file> [--like <example-file>]}"
+shift
+like_file=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in --like) like_file="$2"; shift 2 ;; *) shift ;; esac
+done
+
+[[ ! -f "$new_file" ]] || { logError "already exists: $new_file"; exit 1; }
+
+ext="${new_file##*.}"
+name=$(basename "$new_file" ".$ext")
+execute mkdir -p "$(dirname "$new_file")"
+
+# Detect export style from example if provided
+export_default=false
+is_component=false
+if [[ -n "$like_file" && -f "$like_file" ]]; then
+    grep -q "^export default" "$like_file" 2>/dev/null && export_default=true
+    { [[ "${like_file##*.}" == "tsx" ]] || grep -qE "React|JSX|return \(" "$like_file" 2>/dev/null; } && is_component=true
+fi
+
+if [[ $SIMULATE ]]; then
+    logSimulation "write $new_file"
+    exit 0
+fi
+
+case "$ext" in
+ts|tsx)
+    [[ "$ext" == "tsx" ]] && is_component=true
+    {
+        if $is_component; then
+            printf "export const %s = () => {\n  return null\n}\n" "$name"
+            $export_default && printf "\nexport default %s\n" "$name"
+        else
+            if $export_default; then
+                printf "const %s = {\n\n}\n\nexport default %s\n" "$name" "$name"
+            else
+                printf "export const %s = {\n\n}\n" "$name"
+            fi
+        fi
+    } > "$new_file"
+    ;;
+
+js|jsx|mjs)
+    [[ "$ext" == "jsx" ]] && is_component=true
+    {
+        if $is_component; then
+            printf "export const %s = () => {\n  return null\n}\n" "$name"
+        else
+            printf "export const %s = {\n\n}\n" "$name"
+        fi
+    } > "$new_file"
+    ;;
+
+py)
+    { printf "def %s():\n    pass\n" "$(echo "$name" | tr '-' '_')"; } > "$new_file"
+    ;;
+
+sh|bash|zsh)
+    { printf "#!/usr/bin/env bash\nset -euo pipefail\n\n# TODO\n"; } > "$new_file"
+    chmod +x "$new_file"
+    ;;
+
+*)
+    touch "$new_file"
+    ;;
+esac
+
+logInfo "Created: $new_file"
+
+# Show example structure for reference
+if [[ -n "$like_file" && -f "$like_file" ]]; then
+    echo ""
+    echo "Model from:"
+    ctx-file "$like_file"
+fi
+
+# Note conventions if they exist
+root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+if [[ -f "$root/.claude/conventions.md" ]]; then
+    echo ""
+    echo "Conventions: $root/.claude/conventions.md"
+fi

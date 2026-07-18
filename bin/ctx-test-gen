@@ -1,0 +1,1209 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug, simulate } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-test-gen — generate tests from TypeScript AST with dissonance detection
+// Derives test cases from branches; flags where behavior may diverge from intent
+// Usage: ctx-test-gen <file> [--apply]
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+const args = process.argv.slice(2)
+const apply = args.includes('--apply')
+const file = args.find(a => !a.startsWith('-'))
+if (!file) { console.error('usage: ctx-test-gen <file> [--apply] [--only func1,func2]'); process.exit(1) }
+
+// --only: restrict analysis to specific function names (for large file streaming)
+const onlyArg = args.find(a => a.startsWith('--only=') || (a === '--only'))
+let onlyFunctions = null
+if (onlyArg) {
+  const val = onlyArg.includes('=') ? onlyArg.split('=')[1] : args[args.indexOf('--only') + 1]
+  if (val) onlyFunctions = new Set(val.split(',').map(s => s.trim()).filter(Boolean))
+}
+
+// --- Framework detection ---
+function detectFramework(dir) {
+  // Walk up to find package.json
+  let current = dir
+  for (let i = 0; i < 5; i++) {
+    const pkgPath = path.join(current, 'package.json')
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+        const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+        const scripts = Object.values(pkg.scripts || {}).join(' ')
+        if (scripts.includes('bun test') || deps['bun-types'] || deps['bun']) return 'bun'
+        if (deps.vitest) return 'vitest'
+        if (deps.jest || deps['@jest/core']) return 'jest'
+        if (deps.mocha) return 'mocha'
+        break
+      } catch {}
+    }
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+  return 'vitest'
+}
+
+// --- Name analysis ---
+const VERB_IMPLIES = {
+  get: { sideEffect: false, returns: 'value' },
+  find: { sideEffect: false, returns: 'value-or-null' },
+  fetch: { sideEffect: false, returns: 'value' },
+  load: { sideEffect: false, returns: 'value' },
+  create: { sideEffect: true, returns: 'new-entity' },
+  generate: { sideEffect: false, returns: 'value' },
+  build: { sideEffect: false, returns: 'value' },
+  make: { sideEffect: false, returns: 'new-entity' },
+  save: { sideEffect: true, returns: 'void-or-entity' },
+  update: { sideEffect: true, returns: 'updated-entity' },
+  delete: { sideEffect: true, returns: 'void' },
+  remove: { sideEffect: true, returns: 'void' },
+  init: { sideEffect: true, returns: 'void' },
+  start: { sideEffect: true, returns: 'void' },
+  stop: { sideEffect: true, returns: 'void' },
+  is: { sideEffect: false, returns: 'boolean' },
+  has: { sideEffect: false, returns: 'boolean' },
+  can: { sideEffect: false, returns: 'boolean' },
+  should: { sideEffect: false, returns: 'boolean' },
+  validate: { sideEffect: false, returns: 'boolean' },
+  verify: { sideEffect: false, returns: 'boolean-or-value' },
+  check: { sideEffect: false, returns: 'boolean' },
+  handle: { sideEffect: true, returns: 'any' },
+  process: { sideEffect: true, returns: 'value' },
+  send: { sideEffect: true, returns: 'void-or-result' },
+  format: { sideEffect: false, returns: 'string' },
+  parse: { sideEffect: false, returns: 'parsed-value' },
+  convert: { sideEffect: false, returns: 'value' },
+  transform: { sideEffect: false, returns: 'value' },
+}
+
+function splitCamel(name) {
+  return name.replace(/([A-Z])/g, ' $1').toLowerCase().trim().split(/[\s_-]+/).filter(Boolean)
+}
+
+const ACRONYMS = new Set(['id','url','http','https','api','html','css','js','ts',
+  'json','xml','sql','db','ui','io','ai','ml','sdk','cli','uuid','jwt','rpc'])
+
+function verbPrefix(name) {
+  for (const verb of Object.keys(VERB_IMPLIES)) {
+    if (name.toLowerCase().startsWith(verb)) return { verb, ...VERB_IMPLIES[verb] }
+  }
+  return null
+}
+
+// --- Type-based assertion generation ---
+function assertForBranch(branch, returnTypeText) {
+  const returnExpr = branch.returns || ''
+  const t = returnTypeText.replace(/\s/g, '')
+
+  // Literal null return
+  if (returnExpr === 'null') return `expect(result).toBeNull()`
+
+  // Literal boolean
+  if (returnExpr === 'true') return `expect(result).toBe(true)`
+  if (returnExpr === 'false') return `expect(result).toBe(false)`
+
+  // Unwrap Promise
+  const inner = t.startsWith('Promise<') ? t.slice(8, -1) : t
+
+  if (inner === 'null') return `expect(result).toBeNull()`
+  if (inner === 'boolean') return `expect(typeof result).toBe('boolean')`
+  if (inner === 'string') return `expect(typeof result).toBe('string')`
+  if (inner === 'number') return `expect(typeof result).toBe('number')`
+  if (inner === 'void' || inner === 'undefined') return `// void return — verify side effects`
+  if (inner.endsWith('[]') || inner.startsWith('Array<')) return `expect(Array.isArray(result)).toBe(true)`
+
+  // Union with null — success path should not be null
+  if (t.includes('|null') || t.includes('| null')) {
+    if (branch.type === 'catch-return' || branch.type === 'if-false') {
+      return `expect(result).toBeNull()`
+    }
+    return `expect(result).not.toBeNull()`
+  }
+
+  // Object/interface — check it's truthy and has shape
+  const propMatch = returnExpr.match(/\{([^}]+)\}/)
+  if (propMatch) {
+    const keys = propMatch[1].split(',').map(k => k.trim().split(':')[0].trim()).filter(Boolean)
+    if (keys.length > 0) return `expect(result).toMatchObject({ ${keys.slice(0, 3).map(k => `${k}: expect.anything()`).join(', ')} })`
+  }
+
+  return `expect(result).toBeDefined() // ${inner}`
+}
+
+// --- Semantic value heuristics by parameter name ---
+const NAME_VALUES = {
+  email:        { valid: "'test@example.com'",     invalid: "'not-an-email'",   edge: "''" },
+  url:          { valid: "'https://example.com'",   invalid: "'not-a-url'",      edge: "''" },
+  token:        { valid: "'header.payload.sig'",    invalid: "'malformed'",      edge: "''" },
+  secret:       { valid: "'test-secret-key'",       invalid: null,               edge: "''" },
+  key:          { valid: "'test-key-value'",         invalid: null,               edge: "''" },
+  password:     { valid: "'valid-password-123'",    invalid: "'wrong-password'", edge: "''" },
+  pass:         { valid: "'valid-pass-123'",         invalid: "'wrong-pass'",     edge: "''" },
+  hash:         { valid: "'$2b$10$mockedhashvalue'", invalid: "'not-a-hash'",    edge: "''" },
+  passwordhash: { valid: "'$2b$10$mockedhashvalue'", invalid: "'not-a-hash'",   edge: "''" },
+  id:           { valid: "'test-id-123'",            invalid: null,               edge: "''" },
+  userid:       { valid: "'user-id-123'",            invalid: null,               edge: "''" },
+  name:         { valid: "'Test Name'",              invalid: null,               edge: "''" },
+  username:     { valid: "'testuser'",               invalid: null,               edge: "''" },
+  host:         { valid: "'localhost'",              invalid: null,               edge: "''" },
+  port:         { valid: '3000',                    invalid: '-1',               edge: '0' },
+  count:        { valid: '1',                       invalid: '-1',               edge: '0' },
+  limit:        { valid: '10',                      invalid: '-1',               edge: '0' },
+  timeout:      { valid: '5000',                    invalid: '-1',               edge: '0' },
+  retries:      { valid: '3',                       invalid: '-1',               edge: '0' },
+  index:        { valid: '0',                       invalid: '-1',               edge: '0' },
+  raw:          { valid: "'\"valid json\"'",         invalid: "'invalid json{'",  edge: "''" },
+  json:         { valid: "'\"valid\"'",              invalid: "'{bad}'",          edge: "''" },
+  path:         { valid: "'/valid/path'",            invalid: null,               edge: "''" },
+}
+
+// --- Constraint synthesis from type + name + body conditions ---
+function constraintsForParam(param, fn) {
+  // param may be a plain object { name, type, _node } or a ts-morph Parameter
+  const node = param._node || (typeof param.getName === 'function' ? param : null)
+  const pName = node ? node.getName() : param.name
+  const lName = pName.toLowerCase()
+  const type = node ? node.getType() : null
+  const typeText = (node ? type.getText(node) : param.type || '').replace(/\s/g, '')
+
+  // 1. Literal union — enumerate every valid value
+  if (type?.isUnion()) {
+    const literals = type.getUnionTypes()
+      .filter(t => t.isStringLiteral() || t.isNumberLiteral())
+      .map(t => {
+        const v = t.getLiteralValue()
+        return typeof v === 'string' ? `'${v}'` : String(v)
+      })
+    if (literals.length > 0) {
+      return {
+        valid: literals,
+        invalid: ["'_invalid_value_'"],
+        edge: [],
+        label: `one of: ${literals.join(', ')}`
+      }
+    }
+  }
+
+  // 2. Object/interface — synthesize concrete shape from properties (skip primitives)
+  const isPrimitive = !type || type.isString() || type.isNumber() || type.isBoolean() ||
+    type.isUndefined() || type.isNull() || type.isAny() || typeText.startsWith('Promise')
+  const props = !isPrimitive ? (type?.getProperties() || []) : []
+  if (props.length > 0) {
+    const fields = props.map(p => {
+      const propName = p.getName()
+      const propTypeText = p.getTypeAtLocation(param).getText().replace(/\s/g, '')
+      const hint = NAME_VALUES[propName.toLowerCase()]
+      let val
+      if (hint) val = hint.valid
+      else if (propTypeText === 'string') val = `'test-${propName}'`
+      else if (propTypeText === 'number') val = '42'
+      else if (propTypeText === 'boolean') val = 'false'
+      else val = `undefined`
+      return `${propName}: ${val}`
+    })
+    return {
+      valid: [`{ ${fields.join(', ')} }`],
+      invalid: [`undefined`],
+      edge: [],
+      label: `${typeText} object`
+    }
+  }
+
+  // 3. Name heuristics
+  const hint = NAME_VALUES[lName] || Object.entries(NAME_VALUES).find(([k]) => lName.includes(k))?.[1]
+  if (hint) {
+    return {
+      valid: [hint.valid],
+      invalid: hint.invalid ? [hint.invalid] : [],
+      edge: hint.edge ? [hint.edge] : [],
+      label: `${pName} (semantic)`
+    }
+  }
+
+  // 4. Condition-based boundary values
+  const edges = []
+  const body = fn.getBody?.()
+  if (body) {
+    body.getDescendantsOfKind(SyntaxKind.IfStatement).forEach(ifStmt => {
+      const condText = ifStmt.getExpression().getText()
+      if (!condText.includes(pName)) return
+
+      // param.length < N  or  param.length > N
+      const lenLt = condText.match(new RegExp(`${pName}\\.length\\s*[<]=?\\s*(\\d+)`))
+      const lenGt = condText.match(new RegExp(`${pName}\\.length\\s*[>]=?\\s*(\\d+)`))
+      if (lenLt) {
+        const n = parseInt(lenLt[1])
+        edges.push(`'${'x'.repeat(Math.max(0,n-1))}'  // length ${n-1} (below ${n})`)
+        edges.push(`'${'x'.repeat(n)}'  // length ${n} (at threshold)`)
+      }
+      if (lenGt) {
+        const n = parseInt(lenGt[1])
+        edges.push(`'${'x'.repeat(n)}'  // length ${n} (at threshold)`)
+        edges.push(`'${'x'.repeat(n+1)}'  // length ${n+1} (above)`)
+      }
+
+      // param < N  or  param > N  (numeric)
+      const numLt = condText.match(new RegExp(`${pName}\\s*[<]=?\\s*(\\d+)`))
+      const numGt = condText.match(new RegExp(`${pName}\\s*[>]=?\\s*(\\d+)`))
+      if (numLt && typeText === 'number') {
+        const n = parseInt(numLt[1])
+        edges.push(`${n-1}  // below ${n}`, `${n}  // at ${n}`, `${n+1}  // above ${n}`)
+      }
+      if (numGt && typeText === 'number') {
+        const n = parseInt(numGt[1])
+        edges.push(`${n-1}  // at ${n}`, `${n}  // at ${n}`, `${n+1}  // above ${n}`)
+      }
+
+      // param.includes('x')
+      const inclMatch = condText.match(new RegExp(`${pName}\\.includes\\(['"]([^'"]+)['"]\\)`))
+      if (inclMatch) {
+        const sub = inclMatch[1]
+        edges.push(`'value-containing-${sub}'  // includes '${sub}'`)
+        edges.push(`'value-without-it'          // excludes '${sub}'`)
+      }
+    })
+  }
+
+  // 5. Fallback to type defaults
+  if (typeText === 'string') return { valid: [`'test-${pName}'`], invalid: [], edge: ["''", ...edges], label: 'string' }
+  if (typeText === 'number') return { valid: ['42'], invalid: ['-1'], edge: ['0', ...edges], label: 'number' }
+  if (typeText === 'boolean') return { valid: ['true', 'false'], invalid: [], edge: [], label: 'boolean' }
+  if (typeText.endsWith('[]') || typeText.startsWith('Array<')) return { valid: ['[]', "['item']"], invalid: [], edge: [], label: 'array' }
+
+  const typeName2 = typeText.split('.').pop().replace(/[^a-zA-Z0-9_<>[\]|&, ]/g, '')
+  const objVal = (typeof isJs !== 'undefined' && isJs) ? `{}` : `{} as ${typeName2}`
+  return { valid: [objVal], invalid: ['undefined'], edge: [], label: typeText }
+}
+
+// --- Type defaults for arrange (fallback) ---
+function defaultForType(typeText) {
+  const t = typeText.replace(/\s/g, '')
+  if (t === 'string') return `'test-value'`
+  if (t === 'number') return `42`
+  if (t === 'boolean') return `true`
+  if (t.startsWith('Promise<')) return `Promise.resolve(${defaultForType(t.slice(8, -1))})`
+  if (t.endsWith('[]') || t.startsWith('Array<')) return `[]`
+  if (t === 'void' || t === 'undefined') return `undefined`
+  if (t === 'null') return `null`
+  // TS type assertion: helpful hint in TS files, syntax error in JS files
+  const typeName = typeText.split('.').pop().replace(/[^a-zA-Z0-9_<>[\]|&, ]/g, '')
+  return typeof isJs !== 'undefined' && isJs ? `{}` : `{} as ${typeName}`
+}
+
+// --- Branch extraction ---
+function extractBranches(fn) {
+  const branches = []
+  const body = fn.getBody()
+  if (!body) return branches
+
+  // Try/catch → success and error paths
+  body.getDescendantsOfKind(SyntaxKind.TryStatement).forEach(ts => {
+    const tryReturns = ts.getTryBlock().getDescendantsOfKind(SyntaxKind.ReturnStatement)
+    const catchClause = ts.getCatchClause()
+    const catchReturns = catchClause
+      ? catchClause.getBlock().getDescendantsOfKind(SyntaxKind.ReturnStatement)
+      : []
+    const throws = ts.getTryBlock().getDescendantsOfKind(SyntaxKind.ThrowStatement)
+
+    if (tryReturns.length > 0) {
+      branches.push({ type: 'try-success', label: 'succeeds', returns: tryReturns[0].getExpression()?.getText() })
+    }
+    if (catchReturns.length > 0) {
+      branches.push({ type: 'catch-return', label: 'throws', returns: catchReturns[0].getExpression()?.getText() })
+    } else if (throws.length > 0) {
+      branches.push({ type: 'catch-throw', label: 'propagates error', returns: null })
+    }
+  })
+
+  // If/else → condition branches
+  body.getChildrenOfKind(SyntaxKind.IfStatement).forEach(ifStmt => {
+    const cond = ifStmt.getExpression().getText()
+    const thenReturns = ifStmt.getThenStatement().getDescendantsOfKind(SyntaxKind.ReturnStatement)
+    const elseStmt = ifStmt.getElseStatement()
+    const elseReturns = elseStmt ? elseStmt.getDescendantsOfKind(SyntaxKind.ReturnStatement) : []
+
+    if (thenReturns.length > 0) {
+      branches.push({ type: 'if-true', label: `when ${cond}`, returns: thenReturns[0].getExpression()?.getText() })
+    }
+    if (elseReturns.length > 0) {
+      branches.push({ type: 'if-false', label: `when not (${cond})`, returns: elseReturns[0].getExpression()?.getText() })
+    }
+  })
+
+  // Top-level returns (when no branches captured them)
+  if (branches.length === 0) {
+    body.getChildrenOfKind(SyntaxKind.ReturnStatement).forEach(ret => {
+      branches.push({ type: 'normal', label: 'returns expected value', returns: ret.getExpression()?.getText() })
+    })
+  }
+
+  return branches
+}
+
+// --- Dependency extraction ---
+function extractDependencies(fn, sourceFile) {
+  // Map: importedName → moduleSpecifier
+  const importMap = {}
+  sourceFile.getImportDeclarations().forEach(imp => {
+    const mod = imp.getModuleSpecifierValue()
+    imp.getNamedImports().forEach(named => { importMap[named.getName()] = mod })
+    const defImport = imp.getDefaultImport()
+    if (defImport) importMap[defImport.getText()] = mod
+  })
+
+  const deps = new Set()
+  const depModules = new Set()
+  fn.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
+    const expr = call.getExpression()
+    const text = expr.getKind() === SyntaxKind.PropertyAccessExpression
+      ? expr.getName()
+      : expr.getText()
+    if (importMap[text]) {
+      deps.add(text)
+      depModules.add(importMap[text])
+    }
+  })
+
+  return { names: [...deps], modules: [...depModules] }
+}
+
+// --- Dissonance detection ---
+function detectDissonance(fn, sourceFile, branches, deps, fnName) {
+  const flags = []
+  const name = fnName || (typeof fn.getName === 'function' ? fn.getName() : '') || ''
+  const params = fn.getParameters ? fn.getParameters() : []
+  const body = fn.getBody()
+  if (!body) return flags
+
+  const implied = verbPrefix(name)
+  const calls = body.getDescendantsOfKind(SyntaxKind.CallExpression)
+  const binaries = body.getDescendantsOfKind(SyntaxKind.BinaryExpression)
+
+  // --- Name-behavior ---
+
+  // is/has/can should return boolean
+  if (implied?.returns === 'boolean') {
+    const returnType = fn.getReturnType().getText()
+    if (!returnType.includes('boolean')) {
+      flags.push(`⚠  TYPE: ${name} — name implies boolean return, got ${returnType}`)
+    }
+  }
+
+  // get/find/fetch shouldn't modify state
+  if (implied && !implied.sideEffect) {
+    const mutatesState = binaries.some(b =>
+      b.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
+      b.getLeft().getText().match(/^this\./)
+    )
+    if (mutatesState) flags.push(`⚠  SIDE-EFFECT: ${name} — name implies read-only but modifies this.*`)
+  }
+
+  // --- Open circuits ---
+
+  // Callback param never called
+  params.forEach(param => {
+    const pName = param.getName()
+    const typeText = param.getType().getText()
+    const looksLikeCallback = typeText.includes('=>') || typeText.includes('Function') ||
+      ['callback','cb','fn','handler','onSuccess','onError','onComplete','done'].includes(pName)
+    if (!looksLikeCallback) return
+    const isCalled = calls.some(c => {
+      const expr = c.getExpression().getText()
+      return expr === pName || expr.startsWith(pName + '.')
+    })
+    if (!isCalled) flags.push(`⚠  OPEN-CIRCUIT: ${pName} — callback parameter accepted but never invoked`)
+  })
+
+  // Promise created inside function but no .catch() chained
+  const createsPromise = calls.some(c => {
+    const t = c.getExpression().getText()
+    return t === 'Promise.resolve' || t === 'Promise.reject' || t === 'new Promise'
+  })
+  if (createsPromise && !fn.isAsync()) {
+    const hasCatch = calls.some(c => c.getExpression().getText().includes('.catch'))
+    if (!hasCatch) flags.push(`⚠  OPEN-CIRCUIT: Promise created but no .catch() — rejection unhandled`)
+  }
+
+  // --- Silent failure ---
+
+  // Empty catch blocks
+  body.getDescendantsOfKind(SyntaxKind.TryStatement).forEach(ts => {
+    const catchClause = ts.getCatchClause()
+    if (catchClause && catchClause.getBlock().getStatements().length === 0) {
+      flags.push(`⚠  SILENT-CATCH: empty catch {} — errors swallowed silently`)
+    }
+  })
+
+  // JSON.parse without try/catch
+  const hasJsonParse = calls.some(c => c.getExpression().getText() === 'JSON.parse')
+  const hasTryCatch = body.getDescendantsOfKind(SyntaxKind.TryStatement).length > 0
+  if (hasJsonParse && !hasTryCatch) {
+    flags.push(`⚠  PARSE-RISK: JSON.parse without try/catch — throws on malformed input; test with invalid JSON`)
+  }
+
+  // --- Determinism ---
+
+  // Direct Date.now / Math.random / new Date
+  const nondetermCalls = calls.filter(c => {
+    const t = c.getExpression().getText()
+    return ['Date.now', 'Math.random'].includes(t)
+  })
+  const newDateNodes = body.getDescendantsOfKind(SyntaxKind.NewExpression)
+    .filter(n => n.getExpression().getText() === 'Date')
+  if (nondetermCalls.length > 0 || newDateNodes.length > 0) {
+    flags.push(`⚠  NONDETERMINISM: uses ${[...nondetermCalls.map(c => c.getExpression().getText()), ...newDateNodes.map(() => 'new Date')].join(', ')} — inject as dependency for deterministic tests`)
+  }
+
+  // Direct new SomeDependency() — not injectable
+  body.getDescendantsOfKind(SyntaxKind.NewExpression).forEach(n => {
+    const dep = n.getExpression().getText()
+    if (dep === 'Date') return // already flagged
+    if (dep[0] === dep[0].toUpperCase() && dep[0] !== dep[0].toLowerCase()) {
+      flags.push(`⚠  INJECTION: new ${dep}() — hard-coded dependency; inject via parameter for testability`)
+    }
+  })
+
+  // --- Logic issues ---
+
+  // Async without await
+  if (fn.isAsync()) {
+    const hasAwait = body.getDescendantsOfKind(SyntaxKind.AwaitExpression).length > 0
+    if (!hasAwait) flags.push(`⚠  POINTLESS-ASYNC: ${name} is async but never awaits — remove async or add await`)
+  }
+
+  // Async with no error path
+  if (fn.isAsync()) {
+    const hasPromiseCatch = calls.some(c => c.getExpression().getText().includes('.catch'))
+    if (!hasTryCatch && !hasPromiseCatch) {
+      flags.push(`⚠  UNHANDLED-REJECTION: ${name} — async with no try/catch; test the rejection path`)
+    }
+  }
+
+  // Loose equality
+  const looseEq = binaries.filter(b =>
+    b.getOperatorToken().getKind() === SyntaxKind.EqualsEqualsToken
+  )
+  looseEq.forEach(b => flags.push(`⚠  LOOSE-EQ: ${b.getText()} — == instead of ===; test with type coercion cases`))
+
+  // Parameter mutation
+  params.forEach(param => {
+    const pName = param.getName()
+    const mutated = binaries.some(b =>
+      b.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
+      (b.getLeft().getText() === pName || b.getLeft().getText().startsWith(pName + '.'))
+    )
+    if (mutated) flags.push(`⚠  MUTATION: ${pName} — parameter is mutated; verify caller's object is/isn't affected`)
+  })
+
+  // console.log / console.error left in
+  const consoleCalls = calls.filter(c => c.getExpression().getText().match(/^console\./))
+  if (consoleCalls.length > 0) {
+    flags.push(`⚠  CONSOLE: ${consoleCalls.length} console.* call(s) — mock or suppress in tests`)
+  }
+
+  // Null guard on object params
+  params.forEach(param => {
+    const typeText = param.getType().getText()
+    const pName = param.getName()
+    const isPrimitive = ['string','number','boolean','void','never','unknown','any'].some(t => typeText.startsWith(t))
+    if (isPrimitive || param.isOptional() || typeText.includes('null') || typeText.includes('undefined')) return
+    const accessed = body.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)
+      .some(e => e.getExpression().getText() === pName)
+    if (!accessed) return
+    const guarded = body.getDescendantsOfKind(SyntaxKind.IfStatement)
+      .some(s => s.getExpression().getText().includes(pName))
+    if (!guarded) flags.push(`⚠  NULL-GUARD: ${pName}: ${typeText} — accessed without null guard; test with undefined`)
+  })
+
+  // Complexity
+  if (branches.length > 5) {
+    flags.push(`⚠  COMPLEXITY: ${branches.length} branches — consider splitting into smaller testable units`)
+  }
+
+  // Long parameter list
+  if (params.length >= 4) {
+    flags.push(`⚠  PARAMS: ${params.length} parameters — consider options object; each combination is a potential test case`)
+  }
+
+  // Boolean flag parameters — each needs both branches tested
+  params.forEach(param => {
+    if (param.getType().getText() === 'boolean' && !param.isOptional()) {
+      flags.push(`⚠  BOOL-FLAG: ${param.getName()} — boolean param; generate tests for both true and false`)
+    }
+  })
+
+  // Dead parameters — accepted but never used in body
+  // Handles both simple params and destructured patterns: ({ a, b, c = default })
+  params.forEach(param => {
+    const nameNode = param.getNameNode ? param.getNameNode() : null
+    const isDestructured = nameNode?.getKindName?.() === 'ObjectBindingPattern'
+
+    if (isDestructured) {
+      // Check each binding in the destructuring pattern individually
+      const elements = nameNode.getElements ? nameNode.getElements() : []
+      const deadNames = elements
+        .map(el => el.getName?.())
+        .filter(n => n && !n.startsWith('_') && !['this','_'].includes(n))
+        .filter(n => !body.getDescendantsOfKind(SyntaxKind.Identifier)
+          .some(id => id.getText() === n && id.getParent()?.getKindName() !== 'BindingElement'))
+      if (deadNames.length > 0) {
+        flags.push(`⚠  DEAD-PARAM: { ${deadNames.join(', ')} } — destructured but never referenced in body`)
+      }
+    } else {
+      const pName = param.getName ? param.getName() : null
+      if (!pName || ['this', '_'].includes(pName) || pName.startsWith('_')) return
+      const used = body.getDescendantsOfKind(SyntaxKind.Identifier)
+        .some(id => id.getText() === pName && id !== nameNode)
+      if (!used) flags.push(`⚠  DEAD-PARAM: ${pName} — parameter accepted but never used; implementation may be incomplete`)
+    }
+  })
+
+  // Array mutation on parameters (push/sort/splice/reverse/fill)
+  const ARRAY_MUTATORS = ['push','pop','shift','unshift','splice','sort','reverse','fill','copyWithin']
+  params.forEach(param => {
+    const pName = param.getName()
+    const mutatesArray = body.getDescendantsOfKind(SyntaxKind.CallExpression).some(c => {
+      const expr = c.getExpression().getText()
+      return ARRAY_MUTATORS.some(m => expr === `${pName}.${m}`)
+    })
+    if (mutatesArray) flags.push(`⚠  ARRAY-MUTATION: ${pName} — array parameter is mutated in-place; test caller's array is/isn't affected`)
+  })
+
+  // Missing await on async calls (ghost path)
+  // Check full ancestor chain — handle cases like `fn() as Type` where parent is AsExpression
+  function hasAncestorKind(node, kinds) {
+    let n = node.getParent()
+    while (n) {
+      if (kinds.includes(n.getKindName())) return true
+      n = n.getParent()
+    }
+    return false
+  }
+  const asyncCalls = body.getDescendantsOfKind(SyntaxKind.CallExpression).filter(c => {
+    const expr = c.getExpression().getText()
+    const parent = c.getParent()
+    const isAwaited = parent.getKindName() === 'AwaitExpression' ||
+      hasAncestorKind(c, ['AwaitExpression'])
+    const isUsed = hasAncestorKind(c, ['VariableDeclaration','BinaryExpression','ReturnStatement','PropertyAccessExpression'])
+    const isImported = deps.includes(expr.split('.')[0])
+    return isImported && !isAwaited && !isUsed
+  })
+  if (asyncCalls.length > 0) {
+    asyncCalls.forEach(c => {
+      flags.push(`⚠  GHOST-CALL: ${c.getExpression().getText()}() — async call with no await and not assigned; result and errors are silently dropped`)
+    })
+  }
+
+  // Promise.all without try/catch
+  const hasPromiseAll = calls.some(c => c.getExpression().getText() === 'Promise.all')
+  if (hasPromiseAll && !hasTryCatch) {
+    flags.push(`⚠  PROMISE-ALL: Promise.all without try/catch — any rejection fails the whole batch silently; test partial failure`)
+  }
+
+  // Sequential await inside for loop
+  const forLoops = body.getDescendantsOfKind(SyntaxKind.ForOfStatement)
+    .concat(body.getDescendantsOfKind(SyntaxKind.ForStatement))
+  forLoops.forEach(loop => {
+    const hasAwaitInLoop = loop.getDescendantsOfKind(SyntaxKind.AwaitExpression).length > 0
+    if (hasAwaitInLoop) {
+      flags.push(`⚠  SERIAL-ASYNC: await inside for loop — sequential, not parallel; consider Promise.all; also affects test performance`)
+    }
+  })
+
+  // Switch without default
+  body.getDescendantsOfKind(SyntaxKind.SwitchStatement).forEach(sw => {
+    const hasDefault = sw.getCaseBlock().getClauses()
+      .some(c => c.getKindName() === 'DefaultClause')
+    if (!hasDefault) {
+      flags.push(`⚠  SWITCH-DEFAULT: switch without default — unexpected values silently fall through; test with unrecognised input`)
+    }
+  })
+
+  // throw without Error object
+  body.getDescendantsOfKind(SyntaxKind.ThrowStatement).forEach(t => {
+    const expr = t.getExpression()
+    if (!expr) return
+    const isNewError = expr.getKindName() === 'NewExpression' && expr.getExpression().getText().includes('Error')
+    const isErrorRef = expr.getKindName() === 'Identifier'
+    if (!isNewError && !isErrorRef) {
+      flags.push(`⚠  THROW-LITERAL: throw ${expr.getText()} — not an Error object; catch(e) { e.message } will fail; test error type`)
+    }
+  })
+
+  // process.env without fallback
+  calls.filter(c => c.getExpression().getText() === 'process.env').forEach(() => {
+    // Already handled via env-scan, but flag for test setup
+  })
+  body.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).forEach(pa => {
+    if (pa.getExpression().getText() === 'process.env') {
+      const parent = pa.getParent()
+      const hasFallback = parent.getKindName() === 'BinaryExpression' &&
+        parent.getOperatorToken?.()?.getText() === '||'
+      if (!hasFallback) {
+        const varName = pa.getName()
+        flags.push(`⚠  ENV-REQUIRED: process.env.${varName} — no fallback; tests require this env var to be set`)
+      }
+    }
+  })
+
+  // setTimeout / setInterval — needs fake timers
+  const timerCalls = calls.filter(c => ['setTimeout','setInterval','clearTimeout','clearInterval'].includes(c.getExpression().getText()))
+  if (timerCalls.length > 0) {
+    flags.push(`⚠  TIMERS: uses ${[...new Set(timerCalls.map(c => c.getExpression().getText()))].join(', ')} — use fake timers in tests (vi.useFakeTimers / jest.useFakeTimers)`)
+  }
+
+  // Recursive without base case (calls itself, check for guarding if)
+  const selfCalls = calls.filter(c => c.getExpression().getText() === name)
+  if (selfCalls.length > 0) {
+    const hasGuard = body.getDescendantsOfKind(SyntaxKind.IfStatement).length > 0
+    if (!hasGuard) {
+      flags.push(`⚠  RECURSION: ${name} calls itself without a detectable base case — test termination condition`)
+    }
+  }
+
+  // Nested ternary — each nested branch is a hidden test case
+  body.getDescendantsOfKind(SyntaxKind.ConditionalExpression).forEach(ternary => {
+    const whenTrue  = ternary.getWhenTrue()
+    const whenFalse = ternary.getWhenFalse()
+    if (whenTrue.getKind()  === SyntaxKind.ConditionalExpression ||
+        whenFalse.getKind() === SyntaxKind.ConditionalExpression) {
+      const preview = ternary.getText().slice(0, 60).replace(/\s+/g, ' ')
+      flags.push(`⚠  NESTED-TERNARY: ${preview}… — nested ternary hides branches; expand to if/else and add a test per path`)
+    }
+  })
+
+  // Magic literals in conditions — unnamed values with no test contract
+  const SAFE_NUMS = new Set([0, 1, -1, 2, 10, 100, 1000])
+  body.getDescendantsOfKind(SyntaxKind.BinaryExpression).forEach(bin => {
+    const op = bin.getOperatorToken().getText()
+    if (!['<', '>', '<=', '>=', '===', '!==', '==', '!='].includes(op)) return
+    const checkExpr = (expr) => {
+      if (expr.getKind() !== SyntaxKind.NumericLiteral) return
+      const val = parseFloat(expr.getText())
+      if (!SAFE_NUMS.has(val)) {
+        flags.push(`⚠  MAGIC-LITERAL: ${op} ${expr.getText()} — unnamed constant; extract to a named variable for readable tests`)
+      }
+    }
+    checkExpr(bin.getLeft()); checkExpr(bin.getRight())
+  })
+
+  // DOM API detection — browser globals that need a DOM environment or explicit mock
+  const DOM_GLOBALS = ['localStorage','sessionStorage','document','window','navigator','fetch','location','history','indexedDB','crypto']
+  const usedDom = [...new Set(DOM_GLOBALS.filter(api =>
+    (body.getDescendantsOfKind(SyntaxKind.Identifier) || [])
+      .some(id => id.getText() === api && id.getParent()?.getKindName() !== 'ImportSpecifier')
+  ))]
+  if (usedDom.length > 0) {
+    flags.push(`⚠  DOM-REQUIRED: uses ${usedDom.join(', ')} — tests need a DOM environment or explicit mock`)
+  }
+
+  // RUNTIME-GLOBAL: identifiers used as call receivers or property access bases
+  // that are not imported, not declared in the file, and not known builtins.
+  // These are likely platform-injected globals (e.g. a framework's log, database, or request-scoped helpers).
+  const BUILTIN_GLOBALS = new Set([
+    'undefined','null','true','false','NaN','Infinity','globalThis','global','this','super','arguments',
+    'Array','Object','Function','String','Number','Boolean','Symbol','BigInt','Promise',
+    'Map','Set','WeakMap','WeakSet','Date','RegExp','Error','TypeError','RangeError',
+    'SyntaxError','ReferenceError','URIError','EvalError','AggregateError',
+    'Math','JSON','Reflect','Proxy','Intl','Atomics','DataView','ArrayBuffer',
+    'parseInt','parseFloat','isNaN','isFinite','encodeURIComponent','decodeURIComponent',
+    'setTimeout','clearTimeout','setInterval','clearInterval','setImmediate','clearImmediate',
+    'queueMicrotask','structuredClone',
+    'process','Buffer','__dirname','__filename','module','exports','require','console',
+    'URL','URLSearchParams','AbortController','Headers','FormData','Blob','File','Response','Request',
+    'ReadableStream','WritableStream','TransformStream',
+    'performance','crypto',  // Node.js builtins, not DOM (DOM ones are in DOM_GLOBALS)
+    'Promise','async','await',
+  ])
+
+  // Build file-scope declared names: imports + top-level declarations
+  const fileDeclared = new Set()
+  for (const imp of sourceFile.getImportDeclarations()) {
+    const clause = imp.getImportClause()
+    if (!clause) continue
+    const def = clause.getDefaultImport?.()?.getText(); if (def) fileDeclared.add(def)
+    const ns  = clause.getNamespaceImport?.()?.getText(); if (ns)  fileDeclared.add(ns)
+    for (const ni of clause.getNamedImports?.() || [])
+      fileDeclared.add(ni.getAliasNode?.()?.getText() || ni.getName())
+  }
+  for (const f of sourceFile.getFunctions())          f.getName() && fileDeclared.add(f.getName())
+  for (const v of sourceFile.getVariableDeclarations()) fileDeclared.add(v.getName())
+  for (const c of sourceFile.getClasses())            c.getName() && fileDeclared.add(c.getName())
+  // Also exclude variables/functions declared WITHIN the body (local vars, inner functions)
+  for (const v of body.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) fileDeclared.add(v.getName())
+  for (const f of body.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) f.getName() && fileDeclared.add(f.getName())
+
+  // Param names declared in THIS function
+  const paramNames = new Set(
+    params.filter(p => !p.isDestructured).map(p => p.getName()).filter(Boolean)
+  )
+
+  // Collect identifiers used as property-access receivers or direct call targets
+  const runtimeCandidates = new Set()
+  const allIds = body.getDescendantsOfKind(SyntaxKind.Identifier)
+  for (const id of allIds) {
+    const name = id.getText()
+    if (BUILTIN_GLOBALS.has(name)) continue
+    if (fileDeclared.has(name)) continue
+    if (paramNames.has(name)) continue
+    if (/^[A-Z_$]/.test(name)) continue  // skip constructors and screaming constants
+    if (DOM_GLOBALS.includes(name)) continue  // already flagged by DOM-REQUIRED
+
+    const parent = id.getParent()
+    if (!parent) continue
+    const pk = parent.getKindName()
+    // Only flag when the identifier is the ROOT of a call or property access
+    // (not a property name, not a deep member)
+    const isCallTarget     = pk === 'CallExpression' && parent.getExpression?.() === id
+    const isPropAccessRoot = pk === 'PropertyAccessExpression' && parent.getExpression?.() === id
+
+    if (isCallTarget || isPropAccessRoot) runtimeCandidates.add(name)
+  }
+
+  if (runtimeCandidates.size > 0) {
+    flags.push(`⚠  RUNTIME-GLOBAL: ${[...runtimeCandidates].join(', ')} — used but not imported or declared; likely platform-injected (must be mocked or injected in test setup)`)
+  }
+
+  return flags
+}
+
+// --- Semantic test label generation ---
+function semanticLabel(branch, fnName, implied) {
+  const ret = (branch.returns || '').trim()
+
+  if (branch.type === 'catch-return') {
+    return ret === 'null'
+      ? `returns null when operation throws`
+      : `returns fallback (${ret.slice(0, 25)}) on error`
+  }
+  if (branch.type === 'catch-throw') return `propagates error when operation fails`
+
+  if (branch.type === 'try-success') {
+    if (implied?.returns === 'boolean') {
+      const subject = splitCamel(fnName).slice(1).join(' ')
+      return `returns true when ${subject || 'condition'} is valid`
+    }
+    if (ret === 'null') return `returns null when check succeeds`
+    const short = ret.replace(/\bas\s+\w+/g, '').trim()
+    return `returns ${short.length < 35 ? short : 'result'} on success`
+  }
+
+  if (branch.type === 'if-true') {
+    const cond = branch.label.replace(/^when\s+/, '')
+    return `handles case when ${cond.length < 50 ? cond : 'condition is met'}`
+  }
+  if (branch.type === 'if-false') {
+    const cond = branch.label.replace(/^when not \(/, '').replace(/\)$/, '')
+    return `handles case when ${cond.length < 50 ? cond : 'condition is not met'}`
+  }
+
+  // Normal path — derive from verb semantics
+  if (implied) {
+    const rest = splitCamel(fnName).slice(1).map(w =>
+      ACRONYMS.has(w) ? w.toUpperCase() : w).join(' ')
+    return `${implied.verb}s${rest ? ' ' + rest : ''}`
+  }
+  return fnName
+}
+
+// --- Mock setup derivation ---
+function mockSetupFor(depName, branch, fn, framework = 'jest') {
+  const mockApi = (framework === 'vitest' || framework === 'bun') ? 'vi' : 'jest'
+  const lName = depName.toLowerCase()
+  const isFailBranch = branch.type === 'catch-return' || branch.type === 'catch-throw'
+
+  if (isFailBranch) {
+    return `${mockApi}.mocked(${depName}).mockRejectedValue(new Error('${depName} failed'))`
+  }
+
+  // Try to find what the dep result is assigned to
+  const body = fn?.getBody?.()
+  let returnValue = null
+
+  if (body) {
+    body.getDescendantsOfKind(SyntaxKind.VariableDeclaration).forEach(decl => {
+      const init = decl.getInitializer()
+      if (!init) return
+      // Matches: const x = await dep(...) or const x = dep(...)
+      const initText = init.getText()
+      if (initText.includes(depName + '(') || initText.includes('await ' + depName)) {
+        const varName = decl.getName()
+        const hint = NAME_VALUES[varName.toLowerCase()] ||
+          Object.entries(NAME_VALUES).find(([k]) => varName.toLowerCase().includes(k))?.[1]
+        if (hint) returnValue = hint.valid
+      }
+    })
+  }
+
+  // Name-based fallbacks
+  if (!returnValue) {
+    if (lName.includes('hash'))                             returnValue = "'$2b$10$mockedhashvalue'"
+    else if (lName.includes('compare'))                    returnValue = 'true'
+    else if (lName.includes('verify') || lName === 'verify') returnValue = "{ userId: 'test-id-123' }"
+    else if (lName.includes('sign') || lName === 'sign')   returnValue = "'header.payload.signature'"
+    else if (lName.includes('find') || lName.includes('get')) returnValue = 'null'
+    else if (lName.includes('send') || lName.includes('emit')) returnValue = 'undefined'
+    else returnValue = 'undefined'
+  }
+
+  // Async vs sync — check if dep name is known async
+  const knownAsync = ['hash','compare','verify','sign','fetch','find','get','save','create','delete','update','send']
+  const isAsync = knownAsync.some(k => lName.includes(k))
+  return isAsync
+    ? `${mockApi}.mocked(${depName}).mockResolvedValue(${returnValue})`
+    : `${mockApi}.mocked(${depName}).mockReturnValue(${returnValue})`
+}
+
+// --- Describe block for one function (or class method when instanceName is set) ---
+function describeBlock(fnName, params, branches, deps, dissonance, framework, returnType, fn, instanceName = null) {
+  const isBun = framework === 'bun'
+  const isVi = framework === 'vitest' || isBun
+  const mockFn = isBun ? 'mock()' : isVi ? 'vi.fn()' : 'jest.fn()'
+  const implied = verbPrefix(fnName)
+  const callArgs = params.map(p => p.name).join(', ')
+
+  // Derive constraints for each param
+  const paramConstraints = params.map(p => ({
+    ...p,
+    constraints: fn ? constraintsForParam(p, fn) : null
+  }))
+
+  function buildArrange(useInvalid = false) {
+    if (paramConstraints.length === 0) return '// no params'
+    return paramConstraints.map(p => {
+      if (p.isDestructured) return `const ${p.name} = {}  // ${p.type.slice(0, 60)}`
+      const c = p.constraints
+      const val = (useInvalid && c?.invalid.length > 0 ? c.invalid[0] : c?.valid[0]) ||
+                  defaultForType(p.type)
+      return `const ${p.name} = ${val}`
+    }).join('\n    ')
+  }
+
+  const itBlocks = branches.map(b => {
+    const label = semanticLabel(b, fnName, implied)
+    const assertion = assertForBranch(b, returnType)
+    // Use invalid values for catch/false branches when available
+    const useInvalid = b.type === 'catch-return' || b.type === 'catch-throw' || b.type === 'if-false'
+    const arrange = buildArrange(useInvalid)
+    const mockSetups = deps.map(d => mockSetupFor(d, b, fn, framework)).join('\n    ')
+    return `
+  it('${label}', async () => {
+    // arrange
+    ${arrange}
+    ${mockSetups}
+
+    // act
+    const result = await ${instanceName ? `${instanceName}.` : ''}${fnName}(${callArgs})
+
+    // assert
+    ${assertion}
+  })`
+  }).join('\n')
+
+  // Edge case tests derived from constraints
+  const edgeBlocks = paramConstraints.flatMap(p => {
+    if (!p.constraints?.edge.length) return []
+    return p.constraints.edge.slice(0, 2).map(edgeVal => {
+      const edgeLines = paramConstraints.map(pp => {
+        if (pp.isDestructured) return `const ${pp.name} = {}`
+        const val = pp.name === p.name
+          ? edgeVal.split('//')[0].trim()
+          : (pp.constraints?.valid[0] || defaultForType(pp.type))
+        return `const ${pp.name} = ${val}`
+      }).join('\n    ')
+      return `
+  it('handles edge case: ${p.name} = ${edgeVal.replace(/\/\/.*/,'').trim()}', async () => {
+    ${edgeLines}
+    const result = await ${instanceName ? `${instanceName}.` : ''}${fnName}(${callArgs})
+    expect(result).toBeDefined() // verify graceful handling
+  })`
+    })
+  }).join('\n')
+
+  const dissonanceComment = dissonance.length
+    ? `\n  /*\n  ${dissonance.join('\n  ')}\n  */` : ''
+
+  return `\ndescribe('${fnName}', () => {${dissonanceComment}${itBlocks}${edgeBlocks}
+})`
+}
+
+// --- Describe block for an exported class ---
+function classBlock(cls, framework, sourceFile) {
+  const className = cls.getName()
+
+  // Constructor params → beforeEach setup
+  const ctor = cls.getConstructors()[0]
+  const ctorRaw = ctor ? ctor.getParameters() : []
+  const ctorParams = ctorRaw.map((p, i) => {
+    const nameNode = p.getNameNode?.()
+    const isDestructured = nameNode &&
+      ['ObjectBindingPattern', 'ArrayBindingPattern'].includes(nameNode.getKindName?.() || '')
+    return {
+      name: isDestructured ? `_arg${i}` : p.getName(),
+      type: p.getType().getText(p),
+      optional: p.isOptional(),
+      isDestructured: !!isDestructured,
+      _node: p,
+    }
+  })
+  const ctorLines = ctorParams.map(p => {
+    if (p.isDestructured) return `const ${p.name} = {}  // ${p.type.slice(0, 60)}`
+    return `const ${p.name} = ${defaultForType(p.type)}`
+  })
+  const ctorCallArgs = ctorParams.map(p => p.name).join(', ')
+  const ctorSetup = [...ctorLines, `instance = new ${className}(${ctorCallArgs})`].join('\n    ')
+
+  // Public instance methods (skip private _x, static, and constructor)
+  const methods = cls.getMethods().filter(m =>
+    !m.isStatic() &&
+    !m.getName().startsWith('_') &&
+    !m.getName().startsWith('#'))
+
+  const methodBlocks = methods.map(method => {
+    const methodName = method.getName()
+    if (onlyFunctions && !onlyFunctions.has(methodName)) return ''
+
+    const rawParams = method.getParameters()
+    const params = rawParams.map((p, i) => {
+      const nameNode = p.getNameNode?.()
+      const isDestructured = nameNode &&
+        ['ObjectBindingPattern', 'ArrayBindingPattern'].includes(nameNode.getKindName?.() || '')
+      return {
+        name: isDestructured ? `_arg${i}` : p.getName(),
+        type: p.getType().getText(p),
+        optional: p.isOptional(),
+        isDestructured: !!isDestructured,
+        _node: p,
+      }
+    })
+
+    const branches    = extractBranches(method)
+    const { names: depNames } = extractDependencies(method, sourceFile)
+    const dissonance  = detectDissonance(method, sourceFile, branches, depNames, methodName)
+    const returnType  = typeof method.getReturnType === 'function'
+      ? method.getReturnType().getText(method) : 'unknown'
+
+    const block = describeBlock(methodName, params, branches, depNames, dissonance, framework, returnType, method, 'instance')
+    // Indent nested describe inside the class describe
+    return block.split('\n').map(l => l ? '  ' + l : l).join('\n')
+  }).filter(Boolean).join('\n')
+
+  if (!methodBlocks) return ''
+
+  return `
+describe('${className}', () => {
+  let instance
+
+  beforeEach(() => {
+    ${ctorSetup}
+  })
+${methodBlocks}
+})`
+}
+
+// --- Test setup pattern learning ---
+// Finds beforeAll/afterAll patterns in existing test files that import the same deps
+function learnSetupPatterns(depModules, filePath) {
+  const dir = path.dirname(filePath)
+  const patterns = []
+  try {
+    const testFiles = require('child_process')
+      .execSync(`fd -t f -e test.ts -e test.js -e test.tsx -e test.jsx -e spec.ts -e spec.js . "${dir}" 2>/dev/null`)
+      .toString().trim().split('\n').filter(Boolean)
+
+    for (const tf of testFiles.slice(0, 5)) {
+      const content = fs.readFileSync(tf, 'utf8')
+      // Find beforeAll blocks that reference our dep modules
+      const relevant = depModules.some(m => content.includes(path.basename(m, path.extname(m))))
+      if (!relevant) continue
+      // Extract beforeAll/afterAll blocks
+      const beforeAll = content.match(/beforeAll\([^)]*\)\s*\{[^}]*\}/gs)?.[0]
+      const afterAll = content.match(/afterAll\([^)]*\)\s*\{[^}]*\}/gs)?.[0]
+      if (beforeAll || afterAll) {
+        patterns.push({ file: path.relative(dir, tf), beforeAll, afterAll })
+      }
+    }
+  } catch {}
+  return patterns
+}
+
+// --- Full test file from all analysed functions ---
+function generateTestFile(analyses, framework, filePath, classNames = [], classBlocksStr = '') {
+  const isBun = framework === 'bun'
+  const isVi = framework === 'vitest' || isBun
+  const importLine = isBun
+    ? `import { describe, it, expect, mock } from 'bun:test'`
+    : isVi
+      ? `import { describe, it, expect, vi } from 'vitest'`
+      : `import { describe, it, expect, jest } from '@jest/globals'`
+  const mockModule = isBun ? 'mock.module' : isVi ? 'vi.mock' : 'jest.mock'
+  const rel = `./${path.basename(filePath, path.extname(filePath))}`
+
+  // Collect dependency module paths (what imports the deps come from)
+  const allDeps = [...new Set(analyses.flatMap(a => a.deps || []))]
+  const depModules = [...new Set(
+    analyses.flatMap(a => a.depModules || [])
+  )]
+  const mockBlock = depModules.length
+    ? depModules.map(m => `${mockModule}('${m}');`).join('\n') + '\n'
+    : ''
+  const fnNames = analyses.map(a => a.name).filter(Boolean)
+  const allNames = [...fnNames, ...classNames].filter(Boolean)
+  const names = allNames.join(', ')
+
+  // Learn setup patterns from existing tests that use the same deps
+  const setupPatterns = learnSetupPatterns(depModules, filePath)
+  const setupBlock = setupPatterns.length > 0
+    ? `\n// Setup pattern learned from ${setupPatterns[0].file}\n` +
+      (setupPatterns[0].beforeAll ? setupPatterns[0].beforeAll + '\n' : '') +
+      (setupPatterns[0].afterAll ? setupPatterns[0].afterAll + '\n' : '')
+    : ''
+
+  const blocks = analyses
+    .map(a => describeBlock(a.name, a.params, a.branches, a.deps, a.dissonance, framework, a.returnType, a.fn))
+    .join('\n')
+
+  return `${importLine}
+import { ${names} } from '${rel}'
+
+${mockBlock}${setupBlock}${blocks}${classBlocksStr}
+`
+}
+
+// --- Main ---
+// Directory mode: process all .ts and .js files
+if (fs.statSync(file).isDirectory()) {
+  const tsFiles = require('child_process')
+    .execSync(`fd -t f -e ts -e tsx -e js -e jsx . "${file}" 2>/dev/null`)
+    .toString().trim().split('\n').filter(f => f && !f.includes('.test.') && !f.includes('.spec.') && !f.includes('.d.ts') && !f.includes('node_modules'))
+  if (tsFiles.length === 0) { console.log('No TypeScript files found.'); process.exit(0) }
+  console.log(`// ctx-test-gen: ${tsFiles.length} file(s) in ${file}\n`)
+  tsFiles.forEach(f => {
+    require('child_process').execSync(
+      `${process.argv[1]} "${f}"${apply ? ' --apply' : ''}`,
+      { stdio: 'inherit' }
+    )
+  })
+  process.exit(0)
+}
+
+const isJs = /\.(js|jsx|mjs)$/.test(file)
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: isJs ? { allowJs: true, checkJs: false } : {}
+})
+project.addSourceFileAtPath(file)
+const sourceFile = project.getSourceFileOrThrow(file)
+
+const framework = detectFramework(path.dirname(file))
+const ext = file.match(/\.(ts|tsx|js|jsx|mjs)$/)?.[1] || 'ts'
+const testFile = file.replace(/\.(ts|tsx|js|jsx|mjs)$/, `.test.${ext}`)
+
+let output = ''
+const analyses = []
+
+// Collect named exported functions: regular functions + exported const arrow/function-expr
+const seenNames = new Set()
+const exportedFunctions = [
+  ...sourceFile.getFunctions().filter(f => f.isExported() && f.getName()),
+  ...sourceFile.getVariableDeclarations()
+    .filter(v => {
+      const stmt = v.getVariableStatement()
+      if (!stmt?.isExported()) return false
+      const kind = v.getInitializer()?.getKindName()
+      return kind === 'ArrowFunction' || kind === 'FunctionExpression'
+    })
+    .map(v => ({ _varDecl: v, _fn: v.getInitializer() }))
+].filter(entry => {
+  const n = entry._varDecl ? entry._varDecl.getName() : (typeof entry.getName === 'function' ? entry.getName() : null)
+  if (!n || seenNames.has(n)) return false
+  seenNames.add(n)
+  return true
+})
+
+for (const entry of exportedFunctions) {
+  // Normalize: regular function or {_varDecl, _fn} wrapper
+  const fn = entry._fn || entry
+  const name = entry._varDecl ? entry._varDecl.getName() : fn.getName()
+  if (!name) continue
+  // --only filter: skip functions not in the requested set
+  if (onlyFunctions && !onlyFunctions.has(name)) continue
+
+  const rawParams = fn.getParameters ? fn.getParameters() : []
+  const params = rawParams.map((p, i) => {
+    const nameNode = p.getNameNode?.()
+    const isDestructured = nameNode &&
+      ['ObjectBindingPattern', 'ArrayBindingPattern'].includes(nameNode.getKindName?.() || '')
+    return {
+      name: isDestructured ? `_arg${i}` : p.getName(),
+      type: p.getType().getText(p),
+      optional: p.isOptional(),
+      isDestructured: !!isDestructured,
+      _node: p
+    }
+  })
+
+  const branches = extractBranches(fn)
+  const { names: depNames, modules: depModules } = extractDependencies(fn, sourceFile)
+  const dissonance = detectDissonance(fn, sourceFile, branches, depNames, name)
+  const returnType = typeof fn.getReturnType === 'function' ? fn.getReturnType().getText(fn) : 'unknown'
+  const implied = verbPrefix(name)
+
+  analyses.push({ name, params, branches, deps: depNames, depModules, dissonance, returnType, implied, fn })
+
+  output += `\n## ${name}\n`
+  branches.forEach(b => output += `  → test: ${semanticLabel(b, name, implied)}\n`)
+  dissonance.forEach(f => output += `  ${f}\n`)
+}
+
+// --- Exported classes (class method mode) ---
+const exportedClasses = sourceFile.getClasses()
+  .filter(c => c.isExported() && c.getName())
+  .filter(c => { const n = c.getName(); if (!n || seenNames.has(n)) return false; seenNames.add(n); return true })
+
+const classNames = []
+const classBlockParts = []
+
+for (const cls of exportedClasses) {
+  const className = cls.getName()
+
+  const methods = cls.getMethods().filter(m =>
+    !m.isStatic() && !m.getName().startsWith('_') && !m.getName().startsWith('#'))
+
+  output += `\n## ${className} (class)\n`
+  for (const m of methods) {
+    const mName = m.getName()
+    if (onlyFunctions && !onlyFunctions.has(mName)) continue
+    const branches = extractBranches(m)
+    const implied = verbPrefix(mName)
+    branches.forEach(b => output += `  → ${mName}: ${semanticLabel(b, mName, implied)}\n`)
+    const dissonance = detectDissonance(m, sourceFile, branches, [], mName)
+    dissonance.forEach(f => output += `  ${f}\n`)
+  }
+
+  const block = classBlock(cls, framework, sourceFile)
+  if (block) { classNames.push(className); classBlockParts.push(block) }
+}
+
+const testOutput = generateTestFile(analyses, framework, file, classNames, classBlockParts.join('\n'))
+
+const totalCount = analyses.length + exportedClasses.length
+console.log(`// ctx-test-gen: ${path.basename(file)} [${framework}]\n${output}`)
+
+if (apply) {
+  if (!simulate(`write ${testFile}`)) {
+    fs.writeFileSync(testFile, testOutput)
+    console.log(`\nWritten: ${testFile}`)
+  }
+} else {
+  console.log(`\n// Dry run — ${analyses.length} function(s), ${exportedClasses.length} class(es). Use --apply to write ${path.basename(testFile)}`)
+  console.log('\n// Preview:\n')
+  console.log(testOutput)
+}

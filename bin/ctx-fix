@@ -1,0 +1,145 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-fix — named presets for common TS/JS issues; no pattern knowledge needed
+# Fixes: throw literals, console.log, loose equality, nested ternaries, magic literals, type-name mismatches
+# Dry-runs by default; use --apply to modify files
+# For custom AST patterns across any language, use ctx-codemod instead
+# Usage: ctx-fix <file> [--apply] [--checks THROW-LITERAL,CONSOLE,LOOSE-EQ,NESTED-TERNARY,MAGIC-LITERAL,TYPE-NAME]
+
+setopt errexit pipefail
+
+file="${1:?usage: ctx-fix <file> [--apply] [--checks ...]}"
+apply=false
+checks="THROW-LITERAL,CONSOLE,LOOSE-EQ,NESTED-TERNARY,MAGIC-LITERAL,TYPE-NAME"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --apply)   apply=true; shift ;;
+        --checks)  checks="$2"; shift 2 ;;
+        *)         shift ;;
+    esac
+done
+
+[[ -f "$file" ]] || { logError "not found: $file"; exit 1; }
+
+echo "## ctx-fix: $file"
+echo ""
+
+fixes_applied=0
+
+# --- THROW-LITERAL: throw 'msg' → throw new Error('msg') ---
+if [[ "$checks" == *"THROW-LITERAL"* ]]; then
+    # Detect throw with string literal (single or double quoted)
+    literal_throws=$(rg --no-heading --color=never -n "throw ['\"]" "$file" 2>/dev/null || true)
+    if [[ -n "$literal_throws" ]]; then
+        echo "  THROW-LITERAL → throw new Error()"
+        if $apply; then
+            # Replace throw 'msg' and throw "msg" patterns
+            execute "sd \"throw '([^']+)'\" \"throw new Error('\\\$1')\" \"$file\"" 2>/dev/null || true
+            execute "sd 'throw \"([^\"]+)\"' 'throw new Error(\"\$1\")' \"$file\"" 2>/dev/null || true
+            fixes_applied=$((fixes_applied + 1))
+        else
+            echo "$literal_throws" | sed 's/^/    /'
+        fi
+        echo ""
+    fi
+fi
+
+# --- CONSOLE: remove console.* calls ---
+if [[ "$checks" == *"CONSOLE"* ]]; then
+    console_lines=$(rg --no-heading --color=never -n 'console\.' "$file" 2>/dev/null || true)
+    if [[ -n "$console_lines" ]]; then
+        echo "  CONSOLE → remove logging"
+        if $apply; then
+            # Remove lines containing console.* (sed -i with backup)
+            execute "sed -i.bak '/[[:space:]]*console\\./d' $file && rm -f ${file}.bak"
+            fixes_applied=$((fixes_applied + 1))
+        else
+            echo "$console_lines" | sed 's/^/    /'
+        fi
+        echo ""
+    fi
+fi
+
+# --- LOOSE-EQ: == → === (excluding != which needs separate handling) ---
+if [[ "$checks" == *"LOOSE-EQ"* ]]; then
+    loose=$(rg --no-heading --color=never -n '[^!=<>]==[^=]' "$file" 2>/dev/null | grep -v '^\s*//' || true)
+    if [[ -n "$loose" ]]; then
+        echo "  LOOSE-EQ → ==="
+        if $apply; then
+            # Only replace == not surrounded by = or !
+            execute "sd '([^!=<>])==([^=])' '\$1===\$2' \"$file\"" 2>/dev/null || true
+            fixes_applied=$((fixes_applied + 1))
+        else
+            echo "$loose" | sed 's/^/    /'
+        fi
+        echo ""
+    fi
+fi
+
+# --- NESTED-TERNARY: ternary inside ternary ---
+# Detection only — auto-expansion requires AST context (return, declaration, JSX)
+if [[ "$checks" == *"NESTED-TERNARY"* ]]; then
+    # Lines with 2+ ternary ? characters — simple heuristic: ? surrounded by non-? non-.
+    # Uses grep with PCRE (--pcre2 via rg or fallback counting)
+    nested=$(rg --no-heading --color=never -n '\?' "$file" 2>/dev/null \
+        | grep -v '^\s*//' \
+        | grep -v '\?\.' \
+        | grep -v '\?\?' \
+        | awk -F'?' 'NF > 3' || true)
+    # If awk not available, fall back to simpler count
+    [[ -z "$nested" ]] && nested=$(rg --no-heading --color=never -n \
+        '^[^?]*((?<=[^?!.])\?(?![?.:])[^?]*((?<=[^?!.])\?(?![?.:]))[^?]*)' \
+        --pcre2 "$file" 2>/dev/null | grep -v '^\s*//' || true)
+    if [[ -n "$nested" ]]; then
+        echo "  NESTED-TERNARY — ternary inside ternary; consider expanding to if/else for readability"
+        echo "$nested" | sed 's/^/    /'
+        echo ""
+        # No --apply: expanding ternaries requires AST understanding of context
+    fi
+fi
+
+# --- MAGIC-LITERAL: bare numeric or string literals in conditions ---
+if [[ "$checks" == *"MAGIC-LITERAL"* ]]; then
+    # Numbers ≥ 2 (or ≤ -2) in comparison operators — 0, 1, -1 are conventional, skip them
+    magic_nums=$(rg --no-heading --color=never -n \
+        '(?:[<>!=]=?|===|!==)\s*(?:-?[2-9][0-9]*|-?[1-9][0-9]+)(?:[^0-9]|$)' \
+        "$file" 2>/dev/null | grep -v '^\s*//' || true)
+    # String literals in equality comparisons (=== 'x', !== 'x') — skip empty string and typeof checks
+    magic_strs=$(rg --no-heading --color=never -n \
+        "(?:===|!==)\s*['\"][^'\"]{1,}['\"]" \
+        "$file" 2>/dev/null \
+        | grep -v "^\s*//" \
+        | grep -v "=== ''\|=== \"\"\|!== ''\|!== \"\"" \
+        | grep -v "typeof" || true)
+    if [[ -n "$magic_nums" || -n "$magic_strs" ]]; then
+        echo "  MAGIC-LITERAL — bare literal in condition; extract to a named constant"
+        [[ -n "$magic_nums" ]] && echo "$magic_nums" | sed 's/^/    /'
+        [[ -n "$magic_strs" ]] && echo "$magic_strs" | sed 's/^/    /'
+        echo ""
+        # No --apply: naming a constant requires domain knowledge
+    fi
+fi
+
+# --- TYPE-NAME: is/has/should prefix with non-boolean assignment ---
+if [[ "$checks" == *"TYPE-NAME"* ]]; then
+    # Detect: isX / hasX / shouldX assigned a string, number, or object literal (not true/false/null/undefined)
+    type_mismatch=$(rg --no-heading --color=never -n \
+        '\b(?:is|has|should)[A-Z][a-zA-Z]*\s*[=:]\s*[^=\s]' \
+        "$file" 2>/dev/null \
+        | grep -v '^\s*//' \
+        | grep -Ev '(true|false|null|undefined|Boolean|!!|===|!==|&&|\|\||=>|function|class)' || true)
+    if [[ -n "$type_mismatch" ]]; then
+        echo "  TYPE-NAME — is*/has*/should* name promises boolean; verify type matches intent"
+        echo "$type_mismatch" | sed 's/^/    /'
+        echo ""
+    fi
+fi
+
+# --- Summary ---
+if $apply; then
+    logInfo "$fixes_applied fix type(s) applied."
+else
+    logHuman "(dry run — use --apply to modify $file)"
+fi

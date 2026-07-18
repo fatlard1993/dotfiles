@@ -1,0 +1,27 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-history — meaningful evolution of a file through git history
+# Shows commits that touched the file with trimmed diffs
+# Usage: ctx-history <file> [max-commits]
+
+setopt errexit pipefail
+
+file="${1:?usage: ctx-history <file> [max-commits]}"
+max="${2:-10}"
+
+[[ -f "$file" ]] || { logError "not found: $file"; exit 1; }
+
+git log --follow --color=never \
+    --format="%h %ad %s" \
+    --date=short \
+    -n "$max" \
+    -- "$file" 2>/dev/null | \
+while IFS= read -r line; do
+    hash=$(echo "$line" | cut -d' ' -f1)
+    rest=$(echo "$line" | cut -d' ' -f2-)
+    echo ""
+    echo "## $hash $rest"
+    { git diff --color=never --unified=2 "${hash}^" "$hash" -- "$file" 2>/dev/null || \
+      git show --color=never --unified=2 "$hash" -- "$file" 2>/dev/null; } | ctx-trim 30
+done

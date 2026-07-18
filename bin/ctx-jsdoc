@@ -1,0 +1,258 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug, simulate } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-jsdoc — generate JSDoc from TypeScript AST
+// Derives descriptions from function/parameter names + inferred types
+// Dry-runs by default; use --apply to insert into files
+// Usage: ctx-jsdoc <file|dir> [--apply]
+
+// Resolve globally-installed npm modules (nvm-compatible)
+const { execSync } = require('child_process')
+const { Project } = requireTsMorph()
+const path = require('path')
+
+const args = process.argv.slice(2)
+const apply = args.includes('--apply')
+const target = args.find(a => !a.startsWith('-')) || '.'
+
+// --- Name → description logic ---
+
+const VERB_MAP = {
+  get: r => `Gets ${r}`,       fetch: r => `Fetches ${r}`,
+  find: r => `Finds ${r}`,     load: r => `Loads ${r}`,
+  set: r => `Sets ${r}`,       update: r => `Updates ${r}`,
+  save: r => `Saves ${r}`,     store: r => `Stores ${r}`,
+  create: r => `Creates ${r}`, make: r => `Creates ${r}`,
+  build: r => `Builds ${r}`,   generate: r => `Generates ${r}`,
+  delete: r => `Deletes ${r}`, remove: r => `Removes ${r}`,
+  destroy: r => `Destroys ${r}`, clear: r => `Clears ${r}`,
+  validate: r => `Validates ${r}`, verify: r => `Verifies ${r}`,
+  check: r => `Checks ${r}`,   ensure: r => `Ensures ${r}`,
+  parse: r => `Parses ${r}`,   format: r => `Formats ${r}`,
+  convert: r => `Converts ${r}`, transform: r => `Transforms ${r}`,
+  handle: r => `Handles ${r}`, process: r => `Processes ${r}`,
+  send: r => `Sends ${r}`,     emit: r => `Emits ${r}`,
+  apply: r => `Applies ${r}`,  run: r => `Runs ${r}`,
+  execute: r => `Executes ${r}`, start: r => `Starts ${r}`,
+  stop: r => `Stops ${r}`,     init: r => `Initializes ${r}`,
+  initialize: r => `Initializes ${r}`, reset: r => `Resets ${r}`,
+  enable: r => `Enables ${r}`, disable: r => `Disables ${r}`,
+  register: r => `Registers ${r}`, subscribe: r => `Subscribes to ${r}`,
+  on: r => `Handles ${r} event`,
+  use: r => `Hook providing ${r}`,
+  is: r => `Whether ${r}`,     has: r => `Whether the item has ${r}`,
+  can: r => `Whether ${r} is possible`, should: r => `Whether ${r}`,
+}
+
+const ACRONYMS = new Set(['id','url','http','https','api','html','css','js','ts',
+  'json','xml','sql','db','ui','io','ai','ml','sdk','cli','uuid','jwt','rpc'])
+
+const PARAM_HINTS = {
+  id: 'The unique identifier', userId: 'The user ID', name: 'The name',
+  url: 'The URL', path: 'The file path', key: 'The key',
+  value: 'The value', data: 'The data', payload: 'The request payload',
+  callback: 'Callback function invoked on completion',
+  cb: 'Callback function', fn: 'Function to invoke',
+  options: 'Configuration options', opts: 'Configuration options',
+  config: 'Configuration object', settings: 'Settings object',
+  error: 'The error', err: 'The error',
+  event: 'The event', e: 'The event', ev: 'The event',
+  ctx: 'The execution context', context: 'The execution context',
+  req: 'The HTTP request', request: 'The HTTP request',
+  res: 'The HTTP response', response: 'The HTTP response',
+  next: 'Next middleware function',
+  token: 'The authentication token', secret: 'The secret key',
+  host: 'The host address', port: 'The port number',
+  timeout: 'Timeout duration in milliseconds',
+  retries: 'Number of retry attempts', maxRetries: 'Maximum retry attempts',
+  message: 'The message', msg: 'The message', text: 'The text content',
+  type: 'The type identifier', kind: 'The kind or category',
+  index: 'The index position', offset: 'The offset value',
+  limit: 'Maximum number of results', count: 'The count',
+}
+
+function splitCamel(name) {
+  return name.replace(/([A-Z])/g, ' $1').toLowerCase().trim().split(/[\s_-]+/).filter(Boolean)
+}
+
+function humanize(words) {
+  return words.map(w => ACRONYMS.has(w) ? w.toUpperCase() : w).join(' ')
+}
+
+function describeFunction(name) {
+  if (!name) return null
+  const words = splitCamel(name)
+  const [verb, ...rest] = words
+  const handler = VERB_MAP[verb]
+  if (handler && rest.length > 0) return handler(humanize(rest))
+  // No recognized verb — capitalize and humanize
+  return words.map((w, i) => i === 0
+    ? w.charAt(0).toUpperCase() + w.slice(1)
+    : ACRONYMS.has(w) ? w.toUpperCase() : w
+  ).join(' ')
+}
+
+function describeParam(name, typeText) {
+  const hint = PARAM_HINTS[name]
+  if (hint) return hint
+  // Fall back to humanizing the parameter name
+  const words = splitCamel(name)
+  return 'The ' + humanize(words)
+}
+
+function describeReturn(typeText, funcName) {
+  if (!typeText || typeText === 'void' || typeText === 'undefined' || typeText === 'never') return null
+  const words = funcName ? splitCamel(funcName) : []
+  const verb = words[0] || ''
+  if (typeText.startsWith('Promise<')) {
+    const inner = typeText.slice(8, -1)
+    return `A promise that resolves to ${inner === 'void' ? 'nothing' : inner === 'boolean' ? 'true on success' : `the ${inner}`}`
+  }
+  if (typeText === 'boolean') {
+    const isVerb = ['is','has','can','should'].includes(verb)
+    return isVerb ? `True if ${humanize(words.slice(1))}, false otherwise` : 'True on success, false otherwise'
+  }
+  if (typeText.endsWith('[]') || typeText.startsWith('Array<')) {
+    const inner = typeText.endsWith('[]') ? typeText.slice(0,-2) : typeText.slice(6,-1)
+    return `Array of ${inner} items`
+  }
+  return `The ${typeText}`
+}
+
+function buildJsDoc(name, params, returnTypeText) {
+  const lines = []
+  const desc = describeFunction(name)
+  if (desc) lines.push(` * ${desc}.`)
+
+  const paramLines = params.map(p => {
+    const pName = p.name
+    const typeText = p.type
+    const optional = p.optional
+    const displayName = optional ? `[${pName}]` : pName
+    const typeStr = typeText && typeText !== 'any' ? `{${typeText}} ` : ''
+    const pDesc = describeParam(pName, typeText)
+    return ` * @param ${typeStr}${displayName} - ${pDesc}`
+  })
+
+  if (paramLines.length) { lines.push(' *'); lines.push(...paramLines) }
+
+  const returnDesc = describeReturn(returnTypeText, name)
+  if (returnDesc) { lines.push(' *'); lines.push(` * @returns ${returnDesc}`) }
+
+  return `/**\n${lines.join('\n')}\n */`
+}
+
+// --- ts-morph processing ---
+
+const project = new Project({ skipAddingFilesFromTsConfig: true })
+
+const isDir = require('fs').statSync(target).isDirectory()
+if (isDir) {
+  project.addSourceFilesAtPaths([
+    path.join(target, '**/*.ts'),
+    path.join(target, '**/*.tsx'),
+    `!${path.join(target, '**/node_modules/**')}`,
+    `!${path.join(target, '**/*.d.ts')}`,
+  ])
+} else {
+  project.addSourceFileAtPath(target)
+}
+
+let total = 0, skipped = 0
+
+for (const sourceFile of project.getSourceFiles()) {
+  const toDocument = []
+
+  // Top-level exported functions
+  for (const fn of sourceFile.getFunctions()) {
+    if (!fn.isExported()) continue
+    if (fn.getJsDocs().length > 0) { skipped++; continue }
+    const name = fn.getName()
+    if (!name) continue
+    const params = fn.getParameters().map(p => ({
+      name: p.getName(),
+      type: p.getType().getText(p),
+      optional: p.isOptional(),
+    }))
+    const returnType = fn.getReturnType().getText(fn)
+    toDocument.push({ node: fn, name, params, returnType, kind: 'function' })
+  }
+
+  // Exported const arrow functions
+  for (const varDecl of sourceFile.getVariableDeclarations()) {
+    const stmt = varDecl.getVariableStatement()
+    if (!stmt || !stmt.isExported()) continue
+    const init = varDecl.getInitializer()
+    if (!init) continue
+    const kind = init.getKindName()
+    if (!['ArrowFunction', 'FunctionExpression'].includes(kind)) continue
+    if (varDecl.getLeadingCommentRanges().some(c => c.getText().startsWith('/**'))) { skipped++; continue }
+    const name = varDecl.getName()
+    const fn = init
+    const params = fn.getParameters ? fn.getParameters().map(p => ({
+      name: p.getName(),
+      type: p.getType().getText(p),
+      optional: p.isOptional(),
+    })) : []
+    const returnType = fn.getReturnType ? fn.getReturnType().getText(fn) : ''
+    toDocument.push({ node: varDecl.getVariableStatement(), name, params, returnType, kind: 'arrow' })
+  }
+
+  // Exported class methods
+  for (const cls of sourceFile.getClasses()) {
+    if (!cls.isExported()) continue
+    for (const method of cls.getMethods()) {
+      if (method.getJsDocs().length > 0) { skipped++; continue }
+      const name = method.getName()
+      const params = method.getParameters().map(p => ({
+        name: p.getName(),
+        type: p.getType().getText(p),
+        optional: p.isOptional(),
+      }))
+      const returnType = method.getReturnType().getText(method)
+      toDocument.push({ node: method, name, params, returnType, kind: 'method' })
+    }
+  }
+
+  for (const item of toDocument) {
+    const jsDoc = buildJsDoc(item.name, item.params, item.returnType)
+    total++
+    if (apply) {
+      item.node.addJsDoc(buildJsDocStructure(item.name, item.params, item.returnType))
+    } else {
+      const rel = path.relative(process.cwd(), sourceFile.getFilePath())
+      console.log(`\n// ${rel} — ${item.name}`)
+      console.log(jsDoc)
+    }
+  }
+}
+
+if (!apply) {
+  console.log(`\n// ${total} undocumented export(s) found, ${skipped} already documented`)
+  console.log('// Run with --apply to insert')
+} else {
+  if (!simulate(`write JSDoc to ${total} file(s)`)) {
+    project.saveSync()
+    console.log(`Documented ${total} export(s).`)
+  }
+}
+
+// Build structured JSDoc for ts-morph insertion
+function buildJsDocStructure(name, params, returnTypeText) {
+  const tags = []
+  params.forEach(p => {
+    const typeText = p.type
+    const optional = p.optional
+    const pDesc = describeParam(p.name, typeText)
+    tags.push({
+      tagName: 'param',
+      text: `${typeText && typeText !== 'any' ? `{${typeText}} ` : ''}${optional ? `[${p.name}]` : p.name} - ${pDesc}`,
+    })
+  })
+  const returnDesc = describeReturn(returnTypeText, name)
+  if (returnDesc) tags.push({ tagName: 'returns', text: returnDesc })
+  const desc = describeFunction(name)
+  return { description: desc ? `${desc}.` : undefined, tags }
+}

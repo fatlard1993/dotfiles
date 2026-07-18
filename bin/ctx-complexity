@@ -1,0 +1,181 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-complexity — cyclomatic complexity per function
+//
+// Unlike ctx-hotspots (which needs git history), this works on any file anywhere.
+// Useful before refactoring: find the dangerous functions before touching them.
+//
+// Usage: ctx-complexity <file> [--min <n>] [--sort name|complexity]
+//   --min <n>     Only show functions with complexity ≥ n (default: 1)
+//   --sort        Sort by name or complexity (default: complexity desc)
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind, Node } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const file = args.find(a => !a.startsWith('--'))
+const minVal = parseInt(
+  (args.find(a => a.startsWith('--min=')) || '').replace('--min=', '') ||
+  (args.indexOf('--min') >= 0 ? args[args.indexOf('--min') + 1] : '1'), 10)
+const sortBy = (args.find(a => a.startsWith('--sort=')) || '').replace('--sort=', '') ||
+               (args.indexOf('--sort') >= 0 ? args[args.indexOf('--sort') + 1] : 'complexity')
+
+if (!file) {
+  console.error('usage: ctx-complexity <file> [--min <n>] [--sort name|complexity]')
+  process.exit(1)
+}
+
+const absFile = path.resolve(file)
+if (!fs.existsSync(absFile)) { console.error(`not found: ${file}`); process.exit(1) }
+
+// ---------------------------------------------------------------------------
+// Cyclomatic complexity
+// ---------------------------------------------------------------------------
+const BRANCH_KINDS = new Set([
+  SyntaxKind.IfStatement,
+  SyntaxKind.ConditionalExpression,
+  SyntaxKind.ForStatement,
+  SyntaxKind.ForInStatement,
+  SyntaxKind.ForOfStatement,
+  SyntaxKind.WhileStatement,
+  SyntaxKind.DoStatement,
+  SyntaxKind.CatchClause,
+  SyntaxKind.CaseClause,
+])
+
+function complexity(node) {
+  let n = 1
+  node.forEachDescendant(child => {
+    const k = child.getKind()
+    if (BRANCH_KINDS.has(k)) { n++; return }
+    if (k === SyntaxKind.BinaryExpression) {
+      const op = child.getOperatorToken().getKind()
+      if (op === SyntaxKind.AmpersandAmpersandToken ||
+          op === SyntaxKind.BarBarToken ||
+          op === SyntaxKind.QuestionQuestionToken) n++
+    }
+  })
+  return n
+}
+
+function grade(c) {
+  if (c <= 4)  return { icon: '🟢', letter: 'A' }
+  if (c <= 7)  return { icon: '🟡', letter: 'B' }
+  if (c <= 10) return { icon: '🟠', letter: 'C' }
+  return       { icon: '🔴', letter: 'D' }
+}
+
+// ---------------------------------------------------------------------------
+// Extract all functions with line numbers
+// ---------------------------------------------------------------------------
+function extractAll(sf) {
+  const out = []
+  const seen = new Set()
+
+  const add = (name, node, context) => {
+    const key = `${name}:${node.getStartLineNumber()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({
+      name: context ? `${context}.${name}` : name,
+      line: node.getStartLineNumber(),
+      complexity: complexity(node),
+    })
+  }
+
+  // Top-level named functions
+  for (const fn of sf.getFunctions()) fn.getName() && add(fn.getName(), fn, null)
+
+  // Variable declarations with arrow/function expression
+  for (const v of sf.getVariableDeclarations()) {
+    const init = v.getInitializer?.()
+    if (!init) continue
+    const k = init.getKind()
+    if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) {
+      add(v.getName(), init, null)
+    }
+  }
+
+  // Class methods
+  for (const cls of sf.getClasses()) {
+    for (const m of cls.getMethods()) add(m.getName(), m, cls.getName() || '?')
+    // Constructors
+    const ctor = cls.getConstructors()[0]
+    if (ctor) add('constructor', ctor, cls.getName() || '?')
+  }
+
+  // Object literal properties in export default { ... }
+  for (const [, decls] of sf.getExportedDeclarations()) {
+    for (const d of decls) {
+      if (!Node.isObjectLiteralExpression(d)) continue
+      for (const prop of d.getProperties()) {
+        if (!Node.isPropertyAssignment(prop)) continue
+        const init = prop.getInitializer()
+        if (!init) continue
+        const k = init.getKind()
+        if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) {
+          add(prop.getName(), init, null)
+        }
+      }
+    }
+  }
+
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const ext = absFile.match(/\.(ts|tsx|js|jsx|mjs)$/)?.[1] || 'js'
+const isJs = ['js', 'jsx', 'mjs'].includes(ext)
+
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: isJs ? { allowJs: true, checkJs: false } : {},
+})
+const sf = project.addSourceFileAtPath(absFile)
+
+let fns = extractAll(sf).filter(f => f.complexity >= minVal)
+
+if (sortBy === 'name') {
+  fns.sort((a, b) => a.name.localeCompare(b.name))
+} else {
+  fns.sort((a, b) => b.complexity - a.complexity || a.line - b.line)
+}
+
+if (!fns.length) {
+  console.log(`No functions found${minVal > 1 ? ` with complexity ≥ ${minVal}` : ''}.`)
+  process.exit(0)
+}
+
+const relFile = path.relative(process.cwd(), absFile)
+const nw = Math.max(8, ...fns.map(f => f.name.length))
+
+console.log(`## Complexity: ${relFile}`)
+console.log()
+console.log(`${'function'.padEnd(nw)}  line  complexity  grade`)
+console.log(`${'─'.repeat(nw)}  ────  ──────────  ─────`)
+
+for (const f of fns) {
+  const g = grade(f.complexity)
+  console.log(`${f.name.padEnd(nw)}  ${String(f.line).padStart(4)}  ${String(f.complexity).padStart(10)}  ${g.icon} ${g.letter}`)
+}
+
+const complexities = fns.map(f => f.complexity)
+const max = Math.max(...complexities)
+const mean = (complexities.reduce((s, c) => s + c, 0) / complexities.length).toFixed(1)
+const highCount = complexities.filter(c => c >= 8).length
+
+console.log()
+console.log(`${fns.length} function(s)  |  max: ${max}  |  mean: ${mean}  |  high-complexity (≥8): ${highCount}`)
+if (highCount > 0) {
+  console.log(`Refactor candidates: ${fns.filter(f => f.complexity >= 8).map(f => f.name).join(', ')}`)
+}

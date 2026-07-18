@@ -1,0 +1,154 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-duplicates — detect structurally similar files that may benefit from a shared abstraction
+# Compares export shape, line count, and function patterns across JS/TS files in a directory
+# Usage: ctx-duplicates [path] [--threshold 0.7]
+
+setopt errexit pipefail
+
+search_path="."
+threshold="0.7"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --threshold) threshold="$2"; shift 2 ;;
+        *) search_path="$1"; shift ;;
+    esac
+done
+
+echo "## Structural Duplicates: $search_path (threshold: $threshold)"
+echo ""
+
+tmp=$(mktemp -d)
+trap 'saferRm -rf "$tmp"' EXIT
+
+# Build a signature for each source file (exclude tests, d.ts, node_modules)
+fd -t f -e ts -e tsx -e js -e jsx . "$search_path" \
+    --exclude '*.test.*' --exclude '*.spec.*' --exclude '*.d.ts' \
+    2>/dev/null | while IFS= read -r f; do
+
+    # Structural signature: export kinds + count + HTTP verbs present + line bucket
+    # This finds files with the same SHAPE without being fooled by different entity names
+
+    export_count=$(rg --no-heading --color=never -c \
+        '^export ' "$f" 2>/dev/null || echo 0)
+
+    # What kinds of exports: functions, classes, consts, defaults
+    has_fn=$(rg --no-heading --color=never -q 'export (async )?function' "$f" 2>/dev/null && echo 1 || echo 0)
+    has_const=$(rg --no-heading --color=never -q 'export const' "$f" 2>/dev/null && echo 1 || echo 0)
+    has_default=$(rg --no-heading --color=never -q 'export default' "$f" 2>/dev/null && echo 1 || echo 0)
+
+    # HTTP method presence — routers share this pattern
+    has_get=$(rg --no-heading --color=never -q '"GET"' "$f" 2>/dev/null && echo 1 || echo 0)
+    has_post=$(rg --no-heading --color=never -q '"POST"' "$f" 2>/dev/null && echo 1 || echo 0)
+    has_patch=$(rg --no-heading --color=never -q '"PATCH"' "$f" 2>/dev/null && echo 1 || echo 0)
+    has_delete=$(rg --no-heading --color=never -q '"DELETE"' "$f" 2>/dev/null && echo 1 || echo 0)
+
+    lines=$(wc -l < "$f" | tr -d ' ')
+    line_bucket=$(( (lines / 15) * 15 ))  # bucket to nearest 15 lines
+
+    sig="${export_count}:fn${has_fn}:const${has_const}:def${has_default}:GET${has_get}:POST${has_post}:PATCH${has_patch}:DEL${has_delete}:L${line_bucket}"
+
+    echo "${sig}|${f}" >> "$tmp/sigs"
+done
+
+if [[ ! -f "$tmp/sigs" ]] || [[ ! -s "$tmp/sigs" ]]; then
+    echo "(no files found)"
+    exit 0
+fi
+
+# Find pairs with identical or near-identical signatures
+sort "$tmp/sigs" > "$tmp/sorted"
+
+prev_sig=""
+prev_file=""
+declare -a group
+
+# Group by signature using awk — avoids IFS splitting issues with paths
+while IFS= read -r line; do
+    if [[ "$line" == MATCH:* ]]; then
+        current_sig="${line#MATCH:}"
+        grp=()
+    elif [[ "$line" == "---" ]]; then
+        if [[ ${#grp[@]} -gt 1 ]]; then
+            touch "$tmp/found"
+            echo "  Structurally similar (${#grp[@]} files):"
+            for f in "${grp[@]}"; do echo "    $f"; done
+            first="${grp[1]}"
+            shared=$(rg --no-heading --color=never -o 'export (const|function|async function|class) [A-Za-z_]+' "$first" 2>/dev/null \
+                | head -4 | tr '\n' ', ' | sed 's/, $//')
+            [[ -z "$shared" ]] && shared="$(wc -l < "$first" | tr -d ' ') lines, similar export structure"
+            echo "    Common shape: $shared"
+            echo ""
+        fi
+    else
+        grp+=("$line")
+    fi
+done < <(awk -F'|' '
+{
+  sig=$1; file=$2
+  groups[sig] = (groups[sig] == "") ? file : groups[sig] "\n" file
+  counts[sig]++
+}
+END {
+  for (sig in counts) {
+    if (counts[sig] > 1) {
+      print "MATCH:" sig
+      print groups[sig]
+      print "---"
+    }
+  }
+}
+' "$tmp/sorted")
+
+# Also check for files in same directory with very similar line counts and function counts
+echo "## Same-Directory Files with Similar Structure"
+echo ""
+
+while IFS= read -r dir; do
+    # Get all JS/TS source files in this directory (not subdirs)
+    files=()
+    while IFS= read -r f; do files+=("$f"); done < <(
+        fd -t f -e ts -e tsx -e js -e jsx --max-depth 1 . "$dir" \
+            --exclude '*.test.*' --exclude '*.spec.*' --exclude '*.d.ts' \
+            2>/dev/null
+    )
+    [[ ${#files[@]} -lt 2 ]] && continue
+
+    # Compare each pair
+    for ((i=0; i<${#files[@]}; i++)); do
+        for ((j=i+1; j<${#files[@]}; j++)); do
+            a="${files[$i]}"
+            b="${files[$j]}"
+
+            lines_a=$(wc -l < "$a" | tr -d ' ')
+            lines_b=$(wc -l < "$b" | tr -d ' ')
+
+            # Skip very small files
+            [[ $lines_a -lt 10 || $lines_b -lt 10 ]] && continue
+
+            # Check line count similarity
+            max=$((lines_a > lines_b ? lines_a : lines_b))
+            min=$((lines_a < lines_b ? lines_a : lines_b))
+
+            # Integer-scaled ratio avoids float comparison in zsh
+            ratio_int=$(echo "scale=0; ($min * 100) / $max" | bc 2>/dev/null || echo 0)
+
+            if [[ $ratio_int -ge 75 ]]; then
+                # Check export structure similarity
+                exports_a=$(rg --no-heading --color=never -oh 'export (const|function|async function|class) \w+' "$a" 2>/dev/null | wc -l | tr -d ' ')
+                exports_b=$(rg --no-heading --color=never -oh 'export (const|function|async function|class) \w+' "$b" 2>/dev/null | wc -l | tr -d ' ')
+
+                if [[ "$exports_a" == "$exports_b" && $exports_a -gt 1 ]]; then
+                    touch "$tmp/found_near"
+                    echo "  $(basename "$a") ↔ $(basename "$b")"
+                    echo "  Lines: $lines_a vs $lines_b (${ratio_int}% similar), Exports: $exports_a each"
+                    echo "  Directory: $dir"
+                    echo ""
+                fi
+            fi
+        done
+    done
+done < <(fd -t d . "$search_path" 2>/dev/null)
+
+[[ -f "$tmp/found" || -f "$tmp/found_near" ]] || echo "  (no structural duplicates detected above threshold)"

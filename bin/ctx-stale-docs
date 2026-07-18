@@ -1,0 +1,326 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-stale-docs — detect and fix stale JSDoc @param / @returns
+//
+// Report: list functions where @param names diverge from actual signature
+// Fix:    --apply rewrites each JSDoc block in place:
+//         - removes @param entries for params that no longer exist
+//         - adds @param entries for params not yet documented (with TS type)
+//         - adds @returns if function has a non-void return type and none exists
+//         - preserves existing descriptions, @example, @see, and all other tags
+//
+// Usage: ctx-stale-docs <file|dir> [--apply]
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind, Node } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const target = args.find(a => !a.startsWith('--'))
+const apply  = args.includes('--apply')
+
+if (!target) {
+  console.error([
+    'usage: ctx-stale-docs <file|dir> [--apply]',
+    '',
+    '  (no --apply)  Report stale @param and missing @returns',
+    '  --apply       Rewrite JSDoc blocks to match current signatures',
+  ].join('\n'))
+  process.exit(1)
+}
+
+const absTarget = path.resolve(target)
+if (!fs.existsSync(absTarget)) { console.error(`not found: ${target}`); process.exit(1) }
+
+// ---------------------------------------------------------------------------
+// File collection
+// ---------------------------------------------------------------------------
+function collectFiles(t) {
+  const stat = fs.statSync(t)
+  if (stat.isFile()) return [t]
+  const out = []
+  function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (/^(\.|\bnode_modules\b|\bdist\b|\bes\b|\blib\b)$/.test(e.name)) continue
+      const full = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (/\.(ts|tsx|js|jsx|mjs)$/.test(e.name) &&
+          !e.name.endsWith('.d.ts') &&
+          !e.name.includes('.test.') &&
+          !e.name.includes('.spec.')) out.push(full)
+    }
+  }
+  walk(t)
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Collect documented functions from a source file
+// A "documented function" is any function/method with at least one JSDoc block
+// ---------------------------------------------------------------------------
+function docedFunctions(sf) {
+  const out = []
+
+  // Top-level named functions
+  for (const fn of sf.getFunctions()) {
+    if (!fn.getName()) continue
+    const jsdocs = fn.getJsDocs()
+    if (jsdocs.length) out.push({ name: fn.getName(), node: fn, jsdocs, docNode: fn })
+  }
+
+  // Variable declarations: const fn = (...) => ...
+  // JSDoc attaches to the VariableStatement, not the initializer
+  for (const stmt of sf.getVariableStatements()) {
+    const jsdocs = stmt.getJsDocs()
+    if (!jsdocs.length) continue
+    for (const decl of stmt.getDeclarations()) {
+      const init = decl.getInitializer?.()
+      if (!init) continue
+      const k = init.getKind()
+      if (k !== SyntaxKind.ArrowFunction && k !== SyntaxKind.FunctionExpression) continue
+      out.push({ name: decl.getName(), node: init, jsdocs, docNode: stmt })
+    }
+  }
+
+  // Class methods
+  for (const cls of sf.getClasses()) {
+    for (const m of cls.getMethods()) {
+      const jsdocs = m.getJsDocs()
+      if (jsdocs.length) out.push({
+        name: `${cls.getName() || '?'}.${m.getName()}`,
+        node: m, jsdocs, docNode: m,
+      })
+    }
+    // Constructors
+    for (const ctor of cls.getConstructors()) {
+      const jsdocs = ctor.getJsDocs()
+      if (jsdocs.length) out.push({
+        name: `${cls.getName() || '?'}.constructor`,
+        node: ctor, jsdocs, docNode: ctor,
+      })
+    }
+  }
+
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Extract parameter info from a function node
+// ---------------------------------------------------------------------------
+function actualParams(fnNode) {
+  return (fnNode.getParameters?.() || []).map(p => {
+    const nameNode = p.getNameNode()
+    const isDestructured = Node.isObjectBindingPattern(nameNode) ||
+                           Node.isArrayBindingPattern(nameNode)
+    const typeText = (() => {
+      try {
+        return p.getTypeNode()?.getText() ||
+               p.getType?.()?.getText?.() ||
+               '*'
+      } catch { return '*' }
+    })()
+    return {
+      name: isDestructured ? null : p.getName(),
+      type: typeText,
+      destructured: isDestructured,
+    }
+  })
+}
+
+function returnTypeText(fnNode) {
+  try {
+    return fnNode.getReturnTypeNode?.()?.getText() ||
+           fnNode.getReturnType?.()?.getText?.() ||
+           null
+  } catch { return null }
+}
+
+function isVoid(typeText) {
+  if (!typeText) return true
+  const t = typeText.trim()
+  return ['void', 'never', 'undefined', 'Promise<void>', 'Promise<undefined>'].includes(t)
+}
+
+// ---------------------------------------------------------------------------
+// Analyse one function for staleness
+// ---------------------------------------------------------------------------
+function analyse(fnInfo) {
+  const { name, node, jsdocs } = fnInfo
+  const issues = []
+  const params = actualParams(node)
+  const namedParams = params.filter(p => !p.destructured).map(p => p.name)
+
+  for (const jsdoc of jsdocs) {
+    const paramTags  = jsdoc.getTags().filter(t => t.getTagName() === 'param')
+    const docNames   = paramTags.map(t => t.getName?.()).filter(Boolean)
+    const stale      = docNames.filter(n => !namedParams.includes(n))
+    const missing    = namedParams.filter(n => !docNames.includes(n))
+
+    if (stale.length)   issues.push({ kind: 'stale-param',   names: stale })
+    if (missing.length) issues.push({ kind: 'missing-param', names: missing,
+                                      params: params.filter(p => missing.includes(p.name)) })
+
+    const hasReturns = jsdoc.getTags().some(t =>
+      t.getTagName() === 'returns' || t.getTagName() === 'return')
+    const ret = returnTypeText(node)
+    if (!hasReturns && ret && !isVoid(ret)) {
+      issues.push({ kind: 'missing-returns', retType: ret })
+    }
+  }
+  return issues
+}
+
+// ---------------------------------------------------------------------------
+// Build a fixed JSDoc string for a single jsdoc block
+// ---------------------------------------------------------------------------
+function fixJsDoc(jsdoc, fnNode) {
+  const params    = actualParams(fnNode)
+  const namedParams = params.filter(p => !p.destructured)
+
+  // Parse existing @param entries: name → description text
+  const paramTags  = jsdoc.getTags().filter(t => t.getTagName() === 'param')
+  const existingDesc = {}
+  for (const t of paramTags) {
+    const n = t.getName?.()
+    const c = t.getComment?.() || ''
+    if (n) existingDesc[n] = typeof c === 'string' ? c : c.map?.(x => x.getText()).join('') || ''
+  }
+
+  // Other tags preserved as-is (returns, example, see, deprecated, …)
+  const otherTags = jsdoc.getTags().filter(t =>
+    t.getTagName() !== 'param' &&
+    t.getTagName() !== 'returns' &&
+    t.getTagName() !== 'return')
+  const returnsTags = jsdoc.getTags().filter(t =>
+    t.getTagName() === 'returns' || t.getTagName() === 'return')
+
+  // Description (multi-line, preserve)
+  const desc = (jsdoc.getDescription?.() || '').trim()
+
+  // Detect indentation from first line of existing block
+  const rawText   = jsdoc.getText()
+  const indent    = rawText.match(/^(\s*)/)?.[1] || ''
+  const innerPad  = indent + ' * '
+
+  // Build lines
+  const lines = [`${indent}/**`]
+
+  if (desc) {
+    for (const l of desc.split('\n')) lines.push(`${innerPad}${l.trim()}`)
+    if (namedParams.length || returnsTags.length || otherTags.length) lines.push(`${indent} *`)
+  }
+
+  // @param lines for current params
+  for (const p of namedParams) {
+    const type    = p.type === 'any' ? '*' : p.type
+    const comment = existingDesc[p.name] ? ` ${existingDesc[p.name]}` : ''
+    lines.push(`${innerPad}@param {${type}} ${p.name}${comment}`)
+  }
+
+  // @returns
+  if (returnsTags.length) {
+    // Preserve existing @returns
+    for (const t of returnsTags) lines.push(`${innerPad}${t.getText().trim()}`)
+  } else {
+    const ret = returnTypeText(fnNode)
+    if (ret && !isVoid(ret)) lines.push(`${innerPad}@returns {${ret}}`)
+  }
+
+  // Other tags
+  for (const t of otherTags) lines.push(`${innerPad}${t.getText().trim()}`)
+
+  lines.push(`${indent} */`)
+  return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const files = collectFiles(absTarget)
+if (!files.length) { console.log('No source files found.'); process.exit(0) }
+
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: { allowJs: true, checkJs: false },
+})
+
+const results = []
+
+for (const fp of files) {
+  let sf
+  try { sf = project.addSourceFileAtPath(fp) } catch { continue }
+  const fnIssues = []
+  for (const fnInfo of docedFunctions(sf)) {
+    const issues = analyse(fnInfo)
+    if (issues.length) fnIssues.push({ fnInfo, issues })
+  }
+  if (fnIssues.length) results.push({ fp, sf, fnIssues })
+}
+
+const relOf = fp => path.relative(process.cwd(), fp)
+
+if (!results.length) {
+  console.log(`✓ All documented functions are up to date in ${files.length} file(s).`)
+  process.exit(0)
+}
+
+if (!apply) {
+  // ── Report mode ────────────────────────────────────────────────────────────
+  console.log(`## Stale Docs: ${target}`)
+  console.log()
+
+  for (const { fp, fnIssues } of results) {
+    console.log(`### ${relOf(fp)}`)
+    console.log()
+    for (const { fnInfo, issues } of fnIssues) {
+      console.log(`  ${fnInfo.name}:`)
+      for (const issue of issues) {
+        if (issue.kind === 'stale-param') {
+          console.log(`    🔴 @param ${issue.names.join(', ')} — documented but no longer in signature`)
+        } else if (issue.kind === 'missing-param') {
+          console.log(`    🟡 @param ${issue.names.join(', ')} — in signature but not documented`)
+        } else if (issue.kind === 'missing-returns') {
+          console.log(`    🟡 @returns missing — returns ${issue.retType}`)
+        }
+      }
+    }
+    console.log()
+  }
+
+  const total = results.reduce((s, r) => s + r.fnIssues.length, 0)
+  console.log(`${total} issue(s) across ${results.length} file(s). Run with --apply to fix.`)
+} else {
+  // ── Fix mode ───────────────────────────────────────────────────────────────
+  let totalFixed = 0
+
+  for (const { fp, sf, fnIssues } of results) {
+    // Process jsdoc replacements back-to-front to preserve positions
+    const replacements = []
+    for (const { fnInfo } of fnIssues) {
+      for (const jsdoc of fnInfo.jsdocs) {
+        const newText = fixJsDoc(jsdoc, fnInfo.node)
+        replacements.push({ start: jsdoc.getStart(), end: jsdoc.getEnd(), newText })
+      }
+    }
+    replacements.sort((a, b) => b.start - a.start)
+
+    let content = sf.getFullText()
+    for (const { start, end, newText } of replacements) {
+      content = content.slice(0, start) + newText + content.slice(end)
+    }
+
+    fs.writeFileSync(fp, content, 'utf8')
+    console.log(`✓ ${relOf(fp)} — fixed ${fnIssues.length} function(s)`)
+    totalFixed += fnIssues.length
+  }
+
+  console.log()
+  console.log(`Fixed ${totalFixed} function(s) across ${results.length} file(s).`)
+}

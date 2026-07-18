@@ -1,0 +1,304 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-migration — library migration behavioral equivalence
+//
+// Three modes:
+//   plan:     ctx-migration <file> --from <lib>
+//             Analyze current usage of old lib; produce migration checklist
+//
+//   review:   ctx-migration <file> --from <lib> --base <ref>
+//             Compare old ref to current; report what's preserved and what's missing
+//
+//   progress: ctx-migration <file> --from <lib> --base HEAD
+//             Show migration progress against working tree
+//
+// The behavioral requirements are derived from AST patterns in the old code,
+// not from a static library dictionary. Works for any library pair.
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const file = args.find(a => !a.startsWith('--'))
+const fromLib = (args.find(a => a.startsWith('--from=')) || '').replace('--from=', '') ||
+                (args.indexOf('--from') >= 0 ? args[args.indexOf('--from') + 1] : '')
+const base    = (args.find(a => a.startsWith('--base=')) || '').replace('--base=', '') ||
+                (args.indexOf('--base') >= 0 ? args[args.indexOf('--base') + 1] : null)
+
+if (!file) {
+  console.error([
+    'usage: ctx-migration <file> --from <lib> [--base <ref>]',
+    '',
+    '  --from <lib>        Library being replaced (e.g. axios)',
+    '  --base <ref>        Git ref of old version (enables review/progress mode)',
+    '                      Omit to analyze current code only (plan mode)',
+  ].join('\n'))
+  process.exit(1)
+}
+
+// ---------------------------------------------------------------------------
+// AST helpers
+// ---------------------------------------------------------------------------
+function parseFile(content, label, filePath) {
+  const ext = (filePath || file).match(/\.(ts|tsx|js|jsx|mjs)$/)?.[1] || 'js'
+  const isJs = ['js','jsx','mjs'].includes(ext)
+  const project = new Project({
+    skipAddingFilesFromTsConfig: true,
+    useInMemoryFileSystem: true,
+    compilerOptions: isJs ? { allowJs: true, checkJs: false } : {}
+  })
+  project.createSourceFile(`${label}.${ext}`, content)
+  return project.getSourceFileOrThrow(`${label}.${ext}`)
+}
+
+function extractFunctions(sf) {
+  const fns = {}
+  for (const fn of sf.getFunctions()) {
+    if (fn.getName()) fns[fn.getName()] = fn.getText()
+  }
+  for (const v of sf.getVariableDeclarations()) {
+    const stmt = v.getVariableStatement?.()
+    const init = v.getInitializer?.()
+    if (!init) continue
+    if (['ArrowFunction','FunctionExpression'].includes(init.getKindName())) {
+      fns[v.getName()] = stmt?.getText() || v.getText()
+    }
+  }
+  return fns
+}
+
+// ---------------------------------------------------------------------------
+// Behavioral dependency extraction (library-agnostic)
+// Derived from what the old code was actually using/relying on.
+// ---------------------------------------------------------------------------
+function extractBehavioralDeps(fnText, libName) {
+  const deps = []
+  const t = fnText
+
+  if (!new RegExp(`\\b${libName}\\b`).test(t)) return deps
+
+  // --- HTTP semantics ---
+
+  // Non-2xx error handling: most HTTP clients throw; fetch does not
+  // Trigger: any HTTP call (get/post/request/etc.) or generic .request call
+  const httpCallPattern = new RegExp(
+    `\\b${libName}\\s*\\.\\s*(get|post|put|patch|delete|head|options|request)\\s*\\(` +
+    `|\\b${libName}\\s*\\(`, 'i'
+  )
+  if (httpCallPattern.test(t)) {
+    deps.push({
+      id: 'non-2xx-error',
+      severity: 'critical',
+      what: `${libName} throws on non-2xx status automatically`,
+      checkFor: [/response\.ok\b/, /response\.status\s*[><=!]/, /\.ok\b/],
+      msg: 'HTTP call — old library may throw on non-2xx; verify explicit status check in replacement',
+    })
+  }
+
+  // Response body parsing: libs like axios return .data auto-parsed
+  if (/\.(data|body)\b/.test(t) || /response\.data|res\.data/.test(t)) {
+    deps.push({
+      id: 'response-body',
+      severity: 'critical',
+      what: `${libName} auto-parses response body (e.g. .data)`,
+      checkFor: [/\.json\s*\(\)/, /\.text\s*\(\)/, /\.blob\s*\(\)/, /\.arrayBuffer\s*\(\)/],
+      msg: 'Response body auto-parsed (.data) — new code needs explicit .json()/.text()',
+    })
+  }
+
+  // Timeout
+  if (/\btimeout\s*:/.test(t)) {
+    deps.push({
+      id: 'timeout',
+      severity: 'warning',
+      what: `timeout option used`,
+      checkFor: [/AbortController/, /AbortSignal/, /clearTimeout/],
+      msg: 'timeout option used — replacement needs AbortController or equivalent',
+    })
+  }
+
+  // Base URL construction
+  if (/\bbaseURL\s*:/.test(t)) {
+    deps.push({
+      id: 'base-url',
+      severity: 'warning',
+      what: `baseURL option used`,
+      checkFor: [/new URL\s*\(/, /baseURL/, /`\$\{/, /\.href/],
+      msg: 'baseURL used — verify URL construction in replacement',
+    })
+  }
+
+  // Request body serialization
+  if (/\bdata\s*:\s*[\{\[]|\bdata\s*:\s*[a-zA-Z_$]|\bbody\s*:\s*[\{\[]/.test(t)) {
+    deps.push({
+      id: 'request-body',
+      severity: 'warning',
+      what: `request body (data/body option)`,
+      checkFor: [/JSON\.stringify/, /FormData/, /content-type/i, /Content-Type/],
+      msg: 'request body sent — verify JSON.stringify and Content-Type header in replacement',
+    })
+  }
+
+  // Auth
+  if (/\bauth\s*:\s*\{/.test(t)) {
+    deps.push({
+      id: 'auth',
+      severity: 'warning',
+      what: `auth config`,
+      checkFor: [/Authorization/, /authorization/, /Bearer/, /Basic /],
+      msg: 'auth config used — verify authorization headers in replacement',
+    })
+  }
+
+  // Interceptors (no direct fetch equivalent)
+  if (new RegExp(`${libName}\\.interceptors`).test(t)) {
+    deps.push({
+      id: 'interceptors',
+      severity: 'critical',
+      what: `request/response interceptors`,
+      checkFor: [/intercept|middleware|wrapper|beforeRequest|afterResponse/i],
+      msg: 'interceptors used — no direct equivalent; requires manual middleware wrapper',
+    })
+  }
+
+  // Error handling preservation
+  const hadTryCatch = /try\s*\{/.test(t)
+  const hadCatch = new RegExp(`\\b${libName}\\b.*\\.catch\\s*\\(`).test(t) || /\.catch\s*\(/.test(t)
+  if (hadTryCatch || hadCatch) {
+    deps.push({
+      id: 'error-handling',
+      severity: 'warning',
+      what: `error handling (${hadTryCatch ? 'try/catch' : '.catch()'})`,
+      checkFor: [/try\s*\{/, /\.catch\s*\(/],
+      msg: 'error handling present in old code — verify replicated in replacement',
+    })
+  }
+
+  // --- General library semantics ---
+
+  // Callback pattern
+  if (new RegExp(`${libName}\\s*\\([^)]*,\\s*function|${libName}\\s*\\([^)]*,\\s*\\(`).test(t)) {
+    deps.push({
+      id: 'callback',
+      severity: 'warning',
+      what: `callback-style API`,
+      checkFor: [/await|\.then\s*\(|Promise/],
+      msg: 'callback API used — verify promise/async equivalent',
+    })
+  }
+
+  return deps
+}
+
+function checkBehaviorPresent(newText, dep) {
+  return dep.checkFor.some(pattern => pattern.test(newText))
+}
+
+// ---------------------------------------------------------------------------
+// Get content at git ref
+// ---------------------------------------------------------------------------
+function contentAtRef(ref, filePath) {
+  try {
+    const gitRoot = execSync('git rev-parse --show-toplevel 2>/dev/null').toString().trim()
+    const relPath = path.relative(gitRoot, path.resolve(filePath))
+    return execSync(`git show ${ref}:${relPath} 2>/dev/null`).toString()
+  } catch { return null }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const newContent = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
+if (!newContent) { console.error(`not found: ${file}`); process.exit(1) }
+
+// Detect library from current or old content if --from not given
+const detectedLib = fromLib || (() => {
+  const content = base ? (contentAtRef(base, file) || newContent) : newContent
+  const match = content.match(/import\s+(\w+)\s+from\s+'([^']+)'|require\s*\(\s*'([^']+)'\s*\)/)
+  return match ? (match[2] || match[3] || '').split('/').pop() : ''
+})()
+
+if (!detectedLib) {
+  console.error('Could not detect library. Specify with --from <lib>')
+  process.exit(1)
+}
+
+const mode = base ? 'review' : 'plan'
+const oldContent = base ? contentAtRef(base, file) : newContent
+
+if (!oldContent) { console.log(`${path.basename(file)}: new file`); process.exit(0) }
+
+const oldSf = parseFile(oldContent, 'old', file)
+const newSf = base ? parseFile(newContent, 'new', file) : null
+
+const oldFns = extractFunctions(oldSf)
+const newFns = base ? extractFunctions(newSf) : {}
+
+console.log(`## Migration ${mode === 'plan' ? 'Plan' : 'Review'}: ${detectedLib} — ${path.basename(file)}`)
+if (mode === 'plan') {
+  console.log(`## (plan mode — shows what needs to be handled when migrating away from ${detectedLib})`)
+} else {
+  console.log(`## (review mode — checking ${base} → working tree)`)
+}
+console.log()
+
+let hasIssues = false
+const allChecklist = new Set()
+
+for (const [fnName, oldBody] of Object.entries(oldFns)) {
+  const deps = extractBehavioralDeps(oldBody, detectedLib)
+  if (deps.length === 0) continue
+
+  console.log(`### ${fnName}`)
+
+  if (mode === 'plan') {
+    // Plan: show what needs to be handled
+    for (const dep of deps) {
+      const icon = dep.severity === 'critical' ? '🔴' : '🟡'
+      console.log(`  ${icon} ${dep.what}`)
+      console.log(`     → ${dep.msg}`)
+      allChecklist.add(`${icon} ${dep.msg}`)
+      hasIssues = true
+    }
+  } else {
+    // Review: check what's present vs missing
+    const newBody = newFns[fnName] || ''
+    const libGone = !new RegExp(`\\b${detectedLib}\\b`).test(newBody)
+
+    if (!libGone) {
+      console.log(`  (${detectedLib} still present in this function — migration incomplete)`)
+      hasIssues = true
+    }
+
+    for (const dep of deps) {
+      const present = checkBehaviorPresent(newBody, dep)
+      const icon = present ? '✓' : (dep.severity === 'critical' ? '🔴' : '🟡')
+      const status = present ? 'replicated' : dep.msg
+      console.log(`  ${icon}  ${dep.what}${present ? ' — replicated' : ''}`)
+      if (!present) {
+        console.log(`       ${dep.msg}`)
+        hasIssues = true
+      }
+    }
+  }
+  console.log()
+}
+
+if (mode === 'plan' && allChecklist.size > 0) {
+  console.log('### Migration checklist')
+  for (const item of allChecklist) console.log(`  ${item}`)
+  console.log()
+}
+
+if (!hasIssues) {
+  if (mode === 'review') console.log('✓ All behavioral dependencies accounted for')
+  else console.log(`(no ${detectedLib} usage found in exported functions)`)
+}

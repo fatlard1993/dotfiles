@@ -1,0 +1,36 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-deps — prod / dev / peer dependencies from package.json
+# Usage: ctx-deps [path/to/package.json]
+#   No arg: walks up from cwd to the nearest package.json
+
+setopt errexit pipefail
+
+# Find the target: explicit arg, or walk up to nearest package.json
+if [[ -n "${1:-}" ]]; then
+	file="$1"
+else
+	file="$(pwd)/package.json"
+	dir="$(pwd)"
+	while [[ ! -f "$file" && "$dir" != "/" ]]; do
+		dir="$(dirname $dir)"
+		file="$dir/package.json"
+	done
+fi
+
+[[ -f "$file" ]] || { logError "no package.json found: $file"; exit 1; }
+
+name=$(jq -r '.name // "unknown"' "$file")
+version=$(jq -r '.version // ""' "$file")
+echo "## $name${version:+ @ $version}"
+echo ""
+
+for group in dependencies devDependencies peerDependencies optionalDependencies; do
+	if jq -e ".$group | length > 0" "$file" > /dev/null 2>&1; then
+		echo "### $group"
+		echo ""
+		jq -r ".$group | to_entries[] | \"  \(.key)  \(.value)\"" "$file"
+		echo ""
+	fi
+done

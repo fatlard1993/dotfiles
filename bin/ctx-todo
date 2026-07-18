@@ -1,0 +1,81 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-todo — scan for TODO/FIXME/HACK/XXX/NOTE/REVIEW comments, grouped by type
+#
+# Usage: ctx-todo [path] [--counts-only]
+#   --counts-only   Show only the summary table, not individual items
+
+target="${1:-.}"
+counts_only=false
+[[ "${2:-}" == "--counts-only" ]] && counts_only=true
+
+markers=(FIXME HACK XXX TODO NOTE REVIEW)
+
+echo "## TODO: $target"
+echo ""
+
+total=0
+declare -A counts
+
+icon_for() {
+  case "$1" in
+    FIXME|HACK|XXX) echo "🔴" ;;
+    TODO|REVIEW)    echo "🟡" ;;
+    *)              echo "·"  ;;
+  esac
+}
+
+scan_marker() {
+  local marker="$1"
+  rg --no-heading --color=never -n -i \
+    "(?://|#|/\*|\*)\s*${marker}\b" \
+    --glob='!*.min.*' --glob='!*.d.ts' \
+    --glob='!package-lock.json' --glob='!yarn.lock' --glob='!bun.lock*' \
+    "$target" 2>/dev/null | grep -v 'node_modules' | grep -v '/\.git/' || true
+}
+
+for marker in "${markers[@]}"; do
+    results=$(scan_marker "$marker")
+    count=$(echo "$results" | grep '[^[:space:]]' 2>/dev/null | wc -l | tr -d ' ')
+    [ "${count:-0}" -gt 0 ] || continue
+
+    counts[$marker]=$count
+    total=$((total + count))
+    icon=$(icon_for "$marker")
+
+    if ! $counts_only; then
+        echo "### ${icon} ${marker}  (${count})"
+        echo ""
+        shown=0
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            display=$(echo "$line" | sed "s|^${target%/}/||" | cut -c1-120)
+            echo "  ${display}"
+            shown=$((shown + 1))
+            [ "$shown" -ge 10 ] && break
+        done <<< "$results"
+        remaining=$((count - shown))
+        [ "$remaining" -gt 0 ] && echo "  … and ${remaining} more"
+        echo ""
+    fi
+done
+
+if [ "$total" -eq 0 ]; then
+    echo "✓ No TODO/FIXME/HACK/XXX/NOTE/REVIEW found."
+    exit 0
+fi
+
+if ! $counts_only; then
+    echo "### Summary"
+    echo ""
+fi
+
+for marker in "${markers[@]}"; do
+    c=${counts[$marker]:-0}
+    [ "${c:-0}" -gt 0 ] || continue
+    icon=$(icon_for "$marker")
+    printf "  %-8s %s  %d\n" "${marker}" "${icon}" "$c"
+done
+echo ""
+echo "Total: ${total}"

@@ -1,0 +1,1222 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+
+# ctx-test — run the project's tests, compress output to signal.
+#
+# Pass case → one line. Fail case → per-failure block with name, location,
+# error. Raw output available via --full.
+#
+# Usage:
+#   ctx-test                          all tests in detected framework
+#   ctx-test <file>                   tests in a file
+#   ctx-test <pattern>                tests whose name matches pattern
+#   ctx-test --file <path>            force file mode
+#   ctx-test --name <pattern>         force name pattern mode
+#   ctx-test --framework <name>       override detection
+#                                     (bats|vitest|jest|bun|mocha|cypress|pytest|npm)
+#   ctx-test --full                   pass through raw output (no compression)
+#   ctx-test --summary                only the summary line
+#   ctx-test --timeout <sec>          kill the run after N seconds (compress as failure)
+#
+# Context: when given a file target, the project root and any framework
+# config (.mocharc.*, jest.config.*, etc.) are resolved by walking up from
+# the target's directory — not from cwd. This is what makes ctx-test do
+# the right thing inside a monorepo.
+#
+# Exit: 0 = all passed, 1 = at least one failed, 2 = could not run.
+
+setopt pipefail nounset
+
+# Sub-second timing — $EPOCHREALTIME is float seconds since epoch
+zmodload zsh/datetime
+
+# #!/bin/zsh scripts only source ~/.zshenv, not ~/.zshrc, so per-user
+# PATH augmentations done in .zshrc are missing here. Re-add the
+# common ones so ctx-test can find bun / deno / cargo / pyenv shims
+# that the user's interactive shell sees fine.
+for _augment in \
+	"$HOME/.bun/bin" \
+	"$HOME/.deno/bin" \
+	"$HOME/.cargo/bin" \
+	"$HOME/.pyenv/shims" \
+	"$HOME/.local/bin"
+do
+	[[ -d "$_augment" ]] && [[ ":$PATH:" != *":$_augment:"* ]] && PATH="$_augment:$PATH"
+done
+unset _augment
+export PATH
+
+# ────────────────────────────────────────────────────────────────────
+# arg parsing
+# ────────────────────────────────────────────────────────────────────
+
+target=""
+target_kind=""        # file | name | (empty = guess from target)
+framework=""
+full=false
+summary_only=false
+timeout_sec=""
+
+unparsed=("$@")
+
+while (( ${#unparsed[@]} )); do
+	arg=$unparsed[1]
+	case "$arg" in
+		--framework)
+			unparsed[1]=()
+			framework=$unparsed[1]
+			;;
+		--file)
+			unparsed[1]=()
+			target=$unparsed[1]
+			target_kind=file
+			;;
+		--name)
+			unparsed[1]=()
+			target=$unparsed[1]
+			target_kind=name
+			;;
+		--timeout)
+			unparsed[1]=()
+			timeout_sec=$unparsed[1]
+			;;
+		--full|--raw)
+			full=true
+			;;
+		--summary)
+			summary_only=true
+			;;
+		--*)
+			# unknown long flag — ignore for forward-compat
+			;;
+		*)
+			[[ -z "$target" ]] && target="$arg"
+			;;
+	esac
+	unparsed[1]=()
+done
+
+# ────────────────────────────────────────────────────────────────────
+# context resolution — walk up from the target (or cwd) for project root
+# ────────────────────────────────────────────────────────────────────
+
+# originDir: where context resolution starts.
+# If target is a file path, originDir = its directory; otherwise cwd.
+# This is what makes ctx-test pick the *local* package.json + mocharc
+# inside a monorepo when given a file under services/<svc>/test/...
+originDir() {
+	if [[ -n "$target" ]]; then
+		local cand="$target"
+		# Always absolutize before dirname — a relative path that happens to
+		# exist yields a relative dir, which then causes findProjectRoot to
+		# return "." and loops in resolveBin to spin forever.
+		[[ "$cand" != /* ]] && cand="$PWD/$cand"
+		if [[ -f "$cand" ]]; then
+			dirname "$cand"
+			return
+		fi
+		if [[ -d "$cand" ]]; then
+			echo "$cand"
+			return
+		fi
+	fi
+	echo "$PWD"
+}
+
+findProjectRoot() {
+	local dir="$1" prev=""
+	while [[ "$dir" != "/" && -n "$dir" && "$dir" != "$prev" ]]; do
+		for marker in package.json pyproject.toml setup.cfg setup.py go.mod Cargo.toml; do
+			[[ -e "$dir/$marker" ]] && { echo "$dir"; return; }
+		done
+		prev="$dir"
+		dir=$(dirname "$dir")
+	done
+	# git root as last resort
+	dir="$1"; prev=""
+	while [[ "$dir" != "/" && -n "$dir" && "$dir" != "$prev" ]]; do
+		[[ -e "$dir/.git" ]] && { echo "$dir"; return; }
+		prev="$dir"
+		dir=$(dirname "$dir")
+	done
+	echo "$1"
+}
+
+# Walks up from $1 looking for a file named in $2 (e.g. .mocharc.js).
+# Stops at $root. Echoes the absolute path or nothing.
+findUpward() {
+	local dir="$1" name="$2" prev=""
+	while [[ "$dir" != "/" && -n "$dir" && "$dir" != "$prev" ]]; do
+		[[ -e "$dir/$name" ]] && { echo "$dir/$name"; return; }
+		[[ "$dir" == "$root" ]] && break
+		prev="$dir"
+		dir=$(dirname "$dir")
+	done
+}
+
+# Find the nearest mocha config walking up from $1.
+# Also checks the sibling *Config/ pattern used by some monorepos:
+#   test/unit/...  →  test/unitConfig/.mocharc.*
+#   test/api/...   →  test/apiConfig/.mocharc.*
+findMocharc() {
+	local dir="$1" found
+	for ext in js cjs mjs json yml yaml; do
+		found=$(findUpward "$dir" ".mocharc.$ext")
+		[[ -n "$found" ]] && { echo "$found"; return; }
+	done
+	# Sibling config dir: extract the segment after test/ and look for test/<seg>Config/
+	local rel="${dir#$root/}"
+	if [[ "$rel" == test/* ]]; then
+		local seg="${rel#test/}"
+		seg="${seg%%/*}"
+		local cfgDir="$root/test/${seg}Config"
+		[[ -d "$cfgDir" ]] && for ext in js cjs mjs json yml yaml; do
+			[[ -e "$cfgDir/.mocharc.$ext" ]] && { echo "$cfgDir/.mocharc.$ext"; return; }
+		done
+	fi
+}
+
+origin=$(originDir)
+root=$(findProjectRoot "$origin")
+
+# ────────────────────────────────────────────────────────────────────
+# framework detection
+# ────────────────────────────────────────────────────────────────────
+
+detectFromTarget() {
+	local t="$1"
+	[[ "$t" == *.bats ]]                                && { echo bats;   return; }
+	[[ "$t" == *test_*.py || "$t" == *_test.py ]]       && { echo pytest; return; }
+	[[ "$t" == *.py ]]                                  && { echo pytest; return; }
+}
+
+hasPkgDep() {
+	local pkg="$1"
+	[[ -f "$root/package.json" ]] || return 1
+	jq -e --arg p "$pkg" \
+		'(.dependencies[$p] // .devDependencies[$p]) != null' \
+		"$root/package.json" >/dev/null 2>&1
+}
+
+hasPkgScript() {
+	local script="$1"
+	[[ -f "$root/package.json" ]] || return 1
+	jq -e --arg s "$script" '.scripts[$s] != null' "$root/package.json" >/dev/null 2>&1
+}
+
+# Returns 0 if any test:* npm script invokes mocha
+# (covers nyc-wrapped invocations, multi-step pipelines, etc.).
+scriptInvokesMocha() {
+	[[ -f "$root/package.json" ]] || return 1
+	jq -e '
+		[(.scripts // {}) | to_entries[] | select(.key | test("^test")) | .value]
+		| any(.[]; test("(^| |/)mocha($| )"))
+	' "$root/package.json" >/dev/null 2>&1
+}
+
+hasFileMatching() {
+	local dir="$1" pat="$2"
+	[[ -d "$dir" ]] || return 1
+	setopt local_options nullglob
+	local matches=("$dir"/${~pat})
+	(( ${#matches[@]} > 0 ))
+}
+
+detectFramework() {
+	# 1. explicit override wins
+	[[ -n "$framework" ]] && { echo "$framework"; return; }
+
+	# 2. infer from a concrete file target's *extension*
+	if [[ "$target_kind" == file || -f "$target" ]]; then
+		local fromTarget
+		fromTarget=$(detectFromTarget "$target")
+		[[ -n "$fromTarget" ]] && { echo "$fromTarget"; return; }
+	fi
+
+	# 3. mocharc near the target wins over project-root globals
+	if [[ -n "$(findMocharc "$origin")" ]]; then
+		echo mocha; return
+	fi
+
+	# 4. project markers, most-specific first.
+	# Mocha precedes cypress: a project with both is almost always
+	# mocha-for-units + cypress-for-e2e, and the unit framework is the
+	# right default. Use --framework cypress to opt in.
+	if hasFileMatching "$root" 'vitest.config.*' || hasPkgDep vitest; then
+		echo vitest
+	elif hasFileMatching "$root" 'jest.config.*'   || hasPkgDep jest; then
+		echo jest
+	elif hasPkgDep mocha || scriptInvokesMocha; then
+		echo mocha
+	elif hasFileMatching "$root" 'cypress.config.*' || hasPkgDep cypress; then
+		echo cypress
+	elif [[ -f "$root/bunfig.toml" || -f "$root/bun.lockb" || -f "$root/bun.lock" ]] \
+	  || hasPkgDep bun-types; then
+		# Bun's `bun test` is a first-class subcommand — it discovers
+		# *.test.{js,ts} without needing a package.json scripts.test entry.
+		echo bun
+	elif hasFileMatching "$root/test" '*.bats' \
+	  || hasFileMatching "$root/tests" '*.bats' \
+	  || hasFileMatching "$root" '*.bats'; then
+		echo bats
+	elif [[ -f "$root/pytest.ini" || -f "$root/conftest.py" ]] || \
+	     ([[ -f "$root/pyproject.toml" ]] && grep -q '\[tool.pytest' "$root/pyproject.toml" 2>/dev/null); then
+		echo pytest
+	elif hasPkgScript test; then
+		echo npm
+	else
+		echo ""
+	fi
+}
+
+# ────────────────────────────────────────────────────────────────────
+# target resolution — figure out file vs name pattern
+# ────────────────────────────────────────────────────────────────────
+
+resolveTargetKind() {
+	[[ -n "$target_kind" ]] && return
+	[[ -z "$target" ]] && return
+	local _cand="$target"
+	[[ "$_cand" != /* ]] && _cand="$PWD/$_cand"
+	if [[ -f "$_cand" ]]; then
+		target_kind=file
+	elif [[ -d "$_cand" ]]; then
+		target_kind=dir
+	elif [[ "$target" == */* ]] && [[ "$target" == *.* ]]; then
+		target_kind=file
+	else
+		target_kind=name
+	fi
+}
+
+# ────────────────────────────────────────────────────────────────────
+# runners — each prints raw output to FD 1, returns the runner's status
+# ────────────────────────────────────────────────────────────────────
+
+# resolveBin <name> — echo absolute path to the binary if we can find it
+# without hitting the network, else exit 127.
+# Walks up from $root through ancestor directories checking node_modules/.bin/
+# at each level — mirrors Node's own module resolution so hoisted monorepo
+# layouts (where mocha lives at the repo root above the service, not the package itself)
+# are handled naturally. Falls back to PATH after the walk.
+resolveBin() {
+	local name="$1"
+	local dir="$root" prev=""
+	while [[ "$dir" != "/" && -n "$dir" && "$dir" != "$prev" ]]; do
+		[[ -x "$dir/node_modules/.bin/$name" ]] && { echo "$dir/node_modules/.bin/$name"; return; }
+		prev="$dir"
+		dir=$(dirname "$dir")
+	done
+	command -v "$name" >/dev/null 2>&1 && { echo "$name"; return; }
+	echo "ctx-test: $name not installed (not in node_modules/.bin/ or PATH)" >&2
+	return 127
+}
+
+runBats() {
+	local args=()
+	[[ "$target_kind" == name ]] && args+=(--filter "$target")
+	if [[ "$target_kind" == file ]]; then
+		args+=("$target")
+	elif [[ -d "$root/test" ]]; then
+		args+=("$root/test")
+	elif [[ -d "$root/tests" ]]; then
+		args+=("$root/tests")
+	else
+		args+=("$root")
+	fi
+	bats "${args[@]}"
+}
+
+runVitest() {
+	local bin
+	bin=$(resolveBin vitest) || return $?
+	local args=(run --reporter=verbose)
+	[[ "$target_kind" == file ]] && args+=("$target")
+	[[ "$target_kind" == name ]] && args+=(-t "$target")
+	(cd "$root" && "$bin" "${args[@]}")
+}
+
+runJest() {
+	local bin
+	bin=$(resolveBin jest) || return $?
+	local args=(--colors=false)
+	[[ "$target_kind" == file ]] && args+=("$target")
+	[[ "$target_kind" == name ]] && args+=(-t "$target")
+	(cd "$root" && "$bin" "${args[@]}")
+}
+
+runBun() {
+	local bin
+	bin=$(resolveBin bun) || return $?
+	local args=()
+	[[ "$target_kind" == file ]] && args+=("$target")
+	[[ "$target_kind" == name ]] && args+=(--test-name-pattern "$target")
+	(cd "$root" && "$bin" test "${args[@]}")
+}
+
+# detectMochaTranspiler <file> — inspect the file for syntax that needs a
+# --require transpiler, then verify the right package is installed.
+# Echoes the package name (e.g. @babel/register) if one is needed, else nothing.
+# Logic: if the file uses ES module syntax (import/export), walk up to find
+# an installed transpiler (@babel/register or @swc/register) and confirm a
+# matching config exists before emitting it.
+detectMochaTranspiler() {
+	local file="$1"
+	[[ -f "$file" ]] || return
+	# Detect top-level import/export — the syntax that breaks plain Node CJS
+	grep -qE '^(import |export (default |type |const |let |var |class |function |async |\{|\*))' "$file" || return
+
+	# Walk up looking for an installed transpiler, preferring @babel/register
+	# (most common) then @swc/register.
+	local dir prev found_pkg found_dir
+	for pkg in @babel/register @swc/register; do
+		dir="$root"; prev=""
+		while [[ "$dir" != "/" && -n "$dir" && "$dir" != "$prev" ]]; do
+			if [[ -d "$dir/node_modules/$pkg" ]]; then
+				found_pkg="$pkg"
+				found_dir="$dir"
+				break
+			fi
+			prev="$dir"
+			dir=$(dirname "$dir")
+		done
+		[[ -n "$found_pkg" ]] && break
+	done
+	[[ -z "$found_pkg" ]] && return
+
+	# Confirm a config for the transpiler exists — avoids false-positives
+	# where the package is installed but not configured for this project.
+	local has_cfg=false
+	case "$found_pkg" in
+		@babel/register)
+			for cfg in .babelrc .babelrc.js .babelrc.cjs .babelrc.json \
+			           babel.config.js babel.config.cjs babel.config.json babel.config.ts; do
+				{ [[ -e "$found_dir/$cfg" ]] || [[ -e "$root/$cfg" ]]; } && { has_cfg=true; break; }
+			done
+			$has_cfg || jq -e '.babel != null' "$root/package.json" >/dev/null 2>&1 && has_cfg=true
+			;;
+		@swc/register)
+			for cfg in .swcrc .swcrc.js swc.config.js; do
+				{ [[ -e "$found_dir/$cfg" ]] || [[ -e "$root/$cfg" ]]; } && { has_cfg=true; break; }
+			done
+			$has_cfg || jq -e '.swc != null' "$root/package.json" >/dev/null 2>&1 && has_cfg=true
+			;;
+	esac
+	$has_cfg && echo "$found_pkg"
+}
+
+# runMochaAllSuites — no-target path: discovers test/<type>/ subdirectories that
+# have a mocharc and runs each through mocha with its own config and requires.
+# Emits suite boundary markers so parseMocha can attribute failures and report
+# blocked test counts when a before-all hook aborts an entire suite.
+#
+# Zsh traps avoided:
+#  - local re-declaration inside a for loop prints the existing value to stdout
+#    → all loop vars declared once before the loops
+#  - *Config/ dirs contain their own .mocharc.* → skip any dir where the found
+#    mocharc lives inside the dir itself (config dir, not a test dir)
+runMochaAllSuites() {
+	local bin
+	bin=$(resolveBin mocha) || return $?
+
+	# Discover suites — parallel arrays avoid the pipe-separator fragility
+	# of packing two paths into one string.
+	local -a _suite_dirs=() _suite_cfgs=()
+	local _subdir _cfg
+	if [[ -d "$root/test" ]]; then
+		for _subdir in "$root/test"/*/; do
+			[[ -d "$_subdir" ]] || continue
+			_cfg=$(findMocharc "$_subdir")
+			[[ -n "$_cfg" && "$_cfg" != "${_subdir}"* ]] && {
+				_suite_dirs+=("$_subdir")
+				_suite_cfgs+=("$_cfg")
+			}
+		done
+	fi
+
+	if (( ${#_suite_dirs[@]} == 0 )); then
+		hasPkgScript test && (cd "$root" && npm test --silent 2>&1)
+		return
+	fi
+
+	local _seg _script _expected _req
+	local -a _args
+	for (( i=1; i<=${#_suite_dirs[@]}; i++ )); do
+		_subdir="${_suite_dirs[$i]}"
+		_cfg="${_suite_cfgs[$i]}"
+		_seg="${_subdir#$root/test/}"
+		_seg="${_seg%/}"
+		_args=(--reporter spec --config "$_cfg")
+
+		_script=$(jq -r --arg a "test:${_seg}:dev" --arg b "test:${_seg}" \
+			'.scripts[$a] // .scripts[$b] // empty' "$root/package.json" 2>/dev/null)
+		while IFS= read -r _req; do
+			_args+=(--require "$_req")
+		done < <(requiresFromMochaScript "$_script")
+
+		_expected=$(grep -rh -E "^\s+it\(" --include="*.js" "$_subdir" 2>/dev/null | wc -l | tr -d '[:space:]')
+		echo "---MOCHA-SUITE-START:${_seg}|${_expected}---"
+		(cd "$root" && "$bin" "${_args[@]}" "$_subdir")
+		echo "---MOCHA-SUITE-END---"
+	done
+}
+
+runMocha() {
+	[[ -z "$target_kind" ]] && { runMochaAllSuites; return; }
+
+	local bin
+	bin=$(resolveBin mocha) || return $?
+	local args=(--reporter spec)
+
+	local absTarget="$target"
+	[[ -n "$absTarget" && "$absTarget" != /* ]] && absTarget="$PWD/$absTarget"
+
+	local cfg
+	if [[ "$target_kind" == file ]]; then
+		cfg=$(findMocharc "$(dirname "$absTarget")")
+	elif [[ "$target_kind" == dir ]]; then
+		cfg=$(findMocharc "$absTarget")
+	else
+		cfg=$(findMocharc "$origin")
+	fi
+	if [[ -n "$cfg" ]]; then
+		args+=(--config "$cfg")
+	else
+		# Safety net: without a config that sets exit:true, mocha hangs
+		# waiting for the event loop after tests finish.
+		args+=(--exit)
+	fi
+
+	if [[ "$target_kind" == file ]]; then
+		local transpiler
+		transpiler=$(detectMochaTranspiler "$absTarget")
+		[[ -n "$transpiler" ]] && args+=(--require "$transpiler")
+	elif [[ "$target_kind" == dir ]]; then
+		# For a directory, pull --require from the matching npm test script.
+		local _seg="${absTarget#$root/test/}" _script _req
+		_seg="${_seg%%/*}"
+		_script=$(jq -r --arg a "test:${_seg}:dev" --arg b "test:${_seg}" \
+			'.scripts[$a] // .scripts[$b] // empty' "$root/package.json" 2>/dev/null)
+		while IFS= read -r _req; do
+			args+=(--require "$_req")
+		done < <(requiresFromMochaScript "$_script")
+	fi
+
+	if [[ "$target_kind" == file || "$target_kind" == dir ]]; then
+		args+=("$target")
+	elif [[ "$target_kind" == name ]]; then
+		args+=(-g "$target")
+	fi
+	(cd "$root" && "$bin" "${args[@]}")
+}
+
+# requiresFromMochaScript <npm-script-value>
+# Echoes one --require package per line extracted from a mocha npm script value.
+# Used when we can't inspect individual test files (directory runs, suite discovery).
+requiresFromMochaScript() {
+	local script="$1"
+	[[ -n "$script" && "$script" == *mocha* ]] || return
+	local part="${script#*mocha }"
+	local -a toks
+	toks=(${=part})
+	local i=1
+	while (( i <= ${#toks} )); do
+		if [[ "${toks[i]}" == "--require" ]] && (( i < ${#toks} )); then
+			echo "${toks[i+1]}"
+			(( i += 2 ))
+		else
+			(( i++ ))
+		fi
+	done
+}
+
+runCypress() {
+	local bin
+	bin=$(resolveBin cypress) || return $?
+	local args=(run --quiet)
+	[[ "$target_kind" == file ]] && args+=(--spec "$target")
+	(cd "$root" && "$bin" "${args[@]}")
+}
+
+runPytest() {
+	local args=(-q --tb=short --no-header)
+	[[ "$target_kind" == file ]] && args+=("$target")
+	[[ "$target_kind" == name ]] && args+=(-k "$target")
+	(cd "$root" && pytest "${args[@]}")
+}
+
+runNpm() {
+	local extra=()
+	[[ "$target_kind" == file ]] && extra+=(-- "$target")
+	[[ "$target_kind" == name ]] && extra+=(-- -t "$target")
+	(cd "$root" && npm test --silent "${extra[@]}" 2>&1)
+}
+
+# Find directories that contain a cypress.config.* file — used for no-target
+# multi-framework discovery. Checks both project root and test/ subdirectories.
+findCypressProjects() {
+	local subdir
+	hasFileMatching "$root" 'cypress.config.*' && echo "$root"
+	for subdir in "$root/test"/*/; do
+		[[ -d "$subdir" ]] || continue
+		hasFileMatching "${subdir%/}" 'cypress.config.*' && echo "${subdir%/}"
+	done
+}
+
+# Meta-runner for the no-target multi-framework case. Runs mocha (all discovered
+# suites) then cypress (all discovered projects). Outputs pre-parsed events so
+# the outer orchestration can use `cat` as its "parser" and render accumulates
+# the combined __SUMMARY__ lines from each framework.
+runMultiFramework() {
+	local _inner _project _seg _bin _status=0
+	_inner=$(mktemp)
+	trap 'rm -f "$_inner"' RETURN
+
+	# Mocha — no-target discovery runs all suites internally
+	runMocha > "$_inner" 2>&1 || _status=1
+	parseMocha < "$_inner"
+
+	# Cypress — run each discovered project, prefix failures with project name.
+	# $cypressProjects is set by the orchestration block that switched to this
+	# meta-runner, so findCypressProjects runs exactly once per invocation.
+	_bin=$(resolveBin cypress 2>/dev/null) || true
+	if [[ -n "$_bin" ]]; then
+		local _type
+		local _cyStatus _cyParsed _cyP _cyF
+		while IFS= read -r _project; do
+			_seg="${_project#$root/test/}"
+			_seg="${_seg#$root/}"
+			_seg="${_seg%/}"
+			# Detect test type from config: component: key → --component, else default e2e
+			_type=""
+			for _cfg in "$_project"/cypress.config.{js,ts,cjs,mjs}; do
+				[[ -f "$_cfg" ]] || continue
+				grep -q "^\s*component:" "$_cfg" 2>/dev/null && { _type="--component"; break; }
+			done
+			(cd "$root" && "$_bin" run --quiet ${_type:+$_type} --project "$_project") > "$_inner" 2>&1
+			_cyStatus=$?
+			_cyParsed=$(parseCypress < "$_inner")
+			_cyP=$(awk -F'\t' '/^__SUMMARY__/{print $2; exit}' <<< "$_cyParsed")
+			_cyF=$(awk -F'\t' '/^__SUMMARY__/{print $3; exit}' <<< "$_cyParsed")
+			if (( _cyStatus != 0 )) && (( ${_cyP:-0} == 0 && ${_cyF:-0} == 0 )); then
+				# Cypress couldn't start or config crashed — surface as a runner failure
+				printf '__FAILURE__\t%s :: runner could not start\n' "$_seg"
+				tail -4 "$_inner" | grep -v '^\s*$' | head -3
+				printf '__END__\n__SUMMARY__\t0\t1\t0\n'
+				_status=1
+			else
+				echo "$_cyParsed" | awk -v suite="$_seg" '
+					/^__FAILURE__\t/ { sub(/^__FAILURE__\t/, "__FAILURE__\t" suite " :: "); print; next }
+					{ print }
+				'
+			fi
+		done <<< "$cypressProjects"
+	fi
+
+	return $_status
+}
+
+# ────────────────────────────────────────────────────────────────────
+# parsers — read raw output on stdin, print compressed result on stdout
+# ────────────────────────────────────────────────────────────────────
+
+# parseTAP — bats default output is TAP. Skip directive: "ok N name # SKIP"
+parseTAP() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0; current = ""; diag = "" }
+
+	/^1\.\.[0-9]+/ { next }
+
+	/^ok / {
+		if (current != "" && currentFailed) emitFailure()
+		if ($0 ~ /# *(SKIP|skip)/) { pending++ } else { passed++ }
+		current = ""
+		currentFailed = 0
+		diag = ""
+		next
+	}
+
+	/^not ok / {
+		if (current != "" && currentFailed) emitFailure()
+		failed++
+		sub(/^not ok [0-9]+ /, "", $0)
+		current = $0
+		currentFailed = 1
+		diag = ""
+		next
+	}
+
+	/^# / {
+		if (currentFailed) {
+			line = $0
+			sub(/^# /, "", line)
+			diag = diag (diag == "" ? "" : "\n") line
+		}
+		next
+	}
+
+	END {
+		if (current != "" && currentFailed) emitFailure()
+		printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending
+	}
+
+	function emitFailure() {
+		printf "__FAILURE__\t%s\n%s\n__END__\n", current, diag
+	}
+	'
+}
+
+# parseVitestVerbose — vitest --reporter=verbose
+parseVitestLike() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0 }
+	/^[[:space:]]*[✓√] / { passed++; next }
+	/^[[:space:]]*[✗×✘] / {
+		failed++
+		line = $0
+		sub(/^[[:space:]]*[✗×✘] /, "", line)
+		printf "__FAILURE__\t%s\n", line
+		next
+	}
+	/^[[:space:]]*[↓\-] / { pending++; next }   # skipped/todo markers
+	/^[[:space:]]*Tests[[:space:]]+[0-9]+[[:space:]]+(passed|failed)/ { next }
+	END { printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending }
+	'
+}
+
+# parseBun — bun test output:
+#   bun test v1.2.20 ...
+#   src/foo.test.js:
+#   error: expect(received).toBe(expected)
+#
+#   Expected: 5
+#   Received: 4
+#
+#   (fail) beta broken [0.22ms]
+#
+#    1 pass
+#    1 skip
+#    1 fail
+parseBun() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0; currentFile = ""; errBuf = ""; inErr = 0 }
+
+	# File header line: "path/to/file.test.js:"
+	/^[^[:space:]]+\.(js|ts|jsx|tsx|mjs|cjs):$/ {
+		currentFile = $0; sub(/:$/, "", currentFile)
+		errBuf = ""; inErr = 0
+		next
+	}
+
+	/^error: / {
+		errBuf = $0
+		inErr = 1
+		next
+	}
+
+	# Per-test fail marker — closes the preceding error block.
+	/^\(fail\) / {
+		failed++
+		name = $0
+		sub(/^\(fail\) /, "", name)
+		sub(/ \[[0-9.]+m?s\]$/, "", name)
+		if (currentFile != "") name = currentFile " > " name
+		printf "__FAILURE__\t%s\n", name
+		if (errBuf != "") printf "%s\n", errBuf
+		printf "__END__\n"
+		errBuf = ""; inErr = 0
+		next
+	}
+
+	# Authoritative summary lines (override per-line counts)
+	/^[[:space:]]+[0-9]+ pass$/  { v = $0; sub(/^[[:space:]]+/, "", v); split(v, a, " "); passed  = a[1] + 0; next }
+	/^[[:space:]]+[0-9]+ fail$/  { v = $0; sub(/^[[:space:]]+/, "", v); split(v, a, " "); failed  = a[1] + 0; next }
+	/^[[:space:]]+[0-9]+ skip$/  { v = $0; sub(/^[[:space:]]+/, "", v); split(v, a, " "); pending = a[1] + 0; next }
+	/^[[:space:]]+[0-9]+ todo$/  { v = $0; sub(/^[[:space:]]+/, "", v); split(v, a, " "); pending = pending + a[1] + 0; next }
+
+	{
+		# Greedily collect lines into errBuf while in an error block;
+		# blank lines are kept so multi-line assertion messages survive.
+		if (inErr) errBuf = errBuf "\n" $0
+	}
+
+	END { printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending }
+	'
+}
+
+parseJestLike() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0 }
+	/^[[:space:]]+[✓√] / { passed++; next }
+	/^[[:space:]]+[✗×✘] / {
+		failed++
+		line = $0
+		sub(/^[[:space:]]+[✗×✘] /, "", line)
+		printf "__FAILURE__\t%s\n", line
+		next
+	}
+	/^[[:space:]]+[○·] / { pending++; next }   # jest skipped marker
+	END { printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending }
+	'
+}
+
+# parseMocha — mocha --reporter spec
+#   Suite
+#     ✓ passing test
+#     1) failing test
+#
+#   3 passing (12ms)
+#   1 failing
+#
+#   1) Suite
+#        failing test:
+#      AssertionError: expected 1 to equal 2
+#        at ...
+parseMocha() {
+	awk '
+	BEGIN {
+		passed = 0; failed = 0; pending = 0
+		pastSummary = 0
+		inDetail = 0
+		current = ""
+		diag = ""
+		currentSuite = ""
+		suiteExpected = 0
+		suitePassedAtStart = 0
+		suiteFailedAtStart = 0
+	}
+
+	# Suite start — records suite name and expected test count for attribution
+	# and blocked-test reporting. Format: ---MOCHA-SUITE-START:<name>|<n>---
+	/^---MOCHA-SUITE-START:/ {
+		line = $0
+		sub(/^---MOCHA-SUITE-START:/, "", line)
+		sub(/---$/, "", line)
+		idx = index(line, "|")
+		currentSuite    = (idx > 0) ? substr(line, 1, idx-1) : line
+		suiteExpected   = (idx > 0) ? substr(line, idx+1) + 0 : 0
+		suitePassedAtStart = passed
+		suiteFailedAtStart = failed
+		next
+	}
+
+	# Suite end — flush open detail block, report tests blocked by hook failures,
+	# then reset per-run parse state (totals survive via +=).
+	/^---MOCHA-SUITE-END---$/ {
+		if (inDetail && current != "") emit()
+		suiteRan = (passed + failed) - (suitePassedAtStart + suiteFailedAtStart)
+		if (suiteExpected > 0 && suiteRan < suiteExpected) {
+			blocked = suiteExpected - suiteRan
+			printf "__FAILURE__\t%s :: %d tests could not run\n__END__\n", currentSuite, blocked
+			failed += blocked
+		}
+		inDetail = 0; current = ""; diag = ""; pastSummary = 0
+		currentSuite = ""; suiteExpected = 0
+		suitePassedAtStart = 0; suiteFailedAtStart = 0
+		next
+	}
+
+	/^[[:space:]]*[0-9]+ passing/ {
+		v = $0; sub(/^[[:space:]]+/, "", v)
+		split(v, a, " "); passed += a[1] + 0
+		pastSummary = 1
+		next
+	}
+	/^[[:space:]]*[0-9]+ failing/ {
+		v = $0; sub(/^[[:space:]]+/, "", v)
+		split(v, a, " "); failed += a[1] + 0
+		pastSummary = 1
+		next
+	}
+	/^[[:space:]]*[0-9]+ pending/ {
+		v = $0; sub(/^[[:space:]]+/, "", v)
+		split(v, a, " "); pending += a[1] + 0
+		pastSummary = 1
+		next
+	}
+
+	# Inline pass marks (used only if a summary line never appears)
+	!pastSummary && /^[[:space:]]+[✓√] / { passed++; next }
+
+	# Numbered failure detail block, only valid past the summary.
+	# Format: "  N) Suite\n       test name:\n     <error...>\n"
+	pastSummary && /^[[:space:]]+[0-9]+\) / {
+		if (inDetail && current != "") emit()
+		inDetail = 1
+		line = $0
+		sub(/^[[:space:]]+[0-9]+\) /, "", line)
+		current = line
+		diag = ""
+		next
+	}
+
+	{
+		if (inDetail) {
+			line = $0
+			sub(/^[[:space:]]+/, "", line)
+			if (current != "" && length(line) > 0 && diag == "" && !match(line, /^[A-Z][a-z]+(Error|Exception)/)) {
+				# Second line is usually the test name (ends with ":")
+				current = current " > " line
+				sub(/:$/, "", current)
+				next
+			}
+			if (length($0) > 0) {
+				diag = (diag == "" ? line : diag "\n" line)
+			}
+		}
+	}
+
+	END {
+		if (inDetail && current != "") emit()
+		printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending
+	}
+
+	function emit() {
+		name = (currentSuite != "") ? currentSuite " :: " current : current
+		printf "__FAILURE__\t%s\n%s\n__END__\n", name, diag
+	}
+	'
+}
+
+parsePytest() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0 }
+	/^FAILED / {
+		failed++
+		line = $0
+		sub(/^FAILED /, "", line)
+		printf "__FAILURE__\t%s\n", line
+		next
+	}
+	/^PASSED / { passed++; next }
+	/^=+ .* (passed|failed|skipped) .* in .*s =+$/ {
+		summary = $0
+		while (match(summary, /[0-9]+ (passed|failed|skipped|deselected)/)) {
+			pair = substr(summary, RSTART, RLENGTH)
+			summary = substr(summary, RSTART + RLENGTH)
+			split(pair, a, " ")
+			if (a[2] == "passed")  passed  = a[1] + 0
+			if (a[2] == "failed")  failed  = a[1] + 0
+			if (a[2] == "skipped") pending = a[1] + 0
+		}
+	}
+	END { printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending }
+	'
+}
+
+# parseCypress — cypress run --quiet, summary table at the end
+parseCypress() {
+	awk '
+	BEGIN { passed = 0; failed = 0; pending = 0 }
+	/Passing:[[:space:]]+[0-9]+/ {
+		match($0, /Passing:[[:space:]]+[0-9]+/)
+		split(substr($0, RSTART, RLENGTH), a, /[[:space:]]+/)
+		passed = a[2] + 0
+	}
+	/Failing:[[:space:]]+[0-9]+/ {
+		match($0, /Failing:[[:space:]]+[0-9]+/)
+		split(substr($0, RSTART, RLENGTH), a, /[[:space:]]+/)
+		failed = a[2] + 0
+	}
+	/Pending:[[:space:]]+[0-9]+/ {
+		match($0, /Pending:[[:space:]]+[0-9]+/)
+		split(substr($0, RSTART, RLENGTH), a, /[[:space:]]+/)
+		pending = a[2] + 0
+	}
+	END { printf "__SUMMARY__\t%d\t%d\t%d\n", passed, failed, pending }
+	'
+}
+
+# ────────────────────────────────────────────────────────────────────
+# render — turn parsed events into the compressed report
+# ────────────────────────────────────────────────────────────────────
+
+# formatElapsed <ms> → "Nms" (<1s) | "Ns" (<60s) | "NmSs"
+formatElapsed() {
+	local ms=$1
+	if (( ms < 1000 )); then
+		printf "%dms" "$ms"
+	elif (( ms < 60000 )); then
+		# round to nearest second
+		printf "%ds" $(( (ms + 500) / 1000 ))
+	else
+		printf "%dm%ds" $(( ms / 60000 )) $(( (ms % 60000 + 500) / 1000 ))
+	fi
+}
+
+# displayTarget — short label for the target (file path relative to root, or name=...)
+displayTarget() {
+	[[ -z "$target" ]] && return
+	if [[ "$target_kind" == "name" ]]; then
+		printf 'name="%s"' "$target"
+		return
+	fi
+	local abs="$target"
+	[[ ! -e "$abs" ]] && abs="$PWD/$target"
+	if [[ "$abs" == "$root"/* ]]; then
+		echo "${abs#$root/}"
+	else
+		echo "$target"
+	fi
+}
+
+# filterStack — drop noisy stack frames from a failure body
+#   stdin:  body lines
+#   stdout: body lines with `at node:internal/...` / `at .../node_modules/...`
+#           dropped, and remaining stack frames capped to 3
+filterStack() {
+	awk '
+	BEGIN { atSeen = 0 }
+	/^[[:space:]]*at / {
+		if ($0 ~ /node:internal\// || $0 ~ /\/node_modules\//) next
+		atSeen++
+		if (atSeen > 3) next
+		print
+		next
+	}
+	{ atSeen = 0; print }
+	'
+}
+
+render() {
+	local fw="$1" elapsed="$2" tgt="$3"
+	local passed=0 failed=0 pending=0
+	local runnerErroredExit=""
+	local noTests=0
+	local -a failures=()
+	local current=""
+	local diag=""
+	local inFailure=false
+	local NL=$'\n'
+	local TAB=$'\t'
+
+	while IFS= read -r line; do
+		case "$line" in
+			__RUNNER_ERRORED__*)
+				runnerErroredExit="${line#__RUNNER_ERRORED__${TAB}}"
+				;;
+			__NO_TESTS__*)
+				noTests=1
+				;;
+			__SUMMARY__*)
+				local rest="${line#__SUMMARY__${TAB}}"
+				local _p="${rest%%${TAB}*}"
+				rest="${rest#*${TAB}}"
+				local _f="${rest%%${TAB}*}"
+				local _after="${rest#*${TAB}}"
+				passed=$(( passed + _p ))
+				failed=$(( failed + _f ))
+				# If no third field, ${rest#*TAB} leaves rest unchanged.
+				[[ "$_after" != "$rest" ]] && pending=$(( pending + _after ))
+				;;
+			__FAILURE__*)
+				if $inFailure; then
+					failures+=("${current}${NL}${diag}")
+				fi
+				current="${line#__FAILURE__${TAB}}"
+				diag=""
+				inFailure=true
+				;;
+			__END__)
+				failures+=("${current}${NL}${diag}")
+				current=""
+				diag=""
+				inFailure=false
+				;;
+			*)
+				if $inFailure; then
+					if [[ -z "$diag" ]]; then
+						diag="${line}"
+					else
+						diag="${diag}${NL}${line}"
+					fi
+				fi
+				;;
+		esac
+	done
+
+	if $inFailure && [[ -n "$current" ]]; then
+		failures+=("${current}${NL}${diag}")
+	fi
+
+	local total=$(( passed + failed ))
+	local mark="✓" headline=""
+	if (( noTests )); then
+		mark="·"
+		headline=$(printf "%s ctx-test :: %s :: no tests found" "$mark" "$fw")
+	elif [[ -n "$runnerErroredExit" ]]; then
+		mark="✗"
+		headline=$(printf "%s ctx-test :: %s :: runner errored (exit %s)" \
+			"$mark" "$fw" "$runnerErroredExit")
+	elif (( failed > 0 )); then
+		mark="✗"
+		headline=$(printf "%s ctx-test :: %s :: %d failed, %d passed" \
+			"$mark" "$fw" "$failed" "$passed")
+	else
+		headline=$(printf "%s ctx-test :: %s :: %d/%d passed" \
+			"$mark" "$fw" "$passed" "$total")
+	fi
+	(( pending > 0 )) && headline="${headline} (${pending} pending)"
+	[[ -n "$tgt" ]] && headline="${headline} :: ${tgt}"
+	[[ -n "$elapsed" ]] && headline="${headline} in ${elapsed}"
+	echo "$headline"
+
+	$summary_only && return
+
+	if (( failed > 0 )); then
+		echo ""
+		local entry name body
+		for entry in "${failures[@]}"; do
+			name="${entry%%${NL}*}"
+			body="${entry#*${NL}}"
+			printf "  ✗ %s\n" "$name"
+			if [[ -n "$body" && "$body" != "$name" ]]; then
+				printf "%s\n" "$body" | filterStack | sed 's/^/      /'
+			fi
+			echo ""
+		done
+	fi
+}
+
+# ────────────────────────────────────────────────────────────────────
+# orchestrate
+# ────────────────────────────────────────────────────────────────────
+
+resolveTargetKind
+fw=$(detectFramework)
+
+if [[ -z "$fw" ]]; then
+	echo "ctx-test: could not detect a test framework in $root" >&2
+	echo "  hint: pass --framework <bats|vitest|jest|bun|mocha|cypress|pytest|npm>" >&2
+	exit 2
+fi
+
+case "$fw" in
+	bats)    runner=runBats;    parser=parseTAP ;;
+	vitest)  runner=runVitest;  parser=parseVitestLike ;;
+	jest)    runner=runJest;    parser=parseJestLike ;;
+	bun)     runner=runBun;     parser=parseBun ;;
+	mocha)   runner=runMocha;   parser=parseMocha ;;
+	cypress) runner=runCypress; parser=parseCypress ;;
+	pytest)  runner=runPytest;  parser=parsePytest ;;
+	npm)     runner=runNpm;     parser=parseJestLike ;;
+	*)
+		echo "ctx-test: unknown framework '$fw'" >&2
+		exit 2
+		;;
+esac
+
+# No-target multi-framework: if additional frameworks are detected alongside
+# the primary one, switch to the meta-runner. parser=cat because runMultiFramework
+# outputs pre-parsed events directly (each framework parsed by its own parser).
+# Capture once — findCypressProjects does filesystem work, no need to call it twice.
+if [[ -z "$target_kind" ]]; then
+	extraFws=()
+	cypressProjects=""
+	[[ "$fw" != "cypress" ]] && cypressProjects=$(findCypressProjects)
+	[[ -n "$cypressProjects" ]] && extraFws+=(cypress)
+	# future: check for vitest, jest, etc. here
+	if (( ${#extraFws[@]} > 0 )); then
+		fw="${fw}+${(j:+:)extraFws}"
+		runner=runMultiFramework
+		parser=cat
+	fi
+fi
+
+tmpOut=$(mktemp)
+# On exit, clean up temp files and any orphaned Cypress Electron processes
+# spawned during this run. Cypress launches a separate process that survives
+# if the parent shell is killed (e.g. via timeout), holding ports for next run.
+trap 'rm -f "$tmpOut"; pkill -f "Cypress.app.*--cwd[[:space:]]${root}" 2>/dev/null || true' EXIT
+
+start=$EPOCHREALTIME
+timedOut=0
+
+if [[ -n "$timeout_sec" ]]; then
+	{ $runner > "$tmpOut" 2>&1 } &
+	runnerPid=$!
+
+	{
+		sleep "$timeout_sec"
+		kill -TERM $runnerPid 2>/dev/null && {
+			sleep 5
+			kill -KILL $runnerPid 2>/dev/null
+		}
+	} &
+	watchdogPid=$!
+
+	wait $runnerPid 2>/dev/null
+	runStatus=$?
+	kill $watchdogPid 2>/dev/null
+	wait $watchdogPid 2>/dev/null
+
+	(( runStatus == 143 || runStatus == 137 )) && timedOut=1
+else
+	$runner > "$tmpOut" 2>&1
+	runStatus=$?
+fi
+
+end=$EPOCHREALTIME
+elapsed_ms=$(( (end - start) * 1000 ))
+elapsed_ms=${elapsed_ms%.*}
+elapsedFmt=$(formatElapsed $elapsed_ms)
+
+tgtDisplay=$(displayTarget)
+
+if $full; then
+	cat "$tmpOut"
+	(( timedOut )) && echo "[ctx-test] timeout after ${timeout_sec}s" >&2
+	exit $(( timedOut ? 1 : runStatus ))
+fi
+
+if (( timedOut )); then
+	{
+		printf "__FAILURE__\ttimeout after %ss\n" "$timeout_sec"
+		printf "process did not finish within --timeout window\n"
+		printf "__END__\n"
+		printf "__SUMMARY__\t0\t1\t0\n"
+	} | render "$fw" "$elapsedFmt" "$tgtDisplay"
+	exit 1
+fi
+
+# Run parser and capture output so we can inspect counts before rendering
+parsedOut=$("$parser" < "$tmpOut")
+
+# When zero tests parsed, distinguish three modes:
+#   1. no test files / nothing to run  → informational "no tests found"
+#   2. runner exited non-zero w/ nothing else explanatory → "runner errored"
+#   3. runner exited zero w/ unparseable output (custom test drivers) →
+#      keep the existing 0/0 passed render
+summaryLine=$(grep -m1 '^__SUMMARY__' <<< "$parsedOut")
+rest="${summaryLine#__SUMMARY__$'\t'}"
+p="${rest%%$'\t'*}"
+rest="${rest#*$'\t'}"
+f="${rest%%$'\t'*}"
+
+if (( ${p:-0} == 0 && ${f:-0} == 0 )); then
+	# Frameworks signal "no tests" with distinct phrasings — match the
+	# common ones. If matched, this takes precedence over runner-errored.
+	if grep -qE '(0 test files matching|No tests found|no tests ran|no tests were collected|did not match any tests)' "$tmpOut" 2>/dev/null; then
+		{
+			printf "__SUMMARY__\t0\t0\t0\n"
+			printf "__NO_TESTS__\t1\n"
+		} | render "$fw" "$elapsedFmt" "$tgtDisplay"
+		exit 0
+	fi
+
+	if (( runStatus != 0 )); then
+		{
+			printf "__FAILURE__\trunner errored (exit %d)\n" "$runStatus"
+			tail -8 "$tmpOut"
+			printf "__END__\n"
+			printf "__SUMMARY__\t0\t1\t0\n"
+			printf "__RUNNER_ERRORED__\t%d\n" "$runStatus"
+		} | render "$fw" "$elapsedFmt" "$tgtDisplay"
+		exit 1
+	fi
+fi
+
+render "$fw" "$elapsedFmt" "$tgtDisplay" <<< "$parsedOut"
+
+exit $runStatus

@@ -1,0 +1,76 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-codemod — structural code transformation using AST pattern matching (ast-grep)
+# You supply the pattern; supports TS/JS/Python/Go across an entire path
+# For built-in named checks (console.log, loose equality, throw literals), use ctx-fix instead
+# Dry-runs by default showing a unified diff; use --apply to modify files
+# Patterns: $VAR matches any single node — good for symbol/string transforms
+# Limitation: $$$ (multi-node) doesn't reconstruct in replacements — use comby instead:
+#   comby 'fn(:[args]) { :[body] }' 'fn2(:[args]) { :[body] }' .ts -in-place
+# Usage: ctx-codemod <from-pattern> <to-pattern> [--lang ts|js|py|go] [--path dir] [--apply]
+
+setopt errexit pipefail
+
+from=""
+to=""
+lang=""
+path="."
+apply=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --lang)  lang="$2";  shift 2 ;;
+        --path)  path="$2";  shift 2 ;;
+        --apply) apply=true; shift ;;
+        -*)      shift ;;
+        *)
+            if   [[ -z "$from" ]]; then from="$1"
+            elif [[ -z "$to"   ]]; then to="$1"
+            fi
+            shift ;;
+    esac
+done
+
+[[ -n "$from" && -n "$to" ]] || {
+    logError "usage: ctx-codemod <from-pattern> <to-pattern> [--lang ts|js|py|go] [--path dir] [--apply]"
+    echo ""
+    echo "examples:"
+    echo "  ctx-codemod 'console.log(\$M)' 'logger.info(\$M)' --lang ts"
+    echo "  ctx-codemod 'require(\"\$M\")' 'import \$M from \"\$M\"' --lang js"
+    echo "  ctx-codemod 'this.\$OLD' 'this.\$NEW' --lang ts --path src/"
+    exit 1
+}
+
+# Auto-detect language from file counts if not specified
+if [[ -z "$lang" ]]; then
+    ts=$(fd -t f -e ts -e tsx . "$path" 2>/dev/null | wc -l | tr -d ' ')
+    js=$(fd -t f -e js -e jsx -e mjs . "$path" 2>/dev/null | wc -l | tr -d ' ')
+    py=$(fd -t f -e py . "$path" 2>/dev/null | wc -l | tr -d ' ')
+    go=$(fd -t f -e go . "$path" 2>/dev/null | wc -l | tr -d ' ')
+
+    if   [[ $ts -ge $js && $ts -gt 0 ]]; then lang="ts"
+    elif [[ $js -gt 0 ]];                then lang="js"
+    elif [[ $py -gt 0 ]];                then lang="py"
+    elif [[ $go -gt 0 ]];                then lang="go"
+    else lang="ts"
+    fi
+    echo "Detected language: $lang"
+fi
+
+if $apply; then
+    checkContinue "apply codemod to $path"
+    logInfo "Applying: $from  →  $to"
+    execute "sg -p '$from' --rewrite '$to' --lang '$lang' --color=never -U '$path' 2>/dev/null || true"
+    logInfo "Done."
+else
+    logHuman "Dry run — from: $from"
+    logHuman "          to:   $to"
+    logHuman "        lang:   $lang"
+    logHuman "        path:   $path"
+    logHuman "(use --apply to modify files)"
+    echo ""
+    { sg -p "$from" --rewrite "$to" --lang "$lang" --color=never "$path" 2>/dev/null || true; } \
+        | ctx-trim 80 \
+        || logInfo "(no matches)"
+fi

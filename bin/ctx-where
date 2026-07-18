@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-where — find where a symbol is defined; not usages
+# rg anchored patterns for all languages including typed TypeScript
+# sg additionally catches class methods (which rg can't distinguish from calls)
+# Usage: ctx-where <name> [path]
+
+setopt errexit pipefail
+
+name="${1:?usage: ctx-where <name> [path]}"
+search_path="${2:-.}"
+
+{
+
+# rg: declaration patterns anchored to line start — works for all languages including typed TS
+rg --line-number --color=never --no-heading -A 1 \
+    -e "^\s*(export\s+)?(default\s+)?(async\s+)?(function)\s+${name}\b" \
+    -e "^\s*(export\s+)?(const|let|var)\s+${name}\s*[=:]" \
+    -e "^\s*(export\s+)?(interface|type|enum)\s+${name}\b" \
+    -e "^\s*(export\s+)?(abstract\s+)?class\s+${name}\b" \
+    -e "^\s*def\s+${name}\b" \
+    -e "^\s*(pub\s+)?(async\s+)?fn\s+${name}\b" \
+    -e "^func\s+(\(.*\)\s+)?${name}\b" \
+    -e "^\s*${name}\s*\(\)\s*[{]" \
+    "$search_path" 2>/dev/null || true
+
+# sg: class method definitions — rg can't reliably distinguish methods from calls
+for lang in ts js; do
+    { sg -p "class \$C { ${name}(\$\$\$) { \$\$\$ } }" \
+        --lang "$lang" --color=never "$search_path" 2>/dev/null || true; } \
+        | grep -E "^[^:]+:[0-9]+:.*\b${name}\b" || true
+done
+
+} | sort -u | ctx-trim 40

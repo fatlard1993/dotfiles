@@ -1,0 +1,427 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-health — codebase health dashboard
+//
+// Six checks in one pass: TypeScript errors, import cycles, high-complexity
+// functions, unused dependencies, stale JSDoc, test file gaps.
+//
+// Usage: ctx-health [path] [--no-fail]
+//   --no-fail   Always exit 0 (informational use in CI comments)
+//
+// Exit: 0 = all green  |  1 = warnings  |  2 = critical (tsc errors or cycles)
+
+const { execSync, spawnSync } = require('child_process')
+const { Project, SyntaxKind, Node } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const targetPath = path.resolve(args.find(a => !a.startsWith('--')) || '.')
+const noFail = args.includes('--no-fail')
+
+// ---------------------------------------------------------------------------
+// Shared file utilities
+// ---------------------------------------------------------------------------
+const SKIP_DIRS = new Set(['node_modules','dist','build','es','lib','umd',
+                           '.git','__pycache__','.venv','venv','env',
+                           'report','reports','coverage','public','static','.nyc_output','.ci'])
+
+function collectFiles(dir, exts) {
+  if (!fs.existsSync(dir)) return []
+  const stat = fs.statSync(dir)
+  if (stat.isFile()) return exts.some(e => dir.endsWith(e)) ? [dir] : []
+  const out = []
+  function walk(d) {
+    let entries
+    try { entries = fs.readdirSync(d, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue
+      const full = path.join(d, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (exts.some(x => e.name.endsWith(x))) out.push(full)
+    }
+  }
+  walk(dir)
+  return out
+}
+
+function findUp(name, from) {
+  let dir = fs.statSync(from).isDirectory() ? from : path.dirname(from)
+  while (dir !== path.dirname(dir)) {
+    const c = path.join(dir, name)
+    if (fs.existsSync(c)) return c
+    dir = path.dirname(dir)
+  }
+  return null
+}
+
+const rel = fp => path.relative(process.cwd(), fp) || fp
+
+// ---------------------------------------------------------------------------
+// Check result shape
+// { name, status: 'pass'|'warn'|'fail'|'skip', summary, level: 'critical'|'warning', details[] }
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 1. TypeScript compilation
+// ---------------------------------------------------------------------------
+function checkTypeScript(root) {
+  const tsconfig = findUp('tsconfig.json', root)
+  if (!tsconfig) return { name: 'TypeScript', status: 'skip', summary: 'no tsconfig.json', level: 'critical', details: [] }
+
+  const gitRoot = (() => { try { return execSync('git rev-parse --show-toplevel 2>/dev/null', { encoding: 'utf8' }).trim() } catch { return root } })()
+  const localTsc = path.join(gitRoot, 'node_modules/.bin/tsc')
+  let tscBin = fs.existsSync(localTsc) ? localTsc : null
+  if (!tscBin) { try { execSync('tsc --version', { stdio: 'ignore' }); tscBin = 'tsc' } catch {} }
+  if (!tscBin) return { name: 'TypeScript', status: 'skip', summary: 'tsc not available (npm ci needed?)', level: 'critical', details: [] }
+
+  const r = spawnSync(tscBin, ['--noEmit', '--skipLibCheck'], { cwd: gitRoot, encoding: 'utf8', timeout: 30000 })
+  const errors = (r.stdout + r.stderr).split('\n').filter(l => l.includes('error TS'))
+
+  if (!errors.length) return { name: 'TypeScript', status: 'pass', summary: 'no errors', level: 'critical', details: [] }
+  return {
+    name: 'TypeScript', status: 'fail', level: 'critical',
+    summary: `${errors.length} error(s)`,
+    details: errors.slice(0, 3).map(e => e.replace(gitRoot + path.sep, '')),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Import cycles
+// ---------------------------------------------------------------------------
+const IMPORT_RES = [
+  /from\s+['"]([^'"]+)['"]/g,
+  /require\s*\(\s*['"]([^'"]+)['"]/g,
+  /import\s*\(\s*['"]([^'"]+)['"]/g,
+  /^\s*import\s+['"]([^'"]+)['"]/gm,
+]
+const EXT_ORDER = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
+
+function resolveRel(spec, fromFile, known) {
+  const base = path.resolve(path.dirname(fromFile), spec)
+  for (const ext of EXT_ORDER) { if (known.has(base + ext)) return base + ext }
+  for (const ext of EXT_ORDER) { const i = path.join(base, `index${ext}`); if (known.has(i)) return i }
+  return null
+}
+
+// Statically resolve .require() method calls (dynamic loaders like discovery.require)
+function extractDynamicRequires(content, fromFile) {
+  const fromDir = path.dirname(fromFile)
+  const specs = []; let unresolved = 0
+  const litRE = /\b\w+\.require\s*\(\s*(['"])(\.\.?\/[^'"]*)\1/g; let m
+  while ((m = litRE.exec(content)) !== null) specs.push(m[2])
+  const pjRE = /\b\w+\.require\s*\(\s*path\.(?:join|resolve)\s*\(([^)]+)\)/g
+  while ((m = pjRE.exec(content)) !== null) {
+    const parts = []; const tokRE = /__dirname|['"]([^'"]+)['"]/g; let tok
+    while ((tok = tokRE.exec(m[1])) !== null) tok[0] === '__dirname' ? parts.push(fromDir) : parts.push(tok[1])
+    parts.length > 0 ? specs.push(path.join(...parts)) : unresolved++
+  }
+  const dynRE = /\b\w+\.require\s*\(\s*(?!['"`]|path\.)/g
+  while ((dynRE.exec(content)) !== null) unresolved++
+  return { specs, unresolved }
+}
+
+function checkCycles(files) {
+  const known = new Set(files)
+  const graph = {}
+  let dynamicUnresolved = 0
+  for (const fp of files) {
+    graph[fp] = new Set()
+    let raw; try { raw = fs.readFileSync(fp, 'utf8') } catch { continue }
+    const content = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\r\n]*/g, '')
+    const addEdge = (spec) => {
+      const t = spec.startsWith('/') ? (known.has(spec) ? spec : null) : resolveRel(spec, fp, known)
+      if (t) graph[fp].add(t)
+    }
+    for (const re of IMPORT_RES) {
+      re.lastIndex = 0; let m
+      while ((m = re.exec(content)) !== null) { if (m[1].startsWith('.')) addEdge(m[1]) }
+    }
+    const { specs: dynSpecs, unresolved } = extractDynamicRequires(content, fp)
+    dynSpecs.forEach(addEdge)
+    dynamicUnresolved += unresolved
+  }
+
+  const cycles = [], visited = new Set(), inStack = new Set(), stack = []
+  function dfs(node) {
+    if (inStack.has(node)) { cycles.push([...stack.slice(stack.indexOf(node)), node]); return }
+    if (visited.has(node)) return
+    visited.add(node); inStack.add(node); stack.push(node)
+    for (const n of (graph[node] || new Set())) dfs(n)
+    stack.pop(); inStack.delete(node)
+  }
+  for (const node of Object.keys(graph)) { if (!visited.has(node)) dfs(node) }
+
+  const seen = new Set()
+  const unique = cycles.filter(c => { const k = [...c].sort().join('|'); if (seen.has(k)) return false; seen.add(k); return true })
+
+  const partial = dynamicUnresolved > 0 ? `  (⚠ ${dynamicUnresolved} dynamic require(s) unresolvable — graph is partial)` : ''
+  if (!unique.length) return { name: 'Cycles', status: 'pass', summary: `no import cycles${partial}`, level: 'critical', details: [] }
+  return {
+    name: 'Cycles', status: 'fail', level: 'critical',
+    summary: `${unique.length} import cycle(s)${partial}`,
+    details: unique.slice(0, 3).map(c => c.map(rel).join(' → ')),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. High-complexity functions  (grade C = ≥8)
+// ---------------------------------------------------------------------------
+const BRANCH_KINDS = new Set([
+  SyntaxKind.IfStatement, SyntaxKind.ConditionalExpression,
+  SyntaxKind.ForStatement, SyntaxKind.ForInStatement, SyntaxKind.ForOfStatement,
+  SyntaxKind.WhileStatement, SyntaxKind.DoStatement, SyntaxKind.CatchClause,
+  SyntaxKind.CaseClause,
+])
+
+function cyclomatic(node) {
+  let n = 1
+  node.forEachDescendant(child => {
+    const k = child.getKind()
+    if (BRANCH_KINDS.has(k)) { n++; return }
+    if (k === SyntaxKind.BinaryExpression) {
+      const op = child.getOperatorToken().getKind()
+      if (op === 56 || op === 57 || op === 61) n++  // &&, ||, ??
+    }
+  })
+  return n
+}
+
+function checkComplexity(sourceFiles) {
+  const hot = []
+  for (const sf of sourceFiles) {
+    const fp = sf.getFilePath()
+    const seen = new Set()
+    const check = (name, node) => {
+      if (seen.has(name)) return; seen.add(name)
+      const c = cyclomatic(node)
+      if (c >= 8) hot.push({ name, c, fp })
+    }
+    for (const fn of sf.getFunctions()) fn.getName() && check(fn.getName(), fn)
+    for (const v of sf.getVariableDeclarations()) {
+      const init = v.getInitializer?.()
+      if (!init) continue
+      const k = init.getKind()
+      if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) check(v.getName(), init)
+    }
+    for (const cls of sf.getClasses()) {
+      for (const m of cls.getMethods()) check(`${cls.getName() || '?'}.${m.getName()}`, m)
+    }
+    // Object literal methods in export default { name: fn }
+    for (const [, decls] of sf.getExportedDeclarations()) {
+      for (const d of decls) {
+        if (!Node.isObjectLiteralExpression(d)) continue
+        for (const prop of d.getProperties()) {
+          if (!Node.isPropertyAssignment(prop)) continue
+          const init = prop.getInitializer()
+          if (!init) continue
+          const k = init.getKind()
+          if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) {
+            check(prop.getName(), init)
+          }
+        }
+      }
+    }
+  }
+  hot.sort((a, b) => b.c - a.c)
+
+  if (!hot.length) return { name: 'Complexity', status: 'pass', summary: 'no high-complexity functions', level: 'warning', details: [] }
+  return {
+    name: 'Complexity', status: 'warn', level: 'warning',
+    summary: `${hot.length} function(s) complexity ≥ 8`,
+    details: hot.slice(0, 4).map(h => `${h.name} (${h.c})  ${rel(h.fp)}`),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Unused dependencies
+// ---------------------------------------------------------------------------
+const DEP_RES = [/from\s+['"]([^'"]+)['"]/g, /require\s*\(\s*['"]([^'"]+)['"]/g, /^\s*import\s+['"]([^'"]+)['"]/gm]
+const pkgOf = s => !s || s.startsWith('.') || s.startsWith('/') ? null :
+  s.startsWith('@') ? s.split('/').slice(0, 2).join('/') : s.split('/')[0]
+const isTool = n =>
+  n.startsWith('@types/') || n.startsWith('@babel/plugin-') || n.startsWith('@babel/preset-') ||
+  n.startsWith('eslint-plugin-') || n.startsWith('eslint-config-') ||
+  n.startsWith('@eslint/') || n === 'globals' ||
+  n.endsWith('-types') || n.endsWith('-registrator') ||
+  new Set(['typescript','ts-node','ts-morph','eslint','prettier','biome','jest','vitest',
+           'mocha','chai','nyc','c8','rollup','vite','webpack','esbuild','parcel',
+           'husky','lint-staged','rimraf','cross-env','concurrently','nodemon','bats',
+           'degit','release-it','semantic-release']).has(n)
+
+function checkUnusedDeps(root) {
+  const pkgPath = findUp('package.json', root)
+  if (!pkgPath || pkgPath.includes('node_modules')) return { name: 'Unused deps', status: 'skip', summary: 'no package.json', level: 'warning', details: [] }
+  let pkg; try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) } catch { return { name: 'Unused deps', status: 'skip', summary: 'cannot parse package.json', level: 'warning', details: [] } }
+
+  const used = new Set()
+  for (const fp of collectFiles(path.dirname(pkgPath), ['.ts','.tsx','.js','.jsx','.mjs'])) {
+    let content; try { content = fs.readFileSync(fp, 'utf8') } catch { continue }
+    for (const re of DEP_RES) {
+      re.lastIndex = 0; let m
+      while ((m = re.exec(content)) !== null) { const p = pkgOf(m[1]); if (p) used.add(p) }
+    }
+  }
+
+  const allDeps = { ...pkg.dependencies || {}, ...pkg.devDependencies || {}, ...pkg.optionalDependencies || {} }
+  const unused = Object.keys(allDeps).filter(n => !used.has(n) && !isTool(n))
+
+  if (!unused.length) return { name: 'Unused deps', status: 'pass', summary: 'all packages imported', level: 'warning', details: [] }
+  return {
+    name: 'Unused deps', status: 'warn', level: 'warning',
+    summary: `${unused.length} package(s) never imported`,
+    details: unused.slice(0, 4),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Stale JSDoc
+// ---------------------------------------------------------------------------
+function checkStaleDocs(sourceFiles) {
+  let count = 0
+  const examples = []
+
+  for (const sf of sourceFiles) {
+    for (const fn of sf.getFunctions()) {
+      if (!fn.getName()) continue
+      const jsdocs = fn.getJsDocs()
+      if (!jsdocs.length) continue
+      const params = (fn.getParameters?.() || [])
+        .filter(p => !Node.isObjectBindingPattern(p.getNameNode()) && !Node.isArrayBindingPattern(p.getNameNode()))
+        .map(p => p.getName())
+      for (const jsdoc of jsdocs) {
+        const docNames = jsdoc.getTags().filter(t => t.getTagName() === 'param').map(t => t.getName?.()).filter(Boolean)
+        const stale   = docNames.filter(n => !params.includes(n))
+        const missing = params.filter(n => !docNames.includes(n))
+        if (stale.length || missing.length) {
+          count++
+          if (examples.length < 3) examples.push(`${fn.getName()}  ${rel(sf.getFilePath())}`)
+        }
+      }
+    }
+  }
+
+  if (!count) return { name: 'Stale docs', status: 'pass', summary: 'all JSDoc current', level: 'warning', details: [] }
+  return {
+    name: 'Stale docs', status: 'warn', level: 'warning',
+    summary: `${count} function(s) with @param mismatch`,
+    details: examples,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Test file gaps
+// ---------------------------------------------------------------------------
+function checkTestGaps(allFiles) {
+  const testFiles = new Set(allFiles.filter(f => f.includes('.test.') || f.includes('.spec.')))
+  const sources   = allFiles.filter(f =>
+    !f.includes('.test.') && !f.includes('.spec.') && !f.endsWith('.d.ts') &&
+    !f.includes('__mocks__') && !f.includes('__fixtures__') && !f.includes('__stubs__'))
+
+  const missing = sources.filter(fp => {
+    const base = fp.replace(/\.[^.]+$/, '')
+    return !['.test.ts','.test.tsx','.test.js','.test.jsx','.spec.ts','.spec.js']
+      .some(s => testFiles.has(base + s))
+  })
+
+  if (!missing.length) return { name: 'Test gaps', status: 'pass', summary: 'all source files have tests', level: 'warning', details: [] }
+  return {
+    name: 'Test gaps', status: 'warn', level: 'warning',
+    summary: `${missing.length} file(s) without tests`,
+    details: missing.slice(0, 4).map(rel),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. Known debt (ctx-todo --counts-only)
+// ---------------------------------------------------------------------------
+function checkTodo(root) {
+  try {
+    const out = execSync(`ctx-todo "${root}" --counts-only 2>/dev/null`, { encoding: 'utf8', timeout: 15000 })
+    if (out.includes('✓ No TODO')) {
+      return { name: 'Known debt', status: 'pass', summary: 'no TODO/FIXME/HACK comments', level: 'warning', details: [] }
+    }
+    // Parse counts from summary lines
+    const totalM = out.match(/Total:\s*(\d+)/)
+    const total  = totalM ? parseInt(totalM[1], 10) : 0
+    if (!total) return { name: 'Known debt', status: 'pass', summary: 'no TODO/FIXME/HACK comments', level: 'warning', details: [] }
+
+    const critical = out.split('\n')
+      .filter(l => (l.includes('FIXME') || l.includes('HACK') || l.includes('XXX')) && l.includes('🔴'))
+      .reduce((sum, l) => { const m = l.match(/\d+/); return sum + (m ? parseInt(m[0], 10) : 0) }, 0)
+    const details = out.split('\n')
+      .filter(l => /FIXME|HACK|XXX|TODO|REVIEW/.test(l) && /\d+/.test(l))
+      .map(l => l.trim()).slice(0, 4)
+
+    return {
+      name: 'Known debt', status: 'warn', level: 'warning',
+      summary: `${total} comment(s) — ${details.map(d => d.split(/\s+/).slice(0,2).join(' ')).join(', ')}`,
+      details,
+    }
+  } catch {
+    return { name: 'Known debt', status: 'skip', summary: 'ctx-todo not available', level: 'warning', details: [] }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const allFiles  = collectFiles(targetPath, ['.ts','.tsx','.js','.jsx','.mjs'])
+const srcFiles  = allFiles.filter(f => !f.endsWith('.d.ts') && !f.includes('.test.') && !f.includes('.spec.'))
+const hasTS     = srcFiles.some(f => f.endsWith('.ts') || f.endsWith('.tsx'))
+
+// Build shared ts-morph project for complexity + stale-docs
+const project = new Project({ skipAddingFilesFromTsConfig: true, compilerOptions: { allowJs: true, checkJs: false } })
+for (const fp of srcFiles) { try { project.addSourceFileAtPath(fp) } catch {} }
+const tsSrcFiles = project.getSourceFiles()
+
+const results = [
+  hasTS ? checkTypeScript(targetPath) : { name: 'TypeScript', status: 'skip', summary: 'no TS files', level: 'critical', details: [] },
+  checkCycles(srcFiles),
+  checkComplexity(tsSrcFiles),
+  checkUnusedDeps(targetPath),
+  checkStaleDocs(tsSrcFiles),
+  checkTestGaps(allFiles),
+  checkTodo(targetPath),
+]
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+const NW = Math.max(...results.map(r => r.name.length))
+
+console.log(`## Health: ${rel(targetPath) || '.'}`)
+console.log()
+
+for (const r of results) {
+  const icon = r.status === 'pass' ? '✓' :
+               r.status === 'skip' ? '·' :
+               r.status === 'fail' && r.level === 'critical' ? '🔴' : '🟡'
+  console.log(`  ${icon}  ${r.name.padEnd(NW)}  ${r.summary}`)
+  for (const d of r.details) console.log(`         ${''.padEnd(NW)}  ${d}`)
+}
+
+console.log()
+const passing  = results.filter(r => r.status === 'pass').length
+const warnings = results.filter(r => r.status === 'warn').length
+const critical = results.filter(r => r.status === 'fail' && r.level === 'critical').length
+const skipped  = results.filter(r => r.status === 'skip').length
+
+console.log('─'.repeat(NW + 20))
+const parts = [`✓ ${passing}`]
+if (warnings) parts.push(`🟡 ${warnings} warning(s)`)
+if (critical) parts.push(`🔴 ${critical} critical`)
+if (skipped)  parts.push(`· ${skipped} skipped`)
+console.log(parts.join('  |  '))
+
+if (noFail) process.exit(0)
+if (critical > 0) process.exit(2)
+if (warnings > 0) process.exit(1)
+process.exit(0)

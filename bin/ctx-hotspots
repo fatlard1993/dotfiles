@@ -1,0 +1,191 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-hotspots — cyclomatic complexity × git churn
+//
+// Files that change often AND contain complex logic are your highest-risk code.
+// Score = churn × max-function-complexity. Sort descending, flag thresholds.
+//
+// Usage: ctx-hotspots [path] [--since <period>] [--top <n>] [--min-score <n>]
+//   --since   git log window  (default: "6 months ago")
+//   --top     max rows        (default: 20)
+//   --min-score  hide rows below threshold (default: 0)
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind, Node } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const targetPath = args.find(a => !a.startsWith('--')) || '.'
+const since = (args.find(a => a.startsWith('--since=')) || '').replace('--since=', '') ||
+              (args.indexOf('--since') >= 0 ? args[args.indexOf('--since') + 1] : '6 months ago')
+const topN = parseInt(
+  (args.find(a => a.startsWith('--top=')) || '').replace('--top=', '') ||
+  (args.indexOf('--top') >= 0 ? args[args.indexOf('--top') + 1] : '20'), 10)
+const minScore = parseInt(
+  (args.find(a => a.startsWith('--min-score=')) || '').replace('--min-score=', '') ||
+  (args.indexOf('--min-score') >= 0 ? args[args.indexOf('--min-score') + 1] : '0'), 10)
+
+// ---------------------------------------------------------------------------
+// Cyclomatic complexity
+// ---------------------------------------------------------------------------
+const BRANCH_KINDS = new Set([
+  SyntaxKind.IfStatement,
+  SyntaxKind.ConditionalExpression,
+  SyntaxKind.ForStatement,
+  SyntaxKind.ForInStatement,
+  SyntaxKind.ForOfStatement,
+  SyntaxKind.WhileStatement,
+  SyntaxKind.DoStatement,
+  SyntaxKind.CatchClause,
+  SyntaxKind.CaseClause,   // each case: branch (default excluded)
+])
+
+function complexity(node) {
+  let n = 1  // base: 1 path through any function
+  node.forEachDescendant(child => {
+    const k = child.getKind()
+    if (BRANCH_KINDS.has(k)) { n++; return }
+    if (k === SyntaxKind.BinaryExpression) {
+      const op = child.getOperatorToken().getKind()
+      if (op === SyntaxKind.AmpersandAmpersandToken ||
+          op === SyntaxKind.BarBarToken ||
+          op === SyntaxKind.QuestionQuestionToken) n++
+    }
+  })
+  return n
+}
+
+function fileFunctions(sf) {
+  const out = []
+  const seen = new Set()
+  const add = (name, node) => {
+    if (seen.has(name)) return
+    seen.add(name)
+    out.push({ name, complexity: complexity(node) })
+  }
+  for (const fn of sf.getFunctions()) fn.getName() && add(fn.getName(), fn)
+  for (const v of sf.getVariableDeclarations()) {
+    const init = v.getInitializer?.()
+    if (!init) continue
+    const k = init.getKind()
+    if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) add(v.getName(), init)
+  }
+  for (const cls of sf.getClasses()) {
+    for (const m of cls.getMethods()) add(`${cls.getName() || '?'}.${m.getName()}`, m)
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Git churn
+// ---------------------------------------------------------------------------
+function churn(filePath) {
+  try {
+    return parseInt(
+      execSync(`git log --follow --since="${since}" --oneline -- "${filePath}" 2>/dev/null | wc -l`,
+               { encoding: 'utf8' }).trim(),
+      10) || 0
+  } catch { return 0 }
+}
+
+// ---------------------------------------------------------------------------
+// File collection
+// ---------------------------------------------------------------------------
+function collect(target) {
+  const stat = fs.statSync(target)
+  if (stat.isFile()) return [path.resolve(target)]
+  const out = []
+  function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (/^(\.|node_modules|dist|build|es|lib|umd|report|reports|coverage|public|static|\.nyc_output|\.ci)$/.test(e.name)) continue
+      const full = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (/\.(ts|tsx|js|jsx|mjs)$/.test(e.name) &&
+          !e.name.endsWith('.d.ts') &&
+          !e.name.includes('.test.') &&
+          !e.name.includes('.spec.')) out.push(full)
+    }
+  }
+  walk(target)
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const absTarget = path.resolve(targetPath)
+const files = collect(absTarget)
+if (!files.length) { console.log('No source files found.'); process.exit(0) }
+
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: { allowJs: true, checkJs: false },
+})
+
+const rows = []
+for (const fp of files) {
+  const c = churn(fp)
+  let sf
+  try { sf = project.addSourceFileAtPath(fp) } catch { continue }
+
+  const fns = fileFunctions(sf)
+  if (!fns.length) continue
+
+  const maxC = Math.max(...fns.map(f => f.complexity))
+  const score = c * maxC
+  if (score < minScore) continue
+
+  rows.push({
+    relPath: path.relative(process.cwd(), fp),
+    churn: c,
+    maxC,
+    score,
+    fns: fns.sort((a, b) => b.complexity - a.complexity),
+  })
+}
+
+rows.sort((a, b) => b.score - a.score)
+const top = rows.slice(0, topN)
+
+if (!top.length) {
+  console.log(`No hotspots found${minScore > 0 ? ` (min-score: ${minScore})` : ''}.`)
+  process.exit(0)
+}
+
+const pw = Math.max(20, ...top.map(r => r.relPath.length))
+console.log(`## Hotspots: ${targetPath}  (git since: ${since})`)
+console.log()
+console.log(`${'file'.padEnd(pw)}  churn  complexity  score`)
+console.log(`${'─'.repeat(pw)}  ─────  ──────────  ─────`)
+
+for (const r of top) {
+  const icon = r.score >= 50 ? '🔴' : r.score >= 20 ? '🟡' : '  '
+  const row = `${r.relPath.padEnd(pw)}  ${String(r.churn).padStart(5)}  ${String(r.maxC).padStart(10)}  ${String(r.score).padStart(5)}`
+  console.log(`${icon} ${row}`)
+}
+
+console.log()
+
+// Per-function breakdown for hot files
+const hot = top.filter(r => r.score >= 50)
+if (hot.length) {
+  console.log('### High-complexity functions in hot files')
+  console.log()
+  for (const r of hot.slice(0, 5)) {
+    const flagged = r.fns.filter(f => f.complexity >= 5)
+    if (!flagged.length) continue
+    console.log(`  ${r.relPath}:`)
+    for (const fn of flagged.slice(0, 6)) {
+      const icon = fn.complexity >= 10 ? '🔴' : '🟡'
+      console.log(`    ${icon} ${fn.name}  complexity ${fn.complexity}`)
+    }
+    console.log()
+  }
+}

@@ -1,0 +1,206 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-invariants — detect cross-function roundtrip invariants from TypeScript AST
+// Finds complementary function pairs whose outputs/inputs form testable properties
+// Usage: ctx-invariants <file> [--generate]
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind } = requireTsMorph()
+const path = require('path')
+
+const file = process.argv[2]
+const generate = process.argv.includes('--generate')
+if (!file) { console.error('usage: ctx-invariants <file> [--generate]'); process.exit(1) }
+
+// Complementary verb pairs — output of first is valid input to second
+const PAIRS = [
+  // CRUD roundtrips
+  ['create', 'read'],   ['create', 'update'], ['create', 'delete'],
+  ['create', 'find'],   ['create', 'get'],
+  // Validation roundtrips
+  ['create', 'validate'], ['create', 'verify'],
+  // Crypto / encoding
+  ['generate', 'verify'], ['generate', 'validate'], ['generate', 'parse'],
+  ['encode', 'decode'],   ['encrypt', 'decrypt'],   ['serialize', 'deserialize'],
+  ['serialize', 'parse'], ['hash', 'verify'],        ['sign', 'verify'],
+  ['compress', 'decompress'], ['format', 'parse'],
+]
+
+function verbOf(name) {
+  for (const [a, b] of PAIRS.flat().map(v => [v])) {
+    if (name.toLowerCase().startsWith(a)) return a
+  }
+  return null
+}
+
+const isJs = /\.(js|jsx|mjs)$/.test(file)
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: isJs ? { allowJs: true, checkJs: false } : {}
+})
+project.addSourceFileAtPath(file)
+const sourceFile = project.getSourceFileOrThrow(file)
+
+const fns = []
+for (const fn of sourceFile.getFunctions()) {
+  if (!fn.isExported() || !fn.getName()) continue
+  fns.push({
+    name: fn.getName(),
+    params: fn.getParameters().map(p => ({ name: p.getName(), type: p.getType().getText(p) })),
+    returnType: fn.getReturnType().getText(fn),
+  })
+}
+
+// Also extract methods from factory functions/arrows returning objects (e.g. createCRUD)
+// Handles both: `function f() { return {...} }` and `const f = () => ({...})`
+function extractObjectMethods(node, factoryName) {
+  // Arrow with immediate object: () => ({...})
+  if (node.getKindName() === 'ParenthesizedExpression') {
+    node = node.getExpression()
+  }
+  if (!node || node.getKindName() !== 'ObjectLiteralExpression') return []
+  return (node.getProperties ? node.getProperties() : [])
+    .map(p => ({ name: p.getName?.(), source: factoryName }))
+    .filter(m => m.name)
+}
+
+// Regular functions with return {}
+for (const fn of sourceFile.getFunctions()) {
+  if (!fn.isExported() || !fn.getName()) continue
+  const body = fn.getBody()
+  if (!body) continue
+  body.getDescendantsOfKind(SyntaxKind.ReturnStatement).forEach(ret => {
+    const methods = extractObjectMethods(ret.getExpression(), fn.getName())
+    methods.forEach(m => { if (!fns.some(f => f.name === m.name)) fns.push({ ...m, params: [], returnType: 'unknown' }) })
+  })
+}
+
+// Arrow functions with implicit object return: const f = () => ({...})
+for (const v of sourceFile.getVariableDeclarations()) {
+  const stmt = v.getVariableStatement()
+  if (!stmt?.isExported()) continue
+  const init = v.getInitializer()
+  if (!init || init.getKindName() !== 'ArrowFunction') continue
+  // Arrow body is the expression (not a block)
+  const arrowBody = init.getBody()
+  if (!arrowBody) continue
+  const methods = extractObjectMethods(arrowBody, v.getName())
+  methods.forEach(m => { if (!fns.some(f => f.name === m.name)) fns.push({ ...m, params: [], returnType: 'unknown' }) })
+}
+
+console.log(`## Invariants: ${path.basename(file)}\n`)
+
+const found = []
+
+for (const [verb1, verb2] of PAIRS) {
+  const producers = fns.filter(f => f.name.toLowerCase().startsWith(verb1))
+  const consumers = fns.filter(f => f.name.toLowerCase().startsWith(verb2))
+
+  for (const producer of producers) {
+    for (const consumer of consumers) {
+      // Methods from the same factory object are inherently compatible (CRUD pattern)
+      const sameSource = producer.source && consumer.source && producer.source === consumer.source
+      // Otherwise check type compatibility
+      const producerReturn = producer.returnType.replace(/Promise<(.+)>/, '$1').replace(/\s/g, '')
+      const typeCompatible = consumer.params.some(p => {
+        const pType = p.type.replace(/\s/g, '')
+        return producerReturn === pType ||
+          producerReturn.includes(pType) ||
+          pType.includes(producerReturn) ||
+          (producerReturn === 'string' && pType === 'string')
+      })
+      const compatible = sameSource || typeCompatible
+
+      if (compatible) {
+        const invariant = {
+          producer, consumer,
+          property: describeInvariant(verb1, verb2, producer, consumer),
+          assertion: describeAssertion(verb1, verb2),
+        }
+        found.push(invariant)
+        if (!generate) {
+          console.log(`  ${producer.name} → ${consumer.name}`)
+          console.log(`  Property: ${invariant.property}`)
+          console.log(`  Test:`)
+          console.log(`    const produced = await ${producer.name}(${producer.params.map(p => `/* ${p.name} */`).join(', ')})`)
+          console.log(`    const result = await ${consumer.name}(produced${consumer.params.length > 1 ? ', /* additional params */' : ''})`)
+          console.log(`    ${invariant.assertion}`)
+          console.log()
+        }
+      }
+    }
+  }
+}
+
+if (found.length === 0) {
+  console.log('  (no complementary function pairs detected)')
+}
+
+// --generate: emit actual test code
+if (generate && found.length > 0) {
+  const rel = `./${path.basename(file, path.extname(file))}`
+  const names = [...new Set([...found.map(f => f.producer.name), ...found.map(f => f.consumer.name)])]
+  console.log(`import { describe, it, expect } from 'vitest'`)
+  console.log(`import { ${names.join(', ')} } from '${rel}'\n`)
+  console.log(`describe('roundtrip invariants', () => {`)
+  found.forEach(({ producer, consumer, assertion }) => {
+    const producerArgs = producer.params.map(p => {
+      const lp = p.name.toLowerCase()
+      if (lp.includes('email')) return `'test@example.com'`
+      if (lp.includes('password') || lp.includes('pass')) return `'test-password-123'`
+      if (lp.includes('secret') || lp.includes('key')) return `'test-secret'`
+      if (lp.includes('id')) return `'test-id-123'`
+      return `'test-${p.name}'`
+    }).join(', ')
+
+    const extraArgs = consumer.params.slice(1).map(p => {
+      if (p.name.toLowerCase().includes('secret')) return `'test-secret'`
+      if (p.name.toLowerCase().includes('password')) return `'test-password-123'`
+      return `'test-${p.name}'`
+    })
+    const consumerExtra = extraArgs.length ? `, ${extraArgs.join(', ')}` : ''
+
+    console.log(`
+  it('${producer.name} → ${consumer.name} roundtrip holds', async () => {
+    const produced = await ${producer.name}(${producerArgs})
+    const result = await ${consumer.name}(produced${consumerExtra})
+    ${assertion}
+  })`)
+  })
+  console.log(`})`)
+}
+
+function describeInvariant(v1, v2, producer, consumer) {
+  const pairs = {
+    'create-validate': `${producer.name}(inputs) produces valid data for ${consumer.name}`,
+    'generate-verify': `${consumer.name}(${producer.name}(id, secret), secret) is non-null`,
+    'encode-decode': `decode(encode(x)) === x (roundtrip identity)`,
+    'encrypt-decrypt': `decrypt(encrypt(x, key), key) === x (roundtrip identity)`,
+    'serialize-deserialize': `deserialize(serialize(x)) deep-equals x`,
+    'serialize-parse': `parse(serialize(x)) deep-equals x`,
+    'hash-verify': `verify(input, hash(input)) is true`,
+    'sign-verify': `verify(sign(data, key), data, key) is non-null`,
+    'format-parse': `parse(format(x)) recovers x`,
+    'compress-decompress': `decompress(compress(x)) === x`,
+    'create-find': `find(id) returns the entity after create(...)`,
+    'create-get': `get(id) returns the entity after create(...)`,
+  }
+  return pairs[`${v1}-${v2}`] || `${consumer.name}(${producer.name}(...)) satisfies a roundtrip property`
+}
+
+function describeAssertion(v1, v2) {
+  const assertions = {
+    'create-validate': `expect(result).toBe(true)`,
+    'generate-verify': `expect(result).not.toBeNull()`,
+    'encode-decode': `expect(result).toEqual(original)`,
+    'encrypt-decrypt': `expect(result).toEqual(original)`,
+    'serialize-deserialize': `expect(result).toEqual(original)`,
+    'hash-verify': `expect(result).toBe(true)`,
+    'sign-verify': `expect(result).not.toBeNull()`,
+    'format-parse': `expect(result).toEqual(original)`,
+  }
+  return assertions[`${v1}-${v2}`] || `expect(result).toBeTruthy() // verify roundtrip property`
+}

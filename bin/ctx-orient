@@ -1,0 +1,369 @@
+#!/usr/bin/env bun
+// ctx-orient — project orientation briefing
+//
+// "I just landed on an unfamiliar codebase — what do I need to know?"
+// Single pass: identity, runtime, architecture, churn, health snapshot.
+//
+// Usage: ctx-orient [path]
+
+const { execSync } = require('child_process')
+const path = require('path')
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(path.join(__dirname, 'lib', 'ctx-log.js'))
+const fs = require('fs')
+
+const args = process.argv.slice(2)
+const targetPath = path.resolve(args.find(a => !a.startsWith('--')) || '.')
+
+// ---------------------------------------------------------------------------
+// Shared
+// ---------------------------------------------------------------------------
+const SKIP = new Set(['node_modules','dist','build','es','lib','umd','.git',
+                      '__pycache__','.venv','venv','env',
+                      'report','reports','coverage','public','static','.nyc_output','.ci'])
+
+function collectFiles(dir, exts) {
+  if (!fs.existsSync(dir)) return []
+  const s = fs.statSync(dir)
+  if (s.isFile()) return exts.some(e => dir.endsWith(e)) ? [dir] : []
+  const out = []
+  function walk(d) {
+    let entries; try { entries = fs.readdirSync(d, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (SKIP.has(e.name) || e.name.startsWith('.')) continue
+      const full = path.join(d, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (exts.some(x => e.name.endsWith(x))) out.push(full)
+    }
+  }
+  walk(dir)
+  return out
+}
+
+function findUp(name, from) {
+  let dir = fs.statSync(from).isDirectory() ? from : path.dirname(from)
+  while (dir !== path.dirname(dir)) {
+    const c = path.join(dir, name); if (fs.existsSync(c)) return c
+    dir = path.dirname(dir)
+  }
+  return null
+}
+
+const rel = fp => path.relative(process.cwd(), fp) || fp
+
+// ---------------------------------------------------------------------------
+// Project identity (Node / Python)
+// ---------------------------------------------------------------------------
+function readNodeManifest(root) {
+  const p = findUp('package.json', root)
+  if (!p || p.includes('node_modules')) return null
+  try { return { path: p, data: JSON.parse(fs.readFileSync(p, 'utf8')) } } catch { return null }
+}
+
+function readPythonManifest(root) {
+  const req = path.join(root, 'requirements.txt')
+  const pyp = path.join(root, 'pyproject.toml')
+  if (fs.existsSync(pyp)) return { type: 'pyproject', path: pyp }
+  if (fs.existsSync(req)) return { type: 'requirements', path: req }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Framework / tooling detection
+// ---------------------------------------------------------------------------
+const FRAMEWORKS = [
+  [['next'],           'Next.js'],
+  [['react'],          'React'],
+  [['vue'],            'Vue'],
+  [['@angular/core'],  'Angular'],
+  [['svelte'],         'Svelte'],
+  [['solid-js'],       'SolidJS'],
+  [['express'],        'Express'],
+  [['fastify'],        'Fastify'],
+  [['@nestjs/core'],   'NestJS'],
+  [['koa'],            'Koa'],
+  [['electron'],       'Electron'],
+  [['@tauri-apps/api'],'Tauri'],
+]
+const TEST_FRAMEWORKS = [
+  [['vitest'],'Vitest'], [['jest','@jest/core'],'Jest'], [['mocha'],'Mocha'],
+  [['jasmine'],'Jasmine'], [['ava'],'AVA'],
+]
+const BUNDLERS = [
+  [['vite'],'Vite'], [['rollup'],'Rollup'], [['webpack'],'Webpack'],
+  [['esbuild'],'esbuild'], [['parcel'],'Parcel'],
+]
+const TOOL_NAMES  = new Set(['typescript','ts-node','eslint','prettier','biome','husky',
+                              'lint-staged','rimraf','cross-env','concurrently','nodemon','degit',
+                              'rollup','vite','webpack','esbuild','parcel','jest','vitest',
+                              'mocha','chai','nyc','c8','babel','@babel','ts-morph'])
+const isTool      = n => [...TOOL_NAMES].some(t => n === t || n.startsWith(t + '/')) ||
+                         n.startsWith('@types/') || n.startsWith('@babel/') ||
+                         n.startsWith('eslint-') || n.includes('jest') || n.includes('test')
+
+function detect(deps, map) {
+  return map.filter(([pkgs]) => pkgs.some(p => p in deps)).map(([, name]) => name)
+}
+
+function lockfile(pkgDir) {
+  if (fs.existsSync(path.join(pkgDir, 'bun.lockb')))        return 'bun'
+  if (fs.existsSync(path.join(pkgDir, 'yarn.lock')))         return 'yarn'
+  if (fs.existsSync(path.join(pkgDir, 'pnpm-lock.yaml')))    return 'pnpm'
+  if (fs.existsSync(path.join(pkgDir, 'package-lock.json'))) return 'npm'
+  return 'npm'
+}
+
+// ---------------------------------------------------------------------------
+// Size
+// ---------------------------------------------------------------------------
+function sizeOf(files) {
+  let lines = 0
+  for (const fp of files) {
+    try { lines += fs.readFileSync(fp, 'utf8').split('\n').length } catch {}
+  }
+  return lines
+}
+
+// ---------------------------------------------------------------------------
+// Architecture (import graph, no ts-morph)
+// ---------------------------------------------------------------------------
+const IMPORT_RES = [
+  /from\s+['"]([^'"]+)['"]/g,
+  /require\s*\(\s*['"]([^'"]+)['"]/g,
+  /import\s*\(\s*['"]([^'"]+)['"]/g,
+  /^\s*import\s+['"]([^'"]+)['"]/gm,
+]
+const EXT_ORDER = ['.ts','.tsx','.js','.jsx','.mjs']
+
+function resolveRel(spec, fromFile, known) {
+  const base = path.resolve(path.dirname(fromFile), spec)
+  for (const e of EXT_ORDER) { if (known.has(base + e)) return base + e }
+  for (const e of EXT_ORDER) { const i = path.join(base, `index${e}`); if (known.has(i)) return i }
+  return null
+}
+
+// Statically resolve .require() method calls whose path arg is deterministic
+function extractDynamicRequires(content, fromFile) {
+  const fromDir = path.dirname(fromFile)
+  const specs = []; let unresolved = 0
+  const litRE = /\b\w+\.require\s*\(\s*(['"])(\.\.?\/[^'"]*)\1/g
+  let m
+  while ((m = litRE.exec(content)) !== null) specs.push(m[2])
+  const pjRE = /\b\w+\.require\s*\(\s*path\.(?:join|resolve)\s*\(([^)]+)\)/g
+  while ((m = pjRE.exec(content)) !== null) {
+    const parts = []; const tokRE = /__dirname|['"]([^'"]+)['"]/g; let tok
+    while ((tok = tokRE.exec(m[1])) !== null) tok[0] === '__dirname' ? parts.push(fromDir) : parts.push(tok[1])
+    parts.length > 0 ? specs.push(path.join(...parts)) : unresolved++
+  }
+  const dynRE = /\b\w+\.require\s*\(\s*(?!['"`]|path\.)/g
+  while ((dynRE.exec(content)) !== null) unresolved++
+  return { specs, unresolved }
+}
+
+function buildGraph(files) {
+  const known   = new Set(files)
+  const outEdge = {}   // fp → Set<fp>
+  const inCount = {}   // fp → count
+  let dynamicUnresolved = 0
+  for (const fp of files) { outEdge[fp] = new Set(); inCount[fp] = 0 }
+
+  for (const fp of files) {
+    let raw; try { raw = fs.readFileSync(fp, 'utf8') } catch { continue }
+    const content = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\r\n]*/g, '')
+    const addEdge = (spec) => {
+      const t = spec.startsWith('/') ? (known.has(spec) ? spec : null) : resolveRel(spec, fp, known)
+      if (t && t !== fp) { outEdge[fp].add(t); inCount[t] = (inCount[t] || 0) + 1 }
+    }
+    for (const re of IMPORT_RES) {
+      re.lastIndex = 0; let m
+      while ((m = re.exec(content)) !== null) { if (m[1].startsWith('.')) addEdge(m[1]) }
+    }
+    const { specs: dynSpecs, unresolved } = extractDynamicRequires(content, fp)
+    dynSpecs.forEach(addEdge)
+    dynamicUnresolved += unresolved
+  }
+  return { outEdge, inCount, dynamicUnresolved }
+}
+
+function hasCycle(outEdge) {
+  // 3-color DFS: 0=white (unvisited), 1=gray (in stack), 2=black (done)
+  // A back edge to a gray node is a cycle. White→gray→black is the only valid progression.
+  const color = {}
+  function dfs(n) {
+    color[n] = 1
+    for (const c of (outEdge[n] || new Set())) {
+      const s = color[c] || 0
+      if (s === 1) return true   // back edge → cycle
+      if (s === 0 && dfs(c)) return true
+    }
+    color[n] = 2
+    return false
+  }
+  for (const n of Object.keys(outEdge)) {
+    if (!color[n] && dfs(n)) return true
+  }
+  return false
+}
+
+// ---------------------------------------------------------------------------
+// Churn — most-committed files (last 6 months)
+// ---------------------------------------------------------------------------
+function topChurned(files, top = 3) {
+  const rows = files.map(fp => {
+    try {
+      const n = parseInt(execSync(
+        `git log --follow --since="6 months ago" --oneline -- "${fp}" 2>/dev/null | wc -l`,
+        { encoding: 'utf8' }).trim(), 10) || 0
+      return { fp, n }
+    } catch { return { fp, n: 0 } }
+  }).filter(r => r.n > 0).sort((a, b) => b.n - a.n)
+  return rows.slice(0, top)
+}
+
+// ---------------------------------------------------------------------------
+// Health snapshot (call ctx-health, parse summary line)
+// ---------------------------------------------------------------------------
+function healthSnapshot(root) {
+  try {
+    const out = execSync(`ctx-health "${root}" --no-fail 2>/dev/null`, { encoding: 'utf8', timeout: 60000 })
+    // Summary: the line after the separator (─────)
+    const outLines = out.split('\n')
+    const sepIdx = outLines.findIndex(l => l.includes('─────'))
+    const summary = sepIdx >= 0 ? (outLines[sepIdx + 1] || '').trim() : ''
+    // Issue rows: lines matching "  🟡  CheckName  ..." (two spaces, icon, spaces, word)
+    const issues = outLines
+      .filter(l => /^\s{2}(🟡|🔴)\s{2}\w/.test(l))
+      .map(l => l.trim())
+      .slice(0, 4)
+    return { summary, issues }
+  } catch { return { summary: '(ctx-health not available)', issues: [] } }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const JS_EXTS  = ['.ts','.tsx','.js','.jsx','.mjs']
+const PY_EXTS  = ['.py']
+
+const jsFiles  = collectFiles(targetPath, JS_EXTS)
+const pyFiles  = collectFiles(targetPath, PY_EXTS)
+const srcJs    = jsFiles.filter(f => !f.endsWith('.d.ts') && !f.includes('.test.') && !f.includes('.spec.') && !f.includes('__mocks__'))
+const testJs   = jsFiles.filter(f => f.includes('.test.') || f.includes('.spec.'))
+
+const nodePkg  = readNodeManifest(targetPath)
+const pyPkg    = readPythonManifest(targetPath)
+
+const L = 13  // label column width
+
+function row(label, value) {
+  if (!value) return
+  console.log(`  ${label.padEnd(L)} ${value}`)
+}
+
+// ── Identity ──────────────────────────────────────────────────────────────────
+if (nodePkg) {
+  const d = nodePkg.data
+  const nameVer = [d.name, d.version].filter(Boolean).join('  v')
+  console.log(`## Orient: ${nameVer}`)
+  if (d.description) console.log(d.description)
+} else if (pyPkg) {
+  console.log(`## Orient: ${path.basename(targetPath)}  (Python)`)
+} else {
+  console.log(`## Orient: ${path.basename(targetPath)}`)
+}
+console.log()
+
+// ── Runtime ───────────────────────────────────────────────────────────────────
+if (nodePkg) {
+  const d = nodePkg.data
+  const pkgDir = path.dirname(nodePkg.path)
+  const mgr = lockfile(pkgDir)
+  const engines = d.engines || {}
+  const nodeVer = engines.node || engines.bun || ''
+  const moduleType = d.type === 'module' ? 'ESM' : 'CJS'
+  const nvmrc = (() => { try { return fs.readFileSync(path.join(pkgDir, '.nvmrc'), 'utf8').trim() } catch { return null } })()
+
+  row('Runtime', ['Node.js', nodeVer || nvmrc || ''].filter(Boolean).join(' ') + (d.engines?.bun ? '  (Bun compatible)' : ''))
+  row('Package mgr', mgr)
+  row('Module type', moduleType)
+
+  const allDeps = { ...d.dependencies || {}, ...d.devDependencies || {} }
+  const frameworks = detect(allDeps, FRAMEWORKS)
+  if (frameworks.length) row('Framework', frameworks.join(', '))
+
+  // Key runtime deps (non-tool, non-type deps only)
+  const keyDeps = Object.keys(d.dependencies || {}).filter(n => !isTool(n) && !n.startsWith('@types/')).slice(0, 6)
+  if (keyDeps.length) row('Key deps', keyDeps.join(', '))
+
+  // Test / bundler
+  const testFw = detect(allDeps, TEST_FRAMEWORKS)
+  const bundler = detect(allDeps, BUNDLERS)
+  const devHighlights = [...testFw, ...bundler, 'typescript' in allDeps ? 'TypeScript' : ''].filter(Boolean)
+  if (devHighlights.length) row('Tooling', devHighlights.join(', '))
+}
+
+if (pyFiles.length && !nodePkg) {
+  row('Runtime', 'Python')
+  if (fs.existsSync(path.join(targetPath, '.python-version'))) {
+    const v = fs.readFileSync(path.join(targetPath, '.python-version'), 'utf8').trim()
+    row('Version', v)
+  }
+}
+
+console.log()
+
+// ── Size ──────────────────────────────────────────────────────────────────────
+const activeSrc = srcJs.length ? srcJs : pyFiles
+const totalLines = sizeOf(activeSrc)
+row('Source files', `${activeSrc.length}  (${totalLines.toLocaleString()} lines)`)
+if (testJs.length) row('Test files', String(testJs.length))
+console.log()
+
+// ── Architecture ──────────────────────────────────────────────────────────────
+if (srcJs.length > 1) {
+  const { outEdge, inCount, dynamicUnresolved } = buildGraph(srcJs)
+  const coupled = srcJs
+    .map(fp => ({ fp, total: (outEdge[fp]?.size || 0) + (inCount[fp] || 0) }))
+    .filter(r => r.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 3)
+
+  if (coupled.length) {
+    console.log('  Architecture')
+    for (const { fp, total } of coupled) {
+      const out = outEdge[fp]?.size || 0
+      const inn = inCount[fp] || 0
+      console.log(`    ${rel(fp).padEnd(40)} in:${inn}  out:${out}`)
+    }
+    const cyclic = hasCycle(outEdge)
+    console.log(`    Cycles: ${cyclic ? '🔴 found — run ctx-arch for detail' : '✓ none'}`)
+    if (dynamicUnresolved > 0) console.log(`    ⚠ ${dynamicUnresolved} dynamic require(s) unresolvable — coupling counts are a floor`)
+    console.log()
+  }
+}
+
+// ── Churn ─────────────────────────────────────────────────────────────────────
+const churnSrc = (srcJs.length ? srcJs : pyFiles).filter(f =>
+  !path.basename(f).match(/\.config\.(js|ts|cjs|mjs)$/))
+const churned = topChurned(churnSrc)
+if (churned.length) {
+  console.log('  Most changed (6 months)')
+  for (const { fp, n } of churned) {
+    console.log(`    ${rel(fp).padEnd(40)} ${n} commit(s)`)
+  }
+  console.log()
+}
+
+// ── Entry points ──────────────────────────────────────────────────────────────
+if (nodePkg) {
+  const d = nodePkg.data
+  const main = d.main || d.module || (d.exports && (typeof d.exports === 'string' ? d.exports : d.exports['.']?.import || d.exports['.']?.require || d.exports['.']))
+  if (main) { row('Entry', String(main)); console.log() }
+}
+
+// ── Health snapshot ────────────────────────────────────────────────────────────
+const { summary, issues } = healthSnapshot(targetPath)
+console.log('  Health')
+if (issues.length) {
+  for (const i of issues) console.log(`    ${i}`)
+}
+console.log(`    ${summary.trim()}`)

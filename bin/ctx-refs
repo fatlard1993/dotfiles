@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-refs — find all call sites of a symbol (quick lookup, raw list)
+# Complement to ctx-where: where ctx-where finds definitions, ctx-refs finds call sites
+# For blast-radius analysis (usages + what those callers export), use ctx-impact instead
+# Usage: ctx-refs <name> [path]
+
+setopt errexit pipefail
+
+name="${1:?usage: ctx-refs <name> [path]}"
+search_path="${2:-.}"
+
+rg --word-regexp --line-number --color=never "$name" "$search_path" 2>/dev/null | ctx-trim 60

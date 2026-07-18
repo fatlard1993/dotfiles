@@ -1,0 +1,81 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-diff — synthesized view of current working changes
+# Usage: ctx-diff [base-ref]
+# Default base: HEAD (working tree vs last commit)
+
+setopt errexit pipefail
+
+base=${1:-HEAD}
+large_threshold=80
+
+git rev-parse --git-dir > /dev/null 2>&1 || { logError "Not a git repository"; exit 1; }
+
+# --- Stats ---
+echo "## Changes ($base → working tree)"
+git diff --stat --color=never "$base" 2>/dev/null
+
+staged_stat=$(git diff --cached --stat --color=never 2>/dev/null)
+if [[ -n "$staged_stat" ]]; then
+    echo "Staged:"
+    echo "$staged_stat" | sed 's/^/  /'
+fi
+
+untracked=$(git ls-files --others --exclude-standard 2>/dev/null)
+if [[ -n "$untracked" ]]; then
+    echo "Untracked:"
+    echo "$untracked" | sed 's/^/  /'
+fi
+
+# --- Related tests ---
+changed_files=$(
+    git diff --name-only --color=never "$base" 2>/dev/null
+    git diff --cached --name-only --color=never 2>/dev/null
+)
+
+if [[ -n "$changed_files" ]]; then
+    related_tests=$(
+        echo "$changed_files" | while IFS= read -r f; do
+            name=$(basename "$f" | sed 's/\.[^.]*$//' | sed 's/\.\(test\|spec\)$//')
+            fd -t f "$name" -d 6 --color=never 2>/dev/null | grep -E '\.(test|spec)\.' || true
+        done | sort -u
+    )
+
+    if [[ -n "$related_tests" ]]; then
+        echo ""
+        echo "## Related Tests"
+        echo "$related_tests" | sed 's/^/  /'
+    fi
+
+    echo ""
+    echo "## Recent Commits"
+    # shellcheck disable=SC2086
+    git log --oneline --color=never -8 -- $changed_files 2>/dev/null | sed 's/^/  /'
+fi
+
+# --- Diff: skip large files, show rest trimmed ---
+echo ""
+echo "## Diff"
+
+while IFS=$'\t' read -r added removed file; do
+    [[ "$added" == "-" ]] && continue  # binary file
+    total=$((added + removed))
+    if [[ $total -gt $large_threshold ]]; then
+        echo "# $file: +$added/-$removed (large, skipped)"
+    else
+        git diff --unified=2 --color=never "$base" -- "$file" 2>/dev/null | ctx-trim 100
+    fi
+done < <(git diff --numstat --color=never "$base" 2>/dev/null)
+
+# Staged
+while IFS=$'\t' read -r added removed file; do
+    [[ "$added" == "-" ]] && continue
+    total=$((added + removed))
+    if [[ $total -gt $large_threshold ]]; then
+        echo "# $file: +$added/-$removed staged (large, skipped)"
+    else
+        echo "# $file (staged)"
+        git diff --cached --unified=2 --color=never -- "$file" 2>/dev/null | ctx-trim 100
+    fi
+done < <(git diff --cached --numstat --color=never 2>/dev/null)

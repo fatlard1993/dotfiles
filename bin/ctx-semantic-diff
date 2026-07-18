@@ -1,0 +1,159 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-semantic-diff — compare a file's AST structure across two git refs
+// Surfaces: added/removed/changed functions with specific structural changes
+// Guards removed, error handling dropped, signature drift, new branches
+// Usage: ctx-semantic-diff <file> [old-ref=HEAD] [new-ref=working-tree]
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+const [,, file, oldRef = 'HEAD', newRef = null] = process.argv
+if (!file) { console.error('usage: ctx-semantic-diff <file> [old-ref] [new-ref]'); process.exit(1) }
+
+function contentAtRef(ref, filePath) {
+  try {
+    const gitRoot = execSync('git rev-parse --show-toplevel 2>/dev/null').toString().trim()
+    const relPath = path.relative(gitRoot, path.resolve(filePath))
+    return execSync(`git show ${ref}:${relPath} 2>/dev/null`).toString()
+  } catch { return null }
+}
+
+function parse(content, label, ext = 'ts') {
+  const isJs = ['js','jsx','mjs'].includes(ext)
+  const project = new Project({
+    skipAddingFilesFromTsConfig: true,
+    useInMemoryFileSystem: true,
+    compilerOptions: isJs ? { allowJs: true, checkJs: false } : {}
+  })
+  project.createSourceFile(`${label}.${ext}`, content)
+  return project.getSourceFileOrThrow(`${label}.${ext}`)
+}
+
+function extractGuards(fn) {
+  const body = fn.getBody?.()
+  if (!body) return []
+  const params = (fn.getParameters?.() || []).map(p => p.getName())
+  return body.getDescendantsOfKind(SyntaxKind.IfStatement)
+    .map(s => s.getExpression().getText())
+    .filter(c => params.some(p => c.includes(`!${p}`) || c.includes(`${p} ==`) || c.includes(`${p} ===`) || c.includes(`${p} ===`)))
+}
+
+function sigOf(fn) {
+  const body = fn.getBody?.()
+  return {
+    params: (fn.getParameters?.() || []).map(p => ({
+      name: p.getName(),
+      type: p.getType().getText(p),
+      optional: p.isOptional()
+    })),
+    returnType: (fn.getReturnType?.()?.getText(fn)) || 'unknown',
+    async: fn.isAsync?.() || false,
+    guards: extractGuards(fn),
+    hasTryCatch: (body?.getDescendantsOfKind(SyntaxKind.TryStatement) || []).length > 0,
+    branches: (body?.getDescendantsOfKind(SyntaxKind.IfStatement) || []).length,
+    throwsLiteral: (body?.getDescendantsOfKind(SyntaxKind.ThrowStatement) || []).some(t => {
+      const expr = t.getExpression()
+      return expr && expr.getKindName() !== 'NewExpression' && expr.getKindName() !== 'Identifier'
+    }),
+    consoleLog: (body?.getDescendantsOfKind(SyntaxKind.CallExpression) || [])
+      .some(c => c.getExpression().getText().startsWith('console.')),
+  }
+}
+
+function extractAll(sf) {
+  const sigs = {}
+  for (const fn of sf.getFunctions()) {
+    if (!fn.isExported() || !fn.getName()) continue
+    sigs[fn.getName()] = sigOf(fn)
+  }
+  for (const v of sf.getVariableDeclarations()) {
+    const stmt = v.getVariableStatement()
+    if (!stmt?.isExported()) continue
+    const init = v.getInitializer()
+    if (!init || !['ArrowFunction','FunctionExpression'].includes(init.getKindName())) continue
+    sigs[v.getName()] = sigOf(init)
+  }
+  return sigs
+}
+
+function compare(oldSigs, newSigs) {
+  const changes = []
+  const names = new Set([...Object.keys(oldSigs), ...Object.keys(newSigs)])
+
+  for (const name of names) {
+    const o = oldSigs[name], n = newSigs[name]
+
+    if (!o) { changes.push({ type: 'ADDED', name, sig: n }); continue }
+    if (!n) { changes.push({ type: 'REMOVED', name, sig: o }); continue }
+
+    const diffs = []
+
+    // Parameter count / types
+    if (o.params.length !== n.params.length) {
+      diffs.push(`params: (${o.params.map(p=>`${p.name}:${p.type}`).join(', ')}) → (${n.params.map(p=>`${p.name}:${p.type}`).join(', ')})`)
+    } else {
+      o.params.forEach((op, i) => {
+        const np = n.params[i]
+        if (op.type !== np.type) diffs.push(`  param '${op.name}' type: ${op.type} → ${np.type}`)
+        if (op.optional !== np.optional) diffs.push(`  param '${op.name}' optional: ${op.optional} → ${np.optional}`)
+      })
+    }
+
+    // Return type
+    if (o.returnType !== n.returnType) diffs.push(`return: ${o.returnType} → ${n.returnType}`)
+
+    // Async added/removed
+    if (o.async !== n.async) diffs.push(`async: ${o.async} → ${n.async}`)
+
+    // ⚠ Guards removed — regression risk
+    const removedGuards = o.guards.filter(g => !n.guards.includes(g))
+    removedGuards.forEach(g => diffs.push(`⚠  GUARD-REMOVED: if (${g}) — null/undefined check dropped`))
+
+    // ⚠ Error handling removed
+    if (o.hasTryCatch && !n.hasTryCatch) diffs.push(`⚠  TRY-CATCH-REMOVED — error handling dropped`)
+
+    // ⚠ Throw literal introduced
+    if (!o.throwsLiteral && n.throwsLiteral) diffs.push(`⚠  THROW-LITERAL-ADDED — throws non-Error object`)
+
+    // ⚠ Console.log added in prod code
+    if (!o.consoleLog && n.consoleLog) diffs.push(`⚠  CONSOLE-ADDED — logging introduced`)
+
+    // Branch count jump
+    if (n.branches > o.branches + 2) diffs.push(`branches: ${o.branches} → ${n.branches} (+${n.branches-o.branches} paths added, needs tests)`)
+
+    if (diffs.length > 0) changes.push({ type: 'CHANGED', name, diffs, oldSig: o, newSig: n })
+  }
+  return changes
+}
+
+// Export for use by ctx-mr-review
+if (require.main === module) {
+  const oldContent = contentAtRef(oldRef, file)
+  if (!oldContent) { console.log(`## ${path.basename(file)}: new file`); process.exit(0) }
+  const newContent = newRef ? contentAtRef(newRef, file) : (fs.existsSync(file) ? fs.readFileSync(file,'utf8') : null)
+  if (!newContent) { console.log(`## ${path.basename(file)}: deleted`); process.exit(0) }
+
+  const fileExt = file.match(/\.(ts|tsx|js|jsx|mjs)$/)?.[1] || 'ts'
+  const changes = compare(extractAll(parse(oldContent,'old',fileExt)), extractAll(parse(newContent,'new',fileExt)))
+  if (changes.length === 0) { console.log(`## ${path.basename(file)}: no structural changes`); process.exit(0) }
+
+  console.log(`## ${path.basename(file)}\n`)
+  for (const c of changes) {
+    if (c.type === 'ADDED') {
+      console.log(`  + ${c.name}(${c.sig.params.map(p=>`${p.name}: ${p.type}`).join(', ')}): ${c.sig.returnType}`)
+    } else if (c.type === 'REMOVED') {
+      console.log(`  - ${c.name}`)
+    } else {
+      console.log(`  ~ ${c.name}`)
+      c.diffs.forEach(d => console.log(`      ${d}`))
+    }
+  }
+}
+
+module.exports = { contentAtRef, parse, extractAll, compare }

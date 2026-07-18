@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-impact — blast radius of a symbol: direct usages and what those callers export
+# Answers: if I change this, what else could break?
+# For a raw list of call sites without propagation, use ctx-refs instead
+# Usage: ctx-impact <name> [path]
+
+setopt errexit pipefail
+
+name="${1:?usage: ctx-impact <name> [path]}"
+search_path="${2:-.}"
+
+echo "## Impact: $name"
+echo ""
+
+# Level 1: files directly using the symbol
+echo "### Direct usages"
+direct_files=$(rg --no-heading --color=never -l -w "$name" "$search_path" 2>/dev/null || true)
+
+if [[ -z "$direct_files" ]]; then
+    echo "  (no usages found)"
+    exit 0
+fi
+
+echo "$direct_files" | while IFS= read -r f; do
+    count=$(rg --color=never -c -w "$name" "$f" 2>/dev/null || echo 0)
+    echo "  $f ($count)"
+done
+
+# Level 2: what do those files export? (potential propagation surface)
+echo ""
+echo "### Propagation surface (exports of direct consumers)"
+
+echo "$direct_files" | while IFS= read -r f; do
+    exports=$(ctx-file "$f" 2>/dev/null | grep -v "^#\|^$" | grep "export" | wc -l | tr -d ' ')
+    [[ "$exports" -eq 0 ]] && continue
+    echo ""
+    echo "  $f ($exports exports):"
+    ctx-file "$f" 2>/dev/null | grep -v "^#\|^$" | grep "export" | head -5 | sed 's/^/    /'
+done

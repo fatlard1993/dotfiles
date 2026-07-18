@@ -1,0 +1,40 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-env-scan — find all environment variables read by the codebase
+# Covers Node.js (process.env.X), Python (os.environ/os.getenv)
+# Usage: ctx-env-scan [path]
+
+setopt errexit pipefail
+
+search_path="${1:-.}"
+
+echo "## Environment Variables: $search_path"
+echo ""
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+# Node.js / TypeScript
+rg --no-heading --color=never -o 'process\.env\.([A-Z_][A-Z0-9_]+)' \
+    "$search_path" 2>/dev/null | sed 's/.*process\.env\.//' >> "$tmp" || true
+
+# Python os.environ['X'] and os.getenv('X')
+rg --no-heading --color=never -o "os\.(?:environ|getenv)\(['\"]([A-Z_][A-Z0-9_]+)" \
+    "$search_path" 2>/dev/null | grep -oE '[A-Z_][A-Z0-9_]+$' >> "$tmp" || true
+
+unique_vars=$(sort -u "$tmp" | grep . || true)
+
+if [[ -z "$unique_vars" ]]; then
+    echo "(none found)"
+    exit 0
+fi
+
+echo "$unique_vars" | while IFS= read -r var; do
+    [[ -z "$var" ]] && continue
+    locations=$(rg --no-heading --color=never -n --fixed-strings "$var" \
+        "$search_path" 2>/dev/null \
+        | grep -v "node_modules\|\.test\.\|\.spec\.\|mock" | head -3 || true)
+    printf '  %s\n' "$var"
+    [[ -n "$locations" ]] && echo "$locations" | sed 's/^/    /'
+done

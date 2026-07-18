@@ -1,0 +1,493 @@
+#!/usr/bin/env bun
+
+const { logError, logWarning, logInfo, logHuman, logDebug } = require(require('path').join(__dirname, 'lib', 'ctx-log.js'))
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+
+// ctx-reachability — transitive call graph from a function
+//
+// Usage: ctx-reachability <file> [symbol] [--depth <n>] [--include-external]
+//   symbol            Specific exported function to trace (default: all exports)
+//   --depth           Max call depth  (default: 4)
+//   --include-external  Show external library calls as leaf nodes
+//
+// Resolution strategy: AST + textual import map. Follows named imports and
+// relative imports across files. Property-access calls on external namespaces
+// (R.pick, axios.get) shown as leaf nodes. Method calls on typed objects shown
+// as opaque when the receiver can't be traced to a local function.
+
+const { execSync } = require('child_process')
+const { Project, SyntaxKind, Node } = requireTsMorph()
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const positional = args.filter(a => !a.startsWith('--'))
+const file   = positional[0]
+const symbol = positional[1] || null
+const maxDepth = parseInt(
+  (args.find(a => a.startsWith('--depth=')) || '').replace('--depth=', '') ||
+  (args.indexOf('--depth') >= 0 ? args[args.indexOf('--depth') + 1] : '4'), 10)
+const includeExternal = args.includes('--include-external')
+
+if (!file) {
+  console.error([
+    'usage: ctx-reachability <file> [symbol] [--depth <n>] [--include-external]',
+    '',
+    '  symbol              Exported function to trace (default: all exports)',
+    '  --depth <n>         Max call depth (default: 4)',
+    '  --include-external  Show external library calls as leaf nodes',
+  ].join('\n'))
+  process.exit(1)
+}
+
+const absFile = path.resolve(file)
+if (!fs.existsSync(absFile)) { console.error(`not found: ${file}`); process.exit(1) }
+
+// ---------------------------------------------------------------------------
+// Project (real FS for import resolution)
+// ---------------------------------------------------------------------------
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: { allowJs: true, checkJs: false },
+})
+
+// Cache of loaded source files by absolute path
+const sfCache = {}
+function getSf(fp) {
+  if (sfCache[fp]) return sfCache[fp]
+  try {
+    const sf = project.addSourceFileAtPath(fp)
+    sfCache[fp] = sf
+    return sf
+  } catch { return null }
+}
+
+// ---------------------------------------------------------------------------
+// Import map  { localName → { module, originalName, namespace } }
+// ---------------------------------------------------------------------------
+function buildImportMap(sf) {
+  const map = {}
+  for (const imp of sf.getImportDeclarations()) {
+    const mod = imp.getModuleSpecifierValue()
+    const clause = imp.getImportClause()
+    if (!clause) continue
+
+    // import def from 'mod'
+    const def = clause.getDefaultImport?.()?.getText()
+    if (def) map[def] = { module: mod, originalName: 'default' }
+
+    // import * as NS from 'mod'
+    const ns = clause.getNamespaceImport?.()?.getText()
+    if (ns) map[ns] = { module: mod, originalName: '*', namespace: true }
+
+    // import { foo, bar as baz } from 'mod'
+    for (const ni of clause.getNamedImports?.() || []) {
+      const local = ni.getAliasNode?.()?.getText() || ni.getName()
+      map[local] = { module: mod, originalName: ni.getName() }
+    }
+  }
+  return map
+}
+
+// ---------------------------------------------------------------------------
+// Resolve a relative module specifier to an absolute path
+// ---------------------------------------------------------------------------
+const EXT_ORDER = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
+function resolveRelative(mod, fromFile) {
+  const base = path.resolve(path.dirname(fromFile), mod)
+  for (const ext of EXT_ORDER) {
+    if (fs.existsSync(base + ext)) return base + ext
+  }
+  for (const ext of EXT_ORDER) {
+    const idx = path.join(base, `index${ext}`)
+    if (fs.existsSync(idx)) return idx
+  }
+  if (fs.existsSync(base)) return base
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Find a function node by name in a source file
+// ---------------------------------------------------------------------------
+function findFn(sf, name) {
+  // Top-level named functions
+  for (const fn of sf.getFunctions()) {
+    if (fn.getName() === name) return fn
+  }
+  // Variable declarations: const fn = () => {}
+  for (const v of sf.getVariableDeclarations()) {
+    if (v.getName() !== name) continue
+    const init = v.getInitializer?.()
+    if (!init) continue
+    const k = init.getKind()
+    if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) return init
+  }
+  // Class methods (ClassName.methodName)
+  if (name.includes('.')) {
+    const [cls, method] = name.split('.')
+    for (const c of sf.getClasses()) {
+      if (c.getName() !== cls) continue
+      for (const m of c.getMethods()) {
+        if (m.getName() === method) return m
+      }
+    }
+  }
+  // Object property in `export default { name: fn, ... }`
+  for (const [, decls] of sf.getExportedDeclarations()) {
+    for (const d of decls) {
+      if (!Node.isObjectLiteralExpression(d)) continue
+      for (const prop of d.getProperties()) {
+        if (!prop.getName || prop.getName() !== name) continue
+        if (Node.isPropertyAssignment(prop)) return prop.getInitializer()
+        if (Node.isShorthandPropertyAssignment(prop)) break  // defined locally — let earlier check find it
+      }
+    }
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Collect exported function names, falling back to module-level functions
+// (handles `export default { ... }` files where named exports are empty)
+// ---------------------------------------------------------------------------
+function exportedNames(sf) {
+  const names = []
+  for (const [name] of sf.getExportedDeclarations()) {
+    if (name === 'default') continue
+    names.push(name)
+  }
+  if (names.length) return names
+  // Fallback: all named top-level functions + arrow-function variables
+  for (const fn of sf.getFunctions()) fn.getName() && names.push(fn.getName())
+  for (const v of sf.getVariableDeclarations()) {
+    const init = v.getInitializer?.()
+    if (!init) continue
+    const k = init.getKind()
+    if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) names.push(v.getName())
+  }
+  return names
+}
+
+// Well-known globals that aren't interesting to trace
+const GLOBAL_SKIP = new Set([
+  'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
+  'Promise', 'Object', 'Array', 'JSON', 'Math', 'Date', 'Error', 'Map', 'Set',
+  'console', 'require', 'parseInt', 'parseFloat', 'encodeURIComponent',
+  'decodeURIComponent', 'isNaN', 'isFinite', 'Symbol', 'RegExp', 'Boolean',
+  'String', 'Number', 'BigInt', 'WeakMap', 'WeakSet', 'Proxy', 'Reflect',
+  'URL', 'URLSearchParams', 'AbortController', 'FormData', 'Headers', 'Request',
+  'Response', 'ReadableStream', 'WritableStream', 'crypto', 'performance',
+  'queueMicrotask', 'structuredClone',
+])
+
+// ---------------------------------------------------------------------------
+// Extract direct calls from a function node
+// Returns: { kind: 'local'|'imported'|'external'|'opaque', name, filePath? }
+// ---------------------------------------------------------------------------
+// Statically resolve the path argument of a dynamic loader call like discovery.require()
+// Returns absolute file path if determinable, null if genuinely dynamic
+function tryResolveDynamicRequireArg(argNode, fromFile) {
+  const fromDir = path.dirname(fromFile)
+
+  // Case 1: string literal './path' or '../path'
+  if (argNode.getKind() === SyntaxKind.StringLiteral) {
+    const val = argNode.getLiteralValue()
+    if (!val.startsWith('.')) return null  // external package, not a local file
+    const base = path.resolve(fromDir, val)
+    for (const ext of EXT_ORDER) { if (fs.existsSync(base + ext)) return base + ext }
+    for (const ext of EXT_ORDER) { const i = path.join(base, `index${ext}`); if (fs.existsSync(i)) return i }
+    return null
+  }
+
+  // Case 2: path.join(__dirname, 'literal', ...) or path.resolve(__dirname, 'literal')
+  if (argNode.getKind() === SyntaxKind.CallExpression) {
+    const callText = argNode.getExpression().getText()
+    if (callText !== 'path.join' && callText !== 'path.resolve') return null
+    const args = argNode.getArguments()
+    const parts = []
+    for (const a of args) {
+      if (a.getText() === '__dirname') { parts.push(fromDir); continue }
+      if (a.getKind() === SyntaxKind.StringLiteral) { parts.push(a.getLiteralValue()); continue }
+      return null  // non-literal segment — truly dynamic
+    }
+    if (!parts.length) return null
+    const base = path.join(...parts)
+    for (const ext of EXT_ORDER) { if (fs.existsSync(base + ext)) return base + ext }
+    for (const ext of EXT_ORDER) { const i = path.join(base, `index${ext}`); if (fs.existsSync(i)) return i }
+    if (fs.existsSync(base)) return base
+  }
+  return null
+}
+
+function directCalls(fnNode, importMap, fromFile) {
+  const results = []
+  const seen = new Set()
+
+  fnNode.forEachDescendant(node => {
+    if (node.getKind() !== SyntaxKind.CallExpression) return
+    const expr = node.getExpression()
+    let callKey, call
+
+    if (Node.isIdentifier(expr)) {
+      const name = expr.getText()
+      if (seen.has(name)) return
+      seen.add(name)
+
+      if (GLOBAL_SKIP.has(name)) return     // skip well-known globals
+      if (/^[A-Z]/.test(name)) return       // skip constructors
+
+      const imp = importMap[name]
+      if (!imp) {
+        callKey = `local:${name}`
+        if (seen.has(callKey)) return
+        seen.add(callKey)
+        call = { kind: 'local', name }
+      } else if (imp.module.startsWith('.')) {
+        const resolved = resolveRelative(imp.module, fromFile)
+        callKey = `imp:${resolved}:${imp.originalName}`
+        if (seen.has(callKey)) return
+        seen.add(callKey)
+        call = { kind: 'imported', name: imp.originalName, filePath: resolved, localName: name }
+      } else {
+        callKey = `ext:${imp.module}:${name}`
+        if (seen.has(callKey)) return
+        seen.add(callKey)
+        call = { kind: 'external', name, module: imp.module }
+      }
+
+    } else if (Node.isPropertyAccessExpression(expr)) {
+      const receiver = expr.getExpression()
+      // Only handle simple identifier receivers (R.map, axios.get, obj.method)
+      // Skip complex expressions (new URL(...).toString, arr[0].fn, etc.)
+      if (!Node.isIdentifier(receiver)) return
+
+      const obj = receiver.getText()
+      const method = expr.getName()
+      const key = `${obj}.${method}`
+      if (seen.has(key)) return
+      seen.add(key)
+
+      if (GLOBAL_SKIP.has(obj)) return      // console.log, JSON.stringify, etc.
+
+      const imp = importMap[obj]
+      if (imp && imp.namespace) {
+        // import * as R from 'ramda' → R.map is external
+        call = { kind: 'external', name: `${obj}.${method}`, module: imp.module }
+      } else if (imp && imp.module.startsWith('.') && imp.originalName === 'default') {
+        // Default import (import RExt from './RExt') — obj is the module object itself;
+        // obj.method() can be traced into the module.
+        const resolved = resolveRelative(imp.module, fromFile)
+        call = { kind: 'imported', name: method, filePath: resolved, localName: key }
+      } else if (imp && imp.module.startsWith('.')) {
+        // Named import from local module (import { TERMINATOR_TASKS } from './constants')
+        // The receiver is a value/instance — method calls are not traceable statically.
+        return
+      } else if (imp) {
+        call = { kind: 'external', name: `${obj}.${method}`, module: imp.module }
+      } else if (method === 'require') {
+        // Unimported receiver calling .require() — likely a dynamic loader (e.g. discovery.require)
+        // Try to statically resolve the first argument
+        const callExpr = node  // the CallExpression
+        const args = callExpr.getArguments?.() || []
+        const firstArg = args[0]
+        if (firstArg) {
+          const resolved = tryResolveDynamicRequireArg(firstArg, fromFile)
+          if (resolved) {
+            callKey = `dynamic:${resolved}`
+            if (seen.has(callKey)) return
+            seen.add(callKey)
+            call = { kind: 'imported', name: path.basename(resolved, path.extname(resolved)), filePath: resolved, localName: `${obj}.require(${path.basename(resolved)})` }
+          } else {
+            // Path is truly dynamic — flag it visibly rather than silently dropping
+            callKey = `dynamic-unknown:${obj}.require`
+            if (!seen.has(callKey)) {
+              seen.add(callKey)
+              call = { kind: 'dynamic', name: `${obj}.require(…)` }
+            }
+          }
+        }
+      } else {
+        // Unresolvable receiver (typed class instance, etc.) — skip silently
+        // rather than polluting output with opaque noise
+        return
+      }
+    }
+
+    if (call) results.push(call)
+  })
+
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// Build the call tree recursively
+// ---------------------------------------------------------------------------
+function buildTree(fnNode, name, fromFile, depth, ancestors) {
+  if (depth <= 0) return { name, truncated: true, children: [] }
+  if (!fnNode) return { name, unresolved: true, children: [] }
+
+  const importMap = buildImportMap(getSf(fromFile) || { getImportDeclarations: () => [] })
+  const calls = directCalls(fnNode, importMap, fromFile)
+  const children = []
+
+  for (const call of calls) {
+    if (call.kind === 'external') {
+      if (includeExternal) children.push({ type: 'external', name: call.name, module: call.module })
+      continue
+    }
+    if (call.kind === 'opaque') {
+      children.push({ type: 'opaque', name: call.name })
+      continue
+    }
+    if (call.kind === 'dynamic') {
+      // Dynamic load with unresolvable path — always show (it's a graph boundary)
+      children.push({ type: 'dynamic', name: call.name })
+      continue
+    }
+
+    // local or imported — try to find the function and recurse
+    const targetFile = call.filePath || fromFile
+    const targetName = call.name === 'default' ? call.localName : call.name
+
+    const cycleKey = `${targetFile}::${targetName}`
+    if (ancestors.has(cycleKey)) {
+      children.push({ type: 'circular', name: targetName })
+      continue
+    }
+
+    let targetFn = null
+    if (call.kind === 'local') {
+      targetFn = findFn(getSf(fromFile), call.name)
+    } else if (targetFile) {
+      const sf = getSf(targetFile)
+      if (sf) targetFn = findFn(sf, targetName)
+    }
+
+    const line = targetFn?.getStartLineNumber?.()
+
+    const subtree = buildTree(
+      targetFn,
+      targetName,
+      targetFile,
+      depth - 1,
+      new Set([...ancestors, cycleKey]),
+    )
+
+    children.push({
+      type: 'internal',
+      name: targetName,
+      filePath: targetFile !== fromFile ? targetFile : null,
+      line,
+      children: subtree.children,
+      truncated: subtree.truncated,
+      unresolved: subtree.unresolved,
+    })
+  }
+
+  return { name, children }
+}
+
+// ---------------------------------------------------------------------------
+// Render tree
+// ---------------------------------------------------------------------------
+function render(node, prefix = '', isLast = true) {
+  const branch = isLast ? '└─ ' : '├─ '
+  const cont   = isLast ? '    ' : '│   '
+
+  if (node.type === 'external') {
+    console.log(`${prefix}${branch}${node.name}  [external: ${node.module}]`)
+    return
+  }
+  if (node.type === 'circular') {
+    console.log(`${prefix}${branch}${node.name}  [circular]`)
+    return
+  }
+  if (node.type === 'opaque') {
+    console.log(`${prefix}${branch}${node.name}  [opaque]`)
+    return
+  }
+  if (node.type === 'dynamic') {
+    console.log(`${prefix}${branch}${node.name}  [dynamic: path unresolvable at static analysis time]`)
+    return
+  }
+
+  const loc   = node.filePath ? `  ${path.relative(process.cwd(), node.filePath)}${node.line ? ':' + node.line : ''}` : (node.line ? `:${node.line}` : '')
+  const flags = [node.truncated && '[depth limit]', node.unresolved && '[unresolved]'].filter(Boolean).join(' ')
+  console.log(`${prefix}${branch}${node.name}${loc}${flags ? '  ' + flags : ''}`)
+
+  for (let i = 0; i < (node.children || []).length; i++) {
+    render(node.children[i], prefix + cont, i === node.children.length - 1)
+  }
+}
+
+function countInternal(node) {
+  if (!node.children) return 0
+  return node.children.reduce((s, c) =>
+    s + (c.type === 'internal' ? 1 + countInternal(c) : 0), 0)
+}
+
+function collectFiles(node, set = new Set()) {
+  if (node.filePath) set.add(node.filePath)
+  for (const c of node.children || []) collectFiles(c, set)
+  return set
+}
+
+function collectExternals(node, set = new Set()) {
+  if (node.type === 'external') { set.add(node.module); return set }
+  for (const c of node.children || []) collectExternals(c, set)
+  return set
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const rootSf = getSf(absFile)
+if (!rootSf) { console.error(`Could not parse: ${file}`); process.exit(1) }
+
+const targets = symbol ? [symbol] : exportedNames(rootSf)
+if (!targets.length) {
+  console.log('No exported symbols found. Pass a symbol name explicitly.')
+  process.exit(0)
+}
+
+console.log(`## Reachability: ${path.basename(file)}`)
+if (!includeExternal) console.log(`(external library calls hidden — use --include-external to show)`)
+console.log()
+
+for (const name of targets) {
+  const fnNode = findFn(rootSf, name)
+  const line = fnNode?.getStartLineNumber?.()
+  const loc = line ? `:${line}` : ''
+
+  console.log(`### ${name}  (${path.relative(process.cwd(), absFile)}${loc})`)
+
+  if (!fnNode) {
+    console.log('  [function body not found — may be class method or re-export]')
+    console.log()
+    continue
+  }
+
+  const tree = buildTree(fnNode, name, absFile, maxDepth, new Set([`${absFile}::${name}`]))
+
+  if (!tree.children.length) {
+    console.log('  (no resolvable calls)')
+  } else {
+    for (let i = 0; i < tree.children.length; i++) {
+      render(tree.children[i], '  ', i === tree.children.length - 1)
+    }
+  }
+
+  const internalCount = countInternal(tree)
+  const files = collectFiles(tree)
+  const externals = [...collectExternals(tree)]
+
+  if (internalCount > 0 || externals.length > 0) {
+    console.log()
+    if (internalCount > 0) console.log(`  ${internalCount} internal call(s) across ${files.size + 1} file(s)`)
+    if (externals.length) console.log(`  External: ${externals.join(', ')}`)
+  }
+  console.log()
+}

@@ -1,0 +1,508 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0"
+# ctx-conventions — detect and cache project coding conventions
+# Analyzes full repo to surface implicit structural patterns across all detected languages
+# Saves to .claude/conventions.md for caching and hand curation
+# Usage: ctx-conventions [path] [--refresh] [--rules]
+
+setopt errexit pipefail
+
+# Parse args
+search_path="."
+refresh=false
+rules=false
+for arg in "$@"; do
+    case "$arg" in
+        --refresh) refresh=true ;;
+        --rules)   rules=true ;;
+        -*) ;;
+        *) search_path="$arg" ;;
+    esac
+done
+
+CONVENTIONS_FILE="$search_path/.claude/conventions.md"
+
+# --rules: emit ctx-codemod commands for enforceable conventions
+if $rules; then
+    [[ -f "$CONVENTIONS_FILE" ]] || { echo "No conventions file. Run ctx-conventions first."; exit 1; }
+
+    echo "## Enforceable via ctx-codemod"
+    echo ""
+
+    # Import quotes
+    if grep -q "\*\*Import quotes:\*\* single" "$CONVENTIONS_FILE" 2>/dev/null; then
+        echo "# Import quotes → single"
+        echo "ctx-codemod 'import \$I from \"\$M\"' \"import \$I from '\$M'\" --lang ts"
+        echo "ctx-codemod 'import type \$I from \"\$M\"' \"import type \$I from '\$M'\" --lang ts"
+        echo "ctx-codemod 'import \$I from \"\$M\"' \"import \$I from '\$M'\" --lang js"
+        echo ""
+    elif grep -q "\*\*Import quotes:\*\* double" "$CONVENTIONS_FILE" 2>/dev/null; then
+        echo "# Import quotes → double"
+        echo "ctx-codemod \"import \$I from '\$M'\" 'import \$I from \"\$M\"' --lang ts"
+        echo "ctx-codemod \"import type \$I from '\$M'\" 'import type \$I from \"\$M\"' --lang ts"
+        echo ""
+    fi
+
+    # Alias prefix migration
+    alias_prefix=$(grep "\*\*Import paths:\*\*.*prefix:" "$CONVENTIONS_FILE" 2>/dev/null \
+        | grep -oE "prefix: [^)]*" | sed 's/prefix: //' | tr -d ')' || true)
+    if [[ -n "$alias_prefix" ]]; then
+        echo "# Path alias enforcement (prefix: $alias_prefix)"
+        echo "# Note: requires knowing the project root — resolve relative path manually"
+        echo "# ctx-codemod \"from '\\.\\./path'\" \"from '${alias_prefix}path'\" --lang ts"
+        echo ""
+    fi
+
+    echo "## Requires manual enforcement (ast-grep \$\$\$ body limitation)"
+    echo ""
+    grep -E "^\*\*(Functions|Exports|Default exports|Type definitions):" "$CONVENTIONS_FILE" 2>/dev/null \
+        | sed 's/^\*\*\(.*\)\*\*: \(.*\) (.*/# \1: \2 — transform manually or use ctx-codemod per-file/' \
+        || true
+
+    echo ""
+    echo "## Common transforms (independent of detected conventions)"
+    echo "# ctx-codemod 'console.log(\$M)' 'logger.info(\$M)' --lang ts"
+    echo "# ctx-codemod 'require(\"\$M\")' 'import \$M from \"\$M\"' --lang js"
+
+    exit 0
+fi
+
+# Serve cache unless refreshing
+if [[ -f "$CONVENTIONS_FILE" ]] && ! $refresh; then
+    cat "$CONVENTIONS_FILE"
+    exit 0
+fi
+
+# --- Declared config reading ---
+
+# Find a config file walking up from search_path
+find_config() {
+    local names=("$@")
+    local dir
+    dir=$(cd "$search_path" && pwd)
+    for _ in 1 2 3 4 5; do
+        for name in "${names[@]}"; do
+            [[ -f "$dir/$name" ]] && echo "$dir/$name" && return
+        done
+        [[ "$dir" == "/" ]] && return
+        dir=$(dirname "$dir")
+    done
+}
+
+# Read Prettier config via node (handles CJS require chains)
+read_prettier() {
+    local cfg
+    cfg=$(find_config prettier.config.cjs prettier.config.js .prettierrc.js .prettierrc .prettierrc.json)
+    [[ -z "$cfg" ]] && return
+    node -e "
+try {
+  const c = require('$cfg');
+  process.stdout.write(JSON.stringify(c));
+} catch(e) {}
+" 2>/dev/null
+}
+
+# Read Biome config
+read_biome() {
+    local cfg
+    cfg=$(find_config biome.json)
+    [[ -z "$cfg" ]] && return
+    jq '.' "$cfg" 2>/dev/null
+}
+
+# Read EditorConfig (simple key=value extraction)
+read_editorconfig() {
+    local cfg
+    cfg=$(find_config .editorconfig)
+    [[ -z "$cfg" ]] && return
+    # Extract indent_style and indent_size from [*.js] or [*] section
+    grep -E '^(indent_style|indent_size|tab_width|end_of_line)' "$cfg" 2>/dev/null | tail -4
+}
+
+# Load declared configs
+prettier_json=$(read_prettier || true)
+biome_json=$(read_biome || true)
+editorconfig=$(read_editorconfig || true)
+
+# tsconfig.json — paths, strict, target, module, jsx
+tsconfig_file=$(find_config tsconfig.json)
+tsconfig_json=""
+[[ -n "$tsconfig_file" ]] && tsconfig_json=$(jq '.' "$tsconfig_file" 2>/dev/null || true)
+ts_paths=$(echo "$tsconfig_json" | jq -r '(.compilerOptions.paths // {}) | to_entries[] | "\(.key) → \(.value[0])"' 2>/dev/null | head -8 || true)
+ts_target=$(echo "$tsconfig_json" | jq -r '.compilerOptions.target // empty' 2>/dev/null || true)
+ts_module=$(echo "$tsconfig_json" | jq -r '.compilerOptions.module // empty' 2>/dev/null || true)
+ts_strict=$(echo "$tsconfig_json" | jq -r '.compilerOptions.strict // empty' 2>/dev/null || true)
+ts_noany=$(echo "$tsconfig_json" | jq -r '.compilerOptions.noImplicitAny // empty' 2>/dev/null || true)
+ts_jsx=$(echo "$tsconfig_json" | jq -r '.compilerOptions.jsx // empty' 2>/dev/null || true)
+
+# package.json — type, engines
+pkg_file=$(find_config package.json)
+pkg_type=$(jq -r '.type // empty' "$pkg_file" 2>/dev/null || true)
+pkg_node=$(jq -r '.engines.node // empty' "$pkg_file" 2>/dev/null || true)
+pkg_bun=$(jq -r '.engines.bun // empty' "$pkg_file" 2>/dev/null || true)
+pkg_engines=""
+[[ -n "$pkg_node" ]] && pkg_engines="node $pkg_node"
+[[ -n "$pkg_bun" ]] && pkg_engines="${pkg_engines:+$pkg_engines, }bun $pkg_bun"
+
+# Vite config — resolve.alias (path aliases)
+vite_file=$(find_config vite.config.ts vite.config.js vite.config.mts vite.config.mjs)
+vite_aliases=""
+if [[ -n "$vite_file" ]]; then
+    vite_aliases=$(node -e "
+try {
+  const c = require('$vite_file');
+  const cfg = typeof c === 'function' ? c() : (c.default || c);
+  const alias = cfg?.resolve?.alias || {};
+  Object.entries(alias).forEach(([k,v]) => console.log(k + ' → ' + v));
+} catch(e) {}
+" 2>/dev/null || true)
+fi
+
+# Jest/Vitest config — testMatch/include to determine test placement
+jest_file=$(find_config jest.config.ts jest.config.js jest.config.cjs)
+vitest_file=$(find_config vitest.config.ts vitest.config.js vitest.config.mts)
+declared_test_placement=""
+for cfg_file in "$jest_file" "$vitest_file"; do
+    [[ -z "$cfg_file" || ! -f "$cfg_file" ]] && continue
+    match=$(node -e "
+try {
+  const c = require('$cfg_file');
+  const cfg = c.default || c;
+  const tm = cfg?.test?.include || cfg?.testMatch || cfg?.include || [];
+  console.log(JSON.stringify(tm));
+} catch(e) {}
+" 2>/dev/null | jq -r '.[]' 2>/dev/null || true)
+    if echo "$match" | grep -q "__tests__"; then
+        declared_test_placement="in __tests__"
+    elif echo "$match" | grep -qE "\*\.(test|spec)\."; then
+        declared_test_placement="adjacent"
+    fi
+    [[ -n "$declared_test_placement" ]] && break
+done
+
+# .nvmrc / .node-version
+nvmrc_file=$(find_config .nvmrc .node-version)
+nvmrc_version=""
+[[ -n "$nvmrc_file" ]] && nvmrc_version=$(cat "$nvmrc_file" 2>/dev/null | tr -d 'v \n' || true)
+
+# Extract Prettier settings
+p_single=$(echo "$prettier_json" | jq -r '.singleQuote // empty' 2>/dev/null || true)
+p_semi=$(echo "$prettier_json" | jq -r '.semi // empty' 2>/dev/null || true)
+p_tabs=$(echo "$prettier_json" | jq -r '.useTabs // empty' 2>/dev/null || true)
+p_trailing=$(echo "$prettier_json" | jq -r '.trailingComma // empty' 2>/dev/null || true)
+p_arrow=$(echo "$prettier_json" | jq -r '.arrowParens // empty' 2>/dev/null || true)
+p_print=$(echo "$prettier_json" | jq -r '.printWidth // empty' 2>/dev/null || true)
+
+# Extract Biome settings
+b_quotes=$(echo "$biome_json" | jq -r '.formatter.quoteStyle // .javascript.formatter.quoteStyle // empty' 2>/dev/null || true)
+b_semi=$(echo "$biome_json" | jq -r '.formatter.semicolons // .javascript.formatter.semicolons // empty' 2>/dev/null || true)
+
+# Determine authoritative sources
+config_source=""
+[[ -n "$prettier_json" ]] && config_source=$(find_config prettier.config.cjs prettier.config.js .prettierrc.js .prettierrc .prettierrc.json | xargs basename 2>/dev/null || true)
+[[ -z "$config_source" && -n "$biome_json" ]] && config_source="biome.json"
+
+# Declared import quote style
+declared_quotes=""
+if [[ "$p_single" == "true" ]] || [[ "$b_quotes" == "single" ]]; then
+    declared_quotes="single"
+elif [[ "$p_single" == "false" ]] || [[ "$b_quotes" == "double" ]]; then
+    declared_quotes="double"
+fi
+
+# Declared semicolons
+declared_semi=""
+if [[ "$p_semi" == "false" ]] || [[ "$b_semi" == "asNeeded" ]]; then
+    declared_semi="none"
+elif [[ "$p_semi" == "true" ]] || [[ "$b_semi" == "always" ]]; then
+    declared_semi="required"
+fi
+
+# Declared indentation
+declared_indent=""
+if [[ "$p_tabs" == "true" ]]; then
+    declared_indent="tabs"
+elif [[ "$p_tabs" == "false" ]]; then
+    declared_indent="spaces (width: ${p_print:-unknown})"
+elif echo "$editorconfig" | grep -q "indent_style = tab"; then
+    declared_indent="tabs"
+elif echo "$editorconfig" | grep -q "indent_style = space"; then
+    indent_size=$(echo "$editorconfig" | grep indent_size | grep -oE '[0-9]+' | head -1)
+    declared_indent="spaces (width: ${indent_size:-2})"
+fi
+
+# Declared arrow parens
+declared_arrow=""
+[[ "$p_arrow" == "avoid" ]] && declared_arrow="omit when possible (arrowParens: avoid)"
+[[ "$p_arrow" == "always" ]] && declared_arrow="always required (arrowParens: always)"
+
+# Declared trailing commas
+declared_trailing=""
+[[ "$p_trailing" == "none" ]] && declared_trailing="none"
+[[ "$p_trailing" == "es5" ]] && declared_trailing="es5 (objects/arrays, not function params)"
+[[ "$p_trailing" == "all" ]] && declared_trailing="all (including function params)"
+
+# --- Helpers ---
+
+# Count rg matches across files, safely (rg exits 1 on no match)
+count() {
+    local pattern=$1; shift
+    { rg -c "$pattern" "$@" "$search_path" 2>/dev/null || true; } \
+        | awk -F: '{s+=$2} END{print s+0}'
+}
+
+# Count matches across a specific list of files (for recency tie-breaking)
+count_in_files() {
+    local pattern=$1; shift
+    local files=("$@")
+    [[ ${#files[@]} -eq 0 ]] && echo 0 && return
+    local total=0
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        n=$({ rg -c "$pattern" "$f" 2>/dev/null || true; } | awk '{s+=$1} END{print s+0}')
+        total=$((total + n))
+    done
+    echo $total
+}
+
+# Get recently changed files of given extensions from git log
+recent_files() {
+    local ext_pattern=$1
+    git log --name-only --format='' -40 2>/dev/null \
+        | grep -E "\.($ext_pattern)$" \
+        | sort -u \
+        | head -15 \
+        | while IFS= read -r f; do
+            [[ -f "$search_path/$f" ]] && echo "$search_path/$f" || true
+        done
+}
+
+# Decide: >70% = winner, 30-70% = use recency, else mixed
+decide() {
+    local a=$1 b=$2 a_label=$3 b_label=$4
+    local ra=${5:-0} rb=${6:-0}   # recent counts for tie-breaking
+    local total=$((a + b))
+    [[ $total -eq 0 ]] && echo "unknown (no data)" && return
+
+    local pct=$((a * 100 / total))
+
+    if   [[ $pct -ge 70 ]]; then echo "$a_label ($a vs $b $b_label)"
+    elif [[ $pct -le 30 ]]; then echo "$b_label ($b vs $a $a_label)"
+    else
+        # Tie — break with recency
+        local rtotal=$((ra + rb))
+        if [[ $rtotal -gt 0 ]]; then
+            local rpct=$((ra * 100 / rtotal))
+            if   [[ $rpct -ge 60 ]]; then echo "$a_label (recent trend — overall mixed: $a vs $b)"
+            elif [[ $rpct -le 40 ]]; then echo "$b_label (recent trend — overall mixed: $a vs $b)"
+            else echo "mixed — $a_label: $a, $b_label: $b"
+            fi
+        else
+            echo "mixed — $a_label: $a, $b_label: $b"
+        fi
+    fi
+}
+
+# --- Language detection ---
+
+ts_count=$(  fd -t f -e ts -e tsx . "$search_path" 2>/dev/null | wc -l | tr -d ' ')
+js_count=$(  fd -t f -e js -e jsx -e mjs . "$search_path" 2>/dev/null | wc -l | tr -d ' ')
+py_count=$(  fd -t f -e py . "$search_path" 2>/dev/null | wc -l | tr -d ' ')
+go_count=$(  fd -t f -e go . "$search_path" 2>/dev/null | wc -l | tr -d ' ')
+
+# --- Generate conventions ---
+
+execute mkdir -p "$search_path/.claude"
+
+{
+
+echo "# Project Conventions"
+echo "<!-- Generated $(date +%Y-%m-%d). Edit freely — detection won't overwrite unless you run: ctx-conventions --refresh -->"
+echo ""
+
+# Build config source list for header
+all_config_sources=()
+[[ -n "$config_source" ]] && all_config_sources+=("$config_source")
+[[ -n "$tsconfig_file" ]] && all_config_sources+=("tsconfig.json")
+[[ -n "$pkg_type" || -n "$pkg_engines" ]] && all_config_sources+=("package.json")
+[[ -n "$nvmrc_version" && ! " ${all_config_sources[*]} " =~ "package.json" ]] && all_config_sources+=(".nvmrc")
+
+if [[ ${#all_config_sources[@]} -gt 0 ]]; then
+    echo "## Declared Config ($(IFS=', '; echo "${all_config_sources[*]}"))"
+    echo ""
+
+    # Runtime / environment
+    [[ -n "$pkg_engines" ]]       && echo "- **Engines:** $pkg_engines"
+    [[ -n "$nvmrc_version" && -z "$pkg_node" ]] && echo "- **Node version:** $nvmrc_version (.nvmrc)"
+    [[ -n "$pkg_type" ]]          && echo "- **Module system:** $pkg_type (package.json type)"
+
+    # TypeScript
+    if [[ -n "$tsconfig_json" ]]; then
+        ts_mode=""
+        [[ "$ts_strict" == "true" ]]  && ts_mode="strict"
+        [[ "$ts_noany" == "true" && "$ts_strict" != "true" ]] && ts_mode="noImplicitAny"
+        [[ -z "$ts_mode" ]]           && ts_mode="non-strict"
+        ts_line="$ts_mode"
+        [[ -n "$ts_target" ]] && ts_line="$ts_line, target: $ts_target"
+        [[ -n "$ts_module" ]] && ts_line="$ts_line, module: $ts_module"
+        [[ -n "$ts_jsx" ]]    && ts_line="$ts_line, jsx: $ts_jsx"
+        echo "- **TypeScript:** $ts_line"
+    fi
+
+    # Path aliases (tsconfig paths takes priority over vite)
+    if [[ -n "$ts_paths" ]]; then
+        echo "- **Path aliases (tsconfig.json):**"
+        echo "$ts_paths" | sed 's/^/    /'
+    elif [[ -n "$vite_aliases" ]]; then
+        echo "- **Path aliases (vite.config):**"
+        echo "$vite_aliases" | sed 's/^/    /'
+    fi
+
+    # Formatting
+    [[ -n "$declared_quotes" ]]   && echo "- **Import quotes:** $declared_quotes"
+    [[ -n "$declared_semi" ]]     && echo "- **Semicolons:** $declared_semi"
+    [[ -n "$declared_indent" ]]   && echo "- **Indentation:** $declared_indent"
+    [[ -n "$declared_arrow" ]]    && echo "- **Arrow parens:** $declared_arrow"
+    [[ -n "$declared_trailing" ]] && echo "- **Trailing commas:** $declared_trailing"
+
+    # Test placement
+    [[ -n "$declared_test_placement" ]] && echo "- **Test placement:** $declared_test_placement"
+
+    echo ""
+fi
+
+# ---- TypeScript / JavaScript ----
+if [[ $((ts_count + js_count)) -gt 2 ]]; then
+    if   [[ $ts_count -eq 0 ]]; then lang="JavaScript"
+    elif [[ $js_count -eq 0 ]]; then lang="TypeScript"
+    else lang="TypeScript / JavaScript"
+    fi
+    [[ $((ts_count + js_count)) -lt 10 ]] && echo "<!-- small sample (${ts_count}+${js_count} files) — results may be imprecise -->"
+
+    echo "## $lang"
+    echo ""
+
+    g_ts=(-g '*.ts' -g '*.tsx')
+    g_js=(-g '*.js' -g '*.jsx' -g '*.mjs')
+    g_all=(-g '*.ts' -g '*.tsx' -g '*.js' -g '*.jsx' -g '*.mjs')
+
+    # Recent files for tie-breaking (bash 3 compatible)
+    recent_ts=()
+    while IFS= read -r f; do [[ -n "$f" ]] && recent_ts+=("$f"); done < <(recent_files 'ts|tsx')
+    recent_js=()
+    while IFS= read -r f; do [[ -n "$f" ]] && recent_js+=("$f"); done < <(recent_files 'js|jsx|mjs')
+    recent_all=("${recent_ts[@]+"${recent_ts[@]}"}" "${recent_js[@]+"${recent_js[@]}"}")
+
+    # Functions
+    arrow=$(   count '(const|let)\s+\w+\s*=\s*(async\s*)?\(.*\)\s*=>'     "${g_all[@]}")
+    named=$(   count '(^|\s)(export\s+)?(async\s+)?function\s+\w+\s*\('   "${g_all[@]}")
+    r_arrow=$( count_in_files '(const|let)\s+\w+\s*=\s*(async\s*)?\(.*\)\s*=>'   "${recent_all[@]}")
+    r_named=$( count_in_files '(^|\s)(export\s+)?(async\s+)?function\s+\w+\s*\(' "${recent_all[@]}")
+    echo "**Functions:** $(decide $arrow $named 'arrow' 'named function' $r_arrow $r_named)"
+
+    # Exports
+    inline=$(  count '^export (const|function|class|interface|type|enum)' "${g_all[@]}")
+    grouped=$( count '^export \{'                                           "${g_all[@]}")
+    r_inline=$( count_in_files '^export (const|function|class|interface|type|enum)' "${recent_all[@]}")
+    r_grouped=$(count_in_files '^export \{'                                          "${recent_all[@]}")
+    echo "**Exports:** $(decide $inline $grouped 'inline' 'grouped' $r_inline $r_grouped)"
+
+    # Default vs named exports
+    defaults=$(  count '^export default'                            "${g_all[@]}")
+    named_exp=$( count '^export (const|function|class|interface)'  "${g_all[@]}")
+    r_def=$(   count_in_files '^export default'                           "${recent_all[@]}")
+    r_named=$( count_in_files '^export (const|function|class|interface)'  "${recent_all[@]}")
+    echo "**Default exports:** $(decide $defaults $named_exp 'default' 'named' $r_def $r_named)"
+
+    # Import quotes
+    single=$(count "^import .* from '"  "${g_all[@]}")
+    double=$(count '^import .* from "'  "${g_all[@]}")
+    r_single=$(count_in_files "^import .* from '" "${recent_all[@]}")
+    r_double=$(count_in_files '^import .* from "' "${recent_all[@]}")
+    detected_quotes=$(decide $single $double 'single' 'double' $r_single $r_double)
+    quote_line="**Import quotes:** $detected_quotes"
+    # Flag divergence from declared config
+    if [[ -n "$declared_quotes" ]] && [[ "$detected_quotes" != *"$declared_quotes"* ]]; then
+        quote_line="**Import quotes:** $detected_quotes  ⚠ diverges from $config_source ($declared_quotes declared)"
+    fi
+    echo "$quote_line"
+
+    # Path aliases vs relative
+    aliases=$(  count "from ['\"](@/|~/|#)" "${g_all[@]}")
+    relative=$( count "from ['\"](\.\./|\.\/)" "${g_all[@]}")
+    alias_prefix=$({ rg -oh "from ['\"](@[^/'\"]+/|~/)" "${g_all[@]}" "$search_path" 2>/dev/null || true; } \
+        | grep -oE "(@[^/]+/|~/)" | sort | uniq -c | sort -rn | head -1 | awk '{print $2}' || true)
+    r_alias=$(   count_in_files "from ['\"](@/|~/|#)"      "${recent_all[@]}")
+    r_relative=$(count_in_files "from ['\"](\.\./|\.\/)"   "${recent_all[@]}")
+    alias_decision=$(decide $aliases $relative 'path aliases' 'relative' $r_alias $r_relative)
+    [[ -n "$alias_prefix" ]] && alias_decision="$alias_decision (prefix: $alias_prefix)"
+    echo "**Import paths:** $alias_decision"
+
+    # Test placement
+    all_tests=$(  fd -t f . "$search_path" 2>/dev/null | grep -cE '\.(test|spec)\.' || echo 0)
+    in_dir_tests=$(fd -t f . "$search_path" 2>/dev/null | grep -E '\.(test|spec)\.' \
+        | grep -c '__tests__\|/tests/' || echo 0)
+    adjacent_tests=$((all_tests - in_dir_tests))
+    echo "**Tests:** $(decide $adjacent_tests $in_dir_tests 'adjacent' 'in __tests__' 0 0)"
+
+    # TypeScript specific
+    if [[ $ts_count -gt 0 ]]; then
+        types=$(     count '^(export\s+)?type\s+\w+\s*[=<]'   "${g_ts[@]}")
+        interfaces=$(count '^(export\s+)?interface\s+\w+'      "${g_ts[@]}")
+        r_types=$(      count_in_files '^(export\s+)?type\s+\w+\s*[=<]'  "${recent_ts[@]}")
+        r_interfaces=$( count_in_files '^(export\s+)?interface\s+\w+'     "${recent_ts[@]}")
+        echo "**Type definitions:** $(decide $types $interfaces 'type alias' 'interface' $r_types $r_interfaces)"
+    fi
+
+    echo ""
+fi
+
+# ---- Python ----
+if [[ $py_count -gt 2 ]]; then
+    echo "## Python"
+    echo ""
+
+    recent_py=()
+    while IFS= read -r f; do [[ -n "$f" ]] && recent_py+=("$f"); done < <(recent_files 'py')
+
+    # Type hints
+    typed=$(  count '^(\s*)def\s+\w+\(.*:.*\)(\s*->.*)?:'  -g '*.py')
+    untyped=$(count '^(\s*)def\s+\w+\([^:)]*\)\s*:'        -g '*.py')
+    r_typed=$(  count_in_files '^(\s*)def\s+\w+\(.*:.*\)(\s*->.*)?:' "${recent_py[@]}")
+    r_untyped=$(count_in_files '^(\s*)def\s+\w+\([^:)]*\)\s*:'       "${recent_py[@]}")
+    echo "**Type hints:** $(decide $typed $untyped 'used' 'not used' $r_typed $r_untyped)"
+
+    # Import style
+    from_imp=$(  count '^from\s+\S+\s+import'  -g '*.py')
+    direct_imp=$(count '^import\s+\w+'         -g '*.py')
+    r_from=$(   count_in_files '^from\s+\S+\s+import' "${recent_py[@]}")
+    r_direct=$( count_in_files '^import\s+\w+'        "${recent_py[@]}")
+    echo "**Imports:** $(decide $from_imp $direct_imp 'from X import Y' 'import X' $r_from $r_direct)"
+
+    echo ""
+fi
+
+# ---- Go ----
+if [[ $go_count -gt 2 ]]; then
+    echo "## Go"
+    echo ""
+
+    recent_go=()
+    while IFS= read -r f; do [[ -n "$f" ]] && recent_go+=("$f"); done < <(recent_files 'go')
+
+    err_check=$(count 'if err != nil' -g '*.go')
+    echo "**Error handling:** explicit checks — $err_check occurrences"
+
+    receivers=$(   count '^func\s+\([^)]+\)\s+\w+'  -g '*.go')
+    plain_funcs=$( count '^func\s+\w+'               -g '*.go')
+    r_recv=$(  count_in_files '^func\s+\([^)]+\)\s+\w+' "${recent_go[@]}")
+    r_plain=$( count_in_files '^func\s+\w+'              "${recent_go[@]}")
+    echo "**Methods vs functions:** $(decide $receivers $plain_funcs 'methods' 'functions' $r_recv $r_plain)"
+
+    echo ""
+fi
+
+} | { [[ $SIMULATE ]] && { logSimulation "write $CONVENTIONS_FILE"; cat > /dev/null; } || tee "$CONVENTIONS_FILE"; }
+
+[[ $SIMULATE ]] || logHuman "Saved to $CONVENTIONS_FILE"
