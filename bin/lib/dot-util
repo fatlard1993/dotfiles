@@ -5,6 +5,12 @@ source "$HOME/.dotfiles/bin/lib/constants"
 scriptName=`basename $1`
 scriptPath=`dirname $1`
 
+# Mirrors ctx-log.js's env checks (bin/lib/ctx-log.js) so the zsh and node
+# halves of the ctx-* tools render identically regardless of which side of
+# a given command is doing the logging.
+[[ -t 1 ]] || NO_COLOR=1
+[[ -t 0 ]] || NON_INTERACTIVE=1
+
 setup_gitconfig () {
   if ! [ -f git/gitconfig.local.symlink ]
   then
@@ -166,4 +172,148 @@ syncRepo() {
 ensureLinger() {
 	loginctl show-user $USER --property=Linger 2>/dev/null | grep -q "Linger=yes" \
 		|| sudo loginctl enable-linger $USER
+}
+
+# Builds the `code` Ollama model (see */ollama/dot-update.d/ollama and
+# */ollama/Modelfile.code): the static FROM/PARAMETER block plus a SYSTEM
+# prompt assembled at build time from ~/.claude/context/{workbench,garden}.md
+# - the same identity/approach layer a real Claude Code session gets via
+# SessionStart hooks - plus code-system-addendum.md (the coding-specific
+# rules). Shared because both profiles need identical assembly logic.
+# Editing the source files and rerunning dot-update keeps this in sync
+# automatically, since nothing here is baked into a static Modelfile.
+#
+# Pass --addendum-only to skip the identity layer even when the context
+# files are present - tiny_lappy uses this deliberately: measured, the
+# 176-line prompt costs ~10 minutes on a cold start on that CPU (2106
+# tokens at 6.78 tok/s prompt-eval, versus effectively free on htpc's GPU
+# at 300-470 tok/s) - a bad trade for a fallback meant to be usable when
+# you're blocked. Without the flag, falls back to addendum-only anyway
+# when the files are simply absent (not every machine has priv-config
+# cloned - htpc doesn't, so it hits this path naturally, no flag needed).
+buildCodeModel() {
+	local generated=$(mktemp)
+
+	cat $profilePath/ollama/Modelfile.code > $generated
+	echo 'SYSTEM """' >> $generated
+
+	if [[ $1 != --addendum-only && -f $HOME/.claude/context/workbench.md && -f $HOME/.claude/context/garden.md ]]; then
+		cat $HOME/.claude/context/workbench.md >> $generated
+		echo >> $generated
+		cat $HOME/.claude/context/garden.md >> $generated
+		echo >> $generated
+	else
+		echo "buildCodeModel: building 'code' with the addendum only"
+	fi
+
+	cat $profilePath/ollama/code-system-addendum.md >> $generated
+	echo '"""' >> $generated
+
+	ollama create code -f $generated
+
+	rm -f $generated
+}
+
+# --- ctx-* support ------------------------------------------------------
+# Everything below exists for bin/ctx-* (repo-analysis tools, being pulled
+# in as a trimmed, standalone layer). Ported from that
+# repo's scripts/lib/{util,execute,safety} - trimmed to just what ctx-*
+# actually calls (grep for logError/logWarning/logInfo/logHuman/logDebug/
+# execute/loadNode/saferRm across bin/ctx-* to re-check that surface).
+# Left behind entirely: per-branch node/mongo/python/redis version
+# resolution, platform-specific helpers, the confirmation-prompt padding
+# math, statusOk/Warn/Fail/Dim - all real in the source it was trimmed from, none of it
+# applicable to a personal analysis toolkit with no branches to resolve.
+
+# Mirrors ctx-log.js (bin/lib/ctx-log.js) - same env vars, same color
+# codes, same stderr-for-process-messages/stdout-for-content split - so
+# the zsh half (wrappers, ctx-fix, ctx-conventions, ctx-test, ...) and the
+# node half (ctx-orient.js and friends) render identically regardless of
+# which side of a given command is doing the logging.
+colorWrap() {
+	local color=$1
+	shift
+
+	print -P "%F{$color}$*%f"
+}
+
+logDebug()   { [[ $DEBUG ]] || return; [[ $NO_COLOR ]] && echo "[DEBUG][$scriptName] $*" >&2 || colorWrap 117 "[DEBUG][$scriptName] $*" >&2 }
+logInfo()    { [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2 }
+logWarning() { [[ $NO_COLOR ]] && echo "[WARNING][$scriptName] $*" >&2 || colorWrap 33 "[WARNING][$scriptName] $*" >&2 }
+logError()   { [[ $NO_COLOR ]] && echo "[ERROR][$scriptName] $*" >&2 || colorWrap 31 "[ERROR][$scriptName] $*" >&2 }
+logHuman()   { [[ $NON_INTERACTIVE ]] && return; [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2 }
+
+# execute <command string> — eval's it, unless $SIMULATE is set, in which
+# case it's only logged. Every mutation in ctx-fix/ctx-scaffold/etc. should
+# route through this rather than calling sd/sed/mkdir directly, so --apply
+# vs. dry-run is one convention instead of every script reimplementing it.
+execute() {
+	if [[ $SIMULATE ]]; then
+		logInfo "$(colorWrap 36 "[SIMULATE]") $*"
+	else
+		eval "$@"
+		local rc=$?
+
+		(( rc != 0 )) && logWarning "command exited $rc :: $*"
+
+		return $rc
+	fi
+}
+
+# Resolves whichever node nvm currently has active into $nodeBin (see
+# tool-shelf.md: "nvm loaded; nvm use <version> to switch"). the prior tool's
+# loadNode supports five different version managers plus per-branch
+# pinning; none of that applies on a personal machine with one nvm default.
+loadNode() {
+	[[ $SIMULATE ]] && { nodeBin="node"; logInfo "$(colorWrap 36 "[SIMULATE]") loadNode"; return; }
+
+	[[ -z "$(command -v nvm)" ]] && {
+		export NVM_DIR="$HOME/.nvm"
+
+		[[ -s "$NVM_DIR/nvm.sh" ]] && . "$NVM_DIR/nvm.sh"
+	}
+
+	nodeBin="$(command -v node)"
+
+	[[ -z "$nodeBin" ]] && { logError "no node found - is nvm installed and a version selected? (nvm use <version>)"; exit 1; }
+}
+
+# saferRm [flags] <path>... — refuses anything outside /tmp, /var/folders,
+# or $TMPDIR before deleting. Ported down from the prior tool's lib/safety,
+# which exists because a leaked env var once let a bats run `rm -rf` a real
+# ~/Projects tree - this keeps only the generic shape (refuse anything that
+# isn't clearly scratch space) and drops everything specific to that
+# incident's specific cause. Only caller today is
+# ctx-duplicates cleaning up its mktemp -d workdir on exit.
+saferRm() {
+	local flags=() targets=() arg
+	for arg in "$@"; do
+		case "$arg" in
+			-*) flags+=("$arg") ;;
+			*)  targets+=("$arg") ;;
+		esac
+	done
+
+	local t safe
+	for t in "${targets[@]}"; do
+		if [[ -z "$t" ]]; then
+			logError "saferRm: refusing to delete empty path"
+			exit 1
+		fi
+
+		safe=false
+
+		case "$t" in
+			/tmp/*|/var/folders/*) safe=true ;;
+		esac
+
+		[[ -n "$TMPDIR" && "$t" == "$TMPDIR"* ]] && safe=true
+
+		[[ $safe == true ]] || {
+			logError "saferRm: refusing to delete outside /tmp, /var/folders, \$TMPDIR: '$t'"
+			exit 1
+		}
+	done
+
+	execute "rm ${flags[*]} ${targets[*]}"
 }
