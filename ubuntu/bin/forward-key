@@ -1,22 +1,19 @@
 #!/bin/bash
 # Usage: forward-key <xdotool keystroke spec, e.g. ctrl+c>
 #
-# `xdotool key --clearmodifiers` with a real modifier held is a four-step
-# dance: read the held modifiers, synthetically release them, inject the
-# keystroke, synthetically re-press what was cleared. The sxhkd bindings
-# that use this fire on @release - i.e. exactly while fingers are lifting -
-# so the physical modifier release regularly lands *inside* that dance. X
+# `xdotool key --clearmodifiers` with a real modifier held: read held
+# modifiers, release them synthetically, inject the keystroke, re-press
+# what was cleared. sxhkd bindings using this fire on @release - while
+# fingers are lifting - so the physical release often lands mid-dance: X
 # consumes the real release, xdotool re-presses synthetically, and the
-# modifier is now logically held with no physical key down: no release
-# event is ever coming, and every subsequent click is a modifier-click
-# until the key is tapped again.
+# modifier is now logically held with no physical key down. No release
+# event is coming, so every click becomes a modifier-click until tapped
+# again.
 #
-# The repair below re-syncs logical state to physical truth after the
-# forward: any modifier keysym none of whose keycodes is down on a real
-# keyboard gets a synthetic keyup. keyup on an already-released key is
-# discarded by the server, so the seven not-stuck modifiers cost nothing,
-# and a modifier that IS physically held (a chained super+c super+v without
-# letting go) is left alone.
+# The repair re-syncs logical state to physical truth: any modifier
+# keysym with no keycode down on the real keyboard gets a synthetic keyup
+# (a no-op on an already-released key, so unaffected modifiers cost
+# nothing); a modifier still physically held is left alone.
 
 xdotool key --clearmodifiers "$1"
 

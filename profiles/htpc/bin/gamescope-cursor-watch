@@ -8,15 +8,13 @@
 # after a window/workspace interaction; confirmed live on this box: no
 # in-game menu or camera release ever restored it, only a relaunch did).
 #
-# This polls the nested XFixes cursor image (found via STEAM_GAME_DISPLAY_0
-# in a game-side process's environ, not the host :0) and, when it's been
-# fully transparent for STUCK_THRESHOLD seconds straight, tries the
-# built-in Super+F fullscreen-toggle hotkey as a soft reset - it forces
-# gamescope to re-init its window/input state without touching the game
-# process, so a false trigger costs a screen flicker instead of a save.
-# Only kills gamescope (never the game directly) if that doesn't clear it,
-# and only notifies rather than auto-relaunching, since resuming play is a
-# choice that belongs to whoever's holding the controller.
+# Polls the nested XFixes cursor image (via STEAM_GAME_DISPLAY_0 in a
+# game-side process's environ, not host :0). When it's fully transparent
+# for STUCK_THRESHOLD seconds, tries Super+F (gamescope's own fullscreen
+# toggle) as a soft reset - re-inits window/input state without touching
+# the game, so a false trigger costs a flicker, not a save. Only kills
+# gamescope (never the game) if that doesn't clear it, and only notifies
+# rather than auto-relaunching - resuming play is the player's call.
 
 import os
 import subprocess

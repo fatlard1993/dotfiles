@@ -1,29 +1,23 @@
 #!/bin/bash
-# slock (our fork, see profiles/tiny_lappy/slock/) is started once by
-# xss-lock right before suspend and keeps running straight through resume.
-# If autorandr reconfigures the monitor on resume (autorandr.service,
-# WantedBy=sleep.target) while that slock is still up, its cached
-# background no longer matches the new geometry, which is what used to
-# render as a blank/white lock screen after waking (with stock i3lock,
-# which had no way to redraw itself at all).
+# slock (our fork, profiles/tiny_lappy/slock/) starts once via xss-lock
+# before suspend and runs straight through resume. If autorandr
+# reconfigures the monitor on resume (autorandr.service,
+# WantedBy=sleep.target) while it's still up, its cached background no
+# longer matches the new geometry - used to render as a blank/white lock
+# screen with stock i3lock, which had no way to redraw itself.
 #
-# `system-lock recapture` re-shoots the screenshot/blur/badge base at
-# whatever the resolution actually is now and forces one HUD tick on top of
-# it; slock polls screen_locked.png's mtime itself (see config.def.h) and
-# picks up the refreshed frame within pollms on its own - this is a
-# separate short-lived invocation, not a relaunch of the system-lock/slock
-# that's been running since before suspend (that one survives the whole
-# cycle intact; suspend pauses processes, it doesn't kill them).
+# `system-lock recapture` re-shoots the screenshot/blur/badge base at the
+# current resolution; slock polls screen_locked.png's mtime itself (see
+# config.def.h) and picks up the refresh on its own. This is a separate
+# short-lived invocation, not a relaunch of the slock that's been running
+# since before suspend (suspend pauses processes, it doesn't kill them).
 #
-# Runs as root with no X session context, same gap as autorandr.service - see
-# ubuntu/.bspwmrc's DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments and
-# profiles/tiny_lappy's (now-removed) autorandr override for why.
+# Runs as root with no X session context - see ubuntu/.bspwmrc's
+# DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments for why.
 #
 # Per systemd-sleep(8), user.slice is frozen for the duration of these
-# hooks, so this won't actually run synchronously - it just waits until the
-# freeze lifts, which happens right as resume completes. That's a better
-# sync point than anything we could construct manually, so no extra delay
-# is added here.
+# hooks, so this runs once the freeze lifts, right as resume completes -
+# a better sync point than any delay we could construct manually.
 
 [ "$1" = "post" ] || exit 0
 

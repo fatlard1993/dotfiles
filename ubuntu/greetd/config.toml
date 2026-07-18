@@ -1,28 +1,20 @@
 # See ubuntu/dot-update.d/greetd - installed to /etc/greetd/config.toml.
 #
-# tuigreet's --theme takes hex colors (confirmed in its source,
-# src/ui/common/style.rs), but the raw Linux console (TERM=linux, no
-# compositor - this runs on a bare VT, not inside a terminal emulator) can
-# only display its fixed 16-slot palette, not arbitrary 24-bit RGB. So
-# instead of hex, --theme uses the 16 named ANSI colors here, and
-# ExecStartPre/Post in the greetd.service override (see
-# ubuntu/greetd/greetd-override.conf) reprograms that 16-slot palette to
-# the same Tomorrow Night values used by kitty/rofi/polybar/the slock fork
-# (see ubuntu/greetd/tomorrow-night.vtrgb) before tuigreet ever draws a
-# frame. One deliberate deviation from kitty's own palette: slot 0 (black)
-# is true #000000 here, not kitty's #373b41 ANSI-black - kitty needs that
-# lighter shade so black *text* stays legible against its own black
-# background, but nothing in this theme uses black as a foreground color,
-# and the VT's single black slot is also the default background
-# (container, below) - matching dunst/kitty's actual background/slock's
-# true black there is more important than matching kitty's ANSI-black.
+# tuigreet's --theme takes hex colors, but the raw Linux console (TERM=linux,
+# no compositor) can only display its fixed 16-slot palette. So --theme
+# uses named ANSI colors here, and ExecStartPre/Post in the greetd.service
+# override (ubuntu/greetd/greetd-override.conf) reprograms that palette to
+# the Tomorrow Night values used elsewhere (ubuntu/greetd/tomorrow-night.vtrgb)
+# before tuigreet draws a frame. Deviation from kitty's own palette: slot 0
+# (black) is true #000000 here, not kitty's lighter #373b41 - that shade
+# exists so black *text* reads against kitty's own black background, but
+# nothing here uses black as foreground, and the VT's black slot doubles
+# as the container background, where true black matches everything else.
 #
-# Uses the gold/orange/green trio that shows up across the rest of the
-# desktop (polybar-metric's threshold coloring, slock's INPUT/successcolor,
-# kitty's color3/color11/color10) rather than a single restrained accent:
-# lightyellow = gold #f0c674, yellow = orange #de935f, lightgreen = green
-# #b5bd68. button is darkgray rather than green - green sat too close to
-# input's white to read cleanly, same issue the original cyan button had.
+# Gold/orange/green trio matches the rest of the desktop (polybar-metric's
+# thresholds, slock's INPUT/successcolor, kitty's color3/color11/color10):
+# lightyellow=gold #f0c674, yellow=orange #de935f, lightgreen=green #b5bd68.
+# button is darkgray, not green - green read too close to input's white.
 [terminal]
 vt = 7
 

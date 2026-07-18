@@ -2,17 +2,15 @@
 
 # Route everything through the combine sink (HDMI receiver + headphone-jack
 # house zones - see pipewire/combine-sink.conf) by default. Backgrounded
-# with a readiness wait because pipewire comes up in parallel with this
-# startup chain via systemd --user, and the rest of startup.d shouldn't
-# block on it. Re-asserted every login on purpose - dual-output is how
-# this machine is meant to run.
+# with a readiness wait since pipewire comes up in parallel via systemd
+# --user; re-asserted every login since dual-output is how this machine
+# is meant to run.
 #
-# First-boot note (hardware-specific, can't be automated blind): for the
-# receiver to get real surround, the HDMI card profile must be a surround
-# one - check with `pactl list cards`, set with e.g.
-# `pactl set-card-profile <card> output:hdmi-surround-extra1` (wireplumber
-# remembers it). Volume keys move the combine sink, i.e. both outputs
-# together; per-zone level lives on the amps themselves.
+# First-boot, hardware-specific: for real surround, the HDMI card profile
+# must be a surround one - `pactl list cards` to check, `pactl
+# set-card-profile <card> output:hdmi-surround-extra1` to set (wireplumber
+# remembers it). Volume keys move both outputs together; per-zone level
+# lives on the amps themselves.
 {
 	for _ in {1..20}; do
 		pactl info > /dev/null 2>&1 && break

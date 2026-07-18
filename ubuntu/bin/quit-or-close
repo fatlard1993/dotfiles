@@ -8,11 +8,8 @@
 # window having appeared (e.g. a save-changes dialog, which we don't want
 # to steamroll), fall back to a regular close (bspc node -c).
 #
-# No --window flag: that makes xdotool use XSendEvent, which most modern
-# apps (Chromium-based ones included) discard as synthetic. Plain xdotool
-# key uses XTestFakeKeyEvent instead, indistinguishable from a real
-# keypress, and goes to whatever currently holds input focus - the window
-# this hotkey fired on.
+# No --window flag: same XSendEvent-vs-XTestFakeKeyEvent reasoning as
+# close-tab-or-window (plain xdotool key reaches whatever holds focus).
 
 wid=$(xdotool getactivewindow)
 before=$(bspc query -N any.window | wc -l)

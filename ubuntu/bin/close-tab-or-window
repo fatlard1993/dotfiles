@@ -2,32 +2,25 @@
 # Usage: close-tab-or-window
 #
 # Forwards ctrl+w to the focused window - closes the current tab in
-# Chrome/Firefox/most editors, instead of bspc node -c, which closes the
-# whole X11 window (all of Chrome's tabs at once, since they share one
-# window/node). A closed tab and an ignored ctrl+w look identical to
-# bspwm, so there's no fallback here - super+shift+w (bspc node -k) is
-# the hard-close.
+# Chrome/Firefox/most editors, unlike bspc node -c, which closes the whole
+# X11 window (all tabs at once). No fallback: super+shift+w (bspc node -k)
+# is the hard-close.
 #
-# kitty is the exception: it doesn't bind ctrl+w (that's shell
-# word-delete), and forwarding its native ctrl+shift+w doesn't survive
-# this machine's ctrl<->alt keycode swap - xdotool injects a spurious
-# Alt, kitty sees ctrl+alt+shift+w and ignores it. One kitty OS window
-# is one shell here (super+n is new_os_window, no split/tab bindings),
-# so bspc node -c IS tab-granular for kitty, and it stays polite: kitty
-# still gets a WM delete request and can ask to confirm.
+# kitty exception: it doesn't bind ctrl+w (shell word-delete), and its
+# native ctrl+shift+w doesn't survive this machine's ctrl<->alt keycode
+# swap (xdotool injects a spurious Alt, kitty sees ctrl+alt+shift+w and
+# ignores it). One kitty OS window is one shell here, so bspc node -c is
+# already tab-granular for it and stays polite (real WM delete request).
 #
-# kitty is recognized by the window's process (_NET_WM_PID -> comm), not
-# WM_CLASS: WM_CLASS carries whatever --class was passed at spawn (the
-# quake terminal is "quakeTerm" - see ubuntu/bin/terminal-smart), so
-# matching class names means maintaining a list that silently goes stale
-# with every new custom class. A window without _NET_WM_PID falls through
-# to the ctrl+w forward, which is also the right default for it.
+# Matched by _NET_WM_PID -> comm, not WM_CLASS: WM_CLASS is whatever
+# --class was passed at spawn (e.g. quakeTerm - see
+# ubuntu/bin/terminal-smart), so a class list would go stale with every
+# new custom class. No _NET_WM_PID falls through to the ctrl+w forward,
+# the right default.
 #
-# No --window flag: that makes xdotool use XSendEvent, which Chrome and
-# most modern apps discard as synthetic. Plain xdotool key uses
-# XTestFakeKeyEvent instead, indistinguishable from a real keypress, and
-# goes to whatever currently holds input focus - the window this hotkey
-# fired on.
+# No --window flag: xdotool would use XSendEvent, which Chrome discards as
+# synthetic. Plain xdotool key uses XTestFakeKeyEvent (indistinguishable
+# from a real keypress) on whatever holds focus.
 
 pid=$(xprop -id "$(xdotool getactivewindow)" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
 

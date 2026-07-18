@@ -1,11 +1,10 @@
 #!/bin/bash
-# Replaces polybar's internal/bspwm module: the internal module sanitizes
-# custom %{A} tags out of its labels (confirmed via `polybar -l trace` - an
-# A3 tag embedded in label-occupied renders as if parsed but never
-# dispatches), so per-desktop right-click needs to own the render. Mirrors
-# the internal module's styling: focused gold block, occupied plain, empty
-# dim, urgent red block (colors matching [colors] in polybar/config.ini,
-# hardcoded hex like polybar-metric does).
+# Replaces polybar's internal/bspwm module: it sanitizes custom %{A} tags
+# out of its labels (confirmed via `polybar -l trace` - an A3 tag in
+# label-occupied renders as parsed but never dispatches), so per-desktop
+# right-click needs to own the render. Mirrors the internal module's
+# styling: focused gold block, occupied plain, empty dim, urgent red
+# (hardcoded hex matching [colors] in polybar/config.ini).
 #
 # Left-click: focus that desktop (what the internal module did).
 # Right-click: focus AND open the app launcher - one couch/mouse gesture

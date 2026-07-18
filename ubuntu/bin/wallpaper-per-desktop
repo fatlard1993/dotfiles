@@ -1,27 +1,23 @@
 #!/bin/bash
-# Gives each bspwm desktop its own persistent wallpaper. bspwm has a single
-# shared X root window (no native per-desktop background), so this fakes it
-# by swapping the background via feh whenever a desktop is focused.
+# Gives each bspwm desktop its own persistent wallpaper - bspwm has one
+# shared X root window (no native per-desktop background), so this fakes
+# it by swapping the background via feh on desktop focus.
 #
-# This is the single owner of the desktop->wallpaper map and of repainting.
-# It grew subcommands after the map handling was duplicated across
-# wallpaper-rotate-all, wallpaper-next, and polybar-menu, and two of those
-# copies appended map lines instead of replacing them - the daemon's lookup
-# then matched multiple lines and handed feh one garbage multi-line path, so
-# switches silently stopped repainting. Those scripts are thin wrappers over
-# the subcommands now:
+# Single owner of the desktop->wallpaper map and repainting. Grew
+# subcommands after duplicated map-handling across wallpaper-rotate-all,
+# wallpaper-next, and polybar-menu let two copies append instead of
+# replace map lines - multi-line entries fed feh a garbage path and
+# repaints silently stopped. Those scripts are now thin wrappers:
 #   (none)     daemon: repair map, repaint, then follow desktop_focus
 #   apply      one-shot repaint of every monitor's active desktop
 #   next       new (unique) wallpaper for the focused desktop + repaint
 #   rotate-all fresh unique wallpaper for every desktop + repaint
 #   prewarm    pre-scale every mapped wallpaper for every monitor
 #
-# feh sets multi-monitor backgrounds from a single call: one image per
-# Xinerama output, first arg -> output 0, second -> output 1, etc (see
-# feh(1)). Call it with only one image while N>1 monitors are connected and
-# it paints that same image across all of them - so repainting must always
-# gather every monitor's own active desktop and set the whole list at once,
-# even though only one monitor's desktop actually changed.
+# feh sets multi-monitor backgrounds from one call: one image per Xinerama
+# output (feh(1)) - fewer images than monitors paints the same image on
+# all of them. So repainting always gathers every monitor's active
+# desktop and sets the whole list at once, even if only one changed.
 
 shopt -s nullglob
 
