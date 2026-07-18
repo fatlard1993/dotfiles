@@ -99,7 +99,6 @@ gitm() {
   }
 }
 
-
 # ── async git branch display ──────────────────────────────────────────────────
 
 typeset -A _prompt_git_cache     # pwd -> rendered git line
@@ -138,7 +137,6 @@ _prompt_gitBranch_compute() {
 
   [ -d "$gitRoot/.git/rebase-apply" ] && isMidRebase=true
   [ -d "$gitRoot/.git/rebase-merge" ] && isMidRebase=true
-
 
   [[ -f "$gitRoot/package.json" ]] && {
     if [[ -f "$gitRoot/bunfig.toml" ]]; then

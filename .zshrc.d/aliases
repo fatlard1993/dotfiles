@@ -63,7 +63,6 @@ if [[ -z "$CLAUDECODE" ]]; then
   alias brew="spinrand 26 25 brew"        # star burst, dice — something new
 fi
 
-
 alias i="[[ -e ./bunfig.toml ]] && bun i || npm i"
 alias i!="[[ -e ./package.json ]] && rm -rf ./node_modules && i"
 alias ci="[[ -e ./bunfig.toml ]] && bun i --frozen-lockfile || npm ci"
