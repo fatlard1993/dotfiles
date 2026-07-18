@@ -203,7 +203,7 @@ buildCodeModel() {
 		cat $HOME/.claude/context/garden.md >> $generated
 		echo >> $generated
 	else
-		echo "buildCodeModel: building 'code' with the addendum only"
+		echo "buildCodeModel: ~/.claude/context/{workbench,garden}.md not found - building 'code' with the addendum only"
 	fi
 
 	cat $profilePath/ollama/code-system-addendum.md >> $generated
