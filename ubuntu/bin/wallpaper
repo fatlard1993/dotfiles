@@ -13,6 +13,14 @@ LOG_FILE=$WALLPAPER_DIR/.log
 # change in one place instead of silently drifting apart in two.
 VALID_EXT='jpe?g|png'
 
+# Reposts across the Imaginary* subreddit family land under a fresh URL (and
+# often a fresh recompression/resize), so their md5 never matches anything
+# in .ignore even though it's the same picture. Hamming distance on an 8x8
+# dHash catches that: measured 1-4 for the same image recompressed/resized/
+# lightly cropped, vs 28-35 for genuinely different wallpapers in this pool -
+# 10 leaves a wide margin on both sides.
+PHASH_THRESHOLD=10
+
 touch $WALLPAPER_DIR/.ignore $METADATA_FILE $LOG_FILE
 
 mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $WALLPAPER_DIR/stashed
@@ -25,11 +33,79 @@ log_run() {
 }
 
 record_metadata() {
-	local hash=$1 subreddit=$2 url=$3 file=$4
+	local hash=$1 subreddit=$2 url=$3 file=$4 phash=$5
 	local dims
 	dims=$(identify -format '%wx%h' "$file" 2>/dev/null)
 
-	echo "$hash|$subreddit|$url|${dims:-?}|$(date -Iseconds)" >> $METADATA_FILE
+	echo "$hash|$subreddit|$url|${dims:-?}|$(date -Iseconds)|$phash" >> $METADATA_FILE
+}
+
+# 8x8 difference hash: shrink to 9x8 grayscale so each row gives 8 adjacent-
+# pixel comparisons, encode "did brightness increase left-to-right" as a bit.
+# Stable under recompression/resizing/minor crops, unlike the exact md5 - that
+# robustness is the whole point here, exact-duplicate content already has its
+# own (cheaper) check.
+phash() {
+	magick "$1" -colorspace Gray -resize '9x8!' -depth 8 txt:- 2>/dev/null | awk -F'[ ,:()]+' '
+		NR>1 { px[$1","$2] = $3; seen++ }
+		END {
+			# NR==0 (no output at all, e.g. magick choked on the input) must
+			# not fall through to the same all-zero hash a genuinely flat/
+			# dark image would produce - that sentinel value would then
+			# collide with real dark wallpapers in find_phash_duplicate.
+			if (!seen) exit 1
+			bits=""
+			for (y=0;y<8;y++)
+				for (x=0;x<8;x++)
+					bits = bits ((px[x","y]+0) < (px[(x+1)","y]+0) ? "1" : "0")
+			hex=""
+			for (i=1;i<=64;i+=4) {
+				v=0
+				for (j=0;j<4;j++) v = v*2 + (substr(bits,i+j,1)+0)
+				hex = hex sprintf("%x", v)
+			}
+			print hex
+		}
+	'
+}
+
+# Scans every phash we've ever recorded - both still-in-rotation saves and
+# blacklisted rejects (.ignore carries the metadata line forward, phash
+# included) - for the closest match to a candidate. Prints "distance|<the
+# matching line>" and exits 0 on a hit within PHASH_THRESHOLD, exits 1 on
+# none - so callers can use it directly as an elif condition.
+find_phash_duplicate() {
+	local candidate=$1 result
+	result=$(cat "$METADATA_FILE" "$WALLPAPER_DIR/.ignore" 2>/dev/null | awk -F'|' -v cand="$candidate" -v thresh="$PHASH_THRESHOLD" '
+		BEGIN {
+			split("0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111", nib, " ")
+			digits = "0123456789abcdef"
+			candbin = hex2bin(cand)
+			best = 999
+		}
+		function hex2bin(h,    i, c, out) {
+			out = ""
+			for (i = 1; i <= length(h); i++) {
+				c = index(digits, substr(h, i, 1))
+				out = out (c ? nib[c] : "0000")
+			}
+			return out
+		}
+		{
+			h = $6
+			if (length(h) != 16) next
+			srcbin = hex2bin(h)
+			d = 0
+			for (i = 1; i <= 64; i++) if (substr(candbin, i, 1) != substr(srcbin, i, 1)) d++
+			if (d <= thresh && d < best) { best = d; bestline = $0 }
+		}
+		END {
+			if (best <= thresh) print best "|" bestline
+		}
+	')
+
+	[ -n "$result" ] || return 1
+	echo "$result"
 }
 
 if [ "$COMMAND" = "get" ]; then
@@ -127,11 +203,15 @@ if [ "$COMMAND" = "get" ]; then
 			echo -e "Didnt like: $FILE_SUM\n"
 
 			rm $TMP_FILE
+		elif PHASH=$(phash "$TMP_FILE") && DUP=$(find_phash_duplicate "$PHASH") ; then
+			echo -e "Perceptually similar to something already known (distance ${DUP%%|*}): $FILE_SUM\n"
+
+			rm $TMP_FILE
 		else
 			SAVED_FILE=$WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
 
 			mv $TMP_FILE $SAVED_FILE
-			record_metadata "$FILE_SUM" "$SUBREDDIT" "$LINK" "$SAVED_FILE"
+			record_metadata "$FILE_SUM" "$SUBREDDIT" "$LINK" "$SAVED_FILE" "$PHASH"
 
 			echo -e "Saved: $FILE_SUM\n"
 
@@ -236,10 +316,100 @@ elif [ "$COMMAND" = "convert" ]; then
 		echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
 		mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
 	done
+elif [ "$COMMAND" = "backfill-phash" ]; then
+	# One-off migration for lines recorded before phash existed. Hashes
+	# whose file is gone (already deleted, not just stashed) still carry
+	# their source URL, so those get a short-lived refetch straight into
+	# TMP_DIR purely to hash - never saved into the pool - instead of
+	# staying permanently unprotected. Genuinely unrecoverable only when
+	# there's no URL at all (a bare-hash .ignore line) or the entry was
+	# never an image to begin with.
+	declare -A KNOWN_PHASH
+
+	backfill_file() {
+		local src_file=$1 tmp=$1.tmp.$$
+		local hash subreddit url dims date existing_phash newphash found dir
+		local -a matches
+		local total=0 from_disk=0 from_fetch=0 unrecoverable=0
+
+		: > "$tmp"
+
+		while IFS='|' read -r hash subreddit url dims date existing_phash; do
+			[ -z "$hash" ] && continue
+
+			total=$((total + 1))
+
+			if [ -z "$subreddit" ] || [ "$dims" = "not-an-image" ]; then
+				printf '%s\n' "$hash${subreddit:+|$subreddit}${url:+|$url}${dims:+|$dims}${date:+|$date}" >> "$tmp"
+				[ -z "$subreddit" ] && unrecoverable=$((unrecoverable + 1))
+				continue
+			fi
+
+			if [ -n "$existing_phash" ]; then
+				newphash=$existing_phash
+			elif [ -n "${KNOWN_PHASH[$hash]:-}" ]; then
+				newphash=${KNOWN_PHASH[$hash]}
+			else
+				found=""
+				for dir in "" saved/ stashed/ broken/; do
+					# nullglob (set at the top of this script) makes an
+					# unmatched glob expand to zero args rather than the
+					# literal pattern - critical here, since `ls` with zero
+					# args silently lists the cwd instead of erroring, which
+					# would hand back a bogus "found" full of garbage.
+					matches=("$WALLPAPER_DIR/${dir}${hash}".*)
+					[ ${#matches[@]} -gt 0 ] && { found=${matches[0]}; break; }
+				done
+
+				newphash=""
+
+				# "Found on disk" isn't proof it's a usable image - broken/
+				# specifically holds files quarantine already gave up on
+				# (see wallpaper-per-desktop's quarantine()), and one of
+				# those turned out to be a dead source's HTML error page
+				# saved with a .jpeg extension. Confirm before trusting it,
+				# same bar the refetch path already holds itself to.
+				if [ -n "$found" ] && identify "$found" >/dev/null 2>&1; then
+					newphash=$(phash "$found")
+					[ -n "$newphash" ] && from_disk=$((from_disk + 1))
+				fi
+
+				if [ -z "$newphash" ] && [ -n "$url" ]; then
+					local tmpimg="$TMP_DIR/backfill_$hash"
+
+					wget -q --timeout=10 --tries=1 "$url" -O "$tmpimg" 2>/dev/null
+
+					if [ -s "$tmpimg" ] && identify "$tmpimg" >/dev/null 2>&1; then
+						newphash=$(phash "$tmpimg")
+						[ -n "$newphash" ] && from_fetch=$((from_fetch + 1))
+					fi
+
+					rm -f "$tmpimg"
+					sleep 0.3
+				fi
+
+				if [ -z "$newphash" ]; then
+					unrecoverable=$((unrecoverable + 1))
+					echo "  couldn't get a usable image: $hash ($subreddit)"
+				fi
+
+				[ -n "$newphash" ] && KNOWN_PHASH[$hash]=$newphash
+			fi
+
+			echo "$hash|$subreddit|$url|$dims|$date|$newphash" >> "$tmp"
+		done < "$src_file"
+
+		mv "$tmp" "$src_file"
+		echo "$(basename "$src_file"): $total lines, $from_disk from disk, $from_fetch refetched, $unrecoverable unrecoverable"
+	}
+
+	backfill_file "$METADATA_FILE"
+	backfill_file "$WALLPAPER_DIR/.ignore"
 else
 	echo -e "Useage: PATH/wallpaper [command] [option(s)]\n\
-	get     |IMAGE_COUNT_TO_DOWNLOAD ?SUBREDDIT?|\n\
-	change  |saved|unsorted|\n\
-	sort    |delete|save|stash|\n\
-	convert |SUBFOLDER|"
+	get           |IMAGE_COUNT_TO_DOWNLOAD ?SUBREDDIT?|\n\
+	change        |saved|unsorted|\n\
+	sort          |delete|save|stash|\n\
+	convert       |SUBFOLDER|\n\
+	backfill-phash"
 fi

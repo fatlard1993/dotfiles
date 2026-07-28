@@ -497,11 +497,12 @@ wallpaper)
 	stash_line=" Stash (out of rotation)"
 	delete_line=" Delete & Blacklist"
 	triage_line=" Triage Collection"
+	undo_line=" Undo Last Stash/Delete"
 	get_line=" Download More Wallpapers"
 	subs_line=" Edit Subreddit List"
 	folder_line=" Open Wallpaper Folder"
 
-	choice=$(printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s' "$next_line" "$rotate_all_line" "$save_line" "$stash_line" "$delete_line" "$triage_line" "$get_line" "$subs_line" "$folder_line" | rofi_menu "Wallpaper" "Desktop ${desktop}: $(basename "${current:-none}")")
+	choice=$(printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s' "$next_line" "$rotate_all_line" "$save_line" "$stash_line" "$delete_line" "$triage_line" "$undo_line" "$get_line" "$subs_line" "$folder_line" | rofi_menu "Wallpaper" "Desktop ${desktop}: $(basename "${current:-none}")")
 
 	case "$choice" in
 	"$next_line")
@@ -530,6 +531,12 @@ wallpaper)
 		;;
 	"$triage_line")
 		"$HOME/.dotfiles/ubuntu/bin/wallpaper-triage" &
+		;;
+	"$undo_line")
+		# undo repaints nothing on its own - the desktop that lost this
+		# wallpaper already got a replacement, the image is just back in
+		# the pool for the next rotation
+		"$HOME/.dotfiles/ubuntu/bin/wallpaper-triage" undo
 		;;
 	"$get_line")
 		"$HOME/.dotfiles/ubuntu/bin/wallpaper" get 15 &

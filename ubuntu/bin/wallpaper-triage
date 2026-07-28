@@ -3,25 +3,39 @@
 #   1 / space   keep in rotation (just advance)
 #   2           stash - out of rotation, kept on disk, blacklisted
 #   3           delete & blacklist
+#   4           undo the last stash/delete
 #   q / Esc     stop early
 # feh advances automatically after a numbered action and exits after the
 # last image (--on-last-slide quit), so a full pass is exactly one
 # keypress per wallpaper.
 #
-# stash/delete also work as standalone subcommands on an arbitrary file -
-# polybar-menu's stash action and wallpaper-delete share them, so the
-# menu, the quick actions, and this walk can't drift apart semantically.
+# stash/delete/undo also work as standalone subcommands - polybar-menu's
+# stash action and wallpaper-delete share them, so the menu, the quick
+# actions, and this walk can't drift apart semantically.
 #
 # Usage: wallpaper-triage                 walk the whole rotation pool
 #        wallpaper-triage <files...>      walk specific files
 #        wallpaper-triage stash <file>    move to stashed/ + blacklist
-#        wallpaper-triage delete <file>   blacklist + remove
+#        wallpaper-triage delete <file>   blacklist + move to .trash/
+#        wallpaper-triage undo            reverse the last stash/delete
 
 shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
 METADATA_FILE=$WALLPAPER_DIR/.metadata
 SELF="$HOME/.dotfiles/ubuntu/bin/wallpaper-triage"
+
+# Every stash/delete appends here, so undo has something to pop. Nothing
+# else reads it: the blacklist and the on-disk layout stay the source of
+# truth, this is purely "what did I just do, and how do I take it back".
+JOURNAL=$WALLPAPER_DIR/.triage-journal
+
+# Delete moves here instead of unlinking, which is what makes undo exact
+# rather than a best-effort refetch. Kept for TRASH_DAYS so the pool
+# doesn't quietly regrow inside a hidden folder - long enough to cover
+# "I regret that", short enough that it never becomes storage.
+TRASH_DIR=$WALLPAPER_DIR/.trash
+TRASH_DAYS=30
 
 # Blacklist = append to .ignore, which the downloader checks before saving
 # a new image (see bin/wallpaper). Carries the metadata line (subreddit,
@@ -36,21 +50,98 @@ blacklist() {
 	echo "$sum"
 }
 
+# Drops the most recent blacklist entry for a hash and hands the removed
+# line back - it carries the source URL, which for a deleted file whose
+# trash copy has aged out is the only remaining way to get the image back.
+unblacklist() {
+	local sum=$1 ignore=$WALLPAPER_DIR/.ignore n line
+	n=$(grep -n "^${sum}" "$ignore" 2>/dev/null | tail -1 | cut -d: -f1)
+	[ -n "$n" ] || return 1
+	line=$(sed -n "${n}p" "$ignore")
+	sed -i "${n}d" "$ignore"
+	echo "$line"
+}
+
+journal() {
+	local action=$1 sum=$2 orig=$3 src=$4
+	echo "$(date -Iseconds)|$action|$sum|$orig|$src" >>"$JOURNAL"
+}
+
 case $1 in
 stash)
 	[ -f "$2" ] || exit 1
 	sum=$(blacklist "$2")
 	mkdir -p "$WALLPAPER_DIR/stashed"
-	mv "$2" "$WALLPAPER_DIR/stashed/${sum}.${2##*.}"
+	dest=$WALLPAPER_DIR/stashed/${sum}.${2##*.}
+	mv "$2" "$dest"
+	journal stash "$sum" "$2" "$dest"
 	[ -n "$TRIAGE_LOG" ] && echo stash >>"$TRIAGE_LOG"
 	exit 0
 	;;
 delete)
 	[ -f "$2" ] || exit 1
-	blacklist "$2" >/dev/null
-	rm -f "$2"
+	sum=$(blacklist "$2")
+	mkdir -p "$TRASH_DIR"
+
+	# mv keeps the original mtime, which wget set from the source's
+	# Last-Modified - often years old. Retention has to age from when it
+	# was deleted, so stamp it now or the prune below eats it instantly.
+	dest=$TRASH_DIR/${sum}.${2##*.}
+	mv "$2" "$dest" && touch "$dest"
+
+	find "$TRASH_DIR" -maxdepth 1 -type f -mtime +$TRASH_DAYS -delete 2>/dev/null
+
+	journal delete "$sum" "$2" "$dest"
 	[ -n "$TRIAGE_LOG" ] && echo delete >>"$TRIAGE_LOG"
 	exit 0
+	;;
+undo)
+	entry=$(tail -1 "$JOURNAL" 2>/dev/null)
+
+	if [ -z "$entry" ]; then
+		notify-send "Wallpaper" "Nothing to undo"
+		exit 1
+	fi
+
+	IFS='|' read -r _ action sum orig src <<<"$entry"
+
+	meta=$(unblacklist "$sum")
+	url=$(echo "$meta" | cut -s -d'|' -f3)
+
+	restored=""
+
+	if [ -f "$orig" ]; then
+		restored=$orig
+	elif [ -n "$src" ] && [ -f "$src" ]; then
+		mv "$src" "$orig" && restored=$orig
+	elif [ -n "$url" ]; then
+		# Trash aged out (or this entry predates it). The image is
+		# content-addressed, so a refetch is only an undo if the bytes
+		# hash back to the same name - anything else is a different
+		# picture at a recycled URL and must not land in the pool.
+		tmp=$(mktemp /tmp/wallpaper-undo.XXXXXX)
+
+		if wget -q --timeout=30 --tries=2 "$url" -O "$tmp" \
+			&& [ "$(md5sum "$tmp" | cut -d' ' -f1)" = "$sum" ]; then
+			mv "$tmp" "$orig" && restored=$orig
+		fi
+
+		rm -f "$tmp"
+	fi
+
+	# The journal entry is spent either way: the blacklist removal
+	# already happened, and replaying a failed restore won't do better.
+	sed -i '$d' "$JOURNAL"
+
+	[ -n "$TRIAGE_LOG" ] && echo "undo:$action" >>"$TRIAGE_LOG"
+
+	if [ -n "$restored" ]; then
+		notify-send "Wallpaper" "Un-${action}ed $(basename "$restored")"
+		exit 0
+	fi
+
+	notify-send "Wallpaper" "Un-blacklisted ${sum:0:8} but the image is gone - no trash copy, no working source"
+	exit 1
 	;;
 esac
 
@@ -71,7 +162,7 @@ export TRIAGE_LOG
 # overlays the fullscreen window, and in feh's default bitmap font they're
 # unreadably small on a HiDPI panel anyway. --info undergoes feh's format
 # expansion (%u/%l progress, %n filename) before the shell runs it.
-legend='[1 / space] keep      [2] stash      [3] delete + blacklist      [q / esc] quit'
+legend='[1 / space] keep      [2] stash      [3] delete + blacklist      [4] undo last      [q / esc] quit'
 
 feh --fullscreen --auto-zoom --image-bg black \
 	--on-last-slide quit \
@@ -81,16 +172,28 @@ feh --fullscreen --auto-zoom --image-bg black \
 	--action1 "[keep]true" \
 	--action2 "[stash]\"$SELF\" stash %F" \
 	--action3 "[delete & blacklist]\"$SELF\" delete %F" \
+	--action4 "[undo last]\"$SELF\" undo" \
 	"${files[@]}"
 
 stashed=$(grep -cx stash "$TRIAGE_LOG")
 deleted=$(grep -cx delete "$TRIAGE_LOG")
-rm -f "$TRIAGE_LOG"
+undone=$(grep -c '^undo:' "$TRIAGE_LOG")
 
-# Repaint any desktop whose mapped wallpaper just got removed - apply
-# self-heals missing map entries (see wallpaper-per-desktop).
+# Repaint on the raw counts, not the net ones: a desktop whose wallpaper
+# was removed still needs a new mapping even if a later undo brought some
+# other image back. apply self-heals missing map entries (see
+# wallpaper-per-desktop).
 if [ "$stashed" -gt 0 ] || [ "$deleted" -gt 0 ]; then
 	"$HOME/.dotfiles/ubuntu/bin/wallpaper-per-desktop" apply
 fi
 
-notify-send "Wallpaper" "Triage done: ${stashed} stashed, ${deleted} deleted & blacklisted"
+# The summary reports what survived the walk, so an undone delete doesn't
+# get counted as one.
+stashed=$((stashed - $(grep -cx 'undo:stash' "$TRIAGE_LOG")))
+deleted=$((deleted - $(grep -cx 'undo:delete' "$TRIAGE_LOG")))
+rm -f "$TRIAGE_LOG"
+
+summary="Triage done: ${stashed} stashed, ${deleted} deleted & blacklisted"
+[ "$undone" -gt 0 ] && summary="$summary (${undone} undone)"
+
+notify-send "Wallpaper" "$summary"
