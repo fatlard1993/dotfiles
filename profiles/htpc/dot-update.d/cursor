@@ -19,14 +19,16 @@ dconf write /org/gnome/desktop/interface/cursor-size "64"
 
 # XCURSOR_SIZE handles every X-side cursor, but the Sims 4 draws its
 # in-game cursor Windows-side and Wine ignores the X size for it (tested:
-# env verified inside the game's process, cursor still tiny). Dead ends,
-# so nobody retries them: cursor mods only reskin (the game caps cursor
-# resources at 32x32); prefix DPI (LogPixels 192) does reach the game but
-# backwards - the game reads it and shrinks its whole UI (useosdpi below)
-# while Wine never scales the cursor, and every session rewrites the key
-# back to 96 on exit anyway. What works is gamescope (launch options
-# below): the game renders native 4K, gamescope composites the cursor
-# itself and scales it 2x.
+# env verified inside the game's process, cursor still tiny). Cursor mods
+# only reskin (the game caps cursor resources at 32x32); prefix DPI
+# (LogPixels 192) does reach the game but backwards - the game reads it and
+# shrinks its whole UI (useosdpi below) while Wine never scales the cursor,
+# and every session rewrites the key back to 96 on exit anyway. gamescope
+# compositing did scale it, but --force-grab-cursor locks up permanently on
+# the first camera-drag (github.com/ValveSoftware/gamescope#1285, #2180 -
+# still open, no fix in 3.16.20) and only a full relaunch clears it -
+# ripped out as not worth the tradeoff. Tiny cursor it is until upstream
+# fixes the grab.
 simsIni="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/drive_c/users/steamuser/Documents/Electronic Arts/The Sims 4/Options.ini"
 
 # useosdpi = 1 ships by default and makes the game resize itself from the
@@ -47,51 +49,5 @@ if [[ -f $simsIni ]] && grep -q $'^useosdpi = 1\r' $simsIni; then
 		sed -i -e $'s/^useosdpi = .*/useosdpi = 0\r/' \
 			-e $'s/^resolutionwidth = .*/resolutionwidth = 3840\r/' \
 			-e $'s/^resolutionheight = .*/resolutionheight = 2160\r/' $simsIni
-	fi
-fi
-
-# The actual cursor fix: gamescope wraps the game, rendering at native 4K
-# (-w/-h) while compositing the cursor itself at 2x (--cursor-scale-height
-# 1080 against the 2160 output). --force-grab-cursor is load-bearing -
-# without it nested gamescope forwards the host cursor unscaled and the
-# scale flag never engages. PATH prefix because Debian ships
-# gamescopereaper in /usr/games, which the greetd session PATH lacks (same
-# trap as steam itself, see startup.d/steam-bigpicture). Steam holds
-# localconfig.vdf in memory and rewrites it on exit, so only touched while
-# steam is down.
-simsLaunchOptions='PATH=/usr/games:$PATH gamescope -w 3840 -h 2160 -f --cursor-scale-height 1080 --force-grab-cursor -- %command%'
-steamCfg="$HOME/.steam/debian-installation/userdata/71499228/config/localconfig.vdf"
-
-if [[ -f $steamCfg ]] && ! grep -qF "$simsLaunchOptions" $steamCfg; then
-	if pgrep -x steam > /dev/null; then
-		echo "Steam is live - skipping Sims 4 launch options (rerun dot-update with steam closed)"
-	else
-		echo "Setting Sims 4 gamescope launch options (cursor scale)"
-
-		python3 - "$steamCfg" "$simsLaunchOptions" <<'EOF'
-import sys
-
-path, lo = sys.argv[1], sys.argv[2]
-s = open(path, encoding='utf-8', errors='surrogateescape').read()
-
-# The eula key is the stable landmark inside the Sims 4 app block.
-anchor = s.find('"1222670_eula_0"')
-if anchor == -1:
-    sys.exit('sims 4 app block not found in localconfig.vdf')
-
-line = '\t\t\t\t\t\t"LaunchOptions"\t\t"' + lo + '"\n'
-block = s[max(0, anchor - 400):anchor]
-
-if '"LaunchOptions"' in block:
-    start = max(0, anchor - 400) + block.rindex('"LaunchOptions"')
-    end = s.index('\n', start) + 1
-    start = s.rindex('\n', 0, start) + 1
-    s = s[:start] + line + s[end:]
-else:
-    start = s.rindex('\n', 0, anchor) + 1
-    s = s[:start] + line + s[start:]
-
-open(path, 'w', encoding='utf-8', errors='surrogateescape').write(s)
-EOF
 	fi
 fi
