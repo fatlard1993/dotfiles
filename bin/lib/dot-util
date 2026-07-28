@@ -253,11 +253,11 @@ colorWrap() {
 	print -P "%F{$color}$*%f"
 }
 
-logDebug()   { [[ $DEBUG ]] || return; [[ $NO_COLOR ]] && echo "[DEBUG][$scriptName] $*" >&2 || colorWrap 117 "[DEBUG][$scriptName] $*" >&2 }
-logInfo()    { [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2 }
-logWarning() { [[ $NO_COLOR ]] && echo "[WARNING][$scriptName] $*" >&2 || colorWrap 33 "[WARNING][$scriptName] $*" >&2 }
-logError()   { [[ $NO_COLOR ]] && echo "[ERROR][$scriptName] $*" >&2 || colorWrap 31 "[ERROR][$scriptName] $*" >&2 }
-logHuman()   { [[ $NON_INTERACTIVE ]] && return; [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2 }
+logDebug()   { [[ $DEBUG ]] || return; [[ $NO_COLOR ]] && echo "[DEBUG][$scriptName] $*" >&2 || colorWrap 117 "[DEBUG][$scriptName] $*" >&2; }
+logInfo()    { [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2; }
+logWarning() { [[ $NO_COLOR ]] && echo "[WARNING][$scriptName] $*" >&2 || colorWrap 33 "[WARNING][$scriptName] $*" >&2; }
+logError()   { [[ $NO_COLOR ]] && echo "[ERROR][$scriptName] $*" >&2 || colorWrap 31 "[ERROR][$scriptName] $*" >&2; }
+logHuman()   { [[ $NON_INTERACTIVE ]] && return; [[ $NO_COLOR ]] && echo "[$scriptName] $*" >&2 || colorWrap 34 "[$scriptName] $*" >&2; }
 
 # execute <command string> — eval's it, unless $SIMULATE is set, in which
 # case it's only logged. Every mutation in ctx-fix/ctx-scaffold/etc. should

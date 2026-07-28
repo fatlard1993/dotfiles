@@ -29,5 +29,5 @@ profilePath="$dotfilesPath/profiles/$profileName"
 # PATH has since been reset (see the note in macos/.zshenv.d/path); the only
 # question worth asking here is whether brew is actually callable right now.
 command -v brew > /dev/null || for brewPath in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
-	[[ -x $brewPath ]] && { eval "$($brewPath shellenv)"; break }
+	[[ -x $brewPath ]] && { eval "$($brewPath shellenv)"; break; }
 done
