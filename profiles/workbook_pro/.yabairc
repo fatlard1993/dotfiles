@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 ## $HOME/.yabairc
 
-. "$HOME/.dotfiles/macos/.yabairc"
+. ~/.dotfiles/macos/.yabairc

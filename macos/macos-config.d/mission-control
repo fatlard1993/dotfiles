@@ -10,3 +10,8 @@ defaults write com.apple.dock expose-animation-duration -float 0.1
 # Don’t group windows by application in Mission Control
 # (i.e. use the old Exposé behavior instead)
 defaults write com.apple.dock expose-group-by-app -bool false
+
+# Keep Spaces in a fixed left-to-right order instead of reshuffling by most
+# recent use - required for keyboard/keyboard's CMD+N switch-to-desktop-N
+# hotkeys to keep pointing at the same desktop over time.
+defaults write com.apple.dock mru-spaces -bool false
