@@ -2,15 +2,19 @@
 
 # Change the colors: https://geoff.greer.fm/lscolors/
 
-export LSCOLORS='exgxxxxxcxxxxxxxxxexex'
 export LS_COLORS='di=34:ln=36:so=0:pi=0:ex=32:bd=0:cd=0:su=0:sg=0:tw=34:ow=34'
 
 # ls defaults
 #
-# --color=auto, not -G: -G is BSD ls's colorize flag, but gls is GNU, where it
-# means --no-group. So this was never colorizing anything and was quietly
-# dropping the group column from every long listing.
-alias ls="command gls --color=auto"
+# Plain `ls` here, not gls: this file is sourced on every platform, and gls is
+# macOS-only (brew coreutils). macos/.zshrc.d/ls swaps in the GNU one, which is
+# the direction the override should run - shared holds what works anywhere.
+#
+# --color=auto, never a bare --color: bare means "always" in GNU ls, so it
+# colors straight through a pipe and anything parsing the output gets escape
+# codes glued to the filenames. An explicit flag also outranks NO_COLOR
+# (.zshenv.d/claude), so =auto is what actually defers to both it and the TTY.
+alias ls="command ls --color=auto"
 
 # List all files in long format, excluding . and ..
 # List all files in long format

@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+# BSD ls's color variable - only ever consulted by the stock /bin/ls, which is
+# macOS-only, hence here rather than alongside LS_COLORS in the shared file.
+# Still worth setting: the alias below is guarded, and `command ls` reaches the
+# BSD one regardless.
+export LSCOLORS='exgxxxxxcxxxxxxxxxexex'
+
+# Prefer GNU ls (brew coreutils) over the BSD one, so ls/sort/head behave the
+# same here as everywhere else - see macos/claude-context.md.
+#
+# Guarded because macos/Brewfile installs coreutils but .zshrc.d is linked
+# before the Brewfile ever runs: on a first setup gls doesn't exist yet, and an
+# unguarded alias breaks `ls` for the rest of that session. Falls through to the
+# shared plain-ls alias until brew catches up.
+#
+# --color=auto, not the -G this used to pass: -G is *BSD* ls's colorize flag,
+# and on GNU it means --no-group - so it never colorized anything and quietly
+# dropped the group column from every long listing.
+command -v gls > /dev/null && alias ls="command gls --color=auto"
