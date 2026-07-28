@@ -39,6 +39,12 @@ Things that *used* to be on this list and are now handled by `dot-update`:
 | Touch ID for sudo | `dot-update.d/pam` → `/etc/pam.d/sudo_local` |
 | Logitech Options+ | `cask "logi-options+"` in `macos/Brewfile` |
 
+The CMD+N hotkeys above only *switch* to a desktop - they don't create one.
+macOS starts a fresh machine with a single Space, and creating more isn't
+scriptable without disabling SIP (see the Yabai section below): open Mission
+Control (Control+Up), then click the `+` in the top-right once per desktop
+you want (up to 9, to match CMD+1 through CMD+9).
+
 ### Privacy permissions
 
 Can't be automated — the TCC database is SIP-protected, so grants have to be
