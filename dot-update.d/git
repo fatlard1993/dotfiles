@@ -1,5 +1,21 @@
 #!/bin/zsh
 
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# ~/.gitconfig stays a real machine-local file and pulls the shared settings in
+# by reference. Symlinking the whole thing at the repo instead would mean every
+# `git config --global ...` wrote into the checkout - including work identity
+# that has no business being committed here.
+[[ -e $HOME/.gitconfig ]] || touch $HOME/.gitconfig
+
+if git config --global --get-all include.path 2>/dev/null | grep -qx "$dotfilesPath/gitconfig"; then
+	echo "Shared gitconfig already included"
+else
+	echo "Including shared gitconfig"
+
+	git config --global --add include.path "$dotfilesPath/gitconfig"
+fi
+
 # zsh read prompts are "var?prompt" (matching .zshrc.d/prompt's usage), not
 # bash's -p flag - in zsh -p means "read from coprocess", which made these
 # prompts error out ("no coprocess") and silently leave the identity unset

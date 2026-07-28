@@ -1,0 +1,54 @@
+# Shared git config, pulled in by an include.path in ~/.gitconfig (see
+# dot-update.d/git). Identity, credential helper and anything employer-specific
+# stay in ~/.gitconfig itself, so they can differ per machine and never land in
+# this repo.
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = false
+
+[push]
+	default = current
+
+[core]
+	# Non-interactive by default so scripts and agents get unpaged output;
+	# .zshrc.d/aliases sets GIT_PAGER=less to restore paging for real shells.
+	pager = cat
+
+[url "https://git@"]
+	insteadOf = github://
+
+[url "ssh://git@"]
+	insteadOf = git://
+
+[alias]
+	lg = log --oneline --graph --decorate --color=never
+	lb = branch --sort=-committerdate --format='%(refname:short)'
+	recent = log --oneline --color=never -20
+
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+
+# gh already knows how to auth; let it answer for github rather than keeping a
+# second set of credentials. The empty helper resets any inherited list first.
+# Deliberately not an absolute path - the old ~/.gitconfig hardcoded
+# /home/linuxbrew/.linuxbrew/bin/gh, which resolves nowhere on a mac.
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+# Work identity by directory: keep work checkouts under ~/Projects/work/ and put
+# name/email (plus anything else employer-specific) in priv-config. Deliberately
+# employer-neutral - the version this replaces was hardcoded to a specific one
+# and went stale the moment that job ended.
+[includeIf "gitdir:~/Projects/work/"]
+	path = ~/Projects/priv-config/work-git.config
