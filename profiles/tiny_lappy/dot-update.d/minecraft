@@ -1,0 +1,82 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Minecraft client only - this is a laptop, not an always-on box, so unlike
+# htpc/dot-update.d/minecraft there's no bundled server/systemd unit here.
+# To play multiplayer against the household server, connect to the htpc.
+
+# Official launcher; its deb depends on default-jre and friends, which apt
+# resolves when installing from the local file. Mojang hasn't touched the
+# deb's control file in years: it names libgdk-pixbuf2.0-0, dead since the
+# gdk-pixbuf rename and the only Depends entry current Ubuntu doesn't
+# satisfy via Provides (the t64 transition packages cover the rest). The
+# installed libgdk-pixbuf-2.0-0 satisfies the real >= 2.22 requirement, so
+# rewrite the name and repack. If a future release trips on another dead
+# name, extend the sed. (Same fix as profiles/htpc/dot-update.d/minecraft -
+# keep both in sync if Mojang's deb changes again.)
+dpkg -s minecraft-launcher > /dev/null 2>&1 || {
+	echo "Installing Minecraft launcher"
+
+	curl -sf -o /tmp/Minecraft.deb https://launcher.mojang.com/download/Minecraft.deb
+
+	rm -rf /tmp/Minecraft.deb.d
+	dpkg-deb -R /tmp/Minecraft.deb /tmp/Minecraft.deb.d
+	sed -i 's/libgdk-pixbuf2\.0-0/libgdk-pixbuf-2.0-0/' /tmp/Minecraft.deb.d/DEBIAN/control
+	# --root-owner-group: the extracted tree is owned by this user, and a
+	# plain repack would bake that uid into the installed files
+	dpkg-deb -b --root-owner-group /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft-fixed.deb
+	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
+}
+
+# Fabric profile for testing github.com/justfatlard's mod suite
+# (~/Projects/minecraft). Version/loader are read from pandorical's
+# gradle.properties rather than pinned here - pandorical is the platform
+# every other mod in that suite depends on, so its gradle.properties is
+# the suite's actual current target. This intentionally does NOT track a
+# moving "latest" like the server install above: a snapshot this specific
+# is a deliberate compatibility target the mods were built against, not
+# something to float forward on its own.
+modSuitePath="$HOME/Projects/minecraft/pandorical/gradle.properties"
+
+if [[ -f $modSuitePath ]]; then
+	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $modSuitePath)
+	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $modSuitePath)
+	fabricVersionId="fabric-loader-$loaderVersion-$mcVersion"
+	testClientDir="$HOME/Projects/minecraft-test-client"
+
+	[[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
+		echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
+
+		curl -sf -o /tmp/fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar
+		java -jar /tmp/fabric-installer.jar client -mcversion $mcVersion -loader $loaderVersion
+		rm -f /tmp/fabric-installer.jar
+	}
+
+	echo "Ensuring the 'testees' launcher profile points at $fabricVersionId"
+
+	python3 - $fabricVersionId "$testClientDir" << 'EOF'
+import json, sys, uuid
+
+versionId, gameDir = sys.argv[1], sys.argv[2]
+path = f"{__import__('os').environ['HOME']}/.minecraft/launcher_profiles.json"
+
+with open(path) as f:
+	data = json.load(f)
+
+profile = next((p for p in data["profiles"].values() if p.get("name") == "testees"), None)
+if profile is None:
+	profile = {"name": "testees", "type": "custom", "created": "2026-07-20T00:00:00.000Z", "icon": "TNT"}
+	data["profiles"][uuid.uuid4().hex] = profile
+
+profile["lastVersionId"] = versionId
+profile["gameDir"] = gameDir
+
+with open(path, "w") as f:
+	json.dump(data, f)
+EOF
+else
+	echo "~/Projects/minecraft/pandorical not found - skipping Fabric test profile"
+fi
