@@ -2,5 +2,61 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-echo "Linking pam sudo config"
-sudo ln -sf $profilePath/pam_sudo /etc/pam.d/sudo
+# Touch ID for sudo.
+#
+# This used to symlink /etc/pam.d/sudo straight at $profilePath/pam_sudo, which
+# put sudo's auth stack inside a git repo in $HOME: move, rename or delete the
+# checkout and sudo stops working entirely - on a work machine where you may be
+# the only admin and can't casually reimage. macOS also rewrites /etc/pam.d/sudo
+# on major updates, silently reverting it.
+#
+# Sonoma and later include /etc/pam.d/sudo_local from the stock sudo config for
+# exactly this purpose. A real file (not a symlink) copied there survives
+# updates, and if it ever goes missing sudo just falls back to asking for a
+# password instead of breaking.
+#
+# pam_sudo and pam_sudo_stock exist only to unwind the old approach. dot-update
+# pulls before it sources any hook, so deleting pam_sudo in the same commit that
+# stops using it would dangle /etc/pam.d/sudo *before* this file ever runs -
+# PAM then falls through to /etc/pam.d/other (auth required pam_deny.so) and
+# sudo denies everyone, including the admin who'd need sudo to fix it. Both
+# files come out once every mac has run this at least once.
+
+sudoLocal=/etc/pam.d/sudo_local
+
+macosVersion=$(sw_vers -productVersion)
+macosMajor=${macosVersion%%.*}
+
+# Deliberately version-checked rather than grepping /etc/pam.d/sudo for the
+# sudo_local include: on a machine still carrying the old symlink that grep
+# reads pam_sudo, which has no such line, and would report every Sonoma+ mac
+# as too old - skipping the repair below on exactly the machines that need it.
+if ((macosMajor < 14)); then
+	logWarning "macOS $macosVersion predates Sonoma - no sudo_local include, skipping Touch ID setup"
+
+	[[ -L /etc/pam.d/sudo ]] && logWarning "/etc/pam.d/sudo is still symlinked into this repo - sudo breaks if the checkout moves; restore the stock file by hand"
+
+	return 0
+fi
+
+# Repaired while sudo still works, and before anything else needs it.
+if [[ -L /etc/pam.d/sudo ]]; then
+	echo "Restoring stock /etc/pam.d/sudo (was symlinked into this repo)"
+
+	sudo rm -f /etc/pam.d/sudo
+	sudo install -o root -g wheel -m 0444 $profilePath/pam_sudo_stock /etc/pam.d/sudo
+elif ! grep -q sudo_local /etc/pam.d/sudo; then
+	# A real file, but not one that includes sudo_local - a hand edit, or an
+	# older stock config an upgrade never replaced. Installing sudo_local
+	# anyway would look like it worked while nothing ever reads it.
+	logWarning "/etc/pam.d/sudo has no sudo_local include - Touch ID won't take effect until it does"
+	logWarning "compare it against $profilePath/pam_sudo_stock"
+fi
+
+if cmp -s $profilePath/pam_sudo_local $sudoLocal 2>/dev/null; then
+	echo "Touch ID sudo config already current"
+else
+	echo "Installing Touch ID sudo config to $sudoLocal"
+
+	sudo install -o root -g wheel -m 0444 $profilePath/pam_sudo_local $sudoLocal
+fi

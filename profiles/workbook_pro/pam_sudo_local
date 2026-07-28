@@ -1,0 +1,6 @@
+# sudo_local: local config file which survives system update and is included for sudo
+#
+# Touch ID for sudo. Only this one line belongs here - pam_smartcard and
+# pam_opendirectory are already in the stock /etc/pam.d/sudo, which includes
+# this file rather than being replaced by it.
+auth       sufficient     pam_tid.so
