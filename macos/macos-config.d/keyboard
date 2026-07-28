@@ -20,6 +20,45 @@ defaults write com.apple.BezelServices kDim -bool true
 # Turn off keyboard illumination when computer is not used for 5 minutes
 defaults write com.apple.BezelServices kDimTime -int 300
 
+###############################################################################
+# Mission Control: switch to desktop N with CMD+N                             #
+###############################################################################
+
+# Was a manual step in macos/README.md (System Settings > Keyboard > Shortcuts >
+# Mission Control). skhd doesn't cover this - .skhdrc only has yabai's
+# `space --balance`, not switch-to-space-by-number - so it stays a macOS-level
+# shortcut.
+#
+# AppleSymbolicHotKeys IDs 118-127 are desktops 1-10. `parameters` is
+# [ascii, keycode, modifier mask]; 1048576 is command. Desktop 10 gets CMD+0.
+#
+# CAVEAT: written without a mac to test on. If these land wrong,
+# `defaults delete com.apple.symbolichotkeys AppleSymbolicHotKeys` resets every
+# symbolic hotkey to its default and you can set them by hand.
+asciiCodes=(49 50 51 52 53 54 55 56 57 48)
+keyCodes=(18 19 20 21 23 22 26 28 25 29)
+
+for i in {1..10}; do
+	defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add $((117 + i)) "
+		<dict>
+			<key>enabled</key><true/>
+			<key>value</key><dict>
+				<key>parameters</key>
+				<array>
+					<integer>${asciiCodes[$i]}</integer>
+					<integer>${keyCodes[$i]}</integer>
+					<integer>1048576</integer>
+				</array>
+				<key>type</key><string>standard</string>
+			</dict>
+		</dict>"
+done
+
+unset asciiCodes keyCodes
+
+# Without this the new hotkeys only apply after a logout.
+/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u 2> /dev/null
+
 
 # \u200b = disabled
 

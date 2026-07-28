@@ -1,3 +1,13 @@
 #!/bin/zsh
 
 export HOMEBREW_NO_ENV_HINTS=true
+
+# Casks arrive carrying a quarantine xattr, which is what produces the pile of
+# "X is from the internet, are you sure?" dialogs macos/README.md complains
+# about. macos-config.d/misc already suppresses the dialog itself via
+# LSQuarantine; this stops the attribute being set in the first place.
+#
+# Deliberately only here and not in the dot-update brew hooks: this is a real
+# (if small) reduction in a Gatekeeper check, and on a managed work machine MDM
+# may override it anyway. Drop this line to go back to stock behaviour.
+export HOMEBREW_CASK_OPTS="--no-quarantine"

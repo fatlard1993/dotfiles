@@ -29,4 +29,4 @@ meh - q             : yabai -m config focus_follows_mouse off
 ctrl + alt - f      : yabai -m window --toggle topmost; yabai -m window --toggle zoom-fullscreen; yabai -m window --toggle topmost
 
 # smart paste: dedent + reflow prose, then paste
-meh - v       : /Users/chase.whitfield/.dotfiles/bin/prose-paste
+meh - v       : $HOME/.dotfiles/bin/prose-paste

@@ -5,4 +5,7 @@ bindkey '^I' fzf_completion
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-export FZF_CTRL_R_OPTS="--bind 'tab:transform($HOME/.local/bin/fzf-history-similar {})'"
+# fzf-history-similar isn't in this repo - it's a machine-local script. Guarded
+# because binding tab to a command that doesn't exist makes ctrl-R's tab key
+# silently do nothing, with no hint as to why, on any machine that lacks it.
+[[ -x $HOME/.local/bin/fzf-history-similar ]] && export FZF_CTRL_R_OPTS="--bind 'tab:transform($HOME/.local/bin/fzf-history-similar {})'"

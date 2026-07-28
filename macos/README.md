@@ -1,58 +1,73 @@
 # New MacBook Setup
 
+## Setup
+
+From a fresh machine, one command:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/fatlard1993/dotfiles/main/bootstrap | bash -s <profileName>
+```
+
+`bootstrap` triggers the Xcode command line tools install and waits for it to
+finish (accept the prompt), clones the repo to `~/Projects/dotfiles`, and hands
+off to `dot-update`.
+
+If the repo is already cloned:
+
+```sh
+cd ~/Projects/dotfiles && ./dot-update <profileName>
+```
+
+The `cd` is not optional. `dot-update` starts with `ln -sf $(pwd) ~/.dotfiles`,
+so running it from anywhere else — including from `~/Projects` — aims
+`~/.dotfiles` at the wrong directory and every path lookup after that resolves
+into that tree instead.
+
+Touch ID for sudo is set up automatically via `/etc/pam.d/sudo_local`; it needs
+Sonoma or newer and is skipped with a warning on anything older.
+
 ## Manual Steps
 
-1. `mkdir -p ~/Projects ; cd ~/Projects ; git clone https://github.com/fatlard1993/dotfiles`
-1. You will be prompted to install xcode - upon completion, re-run the above line
-1. `./dotfiles/bin/dot-update <profileName>`
+Everything below is either genuinely un-scriptable or not worth scripting.
+Things that *used* to be on this list and are now handled by `dot-update`:
 
-- vscode
-	- Authorize github on the first command to use auth
+| Was manual | Now handled by |
+| --- | --- |
+| Chrome: disable hardware acceleration | `macos-config.d/chrome` |
+| Mission Control: switch to desktop 1-10 on CMD+N | `macos-config.d/keyboard` |
+| "this app is from the internet, are you sure?" prompts | `macos-config.d/misc` (`LSQuarantine`) + `HOMEBREW_CASK_OPTS=--no-quarantine` |
+| Touch ID for sudo | `dot-update.d/pam` → `/etc/pam.d/sudo_local` |
+| Logitech Options+ | `cask "logi-options+"` in `macos/Brewfile` |
 
-- system preferences
-	- apple id > login
-	- all the ___ permission checks
-	- sound
-		- default audio device
-		- sound effect
-	- displays
-		- menubar location
-	- desktop & screen saver
-		- folder - add Wallpapers folder
-			- change every hour
-			- random order
-	- keyboard
-		- shortcuts
-			- Mission Control
-				- Switch to Desktop 1-10
-					- CMD+X
-			- Keyboard
-				- Move focus to next window
-					- CMD + Right
+### Privacy permissions
 
-- countless "this app is from the internet, are you sure ... " prompts
+Can't be automated — the TCC database is SIP-protected, so grants have to be
+clicked. These open the right pane directly:
 
-- App logins
+```sh
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"  # yabai, skhd, raycast
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"    # karabiner, skhd
+```
 
-- chrome
-	- settings
-		- disable hardware acceleration
-	- extensions
-		- extension settings
+Karabiner additionally has to be launched by hand once, to trigger its driver
+extension approval prompt.
 
-- webex-meetings
-	- dont start on login
+### Accounts and logins
 
-- swiftbar
-	- plugins location
-	- launch at login
+Not automatable: Apple ID sign-in, per-app logins, and VS Code's GitHub
+authorization (OAuth, browser round-trip).
 
-- karabiner must be started manually to request initial permissions
+### Not worth automating
 
-
-### Logitech Options Plus
-
-this app doesnt have a brew install method as of yet: https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.zip
+- **Display arrangement / which display owns the menu bar** — set by dragging in
+  Displays; no stable defaults key.
+- **Login items** (e.g. stopping webex-meetings launching at login) — moved
+  behind a SIP-protected background-task database on Ventura+.
+- **Default audio device / alert sound** — device names differ per machine.
+  `switchaudio-osx` can do it if it ever becomes worth pinning.
+- **Desktop wallpaper rotation** (Wallpapers folder, hourly, random) — Sonoma
+  moved wallpaper config into a sqlite store; the old `com.apple.desktop`
+  defaults key no longer applies.
 
 ## Todo
 
@@ -80,12 +95,6 @@ https://github.com/moretension/duti
 https://github.com/kcrawford/dockutil
 
 https://github.com/jondot/awesome-devenv
-
-faster git server communication.
-like a LOT faster. https://opensource.googleblog.com/2018/05/introducing-git-protocol-version-2.html
-`git config protocol.version 2`
-
-link "$dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
 
 https://github.com/yt-dlp/yt-dlp
 

@@ -1,7 +1,5 @@
-tap "mongodb/brew"
 tap "koekeishiya/formulae"
 
-brew "alerter"
 brew "koekeishiya/formulae/skhd", restart_service: true
 brew "koekeishiya/formulae/yabai", restart_service: true
 
@@ -13,13 +11,11 @@ brew "ffmpeg"
 brew "watch"
 brew "arp-scan"
 brew "coreutils"
-brew "readline"
 brew "dasel"
 brew "jo"
 brew "gron"
 brew "tldr"
 brew "watchexec"
-brew "httpie"
 brew "ast-grep"
 brew "shellcheck"
 brew "jc"
@@ -33,21 +29,21 @@ brew "htmlq"
 brew "lnav"
 brew "grpcurl"
 brew "websocat"
-brew "dive"
 brew "miller"
 brew "gitleaks"
 brew "ruff"
 brew "biome"
 brew "hyperfine"
-brew "gomplate"
 brew "comby"
 brew "wget"
-brew "svn"
-brew "fontconfig"
+
+# macOS-only; Ubuntu gets the equivalent from trash-cli in ubuntu/aptfile.
+# Load-bearing for .zshrc.d/aliases, which points rm at safe-rm -> trash for
+# every non-interactive shell (which is every Claude Code session).
+brew "trash"
 
 # Fonts
 cask "font-source-code-pro"
-cask "font-source-sans-pro"
 cask "font-fontawesome"
 cask "font-hack-nerd-font"
 
@@ -59,7 +55,10 @@ cask "keyboard-cleaner"
 cask "ytmdesktop-youtube-music"
 cask "raycast"
 cask "gimp"
-cask "postman"
 cask "visual-studio-code"
 cask "google-chrome"
 cask "kitty"
+
+# The mouse/keyboard driver. macos/README.md said this had no brew method -
+# it does now, and the old "logitech-options" cask is deprecated (discontinued).
+cask "logi-options+"
