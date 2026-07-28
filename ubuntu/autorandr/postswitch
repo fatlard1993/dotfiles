@@ -26,3 +26,19 @@ disown
 if pgrep -x slock > /dev/null; then
 	"$HOME/.dotfiles/ubuntu/bin/system-lock" recapture
 fi
+
+# tiny_lappy only: startup.d/dpms disables DPMS while docked (DP-1's wake
+# path doesn't reliably restore a mode after a DPMS cycle) but that's only
+# set once, at login. Re-evaluate it here so docking/undocking mid-session
+# - the actual hotplug this hook exists for - doesn't leave the wrong
+# setting in place until the next login. Guarded by profile: htpc also
+# links this same shared hook, and unconditionally wants DPMS off for an
+# unrelated reason (its TV handles power itself) - toggling it back on
+# there on a signal-loss reconnect would fight that.
+if [[ "$(cat $HOME/.dotfilesProfile 2>/dev/null)" == "tiny_lappy" ]]; then
+	if xrandr --query 2>/dev/null | grep -q "^DP-1 connected"; then
+		xset -dpms
+	else
+		xset +dpms
+	fi
+fi

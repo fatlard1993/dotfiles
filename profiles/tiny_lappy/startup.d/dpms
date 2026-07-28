@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+# The shared startup.d/display already disables X's screensaver blanking
+# (xset s off), but DPMS is separate and still blanks outputs after its
+# default 600s timeout. That's normally harmless - input un-blanks it - but
+# on the docked external monitor the wake path doesn't reliably restore a
+# mode: DPMS off/on isn't a real hotplug or a systemd suspend/resume, so
+# neither udev's autorandr trigger nor the sleep-target hook fires, and the
+# output can come back "connected" with no CRTC assigned - DP-1 up but
+# blank, keyboard (powered through the monitor's hub) still working.
+#
+# That failure is specific to DP-1 - the built-in panel cycles DPMS fine -
+# so only disable it while docked. Undocked, leave DPMS on: xautolock
+# (startup.d/screenlock) still locks the session on the same timeout, but
+# locking alone never blanks the panel, so disabling DPMS unconditionally
+# left the screen lit behind the lock screen forever instead of sleeping.
+if xrandr --query 2>/dev/null | grep -q "^DP-1 connected"; then
+	xset -dpms
+else
+	xset +dpms
+fi
