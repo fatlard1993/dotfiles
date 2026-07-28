@@ -6,17 +6,20 @@ export LSCOLORS='exgxxxxxcxxxxxxxxxexex'
 export LS_COLORS='di=34:ln=36:so=0:pi=0:ex=32:bd=0:cd=0:su=0:sg=0:tw=34:ow=34'
 
 # ls defaults
-alias ls="command gls -G"
+#
+# --color=auto, not -G: -G is BSD ls's colorize flag, but gls is GNU, where it
+# means --no-group. So this was never colorizing anything and was quietly
+# dropping the group column from every long listing.
+alias ls="command gls --color=auto"
 
 # List all files in long format, excluding . and ..
 # List all files in long format
-if [[ -n "$CLAUDECODE" ]]; then
-  alias l="ls -lAF --color=never --group-directories-first"
-  alias la="ls -laF --color=never --group-directories-first"
-else
-  alias l="ls -lAF --color=always --group-directories-first"
-  alias la="ls -laF --color=always --group-directories-first"
-fi
+#
+# auto rather than a $CLAUDECODE branch: the thing that actually matters is
+# whether stdout is a terminal, which covers pipes, scripts and subshells too -
+# not just this one agent.
+alias l="ls -lAF --color=auto --group-directories-first"
+alias la="ls -laF --color=auto --group-directories-first"
 
 # List only directories
 alias lsd="ls -lF | grep --color=never '^d'"
