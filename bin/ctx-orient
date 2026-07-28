@@ -335,7 +335,7 @@ if (srcJs.length > 1) {
       console.log(`    ${rel(fp).padEnd(40)} in:${inn}  out:${out}`)
     }
     const cyclic = hasCycle(outEdge)
-    console.log(`    Cycles: ${cyclic ? '🔴 found — run ctx-arch for detail' : '✓ none'}`)
+    console.log(`    Cycles: ${cyclic ? '🔴 found — run ctx-health for the paths' : '✓ none'}`)
     if (dynamicUnresolved > 0) console.log(`    ⚠ ${dynamicUnresolved} dynamic require(s) unresolvable — coupling counts are a floor`)
     console.log()
   }

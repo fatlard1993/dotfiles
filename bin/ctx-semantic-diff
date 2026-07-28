@@ -132,7 +132,9 @@ function compare(oldSigs, newSigs) {
   return changes
 }
 
-// Export for use by ctx-mr-review
+// CLI only when invoked directly - module.exports at the bottom is the import
+// seam. Nothing in this repo requires it today; it's kept because the compare
+// pipeline is worth reusing, not because some other tool is calling in.
 if (require.main === module) {
   const oldContent = contentAtRef(oldRef, file)
   if (!oldContent) { console.log(`## ${path.basename(file)}: new file`); process.exit(0) }
