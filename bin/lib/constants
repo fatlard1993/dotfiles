@@ -6,5 +6,28 @@ libPath="$binPath/lib"
 macosPath="$dotfilesPath/macos"
 ubuntuPath="$dotfilesPath/ubuntu"
 
-profileName=`cat $HOME/.dotfilesProfile`
+# 2>/dev/null because a first bootstrap runs before this file exists - the
+# caller (dot-update.d/0_setup) handles the empty case by falling back to $1.
+profileName=`cat $HOME/.dotfilesProfile 2>/dev/null`
 profilePath="$dotfilesPath/profiles/$profileName"
+
+# Homebrew installs itself somewhere off the stock PATH (/opt/homebrew on
+# Apple Silicon, /home/linuxbrew on Ubuntu), and normally gets onto PATH via
+# the shellenv eval in macos/.zshenv.d/path - which only helps once
+# dot-update.d/zsh has linked ~/.zshenv. That hook sorts last, so on a
+# machine's *first* dot-update every brew call before it ran in a shell that
+# had never heard of brew: the install step "succeeded" and then every
+# `brew bundle` died with "command not found", silently, since the hooks are
+# sourced with no set -e. First run installed Homebrew and zero packages;
+# the second run worked, which is why it stayed hidden.
+#
+# Every hook sources this file, so putting it here covers all of them - but so
+# does every ctx-* tool, and `brew shellenv` costs ~28ms a call. So only pay it
+# when brew genuinely isn't reachable - which is just the first dot-update, and
+# never once ~/.zshenv is linked. Guarded on `command -v brew` rather than
+# $HOMEBREW_PREFIX because that variable is inherited by nested shells whose
+# PATH has since been reset (see the note in macos/.zshenv.d/path); the only
+# question worth asking here is whether brew is actually callable right now.
+command -v brew > /dev/null || for brewPath in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+	[[ -x $brewPath ]] && { eval "$($brewPath shellenv)"; break }
+done

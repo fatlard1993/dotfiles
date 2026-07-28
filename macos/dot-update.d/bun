@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# .zshrc.d/bun puts ~/.bun/bin on PATH and sources bun's completions, and the
+# i/ci aliases branch on bunfig.toml - all of it assuming bun was already
+# here. htpc and ubuntu get it from ensureBun via their own hooks (they each
+# install a bun app); the mac side just never had one, so every mac was
+# quietly relying on a bun installed by hand at some point.
+ensureBun

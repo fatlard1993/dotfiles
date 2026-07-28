@@ -8,6 +8,12 @@ if [[ ! -a $HOME/.nvm ]]; then
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 fi
 
-source "$dotfilesPath/.zshrc.d/nvm"
-
 $binPath/nvm-use "${GLOBAL_NODE_VERSION:-lts/*}"
+
+# Sourced *after* nvm-use, not before. The PATH prepend in .zshrc.d/nvm reads
+# $NVM_DIR/alias/default, which nvm-use is the thing that creates - sourcing
+# first meant that block found nothing on a fresh machine and silently did
+# nothing, and nvm-use runs in its own process, so node never reached this
+# shell. 2_npm then ran `npm install --global` against a PATH with no npm and
+# quietly installed none of npmfile.
+source "$dotfilesPath/.zshrc.d/nvm"

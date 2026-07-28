@@ -1,12 +1,34 @@
 #!/bin/zsh
 
-# GNU Coreutils Bin
-export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+# Homebrew first - everything below keys off $HOMEBREW_PREFIX, which this sets.
+# Looped rather than hardcoded to /opt/homebrew so an Intel mac still works.
+#
+# Deliberately NOT guarded on $HOMEBREW_PREFIX or `command -v brew` to skip the
+# ~28ms shellenv call in nested shells: .zshenv.d/path resets PATH to a fixed
+# base list just before this file runs, so a child inherits HOMEBREW_PREFIX but
+# *not* brew's PATH entries. Skipping on that marker would leave brew off PATH
+# in every nested zsh.
+for brewPath in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+	[[ -x $brewPath ]] && { eval "$($brewPath shellenv)"; break }
+done
 
-# Set PATH, MANPATH, etc., for Homebrew.
-eval "$(/opt/homebrew/bin/brew shellenv)"
+# GNU coreutils ahead of the BSD ones (see macos/claude-context.md). This used
+# to hardcode /usr/local/opt, which is *Intel* Homebrew's prefix - on Apple
+# Silicon that directory doesn't exist, so the prepend silently did nothing and
+# the shell had BSD ls/sort/head the whole time despite the note claiming
+# otherwise.
+[[ -d $HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin ]] && export PATH="$HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin:$PATH"
 
-# Java
+# Java. Nothing in this repo installs a JDK, so only point at one if it's
+# actually present - the unconditional export left JAVA_HOME aimed at a
+# non-existent directory on every fresh machine, and put its bin on PATH too.
 export JAVA_VERSION="temurin-21"
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/$JAVA_VERSION.jdk/Contents/Home"
-export PATH="$PATH:$JAVA_HOME/bin"
+
+javaHome="/Library/Java/JavaVirtualMachines/$JAVA_VERSION.jdk/Contents/Home"
+
+[[ -d $javaHome ]] && {
+	export JAVA_HOME="$javaHome"
+	export PATH="$PATH:$JAVA_HOME/bin"
+}
+
+unset javaHome

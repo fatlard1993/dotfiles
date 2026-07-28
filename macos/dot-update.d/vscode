@@ -2,6 +2,10 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+# Matches the guard in the shared dot-update.d/vscode - the cask may not be in
+# yet on a first run, and the extension restore below is pointless without it.
+command -v code > /dev/null || return 0
+
 mkdir -p "$HOME/Library/Application Support/Code/User/"
 
 echo "Linking vscode argv config"
@@ -13,4 +17,6 @@ ln -sf $dotfilesPath/vscode/settings.json "$HOME/Library/Application Support/Cod
 echo "Linking vscode keybinds config"
 ln -sf $dotfilesPath/vscode/keybindings.json "$HOME/Library/Application Support/Code/User/"
 
-code-ext-restore
+# $binPath, not a bare name: ~/.dotfiles/bin only reaches PATH via .zshenv,
+# which dot-update.d/zsh links after this runs on a first setup.
+$binPath/code-ext-restore
