@@ -29,6 +29,18 @@ dconf write /org/gnome/desktop/interface/cursor-size "64"
 # still open, no fix in 3.16.20) and only a full relaunch clears it -
 # ripped out as not worth the tradeoff. Tiny cursor it is until upstream
 # fixes the grab.
+#
+# Removing the code that *wrote* the launch options doesn't unset the ones
+# already written, so any box that ran the gamescope version still launches
+# Sims 4 under it and still deadlocks. Clear it once, by hand, with Steam
+# closed - Properties > General > Launch Options for Sims 4, or the
+# LaunchOptions key in the 1222670 block of
+# ~/.steam/debian-installation/userdata/*/config/localconfig.vdf.
+#
+# Deliberately not scripted: that would mean re-adding the VDF surgery this
+# commit just deleted - anchor-hunting, a steam-is-running guard, surrogate-
+# escape decoding - and keeping it forever to undo a state that exists once,
+# on one machine.
 simsIni="$HOME/.steam/steam/steamapps/compatdata/1222670/pfx/drive_c/users/steamuser/Documents/Electronic Arts/The Sims 4/Options.ini"
 
 # useosdpi = 1 ships by default and makes the game resize itself from the
