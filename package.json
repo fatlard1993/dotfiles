@@ -14,9 +14,7 @@
 		"eslint": "^8.21.0"
 	},
 	"dependencies": {
-		"argi": "github:fatlard1993/argi",
 		"ffmetadata": "github:cgnik/node-ffmetadata",
-		"log": "github:fatlard1993/log#3.x.x",
 		"movie-art": "^2.0.3",
 		"request": "^2.88.2",
 		"ts-morph": "^23.0.0"

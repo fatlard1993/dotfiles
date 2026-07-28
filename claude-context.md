@@ -1,9 +1,16 @@
 ## Analysis
 
-- `ctx-symbol <name> [path]` — definition + usages + history in one call; one shot beats running three separate tools
-- `ctx-arch [path] [--cycles-only]` — module dependency graph: coupling table (in/out), cycle detection; ⚠ marks when dynamic loaders make the graph partial
-- `ctx-unused-deps [path]` — packages declared but never imported; Node/Bun and Python
+Curated — `ls ~/.dotfiles/bin/ctx-*` for the full set.
+
+- `ctx-orient [path]` — landing on unfamiliar code: identity, runtime, architecture, churn, health in one pass
+- `ctx-health [path]` — health dashboard: TypeScript errors, import cycles, complexity, and three more checks
+- `ctx-where <symbol>` — where a symbol is defined; not usages
+- `ctx-refs <symbol>` — every call site, raw list
+- `ctx-impact <symbol>` — blast radius: direct usages plus what those callers export
+- `ctx-api <module>` — public API surface: exported symbols with signatures
 - `ctx-deps [file]` — prod / dev / peer dependencies from package.json
+- `ctx-dead [path]` — exported symbols with no usages outside their own file
+- `ctx-env-scan [path]` — every environment variable the codebase reads
 
 ## Code review
 
@@ -11,20 +18,27 @@
 Agent(subagent_type="ctx-reviewer", prompt="review <scope>")
 ```
 
-Three scopes: **Repo/folder** — orient + health + todo + hotspots + rhythm + arch. **File** — complexity + fix + stale-docs + test-gen. **MR/diff** — mr-review → semantic-diff → migration if library swap detected.
+Three scopes: **Repo/folder** — orient + health + todo + hotspots. **File** — complexity + fix + stale-docs + test-gen. **MR/diff** — diff → semantic-diff → migration if a library swap is detected.
 
-- `ctx-mr-review [branch] [--base main]` — 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors) + 🟡 warnings; exits 2/1/0
-- `ctx-rhythm <file|dir>` — flags when functions in the same module throw vs return null, or names promise a value but return void
-- `ctx-audit [path]` — security and quality scan via `semgrep --config=auto`
+- `ctx-diff` — synthesized view of the current working changes
+- `ctx-semantic-diff <file> <refA> <refB>` — how a file's AST structure changed between two git refs
+- `ctx-hotspots [path]` — cyclomatic complexity × git churn
+- `ctx-complexity <file>` — cyclomatic complexity per function
+- `ctx-todo [path]` — TODO/FIXME/HACK/XXX/NOTE/REVIEW, grouped by type
+- `ctx-duplicates [path]` — structurally similar files that may want a shared abstraction
+- `ctx-migration` — behavioral equivalence across a library migration
 
 ## Testing
 
-- `ctx-mutate <file> [test-file]` — surviving mutations are uncovered behaviour
+- `ctx-test` — run the project's tests, compressed to signal
+- `ctx-test-gen <file>` — generate tests from the TypeScript AST, with dissonance detection
 
-## Generating
+## Generating and fixing
 
-- `ctx-types <file|stdin>` — TypeScript types from a JSON sample or JSON schema
-- `ctx-fragment list|show|expand` — composable TS fragments; `ctx-fragment expand repository ENTITY=User`
+- `ctx-fix <preset> <path>` — named presets for common TS/JS issues; no pattern knowledge needed
+- `ctx-codemod <from> <to> <path>` — structural transformation via ast-grep
+- `ctx-scaffold <file>` — new file skeleton, modelled on detected project conventions
+- `ctx-stale-docs [path]` — detect and fix stale JSDoc `@param` / `@returns`
 - `comby 'f(:[a], :[b])' 'g(:[a], :[b])' .ts -in-place` — structural replace for multi-line content; use when ctx-codemod's single-node patterns aren't enough; `-stdout` for dry-run
 
 ## Output and utilities
@@ -32,14 +46,16 @@ Three scopes: **Repo/folder** — orient + health + todo + hotspots + rhythm + a
 - `json-shape` — replace JSON values with types; arrays collapse to one element
 - `yaml-shape` — same for YAML
 - `fuzz <query> [path]` — fuzzy file find; handles typos and approximate names
+- `ctx-trim` — trim command output by signal: errors and structure first, noise dropped
+- `ctx-file <file> [range]` — structural view of a source file, or line-range extraction
+- `ctx-stack` — parse a stack trace, drop library frames, show project code
 
 ## The shop
 
 **Runtime:**
 - Node — nvm loaded; `nvm use <version>` to switch
 - Bun — preferred where `bunfig.toml` present
-- Java — temurin-21 default; also 8, 25. Switch: `export JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-X.jdk/Contents/Home`
-- Python — call explicitly: `python3.9` through `python3.13`
+- Python — system `python3` only; no version manager here
 
 **Git:**
 - `push.default = current` / `pull.rebase = false`
@@ -67,7 +83,6 @@ Three scopes: **Repo/folder** — orient + health + todo + hotspots + rhythm + a
 **Protocols:**
 - `grpcurl` — gRPC: `grpcurl -plaintext host:port service/Method`
 - `websocat` — WebSocket: `websocat ws://host/path`
-- `vacuum` — OpenAPI validation: `vacuum lint spec.yaml`
 
 **Workflow:**
 - `just` — task runner: `just --list`
@@ -81,7 +96,6 @@ Three scopes: **Repo/folder** — orient + health + todo + hotspots + rhythm + a
 - `lnav` — log navigator: `lnav app.log` or `cmd 2>&1 | lnav`
 - `chronic` — silence unless fails; `ts` — timestamp stdin; `sponge` — in-place pipe
 - `tldr` — command reference without the man page
-- `mongosh` — MongoDB shell (4.2, 5.0, 7.0 installed)
 
 **Aliases:**
 - `i` — `bun i` or `npm i` (detects `bunfig.toml`)
@@ -89,4 +103,4 @@ Three scopes: **Repo/folder** — orient + health + todo + hotspots + rhythm + a
 - `jq` → `-M`, `curl` → `-sLf`, `bat` → `--style=plain --color=never`, `diff` → `-u`
 - `port <n>` — what's listening on port n
 
-**Auth:** GitLab, Snyk, Anthropic — tokens in env. GitHub via `gh`.
+**Auth:** GitLab, Anthropic — tokens in env. GitHub via `gh` (also answers git's credential helper).

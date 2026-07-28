@@ -5,9 +5,7 @@
     "": {
       "name": "dotfiles",
       "dependencies": {
-        "argi": "github:fatlard1993/argi",
         "ffmetadata": "github:cgnik/node-ffmetadata",
-        "log": "github:fatlard1993/log#3.x.x",
         "movie-art": "^2.0.3",
         "request": "^2.88.2",
         "ts-morph": "^23.0.0",
@@ -51,8 +49,6 @@
     "ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
 
     "ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
-
-    "argi": ["argi-cli@github:fatlard1993/argi#daab048", {}, "fatlard1993-argi-daab048", "sha512-U/ICMLcOPI94mUmU2/LbghmPN1h7N6hv1ylgbszvg5Zdr7aEwAYPWFejK9mA4o85TgnKh8btXAL8AJAMNiOldg=="],
 
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
@@ -267,8 +263,6 @@
     "locate-path": ["locate-path@6.0.0", "", { "dependencies": { "p-locate": "^5.0.0" } }, "sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw=="],
 
     "lodash.merge": ["lodash.merge@4.6.2", "", {}, "sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ=="],
-
-    "log": ["log@github:fatlard1993/log#bf2d4ef", {}, "fatlard1993-log-bf2d4ef", "sha512-2fvlthR4H5Zuk4qLDjkz5m1C8so2eJMykNc3ZKDtYYG0GsDqXvozlRLmXL/SKA0KOpheBPkkpiOC5+3rULBBgg=="],
 
     "loud-rejection": ["loud-rejection@1.6.0", "", { "dependencies": { "currently-unhandled": "^0.4.1", "signal-exit": "^3.0.0" } }, "sha512-RPNliZOFkqFumDhvYqOaNY4Uz9oJM2K9tC6JWsJJsNdhuONW4LQHRBpb0qf4pJApVffI5N39SwzWZJuEhfd7eQ=="],
 
