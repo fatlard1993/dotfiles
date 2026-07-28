@@ -14,7 +14,11 @@ echo "Setting up yabai"
 # sudo yabai --uninstall-sa
 # sudo yabai --install-sa
 
-brew services restart skhd
-brew services restart yabai
+# Not `brew services restart` - neither formula ships a launchd plist for brew
+# to manage, so that always failed. Each binary manages its own launchd
+# service; --start-service installs the plist on a first run and just
+# reloads it on every run after, so this one call covers both.
+skhd --start-service
+yabai --start-service
 
 # yabai --load-sa

@@ -1,7 +1,12 @@
 tap "koekeishiya/formulae"
 
-brew "koekeishiya/formulae/skhd", restart_service: true
-brew "koekeishiya/formulae/yabai", restart_service: true
+# Not brew-services-managed - neither formula ships a launchd plist for it to
+# use (see macos/dot-update.d/yabai, which starts them via their own
+# --start-service instead). `restart_service: true` here made `brew bundle`
+# hard-fail on every single run, forever, even though the install itself
+# always succeeded.
+brew "koekeishiya/formulae/skhd"
+brew "koekeishiya/formulae/yabai"
 
 # Misc
 brew "gawk"
