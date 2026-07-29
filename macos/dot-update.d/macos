@@ -15,6 +15,26 @@ done
 
 echo "Updating mac software"
 obtainSudo
-sudo softwareupdate --all --install --force
+
+# Not --all --install --force - found live it downloads and attempts *every*
+# update including full macOS version upgrades, which then always fails to
+# authenticate (macOS correctly refuses to let a major OS bump proceed
+# non-interactively) - after already spending the time/bandwidth to download
+# it (a 3.7GB Tahoe 26.6 download, for nothing, every single run).
+# softwareupdate has no direct "exclude OS upgrades" flag, so this filters
+# --list's own output instead: a full OS upgrade's Label is always "macOS
+# <name> <version>-<build>"; component updates (Safari, XProtect, ...) never
+# look like that.
+softwareupdate --list 2>/dev/null | grep '^\* Label: ' | sed 's/^\* Label: //' | while IFS= read -r label; do
+	if [[ $label == macOS\ * ]]; then
+		echo "Skipping full OS upgrade (install by hand when you're ready): $label"
+
+		continue
+	fi
+
+	echo "Installing: $label"
+
+	sudo softwareupdate --install "$label" --force
+done
 
 echo "\nNote that some of these changes require a logout/restart to take effect.\n"

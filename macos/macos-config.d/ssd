@@ -7,7 +7,11 @@
 # Disable hibernation (speeds up entering sleep mode)
 sudo pmset -a hibernatemode 0
 
-# Remove the sleep image file to save disk space
+# Remove the sleep image file to save disk space. Found live: uchg below
+# makes the file immutable, so every run after the first failed to rm/touch
+# it at all ("Operation not permitted", not a permissions issue) - clear the
+# flag first. Harmless if the file doesn't exist yet (fresh machine).
+sudo chflags nouchg /private/var/vm/sleepimage 2>/dev/null
 sudo rm -f /private/var/vm/sleepimage
 # Create a zero-byte file instead…
 sudo touch /private/var/vm/sleepimage

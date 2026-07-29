@@ -3,6 +3,16 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 brew update
+
+# Not a one-time fix - found live that `brew update` re-triggered this by
+# redirecting the tap's remote (koekeishiya/formulae -> asmvik's fork,
+# upstream's actual new home) mid-run, which silently wiped the trust
+# store's only entry (~/.homebrew/trust.json is gone entirely afterward,
+# not just missing this tap). Trusting it fresh every run is idempotent
+# and costs nothing when it's already trusted, so there's no reason for
+# this to ever be a manual step again.
+brew trust --tap koekeishiya/formulae
+
 (cd $dotfilesPath ; brew bundle)
 (cd $macosPath ; brew bundle)
 brew upgrade
