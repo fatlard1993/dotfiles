@@ -42,6 +42,14 @@ brew "hyperfine"
 brew "comby"
 brew "wget"
 
+# Wallpaper pipeline (macos/bin/wallpaper*) - phash dedup needs magick/identify.
+brew "imagemagick"
+
+# The system /bin/bash is a frozen 3.2 (no associative arrays) - the wallpaper
+# scripts need real bash. Shebang points at the absolute homebrew path rather
+# than relying on PATH order, since /bin/bash always shadows it by name.
+brew "bash"
+
 # macOS-only; Ubuntu gets the equivalent from trash-cli in ubuntu/aptfile.
 # Load-bearing for .zshrc.d/aliases, which points rm at safe-rm -> trash for
 # every non-interactive shell (which is every Claude Code session).

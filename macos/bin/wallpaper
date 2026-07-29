@@ -1,0 +1,466 @@
+#!/opt/homebrew/bin/bash
+# Reddit-scraped wallpaper pool with dedup - macOS port of ubuntu/bin/wallpaper.
+#
+# Shebang is the absolute homebrew bash path, not `/bin/bash` or `env bash` -
+# this script uses associative arrays (bash 4+), and macOS's system /bin/bash
+# is a frozen 3.2 that /bin/bash always shadows by name regardless of PATH.
+# Same download/dedup engine (portable bash+wget+imagemagick+md5sum); the only
+# OS-specific pieces are `notify` (osascript instead of notify-send) and
+# `change` (sets the focused Space's wallpaper via System Events instead of
+# painting an X11 root window with feh). Per-Space assignment/rotation lives
+# in wallpaper-space/wallpaper-rotate-all, layered on top of this pool.
+#
+# PATH is set explicitly rather than inherited - this runs standalone (via
+# its own shebang, and eventually launchd for the hourly rotation), never
+# sourced from an interactive zsh, so none of .zshenv.d/path's PATH work (or
+# any interactive-shell-only alias/function) is present here. grep's gnubin
+# specifically isn't on PATH anywhere else in this repo - unlike coreutils,
+# nothing links it, since it'd shadow the system grep every script here
+# already assumes. -P (Perl regex, used below) needs the real GNU one.
+[[ -d /opt/homebrew/opt/grep/libexec/gnubin ]] && PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
+[[ -d /opt/homebrew/opt/coreutils/libexec/gnubin ]] && PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+shopt -s nullglob globstar
+
+WALLPAPER_DIR=~/Pictures/Wallpapers
+TMP_DIR=/tmp/wallpapers
+METADATA_FILE=$WALLPAPER_DIR/.metadata
+LOG_FILE=$WALLPAPER_DIR/.log
+
+# Single source of truth for what counts as a usable image - used both at
+# download time and at selection time, so a future extension (or bugfix,
+# like the missing "jpeg" case this was rewritten to catch) only needs to
+# change in one place instead of silently drifting apart in two.
+VALID_EXT='jpe?g|png'
+
+# Reposts across the Imaginary* subreddit family land under a fresh URL (and
+# often a fresh recompression/resize), so their md5 never matches anything
+# in .ignore even though it's the same picture. Hamming distance on an 8x8
+# dHash catches that: measured 1-4 for the same image recompressed/resized/
+# lightly cropped, vs 28-35 for genuinely different wallpapers in this pool -
+# 10 leaves a wide margin on both sides.
+PHASH_THRESHOLD=10
+
+# Reddit's RSS endpoints now reject wget's default User-Agent outright (403) -
+# found live while testing this port. Not a macOS-specific thing; a generic
+# UA is just increasingly unwelcome there.
+WGET_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+
+touch $WALLPAPER_DIR/.ignore $METADATA_FILE $LOG_FILE
+
+mkdir -p $TMP_DIR $WALLPAPER_DIR/saved $WALLPAPER_DIR/stashed
+
+COMMAND=$1
+OPTION=$2
+
+log_run() {
+	echo "$(date -Iseconds) $1 $2 $3" >> $LOG_FILE
+}
+
+# Env-var passthrough avoids ever having to escape the message/title for
+# embedding in an AppleScript string literal - `system attribute` reads them
+# as opaque strings, no quoting rules to get wrong.
+notify() {
+	NOTIFY_TITLE="$1" NOTIFY_MESSAGE="$2" osascript -e '
+		on run
+			display notification (system attribute "NOTIFY_MESSAGE") with title (system attribute "NOTIFY_TITLE")
+		end run
+	' >/dev/null 2>&1
+}
+
+record_metadata() {
+	local hash=$1 subreddit=$2 url=$3 file=$4 phash=$5
+	local dims
+	dims=$(identify -format '%wx%h' "$file" 2>/dev/null)
+
+	echo "$hash|$subreddit|$url|${dims:-?}|$(date -Iseconds)|$phash" >> $METADATA_FILE
+}
+
+# 8x8 difference hash: shrink to 9x8 grayscale so each row gives 8 adjacent-
+# pixel comparisons, encode "did brightness increase left-to-right" as a bit.
+# Stable under recompression/resizing/minor crops, unlike the exact md5 - that
+# robustness is the whole point here, exact-duplicate content already has its
+# own (cheaper) check.
+phash() {
+	magick "$1" -colorspace Gray -resize '9x8!' -depth 8 txt:- 2>/dev/null | awk -F'[ ,:()]+' '
+		NR>1 { px[$1","$2] = $3; seen++ }
+		END {
+			# NR==0 (no output at all, e.g. magick choked on the input) must
+			# not fall through to the same all-zero hash a genuinely flat/
+			# dark image would produce - that sentinel value would then
+			# collide with real dark wallpapers in find_phash_duplicate.
+			if (!seen) exit 1
+			bits=""
+			for (y=0;y<8;y++)
+				for (x=0;x<8;x++)
+					bits = bits ((px[x","y]+0) < (px[(x+1)","y]+0) ? "1" : "0")
+			hex=""
+			for (i=1;i<=64;i+=4) {
+				v=0
+				for (j=0;j<4;j++) v = v*2 + (substr(bits,i+j,1)+0)
+				hex = hex sprintf("%x", v)
+			}
+			print hex
+		}
+	'
+}
+
+# Scans every phash we've ever recorded - both still-in-rotation saves and
+# blacklisted rejects (.ignore carries the metadata line forward, phash
+# included) - for the closest match to a candidate. Prints "distance|<the
+# matching line>" and exits 0 on a hit within PHASH_THRESHOLD, exits 1 on
+# none - so callers can use it directly as an elif condition.
+find_phash_duplicate() {
+	local candidate=$1 result
+	result=$(cat "$METADATA_FILE" "$WALLPAPER_DIR/.ignore" 2>/dev/null | awk -F'|' -v cand="$candidate" -v thresh="$PHASH_THRESHOLD" '
+		BEGIN {
+			split("0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111", nib, " ")
+			digits = "0123456789abcdef"
+			candbin = hex2bin(cand)
+			best = 999
+		}
+		function hex2bin(h,    i, c, out) {
+			out = ""
+			for (i = 1; i <= length(h); i++) {
+				c = index(digits, substr(h, i, 1))
+				out = out (c ? nib[c] : "0000")
+			}
+			return out
+		}
+		{
+			h = $6
+			if (length(h) != 16) next
+			srcbin = hex2bin(h)
+			d = 0
+			for (i = 1; i <= 64; i++) if (substr(candbin, i, 1) != substr(srcbin, i, 1)) d++
+			if (d <= thresh && d < best) { best = d; bestline = $0 }
+		}
+		END {
+			if (best <= thresh) print best "|" bestline
+		}
+	')
+
+	[ -n "$result" ] || return 1
+	echo "$result"
+}
+
+if [ "$COMMAND" = "get" ]; then
+	if [ -s $TMP_DIR/subreddits ]; then
+		read -a SUBREDDITS < $TMP_DIR/subreddits
+	else
+		if [ -f $WALLPAPER_DIR/.subreddits ]; then
+			read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
+		else
+			SUBREDDITS=("wallpapers" "ShittyMsPaint")
+		fi
+
+		echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
+	fi
+
+	if [ ! $SUBREDDITS ]; then
+		notify "Wallpaper" "No subreddits to scan!"
+
+		exit 1
+	fi
+
+	REDDIT="http://www.reddit.com/r/"
+	IMAGE_COUNT_TO_DOWNLOAD=${2:-3}
+	SUBREDDIT=${3:-${SUBREDDITS[$RANDOM % ${#SUBREDDITS[@]}]}}
+
+	RSS_FILE=$TMP_DIR/$SUBREDDIT.rss
+	HTTP_STATUS=$(wget -q --server-response -U "$WGET_UA" $REDDIT${SUBREDDIT}.rss -O $RSS_FILE 2>&1 | awk '/^  HTTP/{print $2}' | tail -1)
+
+	# A failed/rate-limited fetch (no response, or non-2xx) looks nothing
+	# like "this subreddit has no new images" and shouldn't be treated as
+	# such - that would strip it from today's rotation and cascade into
+	# retrying every other subreddit in the same breath, which is exactly
+	# how a single rate limit turns into "no new images from any
+	# subreddit today" for a reason that has nothing to do with images.
+	if [ -z "$HTTP_STATUS" ] || [ "${HTTP_STATUS:0:1}" != "2" ]; then
+		echo -e "Fetch failed for r/$SUBREDDIT (HTTP ${HTTP_STATUS:-none}) - leaving it in rotation\n"
+
+		log_run "$SUBREDDIT" "fetch-failed:${HTTP_STATUS:-none}" 0
+
+		notify "Wallpaper" "Fetch failed for r/$SUBREDDIT (HTTP ${HTTP_STATUS:-none}), try again later"
+
+		rm -f $RSS_FILE
+
+		exit 1
+	fi
+
+	LINKS=$(grep -Po "http((?!&quot;|\"|icon|thumb|preview).)*\.($VALID_EXT)" $RSS_FILE | shuf)
+	rm -f $RSS_FILE
+	DOWNLOADED_COUNT=0
+
+	for LINK in $LINKS
+	do
+		echo -e "Downloading: $LINK\n"
+
+		FILENAME=$(basename "${LINK%%\?*}")
+		TMP_FILE=$TMP_DIR/$FILENAME
+
+		wget -qc -U "$WGET_UA" $LINK -O $TMP_FILE
+
+		if [ ! -s $TMP_FILE ]; then
+			echo -e "Download failed (empty): $LINK\n"
+
+			rm -f $TMP_FILE
+
+			continue
+		fi
+
+		FILE_SUM=$(md5sum "$TMP_FILE" | cut -d' ' -f1)
+
+		# The extension filter only vets the URL - servers happily return
+		# an HTML error/bot page with a 200 for a ".jpeg" link. One such
+		# page landed in the pool, got mapped to a desktop, and made feh
+		# abort its whole multi-monitor repaint (a freshly docked monitor
+		# just never got painted). Vet the *content*, and record the hash
+		# in .ignore so the same page isn't refetched every run.
+		if ! identify "$TMP_FILE" >/dev/null 2>&1 ; then
+			echo -e "Not an image ($(file -b --mime-type $TMP_FILE)): $LINK\n"
+
+			echo "$FILE_SUM|$SUBREDDIT|$LINK|not-an-image|$(date -Iseconds)" >> $WALLPAPER_DIR/.ignore
+
+			rm $TMP_FILE
+
+			continue
+		fi
+
+		# `stat -t <glob>` was the original (Linux) check for "does this
+		# hash already exist on disk somewhere under here" - BSD stat's
+		# -t takes a time-format argument instead of meaning "terse", so
+		# on macOS it silently stats stdin and always exits 0, making
+		# every download look like a dupe. Array + globstar (bash 4+,
+		# hence the homebrew-bash shebang above) does the same existence
+		# check without relying on a GNU-only flag meaning.
+		existing=($WALLPAPER_DIR/**/$FILE_SUM.*)
+		existing_sibling=($WALLPAPER_DIR/../**/$FILE_SUM.*)
+
+		if [ ${#existing[@]} -gt 0 ]; then
+			echo -e "Already have: $FILE_SUM\n"
+
+			rm $TMP_FILE
+		elif [ ${#existing_sibling[@]} -gt 0 ]; then
+			echo -e "Already have: $FILE_SUM\n"
+
+			rm $TMP_FILE
+		elif grep -q "$FILE_SUM" "$WALLPAPER_DIR/.ignore" ; then
+			echo -e "Didnt like: $FILE_SUM\n"
+
+			rm $TMP_FILE
+		elif PHASH=$(phash "$TMP_FILE") && DUP=$(find_phash_duplicate "$PHASH") ; then
+			echo -e "Perceptually similar to something already known (distance ${DUP%%|*}): $FILE_SUM\n"
+
+			rm $TMP_FILE
+		else
+			SAVED_FILE=$WALLPAPER_DIR/$FILE_SUM.${FILENAME##*.}
+
+			mv $TMP_FILE $SAVED_FILE
+			record_metadata "$FILE_SUM" "$SUBREDDIT" "$LINK" "$SAVED_FILE" "$PHASH"
+
+			echo -e "Saved: $FILE_SUM\n"
+
+			(( DOWNLOADED_COUNT = DOWNLOADED_COUNT + 1 ))
+		fi
+
+		if [ $DOWNLOADED_COUNT = $IMAGE_COUNT_TO_DOWNLOAD ]; then
+			break
+		fi
+	done
+
+	if [ $DOWNLOADED_COUNT = 0 ]; then
+		echo -e "No new images from $SUBREDDIT today\n"
+
+		log_run "$SUBREDDIT" "no-new-images" 0
+
+		sed -i '' -e "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+
+		if [ -n "$(cat $TMP_DIR/subreddits)" ]; then
+			$0 get $IMAGE_COUNT_TO_DOWNLOAD
+		else
+			notify "Wallpaper" "No new images available from any subreddit today"
+		fi
+
+		exit 0
+	fi
+
+	log_run "$SUBREDDIT" "ok" "$DOWNLOADED_COUNT"
+
+	notify "Wallpaper" "Downloaded $DOWNLOADED_COUNT wallpapers from $SUBREDDIT"
+
+	if (( DOWNLOADED_COUNT < IMAGE_COUNT_TO_DOWNLOAD )); then
+		(( IMAGE_COUNT_TO_DOWNLOAD = IMAGE_COUNT_TO_DOWNLOAD - DOWNLOADED_COUNT ))
+
+		sed -i '' -e "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+
+		$0 get $IMAGE_COUNT_TO_DOWNLOAD
+	fi
+elif [ "$COMMAND" = "change" ]; then
+	if [ "$OPTION" = "saved" ]; then
+		CANDIDATES=($WALLPAPER_DIR/saved/*.*)
+	else
+		OPTION="unsorted"
+		CANDIDATES=($WALLPAPER_DIR/*.*)
+	fi
+
+	WALLPAPER=$(printf '%s\n' "${CANDIDATES[@]}" | shuf -n 1)
+
+	if [ -n "$WALLPAPER" ] && [ -s "$WALLPAPER" ] && echo "$WALLPAPER" | grep -P "\.($VALID_EXT)\$" > /dev/null; then
+		DESKTOP_PICTURE="$WALLPAPER" osascript -e '
+			on run
+				tell application "System Events" to set picture of desktop 1 to (system attribute "DESKTOP_PICTURE")
+			end run
+		' >/dev/null 2>&1
+
+		echo $WALLPAPER > $WALLPAPER_DIR/.current
+	elif [ "$OPTION" = "unsorted" ]; then
+		echo "No usable unsorted wallpaper, trying saved"
+
+		$0 change saved
+	else
+		notify "Wallpaper" "No usable wallpapers available"
+	fi
+elif [ "$COMMAND" = "sort" ]; then
+	CURRENT_WALLPAPER=$(cat $WALLPAPER_DIR/.current)
+
+	if [ ! -e $CURRENT_WALLPAPER ]; then
+		notify "Wallpaper" "No wallpaper to $OPTION!"
+
+		exit 0
+	fi
+
+	FILE_SUM=$(md5sum "$CURRENT_WALLPAPER" | cut -d' ' -f1)
+
+	if [ "$OPTION" = "delete" ] || [ "$OPTION" = "stash" ]; then
+		# Carry over whatever we know about this image (subreddit,
+		# source URL, resolution) so a future "why did I block this"
+		# is answerable straight from .ignore instead of just a bare
+		# hash with no context.
+		META_LINE=$(grep "^$FILE_SUM|" $METADATA_FILE)
+
+		echo "${META_LINE:-$FILE_SUM}" >> $WALLPAPER_DIR/.ignore
+	fi
+
+	if [ "$OPTION" = "delete" ]; then
+		rm $CURRENT_WALLPAPER
+	else
+		declare -A SORT_FOLDERS=([save]="saved" [stash]="stashed")
+
+		SUBFOLDER=${3:-${SORT_FOLDERS[$OPTION]}}
+
+		mkdir -p $WALLPAPER_DIR/$SUBFOLDER
+
+		mv $CURRENT_WALLPAPER $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${CURRENT_WALLPAPER##*.}
+	fi
+
+	$0 change unsorted
+elif [ "$COMMAND" = "convert" ]; then
+	SUBFOLDER=${2:-"saved"}
+	FILES=$(ls $WALLPAPER_DIR/$SUBFOLDER/*.*)
+
+	for FILE in $FILES
+	do
+		FILE_SUM=$(md5sum "$FILE" | cut -d' ' -f1)
+
+		echo -e "OLD: $FILE\nNEW: $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}"
+		mv $FILE $WALLPAPER_DIR/$SUBFOLDER/$FILE_SUM.${FILE##*.}
+	done
+elif [ "$COMMAND" = "backfill-phash" ]; then
+	# One-off migration for lines recorded before phash existed. Hashes
+	# whose file is gone (already deleted, not just stashed) still carry
+	# their source URL, so those get a short-lived refetch straight into
+	# TMP_DIR purely to hash - never saved into the pool - instead of
+	# staying permanently unprotected. Genuinely unrecoverable only when
+	# there's no URL at all (a bare-hash .ignore line) or the entry was
+	# never an image to begin with.
+	declare -A KNOWN_PHASH
+
+	backfill_file() {
+		local src_file=$1 tmp=$1.tmp.$$
+		local hash subreddit url dims date existing_phash newphash found dir
+		local -a matches
+		local total=0 from_disk=0 from_fetch=0 unrecoverable=0
+
+		: > "$tmp"
+
+		while IFS='|' read -r hash subreddit url dims date existing_phash; do
+			[ -z "$hash" ] && continue
+
+			total=$((total + 1))
+
+			if [ -z "$subreddit" ] || [ "$dims" = "not-an-image" ]; then
+				printf '%s\n' "$hash${subreddit:+|$subreddit}${url:+|$url}${dims:+|$dims}${date:+|$date}" >> "$tmp"
+				[ -z "$subreddit" ] && unrecoverable=$((unrecoverable + 1))
+				continue
+			fi
+
+			if [ -n "$existing_phash" ]; then
+				newphash=$existing_phash
+			elif [ -n "${KNOWN_PHASH[$hash]:-}" ]; then
+				newphash=${KNOWN_PHASH[$hash]}
+			else
+				found=""
+				for dir in "" saved/ stashed/ broken/; do
+					# nullglob (set at the top of this script) makes an
+					# unmatched glob expand to zero args rather than the
+					# literal pattern - critical here, since `ls` with zero
+					# args silently lists the cwd instead of erroring, which
+					# would hand back a bogus "found" full of garbage.
+					matches=("$WALLPAPER_DIR/${dir}${hash}".*)
+					[ ${#matches[@]} -gt 0 ] && { found=${matches[0]}; break; }
+				done
+
+				newphash=""
+
+				# "Found on disk" isn't proof it's a usable image - broken/
+				# specifically holds files quarantine already gave up on
+				# (see wallpaper-space's quarantine()), and one of those
+				# turned out to be a dead source's HTML error page saved
+				# with a .jpeg extension. Confirm before trusting it, same
+				# bar the refetch path already holds itself to.
+				if [ -n "$found" ] && identify "$found" >/dev/null 2>&1; then
+					newphash=$(phash "$found")
+					[ -n "$newphash" ] && from_disk=$((from_disk + 1))
+				fi
+
+				if [ -z "$newphash" ] && [ -n "$url" ]; then
+					local tmpimg="$TMP_DIR/backfill_$hash"
+
+					wget -q --timeout=10 --tries=1 -U "$WGET_UA" "$url" -O "$tmpimg" 2>/dev/null
+
+					if [ -s "$tmpimg" ] && identify "$tmpimg" >/dev/null 2>&1; then
+						newphash=$(phash "$tmpimg")
+						[ -n "$newphash" ] && from_fetch=$((from_fetch + 1))
+					fi
+
+					rm -f "$tmpimg"
+					sleep 0.3
+				fi
+
+				if [ -z "$newphash" ]; then
+					unrecoverable=$((unrecoverable + 1))
+					echo "  couldn't get a usable image: $hash ($subreddit)"
+				fi
+
+				[ -n "$newphash" ] && KNOWN_PHASH[$hash]=$newphash
+			fi
+
+			echo "$hash|$subreddit|$url|$dims|$date|$newphash" >> "$tmp"
+		done < "$src_file"
+
+		mv "$tmp" "$src_file"
+		echo "$(basename "$src_file"): $total lines, $from_disk from disk, $from_fetch refetched, $unrecoverable unrecoverable"
+	}
+
+	backfill_file "$METADATA_FILE"
+	backfill_file "$WALLPAPER_DIR/.ignore"
+else
+	echo -e "Useage: PATH/wallpaper [command] [option(s)]\n\
+	get           |IMAGE_COUNT_TO_DOWNLOAD ?SUBREDDIT?|\n\
+	change        |saved|unsorted|\n\
+	sort          |delete|save|stash|\n\
+	convert       |SUBFOLDER|\n\
+	backfill-phash"
+fi

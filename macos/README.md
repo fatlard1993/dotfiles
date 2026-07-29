@@ -71,9 +71,6 @@ authorization (OAuth, browser round-trip).
   behind a SIP-protected background-task database on Ventura+.
 - **Default audio device / alert sound** — device names differ per machine.
   `switchaudio-osx` can do it if it ever becomes worth pinning.
-- **Desktop wallpaper rotation** (Wallpapers folder, hourly, random) — Sonoma
-  moved wallpaper config into a sqlite store; the old `com.apple.desktop`
-  defaults key no longer applies.
 
 ## Todo
 
@@ -90,6 +87,51 @@ authorization (OAuth, browser round-trip).
 
 * [Disable SIP](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
 	- Currently testing how far I can get without this part for now
+
+## Wallpaper
+
+macOS port of ubuntu's reddit-scraped wallpaper pool (`ubuntu/bin/wallpaper*`),
+same download/dedup engine, different per-desktop mechanism:
+
+* `bin/wallpaper get [count] [subreddit]` — scrape/download/dedup into
+  `~/Pictures/Wallpapers` (md5 exact-dupe + perceptual hash for reposts).
+  Reddit now rejects a generic User-Agent (403) and rate-limits fairly
+  aggressively even with one set (429, seen firsthand pulling ~8 images in
+  quick succession) - `get`'s own subreddit-cycling retry doesn't help
+  against a 429, just wait a bit.
+* `bin/wallpaper-space <space-index> [image]` — assign one yabai Space a
+  wallpaper. One-shot, not a daemon: confirmed live that macOS keeps a
+  wallpaper distinct per Space once set while that Space is focused,
+  unlike bspwm (one shared X11 root window, hence
+  `wallpaper-per-desktop`'s feh + repaint-on-focus-event daemon over
+  there). Has to actually focus the Space to do it - `set picture of
+  desktop` only ever applies to whichever Space is currently active -
+  and verifies the focus landed before writing anything: yabai's
+  `--focus` can silently fail right after a prior switch ("cannot focus
+  space because mission-control is active"), which otherwise paints the
+  wrong Space with no error.
+* `bin/wallpaper-rotate-all` / `bin/wallpaper-next` — thin wrappers, all
+  map handling lives in wallpaper-space. rotate-all visibly flips through
+  every Space (no way to address a non-focused one) and restores whatever
+  was focused beforehand when done.
+* Hourly auto-rotation: `com.justfatlard.wallpaper-rotate.plist`
+  (StartCalendarInterval, Minute=0), installed by dot-update.d/wallpaper -
+  simpler than ubuntu's sleep-loop daemon since launchd handles the timing
+  natively.
+* `bin/wallpaper-triage` — keep/stash/delete/undo walk, same
+  blacklist/journal logic as the ubuntu version. Viewer is `kitty +kitten
+  icat` (renders inline in the same terminal) rather than feh's fullscreen
+  slideshow - a qlmanage-based version worked but needed an extra
+  close-the-window step per image; icat needs only the prompt.
+
+All the mac-specific scripts set PATH explicitly at the top rather than
+inheriting it - none of them are ever sourced from an interactive zsh (own
+shebang, or launchd for the hourly rotation), so nothing from
+`.zshenv.d/path` is present. Shebang is the absolute homebrew bash path
+(`/opt/homebrew/bin/bash`), not `/bin/bash` or `env bash` - they use
+associative arrays and `**` globstar (bash 4+), and macOS's system
+`/bin/bash` is a frozen 3.2 that shadows homebrew's by name regardless of
+PATH order.
 
 
 ## Misc Notes

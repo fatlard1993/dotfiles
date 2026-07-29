@@ -1,0 +1,130 @@
+#!/opt/homebrew/bin/bash
+# Assigns a wallpaper to one yabai Space and lets macOS remember it natively.
+#
+# Confirmed empirically (solid-color test, 2026-07-28): unlike bspwm - one
+# shared X11 root window, no native per-desktop concept, hence
+# wallpaper-per-desktop's feh + live repaint-on-focus daemon - macOS actually
+# keeps a distinct wallpaper per Space once you set it while that Space is
+# focused. So this is a one-shot assignment, not a daemon: focus the Space,
+# set the picture, done. The map file here exists only so pick_new can avoid
+# handing out an image already showing on another Space, same idea as
+# wallpaper-per-desktop's MAP_FILE.
+#
+# Usage: wallpaper-space <space-index> [image-path]
+#   space-index   a yabai space index (see `yabai -m query --spaces`)
+#   image-path    optional - defaults to a pool image not already assigned
+#                 elsewhere (falls back to `wallpaper get` if the pool is empty)
+
+[[ -d /opt/homebrew/opt/grep/libexec/gnubin ]] && PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
+[[ -d /opt/homebrew/opt/coreutils/libexec/gnubin ]] && PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+shopt -s nullglob
+
+WALLPAPER_DIR=~/Pictures/Wallpapers
+MAP_FILE=$WALLPAPER_DIR/.space-wallpapers
+BIN_DIR="$HOME/.dotfiles/macos/bin"
+
+SPACE=$1
+WALLPAPER=$2
+
+if [ -z "$SPACE" ]; then
+	echo "Usage: wallpaper-space <space-index> [image-path]" >&2
+
+	exit 1
+fi
+
+mkdir -p "$WALLPAPER_DIR"
+touch "$MAP_FILE"
+
+notify() {
+	NOTIFY_TITLE="$1" NOTIFY_MESSAGE="$2" osascript -e '
+		on run
+			display notification (system attribute "NOTIFY_MESSAGE") with title (system attribute "NOTIFY_TITLE")
+		end run
+	' >/dev/null 2>&1
+}
+
+# Writes (or overwrites) this space's single mapping line, instead of ever
+# appending - the map is current *state* (one space -> one wallpaper), not a
+# history. Mirrors wallpaper-per-desktop's set_mapping.
+set_mapping() {
+	local space=$1 wallpaper=$2 tmp=$MAP_FILE.tmp.$$
+
+	grep -v "^$space:" "$MAP_FILE" > "$tmp" 2>/dev/null
+	echo "$space:$wallpaper" >> "$tmp"
+	mv "$tmp" "$MAP_FILE"
+}
+
+# Picks a wallpaper not mapped to *any* space, so every space looks
+# different. Only repeats once there are more spaces than wallpapers.
+pick_new() {
+	local candidates=("$WALLPAPER_DIR"/*.*)
+	[ ${#candidates[@]} -eq 0 ] && return 1
+
+	local used unused=() c
+	used=$(cut -d: -f2- "$MAP_FILE" 2>/dev/null)
+
+	for c in "${candidates[@]}"; do
+		grep -qxF "$c" <<< "$used" || unused+=("$c")
+	done
+
+	local pool=("${unused[@]}")
+	[ ${#pool[@]} -eq 0 ] && pool=("${candidates[@]}")
+
+	printf '%s\n' "${pool[@]}" | shuf -n 1
+}
+
+if [ -z "$WALLPAPER" ]; then
+	WALLPAPER=$(pick_new) || {
+		echo "Pool empty - fetching a batch first"
+
+		"$BIN_DIR/wallpaper" get 15 || true
+
+		WALLPAPER=$(pick_new) || {
+			notify "Wallpaper" "No wallpapers available"
+
+			exit 1
+		}
+	}
+fi
+
+if [ ! -f "$WALLPAPER" ]; then
+	echo "Not a file: $WALLPAPER" >&2
+
+	exit 1
+fi
+
+# `set picture of desktop 1` applies to whatever Space is *currently*
+# focused, so this has to actually confirm the switch landed before writing
+# anything - found live that `yabai -m space --focus` can silently fail
+# ("cannot focus space because mission-control is active") right after a
+# prior switch, which would otherwise paint the wrong Space with no error.
+current_space() {
+	yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty'
+}
+
+tries=0
+until [ "$(current_space)" = "$SPACE" ] || [ "$tries" -ge 10 ]; do
+	yabai -m space --focus "$SPACE" >/dev/null 2>&1
+	sleep 0.3
+	tries=$((tries + 1))
+done
+
+if [ "$(current_space)" != "$SPACE" ]; then
+	echo "Could not confirm focus landed on space $SPACE - refusing to set its wallpaper blind" >&2
+
+	exit 1
+fi
+
+# The switch animation can still be settling even once yabai reports the
+# focus change - a beat here is what made the difference in live testing.
+sleep 0.3
+
+DESKTOP_PICTURE="$WALLPAPER" osascript -e '
+	on run
+		tell application "System Events" to set picture of desktop 1 to (system attribute "DESKTOP_PICTURE")
+	end run
+' >/dev/null 2>&1
+
+set_mapping "$SPACE" "$WALLPAPER"

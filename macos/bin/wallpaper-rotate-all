@@ -1,0 +1,59 @@
+#!/opt/homebrew/bin/bash
+# Assigns a fresh, unique wallpaper to every yabai Space. Thin wrapper over
+# wallpaper-space, same role as ubuntu/bin/wallpaper-rotate-all - all the
+# actual map handling lives in one place (wallpaper-space here,
+# wallpaper-per-desktop there) so this stays a simple loop.
+#
+# Necessarily visits (focuses) every Space to do it - macOS's wallpaper API
+# only ever applies to whichever Space is currently focused; there's no way
+# to address a non-focused one directly. Expect the screen to flip through
+# every Space while this runs. Restores whatever Space was focused
+# beforehand when done.
+
+[[ -d /opt/homebrew/opt/coreutils/libexec/gnubin ]] && PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+BIN_DIR="$HOME/.dotfiles/macos/bin"
+
+current_space() {
+	yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty'
+}
+
+original_space=$(current_space)
+
+mapfile -t spaces < <(yabai -m query --spaces 2>/dev/null | jq -r '.[].index')
+
+if [ ${#spaces[@]} -eq 0 ]; then
+	echo "No yabai spaces found" >&2
+
+	exit 1
+fi
+
+failures=0
+
+for space in "${spaces[@]}"; do
+	echo "Assigning space $space..."
+
+	"$BIN_DIR/wallpaper-space" "$space" || {
+		echo "Failed to set wallpaper for space $space" >&2
+
+		failures=$((failures + 1))
+	}
+done
+
+if [ -n "$original_space" ]; then
+	tries=0
+	until [ "$(current_space)" = "$original_space" ] || [ "$tries" -ge 10 ]; do
+		yabai -m space --focus "$original_space" >/dev/null 2>&1
+		sleep 0.3
+		tries=$((tries + 1))
+	done
+fi
+
+NOTIFY_TITLE="Wallpaper" NOTIFY_MESSAGE="Rotated $((${#spaces[@]} - failures))/${#spaces[@]} spaces" osascript -e '
+	on run
+		display notification (system attribute "NOTIFY_MESSAGE") with title (system attribute "NOTIFY_TITLE")
+	end run
+' >/dev/null 2>&1
+
+[ "$failures" -eq 0 ]

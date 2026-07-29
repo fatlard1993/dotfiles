@@ -1,0 +1,29 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The subreddit list is per-machine data ($profilePath/.wallpaper_subreddits);
+# the linking logic is shared - profiles without the data file skip it.
+[[ -f $profilePath/.wallpaper_subreddits ]] && {
+	echo "Linking wallpaper config"
+
+	mkdir -p $HOME/Pictures/Wallpapers
+	ln -sf $profilePath/.wallpaper_subreddits $HOME/Pictures/Wallpapers/.subreddits
+}
+
+echo "Setting up hourly wallpaper rotation"
+
+mkdir -p $HOME/Library/LaunchAgents
+
+# The repo's copy is a template - ProgramArguments can't do shell expansion,
+# so $HOME gets substituted in at update time rather than hardcoding a path
+# that would only be right on one machine/user.
+sed "s|PLACEHOLDER_HOME|$HOME|g" $macosPath/com.justfatlard.wallpaper-rotate.plist > $HOME/Library/LaunchAgents/com.justfatlard.wallpaper-rotate.plist
+
+# Bootout-then-bootstrap (rather than leaving an already-loaded job alone) so
+# an edit to the interval or the script path actually takes effect on the
+# next dot-update, same convergent idea as the ln -sf above.
+launchctl print gui/$(id -u)/com.justfatlard.wallpaper-rotate &> /dev/null \
+	&& launchctl bootout gui/$(id -u)/com.justfatlard.wallpaper-rotate &> /dev/null
+
+launchctl bootstrap gui/$(id -u) $HOME/Library/LaunchAgents/com.justfatlard.wallpaper-rotate.plist

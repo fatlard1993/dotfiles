@@ -1,0 +1,261 @@
+#!/opt/homebrew/bin/bash
+# Keep/stash/delete/undo walk over the wallpaper rotation pool - macOS port
+# of ubuntu/bin/wallpaper-triage. The blacklist/journal/undo logic below is
+# unchanged (portable bash+md5sum); the only real difference is the viewer:
+# feh's fullscreen slideshow (one keypress per image, --action1..4 bound
+# directly to the number keys while viewing) has no macOS equivalent. A
+# qlmanage-based version (foreground Quick Look window, close it, then
+# answer in the terminal) worked but was clunky - kitty's own graphics
+# protocol (`kitty +kitten icat`) renders the image directly inline in the
+# same terminal instead: no separate window, no context switch, the prompt
+# just appears right below the image in the same session.
+#
+#   1 / space / enter   keep in rotation (just advance)
+#   2                    stash - out of rotation, kept on disk, blacklisted
+#   3                    delete & blacklist
+#   4                    undo the last stash/delete (still advances past the
+#                        image just shown, same as feh's original design -
+#                        undo fixes the *previous* mistake, not this one)
+#   q                    stop early
+#
+# stash/delete/undo also work as standalone subcommands, same as the ubuntu
+# version, so any future menu/quick-action shares this instead of drifting.
+#
+# Usage: wallpaper-triage                 walk the whole rotation pool
+#        wallpaper-triage <files...>      walk specific files
+#        wallpaper-triage stash <file>    move to stashed/ + blacklist
+#        wallpaper-triage delete <file>   blacklist + move to .trash/
+#        wallpaper-triage undo            reverse the last stash/delete
+
+[[ -d /opt/homebrew/opt/grep/libexec/gnubin ]] && PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
+[[ -d /opt/homebrew/opt/coreutils/libexec/gnubin ]] && PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+shopt -s nullglob
+
+WALLPAPER_DIR=~/Pictures/Wallpapers
+METADATA_FILE=$WALLPAPER_DIR/.metadata
+MAP_FILE=$WALLPAPER_DIR/.space-wallpapers
+BIN_DIR="$HOME/.dotfiles/macos/bin"
+SELF="$BIN_DIR/wallpaper-triage"
+
+# Every stash/delete appends here, so undo has something to pop. Nothing
+# else reads it: the blacklist and the on-disk layout stay the source of
+# truth, this is purely "what did I just do, and how do I take it back".
+JOURNAL=$WALLPAPER_DIR/.triage-journal
+
+# Delete moves here instead of unlinking, which is what makes undo exact
+# rather than a best-effort refetch. Kept for TRASH_DAYS so the pool
+# doesn't quietly regrow inside a hidden folder - long enough to cover
+# "I regret that", short enough that it never becomes storage.
+TRASH_DIR=$WALLPAPER_DIR/.trash
+TRASH_DAYS=30
+
+notify() {
+	NOTIFY_TITLE="$1" NOTIFY_MESSAGE="$2" osascript -e '
+		on run
+			display notification (system attribute "NOTIFY_MESSAGE") with title (system attribute "NOTIFY_TITLE")
+		end run
+	' >/dev/null 2>&1
+}
+
+# Blacklist = append to .ignore, which the downloader checks before saving
+# a new image (see bin/wallpaper). Carries the metadata line (subreddit,
+# source URL, resolution) over when we have it, so "why did I block this"
+# stays answerable. Stashing blacklists too: the stashed copy is already
+# on disk, so re-downloading it into rotation would just undo the stash.
+blacklist() {
+	local sum meta
+	sum=$(md5sum "$1" | cut -d' ' -f1)
+	meta=$(grep "^${sum}|" "$METADATA_FILE" 2>/dev/null)
+	echo "${meta:-$sum}" >>"$WALLPAPER_DIR/.ignore"
+	echo "$sum"
+}
+
+# Drops the most recent blacklist entry for a hash and hands the removed
+# line back - it carries the source URL, which for a deleted file whose
+# trash copy has aged out is the only remaining way to get the image back.
+unblacklist() {
+	local sum=$1 ignore=$WALLPAPER_DIR/.ignore n line
+	n=$(grep -n "^${sum}" "$ignore" 2>/dev/null | tail -1 | cut -d: -f1)
+	[ -n "$n" ] || return 1
+	line=$(sed -n "${n}p" "$ignore")
+	sed -i '' "${n}d" "$ignore"
+	echo "$line"
+}
+
+journal() {
+	local action=$1 sum=$2 orig=$3 src=$4
+	echo "$(date -Iseconds)|$action|$sum|$orig|$src" >>"$JOURNAL"
+}
+
+# Reassigns any Space whose mapped wallpaper no longer exists on disk
+# (just stashed/deleted) - mac equivalent of ubuntu's
+# `wallpaper-per-desktop apply`, which self-heals the same way via
+# wallpaper_for()'s fallback-to-fresh logic. Scoped to just the affected
+# Space(s) rather than a full rotate-all, so triaging one image doesn't
+# flip through every Space on screen.
+heal_spaces() {
+	[ -f "$MAP_FILE" ] || return 0
+
+	# wallpaper-space focuses whatever Space it's told to and leaves it
+	# there - correct for an explicit "set this Space" call, but wrong
+	# here: healing is a side effect of triaging, not something the user
+	# asked to jump to. Found live: without this, closing out a triage
+	# walk that happened to heal Space 7 left the view stranded there.
+	local original_space
+	original_space=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty')
+
+	local line space wallpaper healed=0
+	while IFS=: read -r space wallpaper; do
+		[ -f "$wallpaper" ] && continue
+
+		echo "Space $space's wallpaper is gone - reassigning"
+		"$BIN_DIR/wallpaper-space" "$space"
+		healed=1
+	done < "$MAP_FILE"
+
+	if [ "$healed" -eq 1 ] && [ -n "$original_space" ]; then
+		local tries=0
+		until [ "$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty')" = "$original_space" ] || [ "$tries" -ge 10 ]; do
+			yabai -m space --focus "$original_space" >/dev/null 2>&1
+			sleep 0.3
+			tries=$((tries + 1))
+		done
+	fi
+}
+
+case $1 in
+stash)
+	[ -f "$2" ] || exit 1
+	sum=$(blacklist "$2")
+	mkdir -p "$WALLPAPER_DIR/stashed"
+	dest=$WALLPAPER_DIR/stashed/${sum}.${2##*.}
+	mv "$2" "$dest"
+	journal stash "$sum" "$2" "$dest"
+	[ -n "$TRIAGE_COUNT_FILE" ] && echo stash >>"$TRIAGE_COUNT_FILE"
+	exit 0
+	;;
+delete)
+	[ -f "$2" ] || exit 1
+	sum=$(blacklist "$2")
+	mkdir -p "$TRASH_DIR"
+
+	# mv keeps the original mtime, which wget set from the source's
+	# Last-Modified - often years old. Retention has to age from when it
+	# was deleted, so stamp it now or the prune below eats it instantly.
+	dest=$TRASH_DIR/${sum}.${2##*.}
+	mv "$2" "$dest" && touch "$dest"
+
+	find "$TRASH_DIR" -maxdepth 1 -type f -mtime +$TRASH_DAYS -delete 2>/dev/null
+
+	journal delete "$sum" "$2" "$dest"
+	[ -n "$TRIAGE_COUNT_FILE" ] && echo delete >>"$TRIAGE_COUNT_FILE"
+	exit 0
+	;;
+undo)
+	entry=$(tail -1 "$JOURNAL" 2>/dev/null)
+
+	if [ -z "$entry" ]; then
+		notify "Wallpaper" "Nothing to undo"
+		exit 1
+	fi
+
+	IFS='|' read -r _ action sum orig src <<<"$entry"
+
+	meta=$(unblacklist "$sum")
+	url=$(echo "$meta" | cut -s -d'|' -f3)
+
+	restored=""
+
+	if [ -f "$orig" ]; then
+		restored=$orig
+	elif [ -n "$src" ] && [ -f "$src" ]; then
+		mv "$src" "$orig" && restored=$orig
+	elif [ -n "$url" ]; then
+		# Trash aged out (or this entry predates it). The image is
+		# content-addressed, so a refetch is only an undo if the bytes
+		# hash back to the same name - anything else is a different
+		# picture at a recycled URL and must not land in the pool.
+		tmp=$(mktemp /tmp/wallpaper-undo.XXXXXX)
+
+		if wget -q --timeout=30 --tries=2 "$url" -O "$tmp" \
+			&& [ "$(md5sum "$tmp" | cut -d' ' -f1)" = "$sum" ]; then
+			mv "$tmp" "$orig" && restored=$orig
+		fi
+
+		rm -f "$tmp"
+	fi
+
+	# The journal entry is spent either way: the blacklist removal
+	# already happened, and replaying a failed restore won't do better.
+	sed -i '' '$d' "$JOURNAL"
+
+	[ -n "$TRIAGE_COUNT_FILE" ] && echo "undo:$action" >>"$TRIAGE_COUNT_FILE"
+
+	if [ -n "$restored" ]; then
+		notify "Wallpaper" "Un-${action}ed $(basename "$restored")"
+		exit 0
+	fi
+
+	notify "Wallpaper" "Un-blacklisted ${sum:0:8} but the image is gone - no trash copy, no working source"
+	exit 1
+	;;
+esac
+
+files=("$@")
+[ ${#files[@]} -eq 0 ] && files=("$WALLPAPER_DIR"/*.*)
+[ ${#files[@]} -eq 0 ] && {
+	notify "Wallpaper" "Nothing to triage"
+	exit 0
+}
+
+TRIAGE_COUNT_FILE=$(mktemp)
+export TRIAGE_COUNT_FILE
+
+total=${#files[@]}
+idx=0
+
+echo "1/space/enter keep   2 stash   3 delete + blacklist   4 undo last   q quit"
+echo
+
+for file in "${files[@]}"; do
+	idx=$((idx + 1))
+	[ -f "$file" ] || continue
+
+	kitty +kitten icat --align left "$file"
+
+	while true; do
+		read -n1 -r -p "[$idx/$total] $(basename "$file")  [1/space keep, 2 stash, 3 delete, 4 undo, q quit]: " key
+		echo
+
+		case "$key" in
+			1|""|" ") ;;
+			2) "$SELF" stash "$file" ;;
+			3) "$SELF" delete "$file" ;;
+			4) "$SELF" undo ;;
+			q|Q) echo "Stopping early"; files=(); break 2 ;;
+			*) echo "Invalid key, try again"; continue ;;
+		esac
+
+		break
+	done
+done
+
+stashed=$(grep -cx stash "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
+deleted=$(grep -cx delete "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
+undone=$(grep -c '^undo:' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
+
+if [ "$stashed" -gt 0 ] || [ "$deleted" -gt 0 ]; then
+	heal_spaces
+fi
+
+stashed=$((stashed - $(grep -cx 'undo:stash' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)))
+deleted=$((deleted - $(grep -cx 'undo:delete' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)))
+rm -f "$TRIAGE_COUNT_FILE"
+
+summary="Triage done: ${stashed} stashed, ${deleted} deleted & blacklisted"
+[ "$undone" -gt 0 ] && summary="$summary (${undone} undone)"
+
+notify "Wallpaper" "$summary"
+echo "$summary"
