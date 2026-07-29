@@ -91,9 +91,9 @@ authorization (OAuth, browser round-trip).
 ## Wallpaper
 
 macOS port of ubuntu's reddit-scraped wallpaper pool (`ubuntu/bin/wallpaper*`)
-for the download/dedup half only - per-desktop rotation is native macOS
-Shuffle instead of a scripted equivalent, for reasons worth recording since
-they cost real time to confirm:
+for the download/dedup half only. Per-desktop rotation is native macOS
+Shuffle instead of a scripted equivalent - confirmed live, twice, that
+scripting it can't avoid a visible Space-flip; here's why:
 
 * `bin/wallpaper get [count] [subreddit]` — scrape/download/dedup into
   `~/Pictures/Wallpapers` (md5 exact-dupe + perceptual hash for reposts).
@@ -130,14 +130,13 @@ not a shortcut:
   WindowServer-level per-Space snapshot - and there's no signal available
   to invalidate it without actually visiting the Space.
 * So a script driving rotation can only ever flip visibly through every
-  Space to update it, via yabai focus + `osascript ... set picture of
-  desktop`(which does work, immediately, for whichever Space is currently
-  focused) - same visible cost as just doing the one-time Shuffle setup by
-  hand and letting the OS own the timing from there, without a script
-  fighting it. `workspaces-swoosh-animation-off` + a near-zero
+  Space to update it - yabai focus + `osascript ... set picture of
+  desktop` does work, immediately, for whichever Space is currently
+  focused, but that's the same visible cost as just doing the one-time
+  Shuffle setup by hand and letting the OS own the timing from there.
+  `workspaces-swoosh-animation-off` plus a near-zero
   `expose-animation-duration` (macos-config.d/mission-control) make manual
-  Space-switching itself feel closer to instant, for whenever you do
-  switch.
+  Space-switching itself feel close to instant, for whenever you do switch.
 
 All the mac-specific scripts set PATH explicitly at the top rather than
 inheriting it - neither is ever sourced from an interactive zsh (own
