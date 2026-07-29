@@ -1,0 +1,13 @@
+#!/opt/homebrew/bin/bash
+# yabai has no "next layout" like bspwm's `bspc desktop -l next` - --layout
+# only takes an explicit bsp|stack|float value (see `man yabai`, Space
+# Settings). Cycles bsp <-> stack; float is left out of the cycle since a
+# keybind meant for "tiled vs monocle" surprising you into "everything
+# floats" is worse than just not covering that case.
+
+current=$(yabai -m query --spaces --space | jq -r .type)
+
+case "$current" in
+	bsp) yabai -m space --layout stack ;;
+	*) yabai -m space --layout bsp ;;
+esac
