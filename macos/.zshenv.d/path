@@ -19,6 +19,10 @@ done
 # otherwise.
 [[ -d $HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin ]] && export PATH="$HOMEBREW_PREFIX/opt/coreutils/libexec/gnubin:$PATH"
 
+# macos/bin/* (wallpaper, wallpaper-triage, ...) - mirrors ubuntu/.zshenv.d/path
+# doing the same for ubuntu/bin. Never existed until macos/bin itself did.
+export PATH="$HOME/.dotfiles/macos/bin:$PATH"
+
 # Java. Nothing in this repo installs a JDK, so only point at one if it's
 # actually present - the unconditional export left JAVA_HOME aimed at a
 # non-existent directory on every fresh machine, and put its bin on PATH too.
