@@ -42,9 +42,8 @@ VALID_EXT='jpe?g|png'
 # 10 leaves a wide margin on both sides.
 PHASH_THRESHOLD=10
 
-# Reddit's RSS endpoints now reject wget's default User-Agent outright (403) -
-# found live while testing this port. Not a macOS-specific thing; a generic
-# UA is just increasingly unwelcome there.
+# Reddit's RSS endpoints reject wget's default User-Agent outright (403) -
+# not a macOS-specific thing, a generic UA is increasingly unwelcome there.
 WGET_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
 touch $WALLPAPER_DIR/.ignore $METADATA_FILE $LOG_FILE

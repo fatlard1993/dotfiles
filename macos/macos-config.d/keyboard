@@ -32,11 +32,11 @@ defaults write com.apple.BezelServices kDimTime -int 300
 # AppleSymbolicHotKeys IDs 118-127 are desktops 1-10. `parameters` is
 # [ascii, keycode, modifier mask]; 1048576 is command. Desktop 10 gets CMD+0.
 #
-# Confirmed working on a real Mac (2026-07-28): CMD+1 through CMD+9 and
-# CMD+0 all land as configured. If a future macOS release changes the
-# expected shape here, `defaults delete com.apple.symbolichotkeys
-# AppleSymbolicHotKeys` resets every symbolic hotkey to its default and you
-# can set them by hand. Needs actual Spaces to switch to - macOS starts a
+# CMD+1 through CMD+9 and CMD+0 land as configured. If a future macOS
+# release changes the expected shape here, `defaults delete
+# com.apple.symbolichotkeys AppleSymbolicHotKeys` resets every symbolic
+# hotkey to its default and you can set them by hand. Needs actual Spaces
+# to switch to - macOS starts a
 # fresh machine with only one; add more via Mission Control (Control+Up,
 # then the + in the top-right).
 asciiCodes=(49 50 51 52 53 54 55 56 57 48)

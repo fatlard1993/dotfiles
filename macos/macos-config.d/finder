@@ -99,8 +99,7 @@ defaults write com.apple.NetworkBrowser BrowseAllInterfaces -bool true
 chflags nohidden ~/Library
 
 # Show the /Volumes folder - root-owned, unlike ~/Library above, so this
-# needs sudo. Found live failing silently every run with "Permission denied"
-# for lack of it.
+# needs sudo or it fails with "Permission denied" every run.
 sudo chflags nohidden /Volumes
 
 # Remove Dropbox’s green checkmark icons in Finder

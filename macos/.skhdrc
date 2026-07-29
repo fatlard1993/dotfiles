@@ -32,8 +32,8 @@ ctrl + alt - f      : yabai -m window --toggle topmost; yabai -m window --toggle
 meh - v       : $HOME/.dotfiles/bin/prose-paste
 
 ## Parity with ubuntu/.sxhkdrc's bspwm bindings - closing the gap between
-## the two setups where yabai/skhd genuinely support the equivalent
-## (confirmed against `man yabai`, not assumed). Left out: anything that
+## the two setups where yabai/skhd genuinely support the equivalent, per
+## `man yabai` rather than assumption. Left out: anything that
 ## needs System Integrity Protection partially disabled (space
 ## --create/--destroy, window --scratchpad/--sticky/--raise/--lower) - see
 ## macos/README.md's Yabai section for why that's a deliberate line, not

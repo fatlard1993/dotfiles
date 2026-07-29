@@ -13,9 +13,9 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 # Per-Space rotation is native macOS Shuffle (System Settings > Wallpaper >
 # pick the folder > Shuffle), configured once by hand per desktop - see
-# macos/README.md's Wallpaper section for why. Confirmed live that a Space's
-# wallpaper only ever updates while that Space is actually focused, no
-# matter how the change is made (direct edit, AppleScript, doesn't matter) -
-# so a script driving rotation can only ever flip visibly through every
-# Space to do it, same cost as just doing it by hand once and letting
-# Shuffle own the timing from there.
+# macos/README.md's Wallpaper section for why. A Space's wallpaper only
+# ever updates while that Space is actually focused, no matter how the
+# change is made (direct edit, AppleScript, doesn't matter), so a script
+# driving rotation can only ever flip visibly through every Space to do
+# it - same cost as doing it by hand once and letting Shuffle own the
+# timing from there.

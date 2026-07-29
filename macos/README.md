@@ -92,16 +92,16 @@ authorization (OAuth, browser round-trip).
 
 macOS port of ubuntu's reddit-scraped wallpaper pool (`ubuntu/bin/wallpaper*`)
 for the download/dedup half only. Per-desktop rotation is native macOS
-Shuffle instead of a scripted equivalent - confirmed live, twice, that
-scripting it can't avoid a visible Space-flip; here's why:
+Shuffle instead of a scripted equivalent, because scripting it can't avoid
+a visible Space-flip:
 
 * `bin/wallpaper get [count] [subreddit]` — scrape/download/dedup into
   `~/Pictures/Wallpapers` (md5 exact-dupe + perceptual hash for reposts).
   Same engine as the ubuntu version, portable bash+wget+imagemagick+md5sum.
-  Reddit now rejects a generic User-Agent (403) and rate-limits fairly
-  aggressively even with one set (429, seen firsthand pulling ~8 images in
-  quick succession) - `get`'s own subreddit-cycling retry doesn't help
-  against a 429, just wait a bit.
+  Reddit rejects a generic User-Agent (403) and rate-limits fairly
+  aggressively even with one set (429 after ~8 images in quick succession)
+  - `get`'s own subreddit-cycling retry doesn't help against a 429, just
+  wait a bit.
 * `bin/wallpaper-triage` — keep/stash/delete/undo walk over the pool, same
   blacklist/journal logic as the ubuntu version. Viewer is `kitty +kitten
   icat` (renders inline in the same terminal) rather than feh's fullscreen
@@ -121,14 +121,13 @@ not a shortcut:
   keyed by the same UUIDs `yabai -m query --spaces` reports) that looked
   promising to script directly.
 * But a Space's wallpaper only ever actually repaints while that Space is
-  focused - confirmed twice, with two different store provider types
-  (`imageFile` and `imageFolder`, the latter being exactly what native
-  Shuffle itself writes) and a WallpaperAgent restart in between. Editing
-  the store for a non-focused Space, then later focusing it normally
-  (no script involved), still showed the stale wallpaper both times. That
-  means the caching lives deeper than WallpaperAgent - likely a
-  WindowServer-level per-Space snapshot - and there's no signal available
-  to invalidate it without actually visiting the Space.
+  focused, regardless of provider type (`imageFile` or `imageFolder` - the
+  latter is exactly what native Shuffle itself writes) or a WallpaperAgent
+  restart. Editing the store for a non-focused Space, then focusing it
+  normally (no script involved), still shows the stale wallpaper. The
+  caching lives deeper than WallpaperAgent - likely a WindowServer-level
+  per-Space snapshot - with no signal available to invalidate it without
+  actually visiting the Space.
 * So a script driving rotation can only ever flip visibly through every
   Space to update it - yabai focus + `osascript ... set picture of
   desktop` does work, immediately, for whichever Space is currently
