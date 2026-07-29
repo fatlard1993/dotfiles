@@ -1,0 +1,562 @@
+#!/usr/bin/env bash
+# One-keypress-per-image walk over any set of images, rendered inline in the
+# terminal via kitty's graphics protocol - no separate viewer window, no
+# context switch, the prompt sits directly under the image.
+#
+# Keep/delete/undo are built in; everything else is a "pile" you bind to a
+# key, so the same walk sorts a camera dump, a screenshot folder, or a
+# wallpaper pool. The wallpaper-specific counterpart lives in
+# {macos,ubuntu}/bin/wallpaper-triage, which adds a blacklist and a repaint
+# this file knows nothing about.
+#
+#   1 / space / enter   keep (just advance)
+#   x                   delete - moves to the trash dir, pruned after N days
+#   u                   undo the last delete or file
+#   q                   stop early
+#   <your keys>         file into a pile (see --pile)
+#
+# Deletes move rather than unlink, which is what makes undo exact instead of
+# best-effort. The journal records absolute source and destination for every
+# move, so undo works across piles and across runs.
+#
+# Usage: image-triage [options] [paths...]
+#
+#   paths       files and/or directories; defaults to the current directory.
+#               With no paths and piped stdin, reads NUL- or newline-separated
+#               paths (fd -e jpg . | image-triage).
+#
+# Options:
+#   -p, --pile KEY:DIR[:LABEL]  bind a single key to a destination directory
+#                               (repeatable). Created on first use.
+#   -r, --recursive             descend into subdirectories
+#   -s, --state-dir DIR         journal + trash location
+#                               (default: ${XDG_STATE_HOME:-~/.local/state}/image-triage)
+#   -t, --trash-days N          how long deleted files survive (default 30)
+#   -k, --hook FILE             shell file sourced for the hook functions below
+#   -h, --help                  this text
+#
+# Hooks - a --hook file may define any of these; each is optional:
+#   triage_after_action ACTION LABEL SRC DEST
+#   triage_after_undo   ACTION LABEL SRC DEST
+#   triage_finish                                  (sees the counter globals)
+#   triage_notify       TITLE MESSAGE              (replaces the default)
+# Hooks run in this shell, so they see the counters and can act on each move
+# without this file carrying any caller-specific behaviour.
+
+set -o pipefail
+
+# Indexed arrays rather than associative ones, and no mapfile/globstar/${x,,}:
+# macOS ships bash 3.2 as /bin/bash, and env may well resolve to it.
+PILE_KEYS=()
+PILE_DIRS=()
+PILE_LABELS=()
+
+RECURSIVE=false
+TRASH_DAYS=30
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/image-triage
+HOOK_FILE=""
+PATHS=()
+
+RESERVED_KEYS="1 x u q"
+
+die() {
+	printf 'image-triage: %s\n' "$1" >&2
+	exit 1
+}
+
+usage() {
+	sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+	exit 0
+}
+
+# cd/pwd instead of realpath: BSD and GNU disagree on flags, and greadlink
+# isn't guaranteed on a fresh machine.
+abspath() {
+	local target=$1 dir base
+	if [ -d "$target" ]; then
+		(cd "$target" 2>/dev/null && pwd) || return 1
+	else
+		dir=$(dirname "$target")
+		base=$(basename "$target")
+		dir=$(cd "$dir" 2>/dev/null && pwd) || return 1
+		printf '%s/%s' "$dir" "$base"
+	fi
+}
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		-p | --pile)
+			[ -n "$2" ] || die "--pile needs KEY:DIR[:LABEL]"
+			key=${2%%:*}
+			rest=${2#*:}
+			[ "$key" != "$2" ] || die "--pile needs KEY:DIR[:LABEL], got '$2'"
+			[ ${#key} -eq 1 ] || die "pile key must be a single character, got '$key'"
+
+			# Matched case-insensitively, and space rejected outright: the walk
+			# binds x/X, u/U, q/Q and treats space as keep, so a pile on any of
+			# those would be accepted here and then never fire.
+			case $key in
+				' ' | "$(printf '\t')") die "pile key cannot be whitespace (space is keep)" ;;
+			esac
+			key_lower=$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')
+			case " $RESERVED_KEYS " in
+				*" $key_lower "*) die "pile key '$key' is reserved (keep/delete/undo/quit)" ;;
+			esac
+			dir=${rest%%:*}
+			label=${rest#*:}
+			[ "$label" != "$rest" ] || label=$(basename "$dir")
+			[ -n "$dir" ] || die "--pile '$2' has no directory"
+
+			for existing in ${PILE_KEYS[@]+"${PILE_KEYS[@]}"}; do
+				[ "$existing" = "$key" ] && die "pile key '$key' bound twice"
+			done
+
+			PILE_KEYS+=("$key")
+			PILE_DIRS+=("$dir")
+			PILE_LABELS+=("$label")
+			shift 2
+			;;
+		-r | --recursive)
+			RECURSIVE=true
+			shift
+			;;
+		-s | --state-dir)
+			[ -n "$2" ] || die "--state-dir needs a directory"
+			STATE_DIR=$2
+			shift 2
+			;;
+		-t | --trash-days)
+			case $2 in
+				'' | *[!0-9]*) die "--trash-days needs a number, got '$2'" ;;
+			esac
+			TRASH_DAYS=$2
+			shift 2
+			;;
+		-k | --hook)
+			[ -f "$2" ] || die "hook file not found: $2"
+			HOOK_FILE=$2
+			shift 2
+			;;
+		-h | --help) usage ;;
+		--)
+			shift
+			while [ $# -gt 0 ]; do
+				PATHS+=("$1")
+				shift
+			done
+			;;
+		-*) die "unknown option '$1' (try --help)" ;;
+		*)
+			PATHS+=("$1")
+			shift
+			;;
+	esac
+done
+
+# shellcheck source=/dev/null
+[ -n "$HOOK_FILE" ] && . "$HOOK_FILE"
+
+# The image has to reach the terminal itself, so this is kitty-or-nothing
+# rather than falling back to a separate window - a viewer that steals focus
+# defeats the whole point. chafa is a legitimate substitute (cell-art, same
+# inline placement) if it's ever installed.
+VIEWER=""
+in_kitty=false
+[ -n "${KITTY_WINDOW_ID:-}" ] && in_kitty=true
+case ${TERM:-} in *kitty*) in_kitty=true ;; esac
+if [ "$in_kitty" = true ] && command -v kitty >/dev/null; then
+	VIEWER=kitty
+fi
+[ -z "$VIEWER" ] && command -v chafa >/dev/null && VIEWER=chafa
+[ -n "$VIEWER" ] || die "needs kitty (inline graphics) or chafa; run this in a kitty terminal"
+
+# --- collect the file list -------------------------------------------------
+
+# -iname rather than -iregex: BSD find's -regex is POSIX basic, where GNU's
+# \| alternation isn't available, so a single pattern can't cover both.
+NAME_TESTS=(
+	-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif'
+	-o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.tif' -o -iname '*.tiff'
+	-o -iname '*.heic' -o -iname '*.heif' -o -iname '*.avif'
+)
+
+# sort -z is GNU; BSD sort lacks it. Sorted order is nicer to thumb through
+# but not worth failing over, so it degrades to find's own order.
+if printf 'b\0a\0' | sort -z >/dev/null 2>&1; then
+	sort_nul() { sort -z; }
+else
+	sort_nul() { cat; }
+fi
+
+FILES=()
+
+collect_dir() {
+	local dir=$1 depth=()
+	[ "$RECURSIVE" = true ] || depth=(-maxdepth 1)
+	while IFS= read -r -d '' found; do
+		FILES+=("$found")
+	done < <(find "$dir" ${depth[@]+"${depth[@]}"} -type f \( "${NAME_TESTS[@]}" \) -print0 2>/dev/null | sort_nul)
+}
+
+add_path() {
+	local p=$1
+	if [ -d "$p" ]; then
+		collect_dir "$p"
+	elif [ -f "$p" ]; then
+		FILES+=("$p")
+	else
+		printf 'image-triage: skipping missing path: %s\n' "$p" >&2
+	fi
+}
+
+if [ ${#PATHS[@]} -eq 0 ] && [ ! -t 0 ]; then
+	# Piped list. Accept NUL or newline separation by normalising to NUL.
+	while IFS= read -r -d '' piped; do
+		[ -n "$piped" ] && add_path "$piped"
+	done < <(tr '\n' '\0')
+elif [ ${#PATHS[@]} -eq 0 ]; then
+	collect_dir .
+else
+	for p in "${PATHS[@]}"; do
+		add_path "$p"
+	done
+fi
+
+[ ${#FILES[@]} -gt 0 ] || {
+	echo "Nothing to triage"
+	exit 0
+}
+
+# --- state ----------------------------------------------------------------
+
+TRASH_DIR=$STATE_DIR/trash
+JOURNAL=$STATE_DIR/journal
+
+mkdir -p "$TRASH_DIR" || die "cannot create state dir: $STATE_DIR"
+touch "$JOURNAL" || die "cannot write journal: $JOURNAL"
+
+# Retention ages from deletion time, not the file's own mtime, so the touch
+# in do_delete is what makes this correct for files copied off a camera with
+# years-old timestamps.
+find "$TRASH_DIR" -maxdepth 1 -type f -mtime +"$TRASH_DAYS" -delete 2>/dev/null
+
+kept=0
+deleted=0
+filed=0
+undone=0
+
+notify() {
+	if command -v triage_notify >/dev/null 2>&1; then
+		triage_notify "$1" "$2"
+	elif command -v notify-send >/dev/null 2>&1; then
+		notify-send "$1" "$2"
+	elif command -v osascript >/dev/null 2>&1; then
+		NOTIFY_TITLE=$1 NOTIFY_MESSAGE=$2 osascript -e '
+			on run
+				display notification (system attribute "NOTIFY_MESSAGE") with title (system attribute "NOTIFY_TITLE")
+			end run
+		' >/dev/null 2>&1
+	fi
+}
+
+journal_append() {
+	printf '%s|%s|%s|%s|%s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$1" "$2" "$3" "$4" >>"$JOURNAL"
+}
+
+# Never overwrite: a name collision in a pile would make the move
+# unrecoverable and the journal's dest a lie.
+unique_dest() {
+	local dir=$1 base=$2 stem ext candidate n=1
+	case $base in
+		*.*)
+			stem=${base%.*}
+			ext=.${base##*.}
+			;;
+		*)
+			stem=$base
+			ext=""
+			;;
+	esac
+	candidate=$dir/$base
+	while [ -e "$candidate" ]; do
+		candidate=$dir/${stem}-${n}${ext}
+		n=$((n + 1))
+	done
+	printf '%s' "$candidate"
+}
+
+# Every action redraws or advances immediately after running, and a redraw
+# clears the screen - so feedback can't just be echoed or it vanishes before
+# it's read. Actions set STATUS instead and the prompt prints it.
+STATUS=""
+
+# Sets MOVE_DEST rather than echoing it: a command substitution would run this
+# in a subshell, where the STATUS assignments below would be lost.
+MOVE_DEST=""
+
+move_to() {
+	local src=$1 dir=$2 action=$3 label=$4 abs
+	MOVE_DEST=""
+
+	abs=$(abspath "$src") || {
+		STATUS="Cannot resolve $src"
+		return 1
+	}
+	mkdir -p "$dir" || {
+		STATUS="Cannot create $dir"
+		return 1
+	}
+	dir=$(abspath "$dir") || {
+		STATUS="Cannot resolve $dir"
+		return 1
+	}
+
+	if [ "$(dirname "$abs")" = "$dir" ]; then
+		STATUS="Already in $label, skipped"
+		return 1
+	fi
+
+	MOVE_DEST=$(unique_dest "$dir" "$(basename "$abs")")
+	mv "$abs" "$MOVE_DEST" || {
+		STATUS="Move failed: $(basename "$abs")"
+		MOVE_DEST=""
+		return 1
+	}
+
+	journal_append "$action" "$label" "$abs" "$MOVE_DEST"
+
+	if command -v triage_after_action >/dev/null 2>&1; then
+		triage_after_action "$action" "$label" "$abs" "$MOVE_DEST"
+	fi
+
+	# Explicit: callers branch on this, and without it the return status is
+	# whatever the hook check above happened to evaluate to - which is a
+	# failure when no hook is defined.
+	return 0
+}
+
+do_delete() {
+	move_to "$1" "$TRASH_DIR" delete trash || return 1
+	# Reset mtime so retention counts from now, not from the file's own age.
+	touch "$MOVE_DEST"
+	deleted=$((deleted + 1))
+	STATUS="Deleted $(basename "$1")"
+}
+
+do_file() {
+	move_to "$1" "$2" file "$3" || return 1
+	filed=$((filed + 1))
+	STATUS="Filed $(basename "$1") -> $3"
+}
+
+do_undo() {
+	local entry action label src dest
+	entry=$(tail -1 "$JOURNAL" 2>/dev/null)
+
+	if [ -z "$entry" ]; then
+		STATUS="Nothing to undo"
+		return 1
+	fi
+
+	IFS='|' read -r _ action label src dest <<<"$entry"
+
+	if [ ! -e "$dest" ]; then
+		STATUS="Cannot undo: $(basename "$dest") is gone (trash may have aged out)"
+		# Spent either way - replaying it will not do better.
+		sed_inplace '$d' "$JOURNAL"
+		return 1
+	fi
+
+	if [ -e "$src" ]; then
+		STATUS="Cannot undo: $(basename "$src") exists again at the source"
+		return 1
+	fi
+
+	mkdir -p "$(dirname "$src")" 2>/dev/null
+	mv "$dest" "$src" || {
+		STATUS="Cannot undo: move failed"
+		return 1
+	}
+
+	sed_inplace '$d' "$JOURNAL"
+
+	# The journal outlives the run, so an undo can reverse something from a
+	# previous session. Only ever decrement what this run actually did -
+	# otherwise the summary reports negative deletes. `undone` carries the
+	# rest of the story.
+	case $action in
+		delete) [ "$deleted" -gt 0 ] && deleted=$((deleted - 1)) ;;
+		file) [ "$filed" -gt 0 ] && filed=$((filed - 1)) ;;
+	esac
+	undone=$((undone + 1))
+
+	if command -v triage_after_undo >/dev/null 2>&1; then
+		triage_after_undo "$action" "$label" "$src" "$dest"
+	fi
+
+	STATUS="Undid $action of $(basename "$src")"
+	return 0
+}
+
+# BSD sed needs an argument to -i, GNU sed must not have one.
+sed_inplace() {
+	if sed --version >/dev/null 2>&1; then
+		sed -i "$1" "$2"
+	else
+		sed -i '' "$1" "$2"
+	fi
+}
+
+# --- the walk -------------------------------------------------------------
+
+show() {
+	local file=$1 rows cols
+	rows=$(tput lines 2>/dev/null || echo 24)
+	cols=$(tput cols 2>/dev/null || echo 80)
+
+	tput clear 2>/dev/null
+
+	if [ "$VIEWER" = kitty ]; then
+		# --place keeps the image inside a rectangle so the prompt below is
+		# never pushed off-screen; without it a tall image scrolls the
+		# prompt away and the walk stops feeling like one keypress. It needs
+		# a terminal that reports pixel sizes, so fall back to the plain form
+		# rather than showing nothing where it isn't supported.
+		if [ "$rows" -le 8 ] \
+			|| ! kitty +kitten icat --clear --align left \
+				--place "${cols}x$((rows - 4))@0x0" "$file" 2>/dev/null; then
+			kitty +kitten icat --clear --align left "$file" 2>/dev/null
+		fi
+	else
+		chafa --size "${cols}x$((rows - 4))" "$file" 2>/dev/null
+	fi
+
+	[ "$rows" -gt 8 ] && tput cup $((rows - 4)) 0 2>/dev/null
+	return 0
+}
+
+# Piles are fixed once arguments are parsed, so the legend is built once
+# rather than in a subshell on every keypress.
+LEGEND="1/space keep   x delete   u undo   q quit"
+i=0
+while [ $i -lt ${#PILE_KEYS[@]} ]; do
+	LEGEND="$LEGEND   ${PILE_KEYS[$i]} ${PILE_LABELS[$i]}"
+	i=$((i + 1))
+done
+
+# Sets PILE_IDX to the pile bound to a key; returns non-zero when unbound.
+PILE_IDX=-1
+pile_index() {
+	local want=$1 i=0
+	PILE_IDX=-1
+	while [ $i -lt ${#PILE_KEYS[@]} ]; do
+		if [ "$want" = "${PILE_KEYS[$i]}" ]; then
+			PILE_IDX=$i
+			return 0
+		fi
+		i=$((i + 1))
+	done
+	return 1
+}
+
+# Keypresses come from the tty, not stdin, so a piped file list still leaves
+# the keyboard available.
+# Braces so bash's own "Device not configured" goes to /dev/null and only the
+# one useful message survives.
+{ exec 3<"/dev/tty"; } 2>/dev/null || die "no tty available for input (needs an interactive terminal)"
+
+total=${#FILES[@]}
+idx=0
+stopped=false
+
+for file in "${FILES[@]}"; do
+	idx=$((idx + 1))
+	[ -f "$file" ] || continue
+
+	show "$file"
+
+	while true; do
+		if [ -n "$STATUS" ]; then
+			printf '%s\n' "$STATUS"
+			STATUS=""
+		fi
+		printf '[%d/%d] %s\n%s\n> ' "$idx" "$total" "$(basename "$file")" "$LEGEND"
+		IFS= read -r -n1 -u3 key || {
+			stopped=true
+			break
+		}
+		printf '\n'
+
+		case $key in
+			1 | '' | ' ')
+				kept=$((kept + 1))
+				break
+				;;
+			x | X)
+				# A failed action means nothing happened, so the image is
+				# still unanswered - redraw and ask rather than advancing.
+				if do_delete "$file"; then
+					break
+				fi
+				show "$file"
+				continue
+				;;
+			u | U)
+				do_undo
+				# Undo addresses the previous image, so this one still needs
+				# an answer - redraw and ask again rather than advancing.
+				show "$file"
+				continue
+				;;
+			q | Q | $'\004')
+				# \004 is Ctrl-D: -n1 reads it as a byte rather than EOF, and
+				# quitting is what anyone pressing it means.
+				stopped=true
+				break
+				;;
+			$'\e')
+				# Arrow keys and friends arrive as an escape sequence, so Esc
+				# can't be quit without a stray cursor key ending the walk.
+				continue
+				;;
+			*)
+				if ! pile_index "$key"; then
+					STATUS="Unbound key"
+					continue
+				fi
+				# Same shape as the delete branch above: advance only if the
+				# move actually happened.
+				if do_file "$file" "${PILE_DIRS[$PILE_IDX]}" "${PILE_LABELS[$PILE_IDX]}"; then
+					break
+				fi
+				show "$file"
+				continue
+				;;
+		esac
+	done
+
+	[ "$stopped" = true ] && break
+done
+
+exec 3<&-
+tput clear 2>/dev/null
+
+summary="$kept kept, $filed filed, $deleted deleted"
+[ "$undone" -gt 0 ] && summary="$summary ($undone undone)"
+[ "$stopped" = true ] && summary="$summary - stopped at $idx/$total"
+
+if command -v triage_finish >/dev/null 2>&1; then
+	triage_finish
+fi
+
+# The last action's feedback has no next prompt to appear on, so it would
+# otherwise be swallowed by the clear above.
+[ -n "$STATUS" ] && printf '%s\n' "$STATUS"
+
+echo "$summary"
+
+# Only notify when something actually moved. The summary is already on screen
+# in front of you, so a notification for a walk that changed nothing is noise.
+if [ "$filed" -gt 0 ] || [ "$deleted" -gt 0 ] || [ "$undone" -gt 0 ]; then
+	notify "Image triage" "$summary"
+fi
