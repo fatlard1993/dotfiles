@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+ensureBun
+syncRepo https://github.com/fatlard1993/home-page.git $HOME/Projects/home-page
+
+(cd $HOME/Projects/home-page ; bun install)
+
+if ! launchctl print gui/$(id -u)/com.justfatlard.home-page &> /dev/null; then
+	echo "Enabling home-page service"
+
+	(cd $HOME/Projects/home-page ; bun scripts/service.js enable)
+elif [[ $repoUpdated == true ]]; then
+	echo "Reloading home-page service"
+
+	(cd $HOME/Projects/home-page ; bun scripts/service.js reload)
+fi
