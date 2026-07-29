@@ -4,8 +4,13 @@
 # Mission Control                                                             #
 ###############################################################################
 
-# Speed up Mission Control animations
-defaults write com.apple.dock expose-animation-duration -float 0.1
+# Speed up Mission Control animations - and the Space-switch swoosh
+# specifically, which this key alone doesn't cover. Dropped to near-zero
+# (from 0.1) so manually switching Spaces (there's no way to update a
+# Space's wallpaper without actually visiting it - see macos/README.md's
+# Wallpaper section) feels close to instant instead of a visible slide.
+defaults write com.apple.dock expose-animation-duration -float 0.001
+defaults write com.apple.dock workspaces-swoosh-animation-off -bool true
 
 # Don’t group windows by application in Mission Control
 # (i.e. use the old Exposé behavior instead)

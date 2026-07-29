@@ -90,48 +90,62 @@ authorization (OAuth, browser round-trip).
 
 ## Wallpaper
 
-macOS port of ubuntu's reddit-scraped wallpaper pool (`ubuntu/bin/wallpaper*`),
-same download/dedup engine, different per-desktop mechanism:
+macOS port of ubuntu's reddit-scraped wallpaper pool (`ubuntu/bin/wallpaper*`)
+for the download/dedup half only - per-desktop rotation is native macOS
+Shuffle instead of a scripted equivalent, for reasons worth recording since
+they cost real time to confirm:
 
 * `bin/wallpaper get [count] [subreddit]` — scrape/download/dedup into
   `~/Pictures/Wallpapers` (md5 exact-dupe + perceptual hash for reposts).
+  Same engine as the ubuntu version, portable bash+wget+imagemagick+md5sum.
   Reddit now rejects a generic User-Agent (403) and rate-limits fairly
   aggressively even with one set (429, seen firsthand pulling ~8 images in
   quick succession) - `get`'s own subreddit-cycling retry doesn't help
   against a 429, just wait a bit.
-* `bin/wallpaper-space <space-index> [image]` — assign one yabai Space a
-  wallpaper. One-shot, not a daemon: confirmed live that macOS keeps a
-  wallpaper distinct per Space once set while that Space is focused,
-  unlike bspwm (one shared X11 root window, hence
-  `wallpaper-per-desktop`'s feh + repaint-on-focus-event daemon over
-  there). Has to actually focus the Space to do it - `set picture of
-  desktop` only ever applies to whichever Space is currently active -
-  and verifies the focus landed before writing anything: yabai's
-  `--focus` can silently fail right after a prior switch ("cannot focus
-  space because mission-control is active"), which otherwise paints the
-  wrong Space with no error.
-* `bin/wallpaper-rotate-all` / `bin/wallpaper-next` — thin wrappers, all
-  map handling lives in wallpaper-space. rotate-all visibly flips through
-  every Space (no way to address a non-focused one) and restores whatever
-  was focused beforehand when done.
-* Hourly auto-rotation: `com.justfatlard.wallpaper-rotate.plist`
-  (StartCalendarInterval, Minute=0), installed by dot-update.d/wallpaper -
-  simpler than ubuntu's sleep-loop daemon since launchd handles the timing
-  natively.
-* `bin/wallpaper-triage` — keep/stash/delete/undo walk, same
+* `bin/wallpaper-triage` — keep/stash/delete/undo walk over the pool, same
   blacklist/journal logic as the ubuntu version. Viewer is `kitty +kitten
   icat` (renders inline in the same terminal) rather than feh's fullscreen
   slideshow - a qlmanage-based version worked but needed an extra
   close-the-window step per image; icat needs only the prompt.
 
+**Per-desktop assignment is manual, one-time, native Shuffle** - System
+Settings > Wallpaper > pick `~/Pictures/Wallpapers` as the source > enable
+Shuffle, done once per Space. No script drives this, and that's deliberate,
+not a shortcut:
+
+* macOS *does* keep a distinct wallpaper per Space (confirmed with a
+  solid-color test - unlike bspwm, which has one shared X11 root window and
+  needs `wallpaper-per-desktop`'s feh + repaint-on-focus-event daemon to
+  fake it), and there's a real private per-Space store
+  (`~/Library/Application Support/com.apple.wallpaper/Store/Index.plist`,
+  keyed by the same UUIDs `yabai -m query --spaces` reports) that looked
+  promising to script directly.
+* But a Space's wallpaper only ever actually repaints while that Space is
+  focused - confirmed twice, with two different store provider types
+  (`imageFile` and `imageFolder`, the latter being exactly what native
+  Shuffle itself writes) and a WallpaperAgent restart in between. Editing
+  the store for a non-focused Space, then later focusing it normally
+  (no script involved), still showed the stale wallpaper both times. That
+  means the caching lives deeper than WallpaperAgent - likely a
+  WindowServer-level per-Space snapshot - and there's no signal available
+  to invalidate it without actually visiting the Space.
+* So a script driving rotation can only ever flip visibly through every
+  Space to update it, via yabai focus + `osascript ... set picture of
+  desktop`(which does work, immediately, for whichever Space is currently
+  focused) - same visible cost as just doing the one-time Shuffle setup by
+  hand and letting the OS own the timing from there, without a script
+  fighting it. `workspaces-swoosh-animation-off` + a near-zero
+  `expose-animation-duration` (macos-config.d/mission-control) make manual
+  Space-switching itself feel closer to instant, for whenever you do
+  switch.
+
 All the mac-specific scripts set PATH explicitly at the top rather than
-inheriting it - none of them are ever sourced from an interactive zsh (own
-shebang, or launchd for the hourly rotation), so nothing from
-`.zshenv.d/path` is present. Shebang is the absolute homebrew bash path
-(`/opt/homebrew/bin/bash`), not `/bin/bash` or `env bash` - they use
-associative arrays and `**` globstar (bash 4+), and macOS's system
-`/bin/bash` is a frozen 3.2 that shadows homebrew's by name regardless of
-PATH order.
+inheriting it - neither is ever sourced from an interactive zsh (own
+shebang), so nothing from `.zshenv.d/path` is present. Shebang is the
+absolute homebrew bash path (`/opt/homebrew/bin/bash`), not `/bin/bash` or
+`env bash` - both use associative arrays and `**` globstar (bash 4+), and
+macOS's system `/bin/bash` is a frozen 3.2 that shadows homebrew's by name
+regardless of PATH order.
 
 
 ## Misc Notes

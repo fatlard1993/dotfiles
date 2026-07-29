@@ -35,9 +35,7 @@ shopt -s nullglob
 
 WALLPAPER_DIR=~/Pictures/Wallpapers
 METADATA_FILE=$WALLPAPER_DIR/.metadata
-MAP_FILE=$WALLPAPER_DIR/.space-wallpapers
-BIN_DIR="$HOME/.dotfiles/macos/bin"
-SELF="$BIN_DIR/wallpaper-triage"
+SELF="$HOME/.dotfiles/macos/bin/wallpaper-triage"
 
 # Every stash/delete appends here, so undo has something to pop. Nothing
 # else reads it: the blacklist and the on-disk layout stay the source of
@@ -87,42 +85,6 @@ unblacklist() {
 journal() {
 	local action=$1 sum=$2 orig=$3 src=$4
 	echo "$(date -Iseconds)|$action|$sum|$orig|$src" >>"$JOURNAL"
-}
-
-# Reassigns any Space whose mapped wallpaper no longer exists on disk
-# (just stashed/deleted) - mac equivalent of ubuntu's
-# `wallpaper-per-desktop apply`, which self-heals the same way via
-# wallpaper_for()'s fallback-to-fresh logic. Scoped to just the affected
-# Space(s) rather than a full rotate-all, so triaging one image doesn't
-# flip through every Space on screen.
-heal_spaces() {
-	[ -f "$MAP_FILE" ] || return 0
-
-	# wallpaper-space focuses whatever Space it's told to and leaves it
-	# there - correct for an explicit "set this Space" call, but wrong
-	# here: healing is a side effect of triaging, not something the user
-	# asked to jump to. Found live: without this, closing out a triage
-	# walk that happened to heal Space 7 left the view stranded there.
-	local original_space
-	original_space=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty')
-
-	local line space wallpaper healed=0
-	while IFS=: read -r space wallpaper; do
-		[ -f "$wallpaper" ] && continue
-
-		echo "Space $space's wallpaper is gone - reassigning"
-		"$BIN_DIR/wallpaper-space" "$space"
-		healed=1
-	done < "$MAP_FILE"
-
-	if [ "$healed" -eq 1 ] && [ -n "$original_space" ]; then
-		local tries=0
-		until [ "$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index // empty')" = "$original_space" ] || [ "$tries" -ge 10 ]; do
-			yabai -m space --focus "$original_space" >/dev/null 2>&1
-			sleep 0.3
-			tries=$((tries + 1))
-		done
-	fi
 }
 
 case $1 in
@@ -245,10 +207,6 @@ done
 stashed=$(grep -cx stash "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
 deleted=$(grep -cx delete "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
 undone=$(grep -c '^undo:' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)
-
-if [ "$stashed" -gt 0 ] || [ "$deleted" -gt 0 ]; then
-	heal_spaces
-fi
 
 stashed=$((stashed - $(grep -cx 'undo:stash' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)))
 deleted=$((deleted - $(grep -cx 'undo:delete' "$TRIAGE_COUNT_FILE" 2>/dev/null || echo 0)))
