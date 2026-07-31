@@ -108,6 +108,17 @@ a visible Space-flip:
   slideshow - a qlmanage-based version worked but needed an extra
   close-the-window step per image; icat needs only the prompt.
 
+**The pool refills itself via launchd.** `com.justfatlard.wallpaper.plist` here
+is the template; `dot-update.d/wallpaper` substitutes `__HOME__` (launchd
+expands nothing in `ProgramArguments`), installs it to `~/Library/LaunchAgents`
+and bootstraps it. `RunAtLoad` is the login fetch, `StartCalendarInterval` at
+09/15/21 the recurring one. Ubuntu gets this from `ubuntu/startup.d/wallpaper`
+via bspwm's rc; macOS has no session-startup layer here, so the agent is the
+only thing that calls `get` unasked. `get 5` per slot rather than ubuntu's
+single `get 15` at login, because a burst that size usually ends in a 429 that
+kills the whole run. Logs: `~/Library/Logs/wallpaper.log` for the launchd runs,
+`~/Pictures/Wallpapers/.log` for the per-subreddit journal.
+
 **Per-desktop assignment is manual, one-time, native Shuffle** - System
 Settings > Wallpaper > pick `~/Pictures/Wallpapers` as the source > enable
 Shuffle, done once per Space. No script drives this, and that's deliberate,

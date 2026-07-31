@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Source lives at macos/com.justfatlard.wallpaper.plist and is installed to
+     ~/Library/LaunchAgents by dot-update.d/wallpaper - edit the former, the
+     latter is overwritten. __HOME__ is substituted at install time because
+     launchd expands nothing in ProgramArguments (no ~, no $HOME), so only the
+     installed copy can carry the absolute paths it needs. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.justfatlard.wallpaper</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/.dotfiles/macos/bin/wallpaper</string>
+		<string>get</string>
+		<string>5</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+		<dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>0</integer></dict>
+		<dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+	</array>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/wallpaper.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/wallpaper.log</string>
+</dict>
+</plist>
