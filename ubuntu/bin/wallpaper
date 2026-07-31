@@ -109,19 +109,57 @@ find_phash_duplicate() {
 }
 
 if [ "$COMMAND" = "get" ]; then
-	if [ -s $TMP_DIR/subreddits ]; then
-		read -a SUBREDDITS < $TMP_DIR/subreddits
+	SUBREDDIT_SOURCE=$WALLPAPER_DIR/.subreddits
+
+	# This cache is a per-run working set: when a subreddit turns up nothing,
+	# `get` prunes it from the list and recurses into itself, so the whittled
+	# list has to survive those recursive calls, and nothing beyond them.
+	# Pruning that outlives one run reports accumulated history as today -
+	# "No new images available from any subreddit today" for subreddits that
+	# came up empty days ago - and hides a subreddit added to .subreddits
+	# until the cache drains. Two things expire it: a new day (the scope the
+	# pruning already assumes - see "No new images from $SUBREDDIT today"),
+	# and an edit to the source list.
+	#
+	# The day is carried in the filename rather than checked against the
+	# file's mtime. `date +%F` is portable; `date -r <file>` is GNU-only, and
+	# this engine runs on machines where GNU coreutils is a homebrew formula
+	# rather than a given - a silent fall back to BSD date would read "stale"
+	# every time, which un-prunes the list on every recursive call and turns
+	# an all-empty day into an unbounded retry loop that only stops once
+	# reddit rate-limits it. Pruning the file in place would keep bumping an
+	# mtime anyway.
+	SUBREDDIT_CACHE=$TMP_DIR/subreddits-$(date +%F)
+
+	if [ -s $SUBREDDIT_CACHE ] && [ ! $SUBREDDIT_SOURCE -nt $SUBREDDIT_CACHE ]; then
+		read -a SUBREDDITS < $SUBREDDIT_CACHE
+
+		# Pruning the last name out leaves a whitespace-only file, which is a
+		# different state from an empty source list: it means today's scanning
+		# already worked through every subreddit. Report that and exit clean,
+		# rather than falling through to the check below and calling an
+		# ordinary exhausted day a configuration error.
+		if [ ${#SUBREDDITS[@]} -eq 0 ]; then
+			notify-send "Wallpaper" "No new images available from any subreddit today"
+
+			exit 0
+		fi
 	else
-		if [ -f $WALLPAPER_DIR/.subreddits ]; then
-			read -a SUBREDDITS < $WALLPAPER_DIR/.subreddits
+		if [ -f $SUBREDDIT_SOURCE ]; then
+			read -a SUBREDDITS < $SUBREDDIT_SOURCE
 		else
 			SUBREDDITS=("wallpapers" "ShittyMsPaint")
 		fi
 
-		echo "${SUBREDDITS[*]}" > $TMP_DIR/subreddits
+		# Today's is the only one worth keeping - drop earlier days', and
+		# the undated /tmp/wallpapers/subreddits that predates the dated
+		# naming, rather than letting /tmp collect one per day forever.
+		rm -f $TMP_DIR/subreddits $TMP_DIR/subreddits-*
+
+		echo "${SUBREDDITS[*]}" > $SUBREDDIT_CACHE
 	fi
 
-	if [ ! $SUBREDDITS ]; then
+	if [ ${#SUBREDDITS[@]} -eq 0 ]; then
 		notify-send "Wallpaper" "No subreddits to scan!"
 
 		exit 1
@@ -228,9 +266,9 @@ if [ "$COMMAND" = "get" ]; then
 
 		log_run "$SUBREDDIT" "no-new-images" 0
 
-		sed -i -e "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+		sed -i -e "s/${SUBREDDIT}[ ]*//g" $SUBREDDIT_CACHE
 
-		if [ -n "$(cat $TMP_DIR/subreddits)" ]; then
+		if [ -n "$(cat $SUBREDDIT_CACHE)" ]; then
 			$0 get $IMAGE_COUNT_TO_DOWNLOAD
 		else
 			notify-send "Wallpaper" "No new images available from any subreddit today"
@@ -246,7 +284,7 @@ if [ "$COMMAND" = "get" ]; then
 	if (( DOWNLOADED_COUNT < IMAGE_COUNT_TO_DOWNLOAD )); then
 		(( IMAGE_COUNT_TO_DOWNLOAD = IMAGE_COUNT_TO_DOWNLOAD - DOWNLOADED_COUNT ))
 
-		sed -i -e "s/$SUBREDDIT[ ]*//g" $TMP_DIR/subreddits
+		sed -i -e "s/${SUBREDDIT}[ ]*//g" $SUBREDDIT_CACHE
 
 		$0 get $IMAGE_COUNT_TO_DOWNLOAD
 	fi

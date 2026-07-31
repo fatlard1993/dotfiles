@@ -571,8 +571,10 @@ wallpaper)
 		fi
 
 		if [ -n "$choice" ]; then
+			# Writing the list is the whole invalidation - `wallpaper get`
+			# expires its /tmp working set whenever .subreddits is newer
+			# than it, so there's no cache to bust by hand here.
 			printf '%s\n' "${current_subs[*]}" > "$wallpaper_dir/.subreddits"
-			rm -f /tmp/wallpapers/subreddits
 			notify-send "Wallpaper" "Subreddits: ${current_subs[*]}"
 		fi
 		;;
