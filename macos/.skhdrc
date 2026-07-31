@@ -2,26 +2,36 @@
 # A list of all built-in modifier and literal keywords can be found at
 # https://github.com/koekeishiya/skhd/issues/1
 
+## Modifier policy: alt is the shell's meta prefix, not a window-management
+## modifier. zsh binds ^[b ^[f ^[p ^[g ^[. ^[, (and their uppercase twins,
+## so alt+shift is out too), and kitty maps alt+arrows to word/line motion -
+## skhd grabs keys before the focused app sees them, so anything claimed here
+## is taken away from the shell. Window management therefore lives on:
+##   meh   (ctrl+alt+shift) - window and space focus, per-window toggles
+##   hyper (meh + cmd)      - the destructive twin of a meh bind (swap, zoom)
+##   ctrl+alt               - spaces and resizing
+
 ## KEYBINDS
 #        Key        :        Command
 
 # balance size of windows
-alt + shift - 0     : yabai -m space --balance
+meh - 0             : yabai -m space --balance
 
 # toggle window parent zoom
-alt - b             : yabai -m window --toggle zoom-parent
+meh - b             : yabai -m window --toggle zoom-parent
 
 # toggle window fullscreen zoom
-alt + shift - f             : yabai -m window --toggle zoom-fullscreen
+hyper - f           : yabai -m window --toggle zoom-fullscreen
 
 # toggle window native fullscreen
 meh - f             : yabai -m window --toggle native-fullscreen
 
-# float / unfloat window and restore position
-alt - f             : yabai -m window --toggle float && yabai -m window --grid 4:4:1:1:2:2
+# float / unfloat window and restore position - `s` is bspwm's slot for
+# `bspc node -t floating` in its {t,shift+t,s,f} family
+meh - s             : yabai -m window --toggle float && yabai -m window --grid 4:4:1:1:2:2
 
 # toggle picture-in-picture
-alt - p             : yabai -m window --toggle border && yabai -m window --toggle pip
+meh - p             : yabai -m window --toggle border && yabai -m window --toggle pip
 
 meh - 1             : yabai -m config focus_follows_mouse autoraise
 meh - q             : yabai -m config focus_follows_mouse off
@@ -29,7 +39,7 @@ meh - q             : yabai -m config focus_follows_mouse off
 ctrl + alt - f      : yabai -m window --toggle topmost; yabai -m window --toggle zoom-fullscreen; yabai -m window --toggle topmost
 
 # smart paste: dedent + reflow prose, then paste
-meh - v       : $HOME/.dotfiles/bin/prose-paste
+meh - v             : $HOME/.dotfiles/bin/prose-paste
 
 ## Parity with ubuntu/.sxhkdrc's bspwm bindings - closing the gap between
 ## the two setups where yabai/skhd genuinely support the equivalent, per
@@ -40,25 +50,28 @@ meh - v       : $HOME/.dotfiles/bin/prose-paste
 ## an oversight.
 
 # focus window by direction (bspc node -f {west,south,north,east})
-alt - left          : yabai -m window --focus west
-alt - down          : yabai -m window --focus south
-alt - up            : yabai -m window --focus north
-alt - right         : yabai -m window --focus east
+meh - left          : yabai -m window --focus west
+meh - down          : yabai -m window --focus south
+meh - up            : yabai -m window --focus north
+meh - right         : yabai -m window --focus east
 
-# swap window by direction (bspc node -s {west,south,north,east})
-alt + shift - left  : yabai -m window --swap west
-alt + shift - down  : yabai -m window --swap south
-alt + shift - up    : yabai -m window --swap north
-alt + shift - right : yabai -m window --swap east
+# swap window by direction (bspc node -s {west,south,north,east}). bspwm adds
+# shift to the focus bind; meh already carries shift, so this takes cmd on top
+# instead - a separate thumb key, which also keeps a slipped modifier from
+# turning a focus move into a layout change
+hyper - left        : yabai -m window --swap west
+hyper - down        : yabai -m window --swap south
+hyper - up          : yabai -m window --swap north
+hyper - right       : yabai -m window --swap east
 
 # focus prev/next/last space (bspc desktop -f {prev,next}.local / last).
 # skhd's key-literal list (github.com/koekeishiya/skhd/issues/1) has no
 # "comma"/"period" name - only return/tab/space/backspace/escape/arrows/
 # f-keys/media keys - so these are the raw ANSI virtual keycodes instead
 # (kVK_ANSI_Comma/kVK_ANSI_Period).
-alt - 0x2B          : yabai -m space --focus prev
-alt - 0x2F          : yabai -m space --focus next
-alt - tab           : yabai -m space --focus recent
+meh - 0x2B          : yabai -m space --focus prev
+meh - 0x2F          : yabai -m space --focus next
+meh - tab           : yabai -m space --focus recent
 
 # send the focused window to space N, keeping focus where it was (bspwm's
 # super+ctrl+{1-9}) - cmd+{1-9} itself is the native macOS switch-to-desktop-N
@@ -85,10 +98,10 @@ ctrl + alt - d      : yabai -m window --resize right:20:0
 
 # toggle tiled/monocle layout (bspc desktop -l next) - yabai has no "next"
 # for --layout, see bin/yabai-layout-toggle
-alt - m             : $HOME/.dotfiles/macos/bin/yabai-layout-toggle
+meh - m             : $HOME/.dotfiles/macos/bin/yabai-layout-toggle
 
 # swap the focused window with the biggest one (bspc node -s biggest.window)
-alt - g             : yabai -m window --swap largest
+meh - g             : yabai -m window --swap largest
 
 # reload yabai + skhd (bspwm's super+ctrl+escape)
-alt + shift - r     : yabai --restart-service; skhd --restart-service
+meh - r             : yabai --restart-service; skhd --restart-service
