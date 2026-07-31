@@ -21,35 +21,7 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 	# bursts a fresh RSS fetch per remaining subreddit and gives up on the
 	# first 429. Spacing the same daily volume out keeps each run under the
 	# limit, and a throttled slot costs one fetch instead of the day's.
-	wallpaperAgent=com.justfatlard.wallpaper
-	wallpaperPlist=$HOME/Library/LaunchAgents/$wallpaperAgent.plist
-	wallpaperPlistBody=$(sed "s|__HOME__|$HOME|g" $HOME/.dotfiles/macos/$wallpaperAgent.plist)
-	wallpaperPlistChanged=false
-
-	if [[ $wallpaperPlistBody != "$(cat $wallpaperPlist 2> /dev/null)" ]]; then
-		mkdir -p $HOME/Library/LaunchAgents
-		print -r -- "$wallpaperPlistBody" > $wallpaperPlist
-
-		wallpaperPlistChanged=true
-	fi
-
-	# Reloading is gated on the plist actually changing, not done every run:
-	# bootstrap honors RunAtLoad, so an unconditional re-bootstrap would fire
-	# a fetch on every dot-update - the exact bursty pattern the spaced
-	# schedule exists to avoid.
-	if [[ $wallpaperPlistChanged == true ]]; then
-		echo "Installing wallpaper fetch service"
-
-		# bootout fails when nothing is loaded yet (first install), which is
-		# not an error worth surfacing - the bootstrap below is what has to
-		# succeed.
-		launchctl bootout gui/$(id -u)/$wallpaperAgent 2> /dev/null
-		launchctl bootstrap gui/$(id -u) $wallpaperPlist
-	elif ! launchctl print gui/$(id -u)/$wallpaperAgent &> /dev/null; then
-		echo "Enabling wallpaper fetch service"
-
-		launchctl bootstrap gui/$(id -u) $wallpaperPlist
-	fi
+	installLaunchAgent com.justfatlard.wallpaper
 }
 
 # Per-Space rotation is native macOS Shuffle (System Settings > Wallpaper >

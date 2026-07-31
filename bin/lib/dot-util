@@ -167,6 +167,36 @@ syncRepo() {
 	fi
 }
 
+# macOS counterpart to a systemd user unit: installs macos/<label>.plist to
+# ~/Library/LaunchAgents and loads it. The repo copy is a template because
+# launchd expands nothing in ProgramArguments (no ~, no $HOME), so __HOME__ is
+# substituted here and only the installed copy carries absolute paths.
+#
+# Reloading is gated on the plist actually changing - bootstrap honors
+# RunAtLoad, so re-bootstrapping unconditionally runs the job every time
+# dot-update does, whatever that job costs.
+installLaunchAgent() {
+	local label=$1
+	local plist=$HOME/Library/LaunchAgents/$label.plist
+	local body=$(sed "s|__HOME__|$HOME|g" $HOME/.dotfiles/macos/$label.plist)
+
+	if [[ $body != "$(cat $plist 2> /dev/null)" ]]; then
+		echo "Installing $label"
+
+		mkdir -p $HOME/Library/LaunchAgents
+		print -r -- "$body" > $plist
+
+		# bootout fails when nothing is loaded yet (first install), which is
+		# not an error worth surfacing - the bootstrap below has to succeed.
+		launchctl bootout gui/$(id -u)/$label 2> /dev/null
+		launchctl bootstrap gui/$(id -u) $plist
+	elif ! launchctl print gui/$(id -u)/$label &> /dev/null; then
+		echo "Enabling $label"
+
+		launchctl bootstrap gui/$(id -u) $plist
+	fi
+}
+
 # User units that must run from boot / survive logout need lingering; every
 # hook that relies on it asserts it rather than trusting another hook ran.
 ensureLinger() {
