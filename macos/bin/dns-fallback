@@ -1,0 +1,81 @@
+#!/opt/homebrew/bin/bash
+# Adds public resolvers behind the current network's router, so a router that
+# stops answering DNS is survivable instead of total.
+#
+# Deliberately NOT wired into dot-update, and that is the whole design note:
+# macOS static DNS is per network *service* (Wi-Fi), not per SSID. A list
+# pinned to a home router follows the laptop everywhere, and on any other
+# network that first entry either does not exist - stalling every lookup on a
+# timeout before it falls through - or belongs to a stranger. So this is a
+# thing you run knowingly, on a network you stay on, and undo with --clear
+# before living somewhere else.
+#
+# Worth running here because the fault is measured: this router drops roughly
+# 1 DNS query in 10 where a public resolver drops 0 (bin/dns-snapshot's loss
+# rate section, and macos/README.md's DNS notes for what that does to
+# mDNSResponder). Setting the same thing at the router's DHCP - itself
+# primary, a public resolver secondary - beats this script outright: every
+# device gets the fallback, and nothing has to be undone before travelling.
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+FALLBACKS=(1.1.1.1 8.8.8.8)
+
+# The service name behind the active interface - "Wi-Fi" is the usual answer
+# but hardcoding it breaks on ethernet/dock, and networksetup keys everything
+# by service name rather than by device.
+active_service() {
+	local dev
+	dev=$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')
+
+	[ -z "$dev" ] && return 1
+
+	networksetup -listnetworkserviceorder 2>/dev/null \
+		| awk -v dev="$dev" '
+			/^\([0-9]+\)/ { name = substr($0, index($0, " ") + 1) }
+			$0 ~ "Device: " dev "\\)" { print name; exit }
+		'
+}
+
+service=$(active_service)
+
+if [ -z "$service" ]; then
+	echo "No active network service (offline?)"
+
+	exit 1
+fi
+
+case "$1" in
+	--clear)
+		echo "Restoring DHCP-provided DNS on $service"
+
+		sudo networksetup -setdnsservers "$service" empty
+		;;
+	--status)
+		echo "service: $service"
+		echo "dns:     $(networksetup -getdnsservers "$service" 2>&1 | tr '\n' ' ')"
+		echo "router:  $(route -n get default 2>/dev/null | awk '/gateway:/{print $2; exit}')"
+		;;
+	"")
+		gateway=$(route -n get default 2>/dev/null | awk '/gateway:/{print $2; exit}')
+
+		if [ -z "$gateway" ]; then
+			echo "No default gateway to put first"
+
+			exit 1
+		fi
+
+		# Router first so local names (the .lan search domain) keep resolving;
+		# the public ones only get consulted when it fails to answer.
+		echo "Setting DNS on $service to: $gateway ${FALLBACKS[*]}"
+
+		sudo networksetup -setdnsservers "$service" "$gateway" "${FALLBACKS[@]}"
+
+		echo "Undo with: dns-fallback --clear"
+		;;
+	*)
+		echo "Usage: dns-fallback [--clear|--status]"
+		echo "  (no args)  pin <current router> + ${FALLBACKS[*]} on the active service"
+		echo "  --clear    hand DNS back to DHCP"
+		echo "  --status   what is set right now"
+		;;
+esac

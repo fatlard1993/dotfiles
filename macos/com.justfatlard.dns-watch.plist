@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Source lives at macos/com.justfatlard.dns-watch.plist and is installed to
+     ~/Library/LaunchAgents by dot-update.d/dns-watch - edit the former, the
+     latter is overwritten. __HOME__ is substituted at install time because
+     launchd expands nothing in ProgramArguments (no ~, no $HOME), so only the
+     installed copy can carry the absolute paths it needs.
+
+     StartInterval rather than StartCalendarInterval: the fault is intermittent
+     and self-heals within minutes, so catching it needs a rolling probe, not
+     fixed times of day. Five minutes is the trade between catching a short
+     window and running a getaddrinfo call all day for nothing - the probe
+     exits immediately when the router is unreachable or any host resolves. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.justfatlard.dns-watch</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/.dotfiles/macos/bin/dns-snapshot</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StartInterval</key>
+	<integer>300</integer>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/dns-watch.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/dns-watch.log</string>
+</dict>
+</plist>

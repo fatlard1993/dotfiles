@@ -157,6 +157,37 @@ macOS's system `/bin/bash` is a frozen 3.2 that shadows homebrew's by name
 regardless of PATH order.
 
 
+## DNS
+
+Name resolution here drops out for minutes at a time and then heals itself,
+which is exactly the shape that resists diagnosis - by the time you look,
+`scutil`, mDNSResponder and the interfaces have all recovered.
+
+**The router is the fault.** It answers ICMP flawlessly while dropping roughly
+1 DNS query in 10, against 0 in 10 for a public resolver. mDNSResponder
+responds to a resolver that lossy by marking it unresponsive and backing off,
+which is how a manual `dig` succeeds mid-outage while every normal program
+fails - and why the two look like unrelated problems.
+
+* `bin/dns-snapshot` — probes `getaddrinfo`, the call curl/git/wget make;
+  `dig` talks UDP straight to the nameserver, so it keeps answering when
+  mDNSResponder is the broken part. Writes to `~/Library/Logs/dns-snapshots`
+  when every probe host fails while the router still answers pings. `--force`
+  captures now, `--list`/`--show` read back, and `com.justfatlard.dns-watch`
+  runs the probe every 5 minutes.
+* Observe only. Flushing the cache or HUPing mDNSResponder on detection would
+  clear the evidence; heal by hand once a snapshot has named the cause.
+* `bin/dns-fallback` puts the current router first and 1.1.1.1/8.8.8.8 behind
+  it on the active service; `--clear` hands DNS back to DHCP. Not wired into
+  `dot-update` on purpose: macOS static DNS is per network *service*, not per
+  SSID, so a list pinned to a home router follows the laptop onto every other
+  network, where the first entry either doesn't exist - stalling each lookup
+  on a timeout before it falls through - or belongs to a stranger.
+* Better than either: set the router's own DHCP to hand out itself as primary
+  and a public resolver as secondary. Every device gets the fallback, and
+  there is nothing per-machine to undo before travelling.
+
+
 ## Misc Notes
 
 * Fix zsh error complaint: https://stackoverflow.com/questions/13762280/zsh-compinit-insecure-directories

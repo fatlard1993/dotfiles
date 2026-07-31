@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Intermittent, self-healing DNS failures leave nothing behind to diagnose -
+# the probe runs on an interval so the next occurrence is captured while it is
+# still happening. See macos/bin/dns-snapshot for what it records and why it
+# only observes.
+installLaunchAgent com.justfatlard.dns-watch

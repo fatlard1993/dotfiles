@@ -1,0 +1,203 @@
+#!/opt/homebrew/bin/bash
+# Captures the state of the resolver stack at the moment name resolution
+# breaks. Exists because the failure is intermittent and self-healing: by the
+# time it's noticed, scutil/mDNSResponder/interface state has already
+# recovered, so every after-the-fact investigation is guesswork.
+#
+# Observe only - deliberately does not flush the cache or HUP mDNSResponder.
+# A watchdog that heals on detection destroys the evidence this collects; heal
+# by hand once a snapshot has named the cause.
+#
+# The distinction it exists to settle: `dig` talks UDP straight to the
+# nameserver, while curl/git/wget go through getaddrinfo -> mDNSResponder. A
+# failure where dig answers and getaddrinfo doesn't is mDNSResponder; one
+# where neither answers is the network or the router.
+#
+# Sections run verdict-first: which layer broke, then whether the router is
+# the reason, then the state that explains either.
+#
+# PATH is explicit - launchd runs this with a near-empty environment, and none
+# of .zshenv.d/path applies (own shebang, never sourced from an interactive
+# zsh). Shebang is homebrew bash for the same bash-4 reasons as bin/wallpaper.
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin
+
+SNAPSHOT_DIR=$HOME/Library/Logs/dns-snapshots
+PROBE_HOSTS=(github.com apple.com cloudflare.com)
+
+mkdir -p "$SNAPSHOT_DIR"
+
+# The exact call curl/git/wget make, rather than a stand-in: dig would pass
+# while the thing that actually breaks fails.
+resolves() {
+	python3 -c 'import socket,sys; socket.getaddrinfo(sys.argv[1], 443)' "$1" 2>/dev/null
+}
+
+router() {
+	route -n get default 2>/dev/null | awk '/gateway:/{print $2; exit}'
+}
+
+# Every lookup here reports FAIL rather than going blank on failure. A blank
+# column reads as "nothing to report" at a glance, which is the opposite of
+# what an empty answer means.
+dig_one() {
+	local answer
+	answer=$(dig +short +time=2 +tries=1 "$@" 2>/dev/null | tail -1)
+
+	case "$answer" in
+		''|*"timed out"*|*"no servers"*) echo FAIL ;;
+		*) echo "$answer" ;;
+	esac
+}
+
+capture() {
+	local reason=$1
+	local stamp
+	stamp=$(date +%Y-%m-%dT%H-%M-%S)
+	local out=$SNAPSHOT_DIR/$stamp.txt
+	local gw
+	gw=$(router)
+
+	{
+		echo "# dns-snapshot $stamp"
+		echo "# reason: $reason"
+		echo
+
+		# First, because it names which layer to go read about below.
+		echo "## which layer: same host, three paths"
+		echo "   (getaddrinfo FAIL + dig ok = mDNSResponder; both FAIL = network/router)"
+		for host in "${PROBE_HOSTS[@]}"; do
+			printf '  %-18s getaddrinfo=%-5s dig=%-16s dscacheutil=%s\n' "$host" \
+				"$(resolves "$host" && echo ok || echo FAIL)" \
+				"$(dig_one "$host")" \
+				"$(dscacheutil -q host -a name "$host" 2>/dev/null | awk '/ip_address/{print $2; exit}' || echo FAIL)"
+		done
+		echo
+
+		# Second, because a router can answer ICMP flawlessly while dropping a
+		# steady fraction of DNS queries, and a single lucky dig hides that
+		# completely. Measured against a public resolver in the same breath so
+		# a bad local link doesn't read as a bad router.
+		echo "## resolver loss rate, 10 queries each"
+		echo "   (public should be 0/10; anything above 0 for the router is the fault)"
+		for server in "$gw" 1.1.1.1; do
+			[ -z "$server" ] && continue
+
+			fails=0
+
+			for _ in $(seq 1 10); do
+				[ "$(dig_one "@$server" github.com)" = FAIL ] && fails=$((fails + 1))
+			done
+
+			printf '  %-16s %s/10 failed\n' "$server" "$fails"
+		done
+		echo
+
+		# Worth checking even though nothing has yet been found scoping the
+		# resolver on this machine - a VPN or relay claiming resolver #1 is the
+		# one cause that would look identical from every angle above.
+		echo "## resolver config (resolver #1 is what getaddrinfo prefers)"
+		scutil --dns 2>&1 | sed -n '1,40p'
+		echo
+
+		echo "## router $gw"
+		[ -n "$gw" ] && ping -c2 -t3 "$gw" 2>&1 | tail -3
+		echo
+
+		# Roaming and sleep/wake are the two usual triggers for mDNSResponder
+		# wedging, and both leave a timestamp worth lining up against the one
+		# in this filename.
+		#
+		# SSID/BSSID come back <redacted> unless the calling process holds
+		# Location Services authorization, which a launchd agent does not - so
+		# this records association state, not which network.
+		echo "## wifi (SSID redacted without Location Services auth)"
+		ipconfig getsummary en0 2>/dev/null | grep -E 'SSID|BSSID' | head -2 || echo "  (no wifi summary)"
+		echo "## recent sleep/wake"
+		pmset -g log 2>/dev/null | grep -E '^[0-9-]+ [0-9:]+ [-+0-9]+ (Wake|DarkWake|Sleep) ' | tail -5 || echo "  (unavailable)"
+		echo
+
+		echo "## mDNSResponder"
+		mdns_pid=$(pgrep -x mDNSResponder | head -1)
+		if [ -n "$mdns_pid" ]; then
+			ps -o pid,etime,command -p "$mdns_pid" 2>&1 | tail -2
+			echo "  (etime under ~10m means it restarted, and a restart is itself the event)"
+		else
+			echo "  not running"
+		fi
+		echo
+
+		echo "## dns service config"
+		networksetup -getdnsservers Wi-Fi 2>&1
+		echo "## resolv.conf"
+		grep -v '^#' /etc/resolv.conf 2>&1
+		echo
+
+		echo "## interfaces with addresses"
+		ifconfig 2>/dev/null | awk '/^[a-z]/{i=$1} /inet /{print "  " i " " $2}'
+		echo
+
+		# Works from a normal terminal; may return nothing under a restricted
+		# launchd context, which is why its absence is labelled rather than
+		# left to look like silence.
+		echo "## mDNSResponder log, last 10m"
+		local mlog
+		mlog=$(log show --last 10m --predicate 'process == "mDNSResponder"' --style compact 2>/dev/null | tail -30)
+		echo "${mlog:-  (log show returned nothing - not proof of quiet, it is often unavailable to non-interactive processes)}"
+	} > "$out" 2>&1
+
+	echo "$out"
+}
+
+case "$1" in
+	--force)
+		echo "Captured: $(capture "manual --force")"
+		;;
+	--list)
+		# Counted rather than piped straight to ls: an empty directory makes
+		# ls exit 0 with no output, so a `|| echo` fallback never fires and
+		# "no snapshots" looks identical to a broken command.
+		snapshots=("$SNAPSHOT_DIR"/*.txt)
+
+		if [ -e "${snapshots[0]}" ]; then
+			ls -1t "$SNAPSHOT_DIR"/*.txt | head -20
+		else
+			echo "No snapshots yet"
+		fi
+		;;
+	--show)
+		latest=$(ls -1t "$SNAPSHOT_DIR"/*.txt 2>/dev/null | head -1)
+
+		[ -n "$latest" ] && cat "$latest" || echo "No snapshots yet"
+		;;
+	"")
+		# Being offline is not a DNS fault, and a laptop is offline often -
+		# snapshotting every closed lid would bury the one capture that
+		# matters. An unreachable router means there is nothing to diagnose.
+		gw=$(router)
+
+		if [ -z "$gw" ] || ! ping -c1 -t2 "$gw" > /dev/null 2>&1; then
+			exit 0
+		fi
+
+		for host in "${PROBE_HOSTS[@]}"; do
+			resolves "$host" && exit 0
+		done
+
+		# Every probe host failed while the router answers pings: this is the
+		# state worth a snapshot.
+		out=$(capture "probe: getaddrinfo failed for all of ${PROBE_HOSTS[*]} with router $gw reachable")
+
+		osascript -e "display notification \"Captured $(basename "$out")\" with title \"DNS resolution failed\"" > /dev/null 2>&1
+
+		echo "DNS probe failed - captured $out"
+
+		exit 1
+		;;
+	*)
+		echo "Usage: dns-snapshot [--force|--list|--show]"
+		echo "  (no args)  probe; capture only if getaddrinfo fails while the router answers"
+		echo "  --force    capture now, whatever the current state"
+		echo "  --list     recent snapshots"
+		echo "  --show     print the most recent snapshot"
+		;;
+esac
