@@ -4,10 +4,6 @@
 [[ -n "$CLAUDECODE" ]] && return
 
 _prompt_newline=$'\n'
-# gdate is Homebrew's name for GNU date on macOS; Linux date is already GNU.
-# Only _prompt_lastCommand's >60s formatting needs it, which is why a
-# missing gdate hid until the first multi-minute command finished.
-_prompt_gnuDate=$(command -v gdate || command -v date)
 _prompt_directory="%F{blue}[%~]%f"
 _prompt_time="[%*]"
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -244,10 +240,15 @@ _prompt_lastCommand() {
   if [[ "$lastCommandSeconds" = "" ]]; then
     echo ""
   elif (( $lastCommandSeconds > 3600 )); then
-    local lastCommandHours=$( -d@${lastCommandSeconds} -u +%H:%M:%S)
+    local lastCommandHours=$(printf '%02d:%02d:%02d' \
+      $((lastCommandSeconds / 3600)) \
+      $((lastCommandSeconds % 3600 / 60)) \
+      $((lastCommandSeconds % 60)))
     echo "┗${lastCommand}[${lastCommandHours}]"
   elif (( $lastCommandSeconds > 60 )); then
-    local lastCommandMinutes=$( -d@${lastCommandSeconds} -u +%M:%S)
+    local lastCommandMinutes=$(printf '%02d:%02d' \
+      $((lastCommandSeconds / 60)) \
+      $((lastCommandSeconds % 60)))
     echo "┗${lastCommand}[${lastCommandMinutes}]"
   else
     echo "┗${lastCommand}[${lastCommandSeconds}s]"
