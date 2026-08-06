@@ -1,0 +1,354 @@
+#!/usr/bin/env node
+// ctx-unused-deps — declared dependencies never imported in source
+//
+// Auto-detects from project root:
+//   Node/Bun: package.json  (dependencies, devDependencies)
+//   Python:   requirements.txt, pyproject.toml, Pipfile
+//
+// Usage: ctx-unused-deps [path]
+
+const { execSync } = require('child_process')
+const path = require('path')
+const fs = require('fs')
+
+const args = process.argv.slice(2)
+const targetPath = path.resolve(args.find(a => !a.startsWith('--')) || '.')
+
+// ---------------------------------------------------------------------------
+// File helpers
+// ---------------------------------------------------------------------------
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'es', 'lib', 'umd',
+                           '.git', '__pycache__', '.venv', 'venv', 'env', '.env',
+                           'report', 'reports', 'coverage', 'public', 'static', '.nyc_output', '.ci'])
+
+function collectFiles(dir, exts) {
+  const out = []
+  function walk(d) {
+    let entries
+    try { entries = fs.readdirSync(d, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue
+      const full = path.join(d, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (exts.some(x => e.name.endsWith(x))) out.push(full)
+    }
+  }
+  walk(dir)
+  return out
+}
+
+function findUp(name, from) {
+  let dir = from
+  while (dir !== path.dirname(dir)) {
+    const c = path.join(dir, name)
+    if (fs.existsSync(c)) return c
+    dir = path.dirname(dir)
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Node / Bun
+// ---------------------------------------------------------------------------
+const JS_RE = [
+  /from\s+['"]([^'"]+)['"]/g,               // import x from 'pkg'
+  /require\s*\(\s*['"]([^'"]+)['"]/g,        // require('pkg')
+  /import\s*\(\s*['"]([^'"]+)['"]/g,         // import('pkg')
+  /^\s*import\s+['"]([^'"]+)['"]/gm,         // import 'pkg'  (side-effect)
+]
+
+function pkgName(spec) {
+  if (!spec || spec.startsWith('.') || spec.startsWith('/')) return null
+  return spec.startsWith('@')
+    ? spec.split('/').slice(0, 2).join('/')
+    : spec.split('/')[0]
+}
+
+function scanNodeImports(root) {
+  const used = new Set()
+  for (const fp of collectFiles(root, ['.ts', '.tsx', '.js', '.jsx', '.mjs'])) {
+    let raw
+    try { raw = fs.readFileSync(fp, 'utf8') } catch { continue }
+    const content = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\r\n]*/g, '')
+    for (const re of JS_RE) {
+      re.lastIndex = 0
+      let m
+      while ((m = re.exec(content)) !== null) {
+        const p = pkgName(m[1])
+        if (p) used.add(p)
+      }
+    }
+  }
+  return used
+}
+
+// Packages that are typically tool-only (never imported in source)
+const NODE_TOOLS = new Set([
+  'typescript', 'ts-node', 'ts-morph', 'eslint', 'prettier', 'biome',
+  'jest', 'vitest', 'mocha', 'chai', 'sinon', 'ava', 'tap', 'jasmine',
+  'nyc', 'c8', 'istanbul', 'rollup', 'vite', 'webpack', 'esbuild',
+  'parcel', '@babel/core', 'babel', 'swc', 'husky', 'lint-staged',
+  'commitlint', 'rimraf', 'cross-env', 'concurrently', 'nodemon',
+  'degit', 'release-it', 'semantic-release', 'lerna', 'turbo', 'nx',
+  'bats', 'shellcheck', 'depcheck',
+])
+const isTool = n => NODE_TOOLS.has(n) ||
+                    n.startsWith('@types/') ||         // type-only, never imported
+                    n.startsWith('@babel/plugin-') ||  // babel transforms, config-only
+                    n.startsWith('@babel/preset-') ||  // babel presets, config-only
+                    n.startsWith('eslint-plugin-') ||  // eslint plugins, config-only
+                    n.startsWith('eslint-config-') ||  // eslint configs, config-only
+                    n.startsWith('@eslint/') ||        // eslint core packages, config-only
+                    n === 'globals' ||                 // used in eslint config, not source
+                    n.endsWith('-types') ||            // type packages (bun-types etc.)
+                    n.endsWith('-registrator') ||      // test environment setup
+                    [...NODE_TOOLS].some(t => n.startsWith(t + '/'))
+
+function checkNode(pkgPath, root) {
+  let pkg
+  try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) } catch { return }
+
+  const used = scanNodeImports(root)
+
+  const sections = [
+    ['dependencies',         pkg.dependencies         || {}],
+    ['devDependencies',      pkg.devDependencies      || {}],
+    ['optionalDependencies', pkg.optionalDependencies || {}],
+  ]
+
+  console.log('### Node.js / Bun  (package.json)')
+  console.log()
+
+  let anyUnused = false
+  for (const [section, deps] of sections) {
+    for (const name of Object.keys(deps).sort()) {
+      if (used.has(name)) continue
+      if (section === 'devDependencies' && isTool(name)) continue  // expected
+      const icon   = section === 'dependencies' ? '🔴' : '🟡'
+      const suffix = section !== 'dependencies' ? `  (${section})` : ''
+      console.log(`  ${icon} ${name}${suffix}`)
+      anyUnused = true
+    }
+  }
+  if (!anyUnused) console.log('  ✓ All declared packages are imported')
+
+  // Imported but not declared — fragile transitive dependency usage
+  const declared = new Set(sections.flatMap(([, d]) => Object.keys(d)))
+  // Node.js built-ins and runtime-provided modules — never in package.json
+  const NODE_BUILTINS = new Set([
+    'fs', 'path', 'os', 'http', 'https', 'url', 'crypto', 'events', 'stream',
+    'util', 'buffer', 'child_process', 'cluster', 'dns', 'net', 'tls', 'vm',
+    'worker_threads', 'assert', 'module', 'process', 'readline', 'repl',
+    'string_decoder', 'timers', 'tty', 'v8', 'zlib', 'punycode', 'querystring',
+    'perf_hooks', 'inspector', 'async_hooks', 'diagnostics_channel', 'domain',
+  ])
+  const undeclared = [...used]
+    .filter(p => !declared.has(p))
+    .filter(p => !p.startsWith('@types/'))
+    .filter(p => !p.startsWith('node:'))   // node:fs, node:path, etc.
+    .filter(p => !p.startsWith('bun:'))    // bun:test, bun:ffi, etc.
+    .filter(p => !NODE_BUILTINS.has(p))
+    .sort()
+
+  if (undeclared.length) {
+    console.log()
+    console.log('  ⚠ Imported but not in package.json (transitive dep usage):')
+    for (const name of undeclared.slice(0, 10)) console.log(`    ${name}`)
+    if (undeclared.length > 10) console.log(`    … and ${undeclared.length - 10} more`)
+  }
+  console.log()
+}
+
+// ---------------------------------------------------------------------------
+// Python
+// ---------------------------------------------------------------------------
+// Common import-name → package-name mismatches
+const PY_IMPORT_TO_PKG = {
+  PIL: 'Pillow', sklearn: 'scikit-learn', cv2: 'opencv-python',
+  bs4: 'beautifulsoup4', yaml: 'PyYAML', dateutil: 'python-dateutil',
+  dotenv: 'python-dotenv', jwt: 'PyJWT', magic: 'python-magic',
+  pkg_resources: 'setuptools', serial: 'pyserial', usb: 'pyusb',
+  Crypto: 'pycryptodome', wx: 'wxPython', psycopg2: 'psycopg2-binary',
+  MySQLdb: 'mysqlclient', toml: 'tomli',
+}
+// package-name (lowercase, normalized) → import-name
+const PY_PKG_TO_IMPORT = Object.fromEntries(
+  Object.entries(PY_IMPORT_TO_PKG).map(([imp, pkg]) =>
+    [pkg.toLowerCase().replace(/-/g, '_'), imp]))
+
+const PY_STDLIB = new Set([
+  'os','sys','io','re','json','time','datetime','math','random','string',
+  'collections','itertools','functools','pathlib','typing','abc','copy',
+  'enum','hashlib','hmac','logging','threading','multiprocessing',
+  'subprocess','socket','ssl','http','urllib','email','html','xml','csv',
+  'sqlite3','struct','base64','unittest','argparse','configparser',
+  'tempfile','shutil','glob','fnmatch','inspect','ast','dis','gc',
+  'weakref','contextlib','dataclasses','pprint','textwrap','traceback',
+  'warnings','platform','uuid','decimal','fractions','statistics',
+  '__future__','builtins','importlib','pkgutil','types','operator',
+  'zipfile','tarfile','gzip','bz2','lzma','zlib','queue','heapq',
+  'bisect','array','mmap','ctypes','signal','atexit','sysconfig',
+  'concurrent','asyncio','selectors','select','_thread','threading',
+  'abc','numbers','codecs','unicodedata','locale',
+])
+
+const PY_RE = [
+  /^import\s+([\w.]+)/gm,
+  /^from\s+([\w.]+)\s+import/gm,
+]
+
+function scanPythonImports(root) {
+  const used = new Set()
+  for (const fp of collectFiles(root, ['.py'])) {
+    let content
+    try { content = fs.readFileSync(fp, 'utf8') } catch { continue }
+    for (const re of PY_RE) {
+      re.lastIndex = 0
+      let m
+      while ((m = re.exec(content)) !== null) {
+        const top = m[1].split('.')[0]
+        used.add(top)
+        // Also register mapped package name
+        const mapped = PY_IMPORT_TO_PKG[top]
+        if (mapped) used.add(mapped.toLowerCase().replace(/-/g, '_'))
+      }
+    }
+  }
+  return used
+}
+
+function normPy(name) {
+  return name.trim()
+    .replace(/\s*[>=<!~^].*/g, '')  // strip version
+    .replace(/\[.*?\]/g, '')        // strip extras
+    .replace(/-/g, '_')
+    .toLowerCase()
+    .trim()
+}
+
+function readReqTxt(fp) {
+  return fs.readFileSync(fp, 'utf8').split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#') && !l.startsWith('-r'))
+    .map(l => l.split(/[>=<!~^]/)[0].trim())
+    .filter(Boolean)
+}
+
+function readPyproject(fp) {
+  try {
+    const out = execSync(
+      `python3 -c "
+import sys
+try:
+  import tomllib
+except ImportError:
+  try: import tomli as tomllib
+  except ImportError: sys.exit(1)
+import json
+with open(${JSON.stringify(fp)}, 'rb') as f:
+  d = tomllib.load(f)
+deps = list(d.get('project', {}).get('dependencies', []))
+poetry = d.get('tool', {}).get('poetry', {})
+deps += list(poetry.get('dependencies', {}).keys())
+deps += list(poetry.get('dev-dependencies', {}).keys())
+for x in deps: print(x)
+" 2>/dev/null`,
+      { encoding: 'utf8', timeout: 5000 }
+    ).trim()
+    return out.split('\n').filter(Boolean)
+  } catch {
+    // Regex fallback for simple pyproject.toml
+    const content = fs.readFileSync(fp, 'utf8')
+    const m = content.match(/\[project\]\s*\n(?:[^\[]*\n)*dependencies\s*=\s*\[([\s\S]*?)\]/m)
+    if (!m) return []
+    return m[1].split('\n')
+      .map(l => l.trim().replace(/^["']|["'],?\s*$/g, ''))
+      .map(l => l.split(/[>=<!~^]/)[0].trim())
+      .filter(Boolean)
+  }
+}
+
+function readPipfile(fp) {
+  const content = fs.readFileSync(fp, 'utf8')
+  const m = /\[packages\]([\s\S]*?)(?:\[|$)/.exec(content)
+  if (!m) return []
+  return m[1].split('\n')
+    .map(l => l.match(/^\s*([A-Za-z0-9_.-]+)\s*=/)?.[1])
+    .filter(Boolean)
+}
+
+function checkPython(declared, root, label) {
+  const used = scanPythonImports(root)
+
+  console.log(`### Python  (${label})`)
+  console.log()
+
+  const unused = declared
+    .map(normPy)
+    .filter(n => n)
+    .filter(n => {
+      if (PY_STDLIB.has(n)) return false
+      // Check direct name match
+      if (used.has(n)) return false
+      // Check known import alias
+      const alias = PY_PKG_TO_IMPORT[n]
+      if (alias && used.has(alias)) return false
+      // Check if raw name appears as import
+      const rawName = declared.find(d => normPy(d) === n) || n
+      if (used.has(rawName.replace(/-/g, '_'))) return false
+      return true
+    })
+    .filter((n, i, a) => a.indexOf(n) === i)  // dedupe
+    .sort()
+
+  if (!unused.length) {
+    console.log('  ✓ All declared packages are imported')
+  } else {
+    for (const name of unused) {
+      console.log(`  🔴 ${name}`)
+    }
+    console.log()
+    console.log('  Note: package name may differ from import name (e.g. Pillow → PIL).')
+    console.log('  Run: pip show <package> to see the actual import name if uncertain.')
+  }
+  console.log()
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const stat = fs.statSync(targetPath)
+const searchRoot = stat.isDirectory() ? targetPath : path.dirname(targetPath)
+
+let found = false
+console.log(`## Unused Dependencies: ${targetPath}`)
+console.log()
+
+// Node/Bun
+const pkgJson = findUp('package.json', searchRoot)
+if (pkgJson && !pkgJson.includes('node_modules')) {
+  found = true
+  checkNode(pkgJson, path.dirname(pkgJson))
+}
+
+// Python
+for (const [reader, name] of [
+  [readReqTxt,    'requirements.txt'],
+  [readPyproject, 'pyproject.toml'],
+  [readPipfile,   'Pipfile'],
+]) {
+  const fp = path.join(searchRoot, name)
+  if (!fs.existsSync(fp)) continue
+  found = true
+  try {
+    checkPython(reader(fp), searchRoot, name)
+  } catch (e) {
+    console.log(`  Error reading ${name}: ${e.message}`)
+    console.log()
+  }
+}
+
+if (!found) {
+  console.log('No package manifest found (package.json, requirements.txt, pyproject.toml, Pipfile).')
+  process.exit(1)
+}

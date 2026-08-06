@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# ctx-fragment — list, expand, and compose TypeScript AST fragments
+# Usage:
+#   ctx-fragment list                          — list available fragments
+#   ctx-fragment show <name>                   — show fragment template
+#   ctx-fragment expand <name> KEY=val ...     — expand with parameters
+
+set -eo pipefail
+
+FRAGMENTS_DIR="${FRAGMENTS_DIR:-$HOME/.dotfiles/fragments}"
+LANG_FILE="$FRAGMENTS_DIR/typescript.yaml"
+
+cmd="${1:-list}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+
+list)
+    echo "## Available fragments"
+    echo ""
+    yq '.fragments | to_entries[] | "  " + .key + " — " + .value.description' "$LANG_FILE" 2>/dev/null
+    ;;
+
+show)
+    name="${1:?usage: ctx-fragment show <name>}"
+    echo "## $name"
+    echo ""
+    echo "Params:"
+    yq ".fragments.${name}.params | to_entries[] | \"  \$\" + .key + \" (\" + .value + \")\"" "$LANG_FILE" 2>/dev/null
+    echo ""
+    echo "Template:"
+    yq ".fragments.${name}.template" "$LANG_FILE" 2>/dev/null
+    ;;
+
+expand)
+    name="${1:?usage: ctx-fragment expand <name> KEY=val ...}"
+    shift
+
+    # Get template
+    template=$(yq ".fragments.${name}.template" "$LANG_FILE" 2>/dev/null)
+    [[ -z "$template" ]] && { echo "fragment not found: $name"; exit 1; }
+
+    # Apply substitutions: KEY=value pairs replace $KEY in template
+    result="$template"
+    for arg in "$@"; do
+        key="${arg%%=*}"
+        val="${arg#*=}"
+        result="${result//\$$key/$val}"
+    done
+
+    echo "$result"
+    ;;
+
+compose)
+    # Combine fragments: ctx-fragment compose frag1 KEY=val frag2 KEY=val ...
+    # Context-aware: fragments with context:inside-class are inserted into $METHODS
+    # of the preceding class-like fragment
+    declare -a frag_names
+    declare -A frag_params_map
+    current_name=""
+
+    expand_frag() {
+        local fname=$1
+        local -n params_ref=$2
+        local tmpl
+        tmpl=$(yq ".fragments.${fname}.template" "$LANG_FILE" 2>/dev/null)
+        [[ -z "$tmpl" ]] && { echo "fragment not found: $fname" >&2; return 1; }
+        for key in "${!params_ref[@]}"; do
+            tmpl="${tmpl//\$${key}/${params_ref[$key]}}"
+        done
+        echo "$tmpl"
+    }
+
+    flush_current() {
+        [[ -z "$current_name" ]] && return
+        frag_names+=("$current_name")
+    }
+
+    declare -A current_params
+    for arg in "$@"; do
+        if [[ "$arg" == *"="* ]]; then
+            key="${arg%%=*}"; val="${arg#*=}"
+            current_params[$key]="$val"
+        else
+            if [[ -n "$current_name" ]]; then
+                frag_names+=("$current_name")
+                local params_copy="${!current_params[@]}"
+                frag_params_map["${#frag_names[@]}"]="$(declare -p current_params)"
+            fi
+            current_name="$arg"
+            unset current_params; declare -A current_params
+        fi
+    done
+    [[ -n "$current_name" ]] && frag_names+=("$current_name")
+
+    # Simple compose: expand each, insert context:inside-class into $METHODS of parent
+    result=""
+    parent_result=""
+    for fname in "${frag_names[@]}"; do
+        context=$(yq ".fragments.${fname}.context // \"\"" "$LANG_FILE" 2>/dev/null)
+        expanded=$(yq ".fragments.${fname}.template" "$LANG_FILE" 2>/dev/null)
+        if [[ "$context" == "inside-class" && -n "$parent_result" ]]; then
+            # Insert this fragment's content as a method in the parent
+            parent_result="${parent_result/\$METHODS/$'\n  '${expanded}$'\n'}"
+        else
+            [[ -n "$parent_result" ]] && result="${result}${parent_result}"
+            parent_result="$expanded"
+        fi
+    done
+    result="${result}${parent_result}"
+    echo "$result"
+    ;;
+
+*)
+    echo "usage: ctx-fragment list | show <name> | expand <name> KEY=val ... | compose frag1 K=v frag2 K=v ..."
+    exit 1
+    ;;
+
+esac

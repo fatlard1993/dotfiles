@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# ctx-types — generate TypeScript types from JSON samples or JSON schemas
+# Detects input type and routes to quicktype (samples) or json2ts (schemas)
+# Usage: ctx-types <file>
+#        <cmd> | ctx-types --json   (JSON sample via stdin)
+#        <cmd> | ctx-types --schema (JSON schema via stdin)
+
+set -euo pipefail
+
+lang="ts"
+mode="detect"
+file=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --json)   mode="json" ;;
+        --schema) mode="schema" ;;
+        --lang)   shift; lang="$1" ;;
+        -*)       ;;
+        *)        file="$arg" ;;
+    esac
+done
+
+is_schema() {
+    # JSON schemas have $schema or type/properties at root
+    jq -e '."$schema" or (.type == "object" and .properties)' "$1" > /dev/null 2>&1
+}
+
+if [[ -n "$file" ]]; then
+    [[ -f "$file" ]] || { echo "not found: $file"; exit 1; }
+    if [[ "$mode" == "detect" ]]; then
+        is_schema "$file" && mode="schema" || mode="json"
+    fi
+    case "$mode" in
+        schema) json2ts "$file" ;;
+        json)   quicktype --lang "$lang" --just-types "$file" ;;
+    esac
+else
+    # stdin
+    tmp=$(mktemp /tmp/ctx-types.XXXXXX.json)
+    trap 'rm -f "$tmp"' EXIT
+    cat > "$tmp"
+    if [[ "$mode" == "detect" ]]; then
+        is_schema "$tmp" && mode="schema" || mode="json"
+    fi
+    case "$mode" in
+        schema) json2ts "$tmp" ;;
+        json)   quicktype --lang "$lang" --just-types "$tmp" ;;
+    esac
+fi

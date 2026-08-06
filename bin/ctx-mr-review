@@ -1,0 +1,439 @@
+#!/usr/bin/env bash
+# ctx-mr-review — deterministic bug detection on a branch diff
+# Checks: signature drift vs call sites, removed guards, dropped error handling,
+#         new dissonance patterns, broken invariants, type contract violations
+# Usage: ctx-mr-review [branch] [--base <ref>]
+#
+# Synthesis layer: Agent(subagent_type="ctx-reviewer") wraps this tool and
+# produces structured 🔴/🟡 findings with a merge recommendation.
+
+set -eo pipefail
+
+branch="${1:-HEAD}"
+base="main"
+while [[ $# -gt 0 ]]; do
+    case "$1" in --base) base="$2"; shift 2 ;; *) shift ;; esac
+done
+
+# Validate refs
+git rev-parse "$base" > /dev/null 2>&1 || { echo "base ref not found: $base"; exit 1; }
+git rev-parse "$branch" > /dev/null 2>&1 || { echo "branch ref not found: $branch"; exit 1; }
+
+echo "## MR Review: $base → $branch"
+echo ""
+
+# Changed TypeScript files
+changed_files=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' | grep -v '\.test\.' | grep -v '\.spec\.' || true)
+
+# --- Dependency bump detection (runs even when no source files changed) ---
+pkg_changed=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '^package\.json$' || true)
+lock_changed=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '^package-lock\.json$|^bun\.lockb$|^yarn\.lock$' || true)
+
+if [[ -n "$pkg_changed" ]]; then
+    echo "### Dependency Changes"
+    echo ""
+
+    bumped=$(git diff "${base}...${branch}" -- package.json 2>/dev/null \
+        | grep '^[+-]' | grep -v '^---\|^+++' \
+        | grep -oE '"[@a-z@/][^"]+": "[^"]+"' \
+        | sort | uniq -u | head -20 || true)
+
+    # Extract changed packages using jq for reliability
+    tmp_pkg=$(mktemp)
+    trap 'rm -f "$tmp_pkg"' EXIT
+
+    # Get old and new package.json as JSON, compare dependencies
+    git show "${base}:package.json" 2>/dev/null > "${tmp_pkg}.old" || true
+    cp package.json "${tmp_pkg}.new" 2>/dev/null || true
+
+    if [[ -f "${tmp_pkg}.old" && -f "${tmp_pkg}.new" ]]; then
+        for dep_key in dependencies devDependencies peerDependencies; do
+            old_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "${tmp_pkg}.old" 2>/dev/null || true)
+            new_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "${tmp_pkg}.new" 2>/dev/null || true)
+
+            # Find packages that changed or were removed
+            while IFS='=' read -r pkg old_ver; do
+                [[ -z "$pkg" ]] && continue
+                new_ver=$(echo "$new_deps" | grep "^${pkg}=" | cut -d= -f2- || true)
+
+                if [[ -z "$new_ver" ]]; then
+                    # Removed
+                    echo "  📦 $pkg: $old_ver → (removed)"
+                elif [[ "$old_ver" != "$new_ver" ]]; then
+                    # Changed
+                    echo "  📦 $pkg"
+                    echo "     $old_ver → $new_ver"
+                    if [[ -n "$lock_changed" ]]; then
+                        resolved=$(jq -r ".packages[\"node_modules/${pkg}\"].version // empty" package-lock.json 2>/dev/null || true)
+                        [[ -n "$resolved" ]] && echo "     Lock resolved: $resolved"
+                    fi
+                    if echo "$new_ver" | grep -q '^\^'; then
+                        echo "     Range: ^ (allows minor/patch bumps automatically)"
+                    elif echo "$new_ver" | grep -q '^\~'; then
+                        echo "     Range: ~ (allows patch bumps only)"
+                    fi
+                    clean_ver=$(echo "$new_ver" | tr -d '^~>=<')
+                    echo "     Changelog: https://www.npmjs.com/package/${pkg}/v/${clean_ver}"
+                    echo ""
+                fi
+            done <<< "$old_deps"
+        done
+    fi
+    rm -f "${tmp_pkg}.old" "${tmp_pkg}.new"
+
+    # Quick audit check
+    echo "  Running npm audit on changed dependencies..."
+    audit_out=$(npm audit --audit-level=high 2>/dev/null | grep -E "^(found|high|critical)" | head -5 || true)
+    if [[ -n "$audit_out" ]]; then
+        echo "  🔴 Audit findings:"
+        echo "$audit_out" | sed 's/^/    /'
+        critical=$((critical + 1))
+    else
+        echo "  ✓ No high/critical vulnerabilities"
+    fi
+    echo ""
+fi
+
+if [[ -z "$changed_files" ]]; then
+    [[ -z "$pkg_changed" ]] && echo "No source files or dependencies changed."
+    # Still run summary
+    echo "---"
+    if [[ $critical -eq 0 && $warnings -eq 0 ]]; then
+        echo "✓ No issues detected."
+        exit 0
+    elif [[ $critical -gt 0 ]]; then
+        echo "🔴 CRITICAL: $critical issue(s)"
+        exit 2
+    else
+        echo "🟡 WARNING: $warnings issue(s)"
+        exit 1
+    fi
+fi
+
+file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
+echo "Changed files: $file_count"
+echo ""
+
+critical=0
+warnings=0
+changed_fns_file=$(mktemp)
+trap 'rm -f "$changed_fns_file"' EXIT
+
+# Severity classification
+is_critical() { echo "$1" | grep -qE 'GUARD-REMOVED|TRY-CATCH-REMOVED|params:.*→'; }
+is_warning()  { echo "$1" | grep -qE 'THROW-LITERAL|CONSOLE|GHOST-CALL|UNHANDLED-REJECTION|DEAD-PARAM|LOOSE-EQ|OPEN-CIRCUIT|MUTATION'; }
+
+# --- 1. Semantic diff on each changed file ---
+echo "### Structural Changes"
+echo ""
+
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    result=$(ctx-semantic-diff "$f" "$base" "$branch" 2>/dev/null || true)
+    [[ -z "$result" ]] && continue
+    [[ "$result" == *"no structural changes"* ]] && continue
+
+    # Tag lines with severity
+    while IFS= read -r line; do
+        if is_critical "$line"; then
+            echo "  🔴 $line"
+            critical=$((critical + 1))
+        elif is_warning "$line"; then
+            echo "  🟡 $line"
+            warnings=$((warnings + 1))
+        else
+            echo "$line"
+        fi
+    done <<< "$result"
+    echo ""
+
+    # Record changed function names for call-site audit
+    echo "$result" | grep "^  ~ " | sed 's/^  ~ //' | awk '{print $1}' | while read -r fname; do
+        echo "$fname $f" >> "$changed_fns_file"
+    done || true
+done <<< "$changed_files"
+
+# --- 1b. Migration check — detect library replacements ---
+echo "### Migration Analysis"
+echo ""
+
+migration_found=false
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    result=$(ctx-migration "$f" --base "$base" 2>/dev/null || true)
+    [[ -z "$result" ]] && continue
+    [[ "$result" == *"no recognized migration"* ]] && continue
+    [[ "$result" == *"new file"* ]] && continue
+
+    echo "$result"
+    # Count flags — grep exits 1 if no match, arithmetic handles it cleanly
+    mig_crit=$(echo "$result" | awk '/🔴/{c++} END{print c+0}')
+    mig_warn=$(echo "$result" | awk '/🟡/{c++} END{print c+0}')
+    critical=$((critical + mig_crit))
+    warnings=$((warnings + mig_warn))
+    migration_found=true
+done <<< "$changed_files"
+
+$migration_found || echo "  (no library migrations detected)"
+echo ""
+
+# --- 1c. TypeScript compilation check ---
+echo "### TypeScript Compilation"
+echo ""
+
+git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+tsconfig_path=""
+[[ -f "$git_root/tsconfig.json" ]] && tsconfig_path="$git_root/tsconfig.json"
+
+if [[ -z "$tsconfig_path" ]]; then
+    echo "  (no tsconfig.json found — skipping)"
+else
+    tsc_bin=""
+    [[ -x "$git_root/node_modules/.bin/tsc" ]] && tsc_bin="$git_root/node_modules/.bin/tsc"
+    [[ -z "$tsc_bin" ]] && command -v tsc &>/dev/null && tsc_bin="tsc"
+
+    if [[ -z "$tsc_bin" ]]; then
+        echo "  (tsc not available — run npm ci or install typescript globally to enable)"
+    else
+        tsc_errors=$(cd "$git_root" && timeout 60 $tsc_bin --noEmit --skipLibCheck 2>&1 \
+            | grep " error TS" | head -10 || true)
+
+        if [[ -n "$tsc_errors" ]]; then
+            error_count=$(echo "$tsc_errors" | wc -l | tr -d ' ')
+            echo "  🔴 TypeScript errors ($error_count shown):"
+            echo "$tsc_errors" | sed "s|${git_root}/||g" | sed 's/^/    /'
+            critical=$((critical + 1))
+        else
+            echo "  ✓ No TypeScript errors"
+        fi
+    fi
+fi
+echo ""
+
+# --- 2. Call-site audit for changed signatures ---
+if [[ -s "$changed_fns_file" ]]; then
+    echo "### Call-Site Audit"
+    echo ""
+    while IFS= read -r entry; do
+        fname=$(echo "$entry" | awk '{print $1}')
+        src_file=$(echo "$entry" | awk '{print $2}')
+
+        call_sites=$(rg --no-heading --color=never -n "\b${fname}\s*(" . \
+            --glob='!*.test.*' --glob='!*.spec.*' 2>/dev/null \
+            | grep -v "^${src_file}:" || true)
+
+        if [[ -n "$call_sites" ]]; then
+            echo "  🔴 $fname — callers may use old signature:"
+            echo "$call_sites" | head -5 | sed 's/^/    /'
+            critical=$((critical + 1))
+        fi
+    done < "$changed_fns_file"
+    echo ""
+fi
+
+# --- 3. New dissonance — only flags introduced by this MR, not pre-existing ---
+echo "### New Dissonance in Changed Code"
+echo ""
+
+has_dissonance=false
+tmp_old=$(mktemp)
+trap 'rm -f "$tmp_old"' EXIT
+
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+
+    line_count=$(wc -l < "$f" | tr -d ' ')
+    large_threshold=400
+
+    # Build --only filter from changed functions in semantic diff (for large files)
+    only_arg=""
+    if [[ $line_count -gt $large_threshold ]]; then
+        echo "  ⚠ $(basename "$f") is $line_count lines — analyzing changed functions only"
+
+        # Get changed/added function names from the semantic diff
+        changed_fns=$(ctx-semantic-diff "$f" "$base" "$branch" 2>/dev/null \
+            | grep -E "^  [+~] " | sed 's/^  [+~] //' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//' || true)
+
+        if [[ -n "$changed_fns" ]]; then
+            only_arg="--only=${changed_fns}"
+            echo "    Functions: $changed_fns"
+        fi
+        echo ""
+    fi
+
+    new_flags=$(timeout 60 ctx-test-gen "$f" $only_arg 2>/dev/null | grep "⚠" | sort -u || true)
+    [[ -z "$new_flags" ]] && continue
+
+    # Compare against old version — only show what's newly introduced
+    git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    rel=$(cd "$git_root" && realpath --relative-to="." "$f" 2>/dev/null || echo "$f")
+    old_content=$(git show "${base}:${rel}" 2>/dev/null || true)
+
+    if [[ -n "$old_content" ]]; then
+        echo "$old_content" > "$tmp_old"
+        old_flags=$(timeout 60 ctx-test-gen "$tmp_old" $only_arg 2>/dev/null | grep "⚠" | sort -u || true)
+        new_only=$(comm -23 <(echo "$new_flags") <(echo "$old_flags") 2>/dev/null || echo "$new_flags")
+    else
+        new_only="$new_flags"
+    fi
+
+    if [[ -n "$new_only" ]]; then
+        echo "  $f:"
+        while IFS= read -r flag; do
+            [[ -z "$flag" ]] && continue
+            if is_critical "$flag"; then
+                echo "    🔴 $flag"; critical=$((critical + 1))
+            else
+                echo "    🟡 $flag"; warnings=$((warnings + 1))
+            fi
+        done <<< "$new_only"
+        has_dissonance=true
+    fi
+done <<< "$changed_files"
+
+$has_dissonance || echo "  (none)"
+echo ""
+
+# --- 4. Invariant check on changed files ---
+echo "### Invariant Check"
+echo ""
+
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    inv=$(ctx-invariants "$f" 2>/dev/null | grep -v "^$\|^##\|no complementary" || true)
+    if [[ -n "$inv" ]]; then
+        echo "  🟡 $f — verify these roundtrips still hold:"
+        echo "$inv" | grep "→" | sed 's/^/    /'
+        warnings=$((warnings + 1))
+    fi
+done <<< "$changed_files"
+
+echo ""
+
+# --- 4b. Rhythm check — error signaling and return shape consistency ---
+echo "### Rhythm"
+echo ""
+
+rhythm_found=false
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    result=$(ctx-rhythm "$f" 2>/dev/null || true)
+    [[ -z "$result" ]] && continue
+    [[ "$result" == *"✓ Consistent"* ]] && continue
+
+    echo "$result" | grep -E "🟡|🔴" | sed 's/^/  /'
+    rhythm_w=$(echo "$result" | awk '/🟡/{c++} END{print c+0}')
+    warnings=$((warnings + rhythm_w))
+    rhythm_found=true
+done <<< "$changed_files"
+
+$rhythm_found || echo "  (no rhythm issues in changed files)"
+echo ""
+
+# --- 5. Env var regressions ---
+echo "### Environment Variable Changes"
+echo ""
+
+new_env_vars=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
+    | grep "^+" | grep -oE 'process\.env\.[A-Z_][A-Z0-9_]+' \
+    | sed 's/process\.env\.//' | sort -u || true)
+
+if [[ -n "$new_env_vars" ]]; then
+    echo "  🟡 New env vars — verify documented and have fallbacks:"
+    echo "$new_env_vars" | sed 's/^/    /'
+    warnings=$((warnings + 1))
+else
+    echo "  (none)"
+fi
+
+echo ""
+
+# --- 6. Test coverage check ---
+echo "### Test Coverage"
+echo ""
+
+test_gap=false
+while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    # Skip files that are themselves test files
+    echo "$f" | grep -qE '\.(test|spec)\.' && continue
+
+    base_name="${f%.*}"
+    ext="${f##*.}"
+
+    # Look for a test file alongside the source
+    test_file=""
+    for candidate in "${base_name}.test.${ext}" "${base_name}.test.jsx" "${base_name}.test.tsx" \
+                     "${base_name}.spec.${ext}" "${base_name}.spec.jsx"; do
+        [[ -f "$candidate" ]] && { test_file="$candidate"; break; }
+    done
+
+    if [[ -z "$test_file" ]]; then
+        echo "  🟡 $(basename "$f") — no test file found"
+        warnings=$((warnings + 1))
+        test_gap=true
+    else
+        # Test file exists — was it also updated in this MR?
+        test_in_diff=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -F "$(basename "$test_file")" || true)
+        if [[ -z "$test_in_diff" ]]; then
+            echo "  🟡 $(basename "$f") changed but $(basename "$test_file") was not updated"
+            warnings=$((warnings + 1))
+            test_gap=true
+        fi
+    fi
+done <<< "$changed_files"
+
+$test_gap || echo "  (test files updated alongside source)"
+echo ""
+
+# --- 7. Config divergence check ---
+# Check if this MR introduces code that diverges from declared Prettier/tsconfig config
+echo "### Config Conformance"
+echo ""
+
+conventions_file=".claude/conventions.md"
+if [[ -f "$conventions_file" ]]; then
+    declared_qs=$(grep "Import quotes.*single" "$conventions_file" 2>/dev/null | head -1 || true)
+    declared_qd=$(grep "Import quotes.*double" "$conventions_file" 2>/dev/null | head -1 || true)
+
+    if [[ -n "$declared_qs" ]]; then
+        # Declared single — check if MR introduces double-quoted imports
+        double_in_diff=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
+            | grep '^+' | grep -v '^+++' | grep -oE '^.*from "' | head -3 || true)
+        if [[ -n "$double_in_diff" ]]; then
+            echo "  🟡 MR introduces double-quoted imports but config declares single quotes:"
+            echo "$double_in_diff" | head -3 | sed 's/^/    /'
+            warnings=$((warnings + 1))
+        else
+            echo "  ✓ Import style matches declared config"
+        fi
+    elif [[ -n "$declared_qd" ]]; then
+        single_in_diff=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
+            | grep '^+' | grep -v '^+++' | grep -oE "^.*from '" | head -3 || true)
+        if [[ -n "$single_in_diff" ]]; then
+            echo "  🟡 MR introduces single-quoted imports but config declares double quotes"
+            warnings=$((warnings + 1))
+        else
+            echo "  ✓ Import style matches declared config"
+        fi
+    else
+        echo "  (no conventions file or import style not declared — run ctx-conventions first)"
+    fi
+else
+    echo "  (no .claude/conventions.md — run ctx-conventions to enable)"
+fi
+echo ""
+
+# --- Summary + exit code ---
+echo "---"
+if [[ $critical -eq 0 && $warnings -eq 0 ]]; then
+    echo "✓ No issues detected. Review for logic and intent."
+    exit 0
+elif [[ $critical -gt 0 ]]; then
+    echo "🔴 CRITICAL: $critical regression(s) — fix before merging"
+    [[ $warnings -gt 0 ]] && echo "🟡 WARNING:  $warnings issue(s) — review"
+    exit 2
+else
+    echo "🟡 WARNING: $warnings issue(s) — review before merging"
+    exit 1
+fi

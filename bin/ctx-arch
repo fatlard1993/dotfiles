@@ -1,0 +1,340 @@
+#!/usr/bin/env node
+// ctx-arch — module dependency graph
+//
+// Answers: what imports what, which modules are most coupled, are there cycles?
+// Internal imports form the architecture. External imports are listed separately.
+//
+// Usage: ctx-arch [path] [--no-external] [--cycles-only]
+//   --no-external   Hide external dependency listing
+//   --cycles-only   Only report cycles (exit 1 if any found)
+
+const path = require('path')
+const fs = require('fs')
+
+// ---------------------------------------------------------------------------
+// Args
+// ---------------------------------------------------------------------------
+const args = process.argv.slice(2)
+const targetPath = args.find(a => !a.startsWith('--')) || '.'
+const noExternal  = args.includes('--no-external')
+const cyclesOnly  = args.includes('--cycles-only')
+
+const absTarget = path.resolve(targetPath)
+
+// ---------------------------------------------------------------------------
+// File collection
+// ---------------------------------------------------------------------------
+function collect(dir) {
+  const out = []
+  function walk(d) {
+    let entries
+    try { entries = fs.readdirSync(d, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (/^(\.|node_modules|dist|build|es|lib|umd|report|reports|coverage|public|static|\.nyc_output|\.ci)$/.test(e.name)) continue
+      const full = path.join(d, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (/\.(ts|tsx|js|jsx|mjs)$/.test(e.name) &&
+          !e.name.endsWith('.d.ts') &&
+          !e.name.includes('.test.') &&
+          !e.name.includes('.spec.')) out.push(full)
+    }
+  }
+  const stat = fs.statSync(dir)
+  if (stat.isFile()) return [dir]
+  walk(dir)
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Extract imports from file content
+// ---------------------------------------------------------------------------
+const IMPORT_RE = [
+  /^\s*import\s+(?:[\w*{}\s,]+\s+from\s+)?['"]([^'"]+)['"]/gm,
+  /^\s*export\s+(?:[\w*{}\s,]+\s+from\s+)?['"]([^'"]+)['"]/gm,
+  /require\s*\(\s*['"]([^'"]+)['"]\s*\)/gm,
+  /import\s*\(\s*['"]([^'"]+)['"]\s*\)/gm,
+]
+
+// ---------------------------------------------------------------------------
+// Dynamic require resolution
+// Handles: anyVar.require('./literal') and anyVar.require(path.join(__dirname,'lit'))
+// Returns { specs: string[], unresolved: number }
+//   specs starting with '/' are already-absolute (from dynamic resolution)
+//   specs starting with '.' are relative (handled by resolveRelative as normal)
+//   unresolved: count of dynamic requires whose path couldn't be determined
+// ---------------------------------------------------------------------------
+function extractDynamicRequires(content, fromFile) {
+  const fromDir = path.dirname(fromFile)
+  const specs = []
+  let unresolved = 0
+
+  // Pattern A: anyVar.require('./literal') — literal relative path as first arg
+  const litRE = /\b\w+\.require\s*\(\s*(['"])(\.\.?\/[^'"]*)\1/g
+  let m
+  while ((m = litRE.exec(content)) !== null) specs.push(m[2])
+
+  // Pattern B: anyVar.require(path.join(__dirname, 'seg1', 'seg2', ...))
+  // Capture everything inside path.join/path.resolve parens
+  const pjRE = /\b\w+\.require\s*\(\s*path\.(?:join|resolve)\s*\(([^)]+)\)/g
+  while ((m = pjRE.exec(content)) !== null) {
+    const inner = m[1]
+    const parts = []
+    let ok = true
+    // Walk tokens: __dirname or string literals
+    const tokRE = /__dirname|['"]([^'"]+)['"]/g
+    let tok
+    while ((tok = tokRE.exec(inner)) !== null) {
+      if (tok[0] === '__dirname') parts.push(fromDir)
+      else parts.push(tok[1])
+    }
+    if (ok && parts.length > 0) {
+      const resolved = path.join(...parts)
+      specs.push(resolved)  // absolute path — caller handles existence check
+    } else {
+      unresolved++
+    }
+  }
+
+  // Pattern C: anyVar.require(variable) — truly dynamic, count for warning
+  // Match .require( not immediately followed by a quote or path.
+  const dynRE = /\b\w+\.require\s*\(\s*(?!['"`]|path\.)/g
+  while ((dynRE.exec(content)) !== null) unresolved++
+
+  return { specs, unresolved }
+}
+
+function extractImports(filePath) {
+  let content
+  try { content = fs.readFileSync(filePath, 'utf8') } catch { return { specs: [], unresolved: 0 } }
+  // Strip comments to prevent JSDoc/inline examples from becoming phantom edges
+  content = content.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\r\n]*/g, '')
+  const imports = new Set()
+  for (const re of IMPORT_RE) {
+    re.lastIndex = 0
+    let m
+    while ((m = re.exec(content)) !== null) imports.add(m[1])
+  }
+  const { specs: dynSpecs, unresolved } = extractDynamicRequires(content, filePath)
+  for (const s of dynSpecs) imports.add(s)
+  return { specs: [...imports], unresolved }
+}
+
+// ---------------------------------------------------------------------------
+// Resolve a relative import to an absolute path within the project
+// ---------------------------------------------------------------------------
+const EXT_ORDER = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '']
+function resolveRelative(spec, fromFile, knownFiles) {
+  const base = path.resolve(path.dirname(fromFile), spec)
+  for (const ext of EXT_ORDER) {
+    const candidate = base + ext
+    if (knownFiles.has(candidate)) return candidate
+  }
+  for (const ext of EXT_ORDER) {
+    const idx = path.join(base, `index${ext}`)
+    if (knownFiles.has(idx)) return idx
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Build graph
+// ---------------------------------------------------------------------------
+const files = collect(absTarget)
+if (!files.length) { console.log('No source files found.'); process.exit(0) }
+
+const knownFiles = new Set(files)
+// node → Set of internal nodes it imports
+const internal = {}   // file → Set<file>
+// file → Set of external module names
+const external = {}
+
+let totalUnresolved = 0
+
+for (const fp of files) {
+  internal[fp] = new Set()
+  external[fp] = new Set()
+
+  const { specs, unresolved } = extractImports(fp)
+  totalUnresolved += unresolved
+
+  for (const spec of specs) {
+    if (spec.startsWith('/')) {
+      // Absolute path from dynamic require resolution (path.join(__dirname,...))
+      if (knownFiles.has(spec)) internal[fp].add(spec)
+      // File exists but outside scanned set — treat as external
+    } else if (spec.startsWith('.')) {
+      const resolved = resolveRelative(spec, fp, knownFiles)
+      if (resolved) internal[fp].add(resolved)
+    } else {
+      // External package
+      const mod = spec.startsWith('@')
+        ? spec.split('/').slice(0, 2).join('/')
+        : spec.split('/')[0]
+      external[fp].add(mod)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compute inbound edges (fan-in)
+// ---------------------------------------------------------------------------
+const inbound = {}
+for (const fp of files) inbound[fp] = new Set()
+for (const [fp, deps] of Object.entries(internal)) {
+  for (const dep of deps) {
+    if (inbound[dep]) inbound[dep].add(fp)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cycle detection (DFS)
+// ---------------------------------------------------------------------------
+function detectCycles(graph) {
+  const cycles = []
+  const visited = new Set()
+  const inStack = new Set()
+  const stack = []
+
+  function dfs(node) {
+    if (inStack.has(node)) {
+      const idx = stack.indexOf(node)
+      cycles.push([...stack.slice(idx), node])
+      return
+    }
+    if (visited.has(node)) return
+    visited.add(node)
+    inStack.add(node)
+    stack.push(node)
+    for (const neighbor of (graph[node] || new Set())) dfs(neighbor)
+    stack.pop()
+    inStack.delete(node)
+  }
+
+  for (const node of Object.keys(graph)) {
+    if (!visited.has(node)) dfs(node)
+  }
+
+  // Deduplicate: normalize cycle by starting at lexicographically smallest node
+  const seen = new Set()
+  return cycles.filter(c => {
+    const key = [...c].sort().join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const cycles = detectCycles(internal)
+
+// ---------------------------------------------------------------------------
+// Output
+// ---------------------------------------------------------------------------
+const rel = fp => path.relative(process.cwd(), fp)
+
+if (cyclesOnly) {
+  if (cycles.length === 0) {
+    console.log('✓ No import cycles found.')
+    process.exit(0)
+  }
+  console.log(`## Import Cycles: ${targetPath}`)
+  console.log()
+  for (const cycle of cycles) {
+    console.log('  🔴 ' + cycle.map(rel).join(' → '))
+  }
+  process.exit(1)
+}
+
+// Sort by total coupling (in + out) descending
+const rows = files
+  .map(fp => ({
+    fp,
+    out: internal[fp].size,
+    inn: inbound[fp].size,
+    total: internal[fp].size + inbound[fp].size,
+    exts: [...external[fp]].sort(),
+  }))
+  .filter(r => r.total > 0)
+  .sort((a, b) => b.total - a.total || b.inn - a.inn)
+
+console.log(`## Architecture: ${targetPath}`)
+if (totalUnresolved > 0) {
+  console.log(`⚠ ${totalUnresolved} dynamic require(s) with unresolvable paths — dependency graph is partial`)
+}
+console.log()
+
+if (cycles.length > 0) {
+  console.log(`### ⚠ Import Cycles (${cycles.length})`)
+  console.log()
+  for (const cycle of cycles) {
+    console.log('  🔴 ' + cycle.map(rel).join(' → '))
+  }
+  console.log()
+}
+
+if (!rows.length) {
+  console.log('No internal imports found.')
+} else {
+  // Coupling table
+  console.log('### Coupling')
+  console.log()
+  const pw = Math.max(4, ...rows.map(r => rel(r.fp).length))
+  console.log(`${'file'.padEnd(pw)}  in  out  total`)
+  console.log(`${'─'.repeat(pw)}  ──  ───  ─────`)
+
+  for (const r of rows) {
+    const flags = []
+    if (r.inn >= 5) flags.push('high fan-in')
+    if (r.out >= 8) flags.push('high fan-out')
+    const warn = flags.length ? `  ← ${flags.join(', ')}` : ''
+    const icon = r.inn >= 5 ? '🔴' : r.total >= 4 ? '🟡' : '  '
+    console.log(`${icon} ${rel(r.fp).padEnd(pw)}  ${String(r.inn).padStart(2)}  ${String(r.out).padStart(3)}  ${String(r.total).padStart(5)}${warn}`)
+  }
+  console.log()
+
+  // Dependency detail for coupled files
+  const notable = rows.filter(r => r.total >= 3)
+  if (notable.length) {
+    console.log('### Dependencies (coupled files)')
+    console.log()
+    for (const r of notable) {
+      const outs = [...internal[r.fp]].map(rel).sort()
+      const ins  = [...inbound[r.fp]].map(rel).sort()
+      console.log(`  ${rel(r.fp)}:`)
+      for (const o of outs) console.log(`    → ${o}`)
+      for (const i of ins)  console.log(`    ← ${i}`)
+      console.log()
+    }
+  }
+}
+
+// External dependencies per file (all files, not just coupled ones)
+if (!noExternal) {
+  const allWithExts = files
+    .filter(fp => (external[fp] || new Set()).size > 0)
+    .map(fp => ({ fp, exts: [...(external[fp] || new Set())].sort() }))
+    .sort((a, b) => rel(a.fp).localeCompare(rel(b.fp)))
+  const withExts = allWithExts
+  if (withExts.length) {
+    console.log('### External Dependencies')
+    console.log()
+    for (const r of withExts) {
+      console.log(`  ${rel(r.fp)}: ${r.exts.join(', ')}`)
+    }
+    console.log()
+
+    // Aggregate: which external packages appear most
+    const extCount = {}
+    for (const r of withExts) {
+      for (const e of r.exts) extCount[e] = (extCount[e] || 0) + 1
+    }
+    const sorted = Object.entries(extCount).sort((a, b) => b[1] - a[1])
+    if (sorted.length > 1) {
+      console.log('  Most used: ' + sorted.slice(0, 5).map(([e, n]) => `${e} (${n})`).join(', '))
+      console.log()
+    }
+  }
+}
+
+if (cycles.length === 0 && rows.length > 0) {
+  console.log('✓ No import cycles.')
+}

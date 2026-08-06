@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# ctx-audit — run semgrep security and quality scan, trimmed for signal
+# Usage: ctx-audit [path] [--config <config>]
+
+set -eo pipefail
+
+search_path="."
+config="auto"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --config) config="$2"; shift 2 ;;
+        -*) shift ;;
+        *) search_path="$1"; shift ;;
+    esac
+done
+
+echo "## Audit: $search_path (config: $config)"
+echo ""
+
+{ semgrep --config="$config" "$search_path" --no-rewrite-rule-ids --quiet 2>&1 || true; } \
+    | ctx-trim 100

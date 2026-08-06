@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# ctx-mutate — mutation testing: apply AST mutations and check if tests catch them
+# A surviving mutation means your tests don't cover that behaviour
+# Usage: ctx-mutate <source-file> [test-file] [--runner bun|jest|vitest]
+
+set -eo pipefail
+
+source_file="${1:?usage: ctx-mutate <source-file> [test-file] [--runner bun|jest|vitest]}"
+test_file="${2:-}"
+runner=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in --runner) runner="$2"; shift 2 ;; *) shift ;; esac
+done
+
+[[ -f "$source_file" ]] || { echo "not found: $source_file"; exit 1; }
+
+# Detect test file if not provided
+if [[ -z "$test_file" ]]; then
+    ext="${source_file##*.}"
+    base="${source_file%.*}"
+    for candidate in "${base}.test.${ext}" "${base}.spec.${ext}"; do
+        [[ -f "$candidate" ]] && { test_file="$candidate"; break; }
+    done
+fi
+[[ -f "$test_file" ]] || { echo "no test file found for $source_file"; exit 1; }
+
+# Detect test runner
+if [[ -z "$runner" ]]; then
+    if [[ -f "bunfig.toml" ]] || (jq -e '.devDependencies.vitest // .dependencies.vitest' package.json > /dev/null 2>&1); then
+        runner="bun test"
+    elif jq -e '.devDependencies.jest // .dependencies.jest' package.json > /dev/null 2>&1; then
+        runner="jest"
+    else
+        runner="bun test"
+    fi
+fi
+
+echo "## Mutation Testing: $source_file"
+echo "   Tests: $test_file"
+echo "   Runner: $runner"
+echo ""
+
+# Save original
+original=$(cat "$source_file")
+survived=0
+killed=0
+
+run_tests() {
+    $runner "$test_file" > /dev/null 2>&1
+}
+
+apply_and_test() {
+    local desc="$1"
+    local mutated="$2"
+
+    # Apply mutation
+    echo "$mutated" > "$source_file"
+
+    # Run tests
+    if run_tests; then
+        echo "  🔴 SURVIVED: $desc — tests did not catch this mutation"
+        survived=$((survived + 1))
+    else
+        echo "  ✓  killed:   $desc"
+        killed=$((killed + 1))
+    fi
+
+    # Restore
+    echo "$original" > "$source_file"
+}
+
+# --- Mutation 1: Flip === to !== in conditions ---
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    lineno=$(echo "$line" | cut -d: -f1)
+    content=$(echo "$line" | cut -d: -f2-)
+    mutated=$(echo "$original" | awk -v n="$lineno" -v c="$content" 'NR==n {
+        sub(/===/, "!==")
+        print
+        next
+    } { print }')
+    [[ "$mutated" != "$original" ]] && apply_and_test "line $lineno: === → !==" "$mutated"
+done < <(rg --no-heading -n '===' "$source_file" 2>/dev/null | head -5 || true)
+
+# --- Mutation 2: Return null instead of first non-null return ---
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    lineno=$(echo "$line" | cut -d: -f1)
+    content=$(echo "$line" | cut -d: -f2-)
+    # Skip lines that already return null/undefined/false
+    echo "$content" | grep -qE 'return (null|undefined|false|0)' && continue
+    mutated=$(echo "$original" | awk -v n="$lineno" 'NR==n { sub(/return .*/, "return null"); print; next } { print }')
+    [[ "$mutated" != "$original" ]] && apply_and_test "line $lineno: return value → null" "$mutated"
+done < <(rg --no-heading -n 'return [^;{]' "$source_file" 2>/dev/null | head -3 || true)
+
+# --- Mutation 3: Flip boolean literals ---
+if echo "$original" | grep -q 'return true'; then
+    mutated=$(echo "$original" | sed 's/return true/return false/g')
+    [[ "$mutated" != "$original" ]] && apply_and_test "return true → return false" "$mutated"
+fi
+if echo "$original" | grep -q 'return false'; then
+    mutated=$(echo "$original" | sed 's/return false/return true/g')
+    [[ "$mutated" != "$original" ]] && apply_and_test "return false → return true" "$mutated"
+fi
+
+# --- Mutation 4: Remove null guards ---
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    lineno=$(echo "$line" | cut -d: -f1)
+    mutated=$(echo "$original" | awk -v n="$lineno" 'NR==n { next } { print }')
+    [[ "$mutated" != "$original" ]] && apply_and_test "line $lineno: guard removed" "$mutated"
+done < <(rg --no-heading -n 'if \(!|=== null|=== undefined' "$source_file" 2>/dev/null | head -3 || true)
+
+echo ""
+echo "---"
+total=$((survived + killed))
+echo "Mutations: $total total — $killed killed, $survived survived"
+
+if [[ $survived -gt 0 ]]; then
+    echo "⚠  $survived mutation(s) not caught by tests — add test coverage for these cases"
+    exit 1
+else
+    echo "✓ All mutations caught"
+    exit 0
+fi

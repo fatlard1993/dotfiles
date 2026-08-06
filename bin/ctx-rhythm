@@ -1,0 +1,299 @@
+#!/bin/sh
+':' //; exec "/Users/chase.whitfield/.nvm/versions/node/v20.3.0/bin/node" -- "$0" "$@"
+// ctx-rhythm — return shape and error-signaling consistency across a module's exports
+//
+// The Rhythm principle: when half a module's functions throw on error and the other
+// half return null, callers build the wrong expectation from the first function they read.
+// This tool finds that divergence deterministically.
+//
+// Checks:
+//   - Error signaling: throws vs null-return vs wrapped-object vs silent (no error path)
+//   - Return shape: direct value vs wrapped {data} vs {data, error}
+//   - Void leakage: non-void-named functions that return nothing
+//
+// Usage: ctx-rhythm <file|dir>
+
+const { execSync } = require('child_process')
+const globalRoot = execSync('npm root -g 2>/dev/null').toString().trim()
+const { Project, SyntaxKind, Node } = require(`${globalRoot}/ts-morph`)
+const path = require('path')
+const fs = require('fs')
+
+const args = process.argv.slice(2)
+const target = args.find(a => !a.startsWith('--'))
+
+if (!target) {
+  console.error('usage: ctx-rhythm <file|dir>')
+  process.exit(1)
+}
+
+const absTarget = path.resolve(target)
+if (!fs.existsSync(absTarget)) { console.error(`not found: ${target}`); process.exit(1) }
+
+// ---------------------------------------------------------------------------
+// File collection
+// ---------------------------------------------------------------------------
+function collectFiles(t) {
+  const stat = fs.statSync(t)
+  if (stat.isFile()) return [t]
+  const out = []
+  function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (/^(\.|\bnode_modules\b|\bdist\b|\bes\b|\blib\b|\bbuild\b)$/.test(e.name)) continue
+      const full = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (/\.(ts|tsx|js|jsx|mjs)$/.test(e.name) &&
+          !e.name.endsWith('.d.ts') &&
+          !e.name.includes('.test.') &&
+          !e.name.includes('.spec.')) out.push(full)
+    }
+  }
+  walk(t)
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Classify a function's error signaling strategy and return shape
+// ---------------------------------------------------------------------------
+function classify(fn) {
+  const body = fn.getBody?.()
+  if (!body) return null
+
+  // Concise arrow function: `x => expression` — the body IS the return value, no ReturnStatement node
+  // e.g. async x => await GET('/path')  →  direct return, not void
+  if (!Node.isBlock(body)) {
+    const text = body.getText()
+    const isNull = text === 'null' || text === 'undefined'
+    return {
+      errorStrategy: 'silent',
+      shape: isNull ? 'nullable' : 'direct',
+      throws: false, isAsync: fn.isAsync?.() ?? false,
+      hasNullReturn: isNull, hasWrappedReturn: false,
+    }
+  }
+
+  // Does it throw?
+  const throws = body.getDescendantsOfKind(SyntaxKind.ThrowStatement).length > 0
+
+  // Return statements (skip implicit void returns)
+  const returnStmts = body.getDescendantsOfKind(SyntaxKind.ReturnStatement)
+  const returnExprs = returnStmts.map(r => r.getExpression()).filter(Boolean)
+
+  let hasNullReturn    = false
+  let hasWrappedReturn = false
+  let hasDirectReturn  = false
+  let hasVoidReturn    = false
+  let hasBoolReturn    = false
+
+  for (const expr of returnExprs) {
+    const kind = expr.getKind()
+    const text = expr.getText()
+
+    if (text === 'null' || text === 'undefined') { hasNullReturn = true; continue }
+    if (text === 'true' || text === 'false')      { hasBoolReturn = true; continue }
+    if (text === 'void 0' || text === '')          { hasVoidReturn = true; continue }
+
+    // Wrapped: object literal with error or result key
+    if (kind === SyntaxKind.ObjectLiteralExpression) {
+      const props = expr.getProperties?.() || []
+      const keys = props.map(p => p.getName?.() || '').filter(Boolean)
+      if (keys.some(k => ['error', 'err'].includes(k)) ||
+          keys.some(k => ['data', 'result', 'value'].includes(k))) {
+        hasWrappedReturn = true; continue
+      }
+    }
+
+    hasDirectReturn = true
+  }
+
+  // If no return statements and not void, it's implicit void
+  if (returnExprs.length === 0) hasVoidReturn = true
+
+  // Derive error signaling strategy
+  let errorStrategy
+  if (throws && !hasNullReturn && !hasWrappedReturn) {
+    errorStrategy = 'throws'
+  } else if (throws && hasNullReturn) {
+    errorStrategy = 'throws+null'   // inconsistent even within this function
+  } else if (hasNullReturn && !throws) {
+    errorStrategy = 'null-return'
+  } else if (hasWrappedReturn) {
+    errorStrategy = 'wrapped-error'
+  } else if (hasVoidReturn && !hasDirectReturn && !hasNullReturn) {
+    errorStrategy = 'void'
+  } else {
+    errorStrategy = 'silent'        // no error path — direct return only
+  }
+
+  // Return shape
+  let shape
+  if (hasWrappedReturn)         shape = 'wrapped'
+  else if (hasBoolReturn && !hasDirectReturn) shape = 'boolean'
+  else if (hasVoidReturn && !hasDirectReturn) shape = 'void'
+  else if (hasNullReturn)       shape = 'nullable'
+  else                          shape = 'direct'
+
+  const isAsync = fn.isAsync?.() ?? false
+
+  return { errorStrategy, shape, throws, isAsync, hasNullReturn, hasWrappedReturn }
+}
+
+// ---------------------------------------------------------------------------
+// Get exported functions from a source file
+// ---------------------------------------------------------------------------
+function getExportedFns(sf) {
+  const fns = []
+  const seen = new Set()
+
+  const add = (name, fn) => {
+    if (seen.has(name)) return
+    seen.add(name)
+    const info = classify(fn)
+    if (!info) return
+    fns.push({ name, ...info })
+  }
+
+  for (const fn of sf.getFunctions()) {
+    if (fn.isExported() && fn.getName()) add(fn.getName(), fn)
+  }
+  for (const v of sf.getVariableDeclarations()) {
+    const stmt = v.getVariableStatement?.()
+    if (!stmt?.isExported()) continue
+    const init = v.getInitializer?.()
+    if (!init) continue
+    const k = init.getKind()
+    if (k === SyntaxKind.ArrowFunction || k === SyntaxKind.FunctionExpression) add(v.getName(), init)
+  }
+  for (const cls of sf.getClasses()) {
+    if (!cls.isExported()) continue
+    for (const m of cls.getMethods()) {
+      if (m.isStatic() || m.getName().startsWith('_')) continue
+      add(`${cls.getName()}.${m.getName()}`, m)
+    }
+  }
+  return fns
+}
+
+// ---------------------------------------------------------------------------
+// Analyse a single file for rhythm issues
+// ---------------------------------------------------------------------------
+function analyseFile(sf, filePath) {
+  const fns = getExportedFns(sf)
+  if (fns.length < 2) return []   // need at least 2 to compare
+
+  const issues = []
+  const rel = fp => path.relative(process.cwd(), fp)
+
+  // --- Error signaling divergence ---
+  const byStrategy = {}
+  for (const fn of fns) {
+    if (fn.errorStrategy === 'void') continue  // void is neutral
+    ;(byStrategy[fn.errorStrategy] = byStrategy[fn.errorStrategy] || []).push(fn.name)
+  }
+  const strategies = Object.keys(byStrategy)
+
+  if (strategies.includes('throws') && strategies.includes('null-return')) {
+    issues.push({
+      severity: 'warning',
+      kind: 'ERROR-SIGNALING',
+      msg: 'mixed error signaling: some functions throw, others return null',
+      detail: [
+        `throws:      ${byStrategy['throws'].join(', ')}`,
+        `null-return: ${byStrategy['null-return'].join(', ')}`,
+        `callers must handle both — throw catches don't protect against null returns`,
+      ],
+    })
+  }
+
+  if (strategies.includes('throws') && strategies.includes('silent')) {
+    issues.push({
+      severity: 'warning',
+      kind: 'ERROR-SIGNALING',
+      msg: 'mixed error signaling: some functions throw, others have no error path',
+      detail: [
+        `throws: ${byStrategy['throws'].join(', ')}`,
+        `silent: ${byStrategy['silent'].join(', ')}`,
+        `errors in silent functions are swallowed; callers won't know`,
+      ],
+    })
+  }
+
+  // --- Return shape divergence ---
+  const byShape = {}
+  for (const fn of fns) {
+    if (fn.shape === 'void') continue
+    ;(byShape[fn.shape] = byShape[fn.shape] || []).push(fn.name)
+  }
+  const shapes = Object.keys(byShape)
+
+  if (shapes.includes('wrapped') && shapes.includes('direct')) {
+    issues.push({
+      severity: 'warning',
+      kind: 'RETURN-SHAPE',
+      msg: 'mixed return shape: some functions return wrapped objects, others return values directly',
+      detail: [
+        `wrapped: ${byShape['wrapped'].join(', ')}`,
+        `direct:  ${byShape['direct'].join(', ')}`,
+        `callers must know which pattern to expect before calling`,
+      ],
+    })
+  }
+
+  // --- Void leakage: function name implies a value but returns void ---
+  const VALUE_VERBS = /^(get|fetch|find|load|read|build|create|make|generate|compute|calculate|resolve|extract|parse|format|transform)/i
+  for (const fn of fns) {
+    if (fn.shape === 'void' && VALUE_VERBS.test(fn.name)) {
+      issues.push({
+        severity: 'warning',
+        kind: 'VOID-LEAK',
+        msg: `${fn.name} — name implies a return value but function returns void`,
+        detail: [],
+      })
+    }
+  }
+
+  return issues
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+const files = collectFiles(absTarget)
+if (!files.length) { console.log('No source files found.'); process.exit(0) }
+
+const project = new Project({
+  skipAddingFilesFromTsConfig: true,
+  compilerOptions: { allowJs: true, checkJs: false },
+})
+
+let totalIssues = 0
+const relOf = fp => path.relative(process.cwd(), fp)
+
+console.log(`## Rhythm: ${target}`)
+console.log()
+
+for (const fp of files) {
+  let sf
+  try { sf = project.addSourceFileAtPath(fp) } catch { continue }
+
+  const issues = analyseFile(sf, fp)
+  if (!issues.length) continue
+
+  console.log(`### ${relOf(fp)}`)
+  console.log()
+
+  for (const issue of issues) {
+    const icon = issue.severity === 'critical' ? '🔴' : '🟡'
+    console.log(`  ${icon} ${issue.kind}: ${issue.msg}`)
+    for (const d of issue.detail) console.log(`       ${d}`)
+    console.log()
+  }
+
+  totalIssues += issues.length
+}
+
+if (!totalIssues) {
+  console.log('✓ Consistent error signaling and return shapes across all files.')
+} else {
+  console.log(`${totalIssues} rhythm issue(s) found.`)
+}

@@ -1,0 +1,5 @@
+#!/bin/bash
+# freq: frequency count of a pattern's matches: rg with the right flags, counted
+# usage: freq <pattern> [path...]   (or pipe: cmd | freq <pattern>)
+pat="$1"; shift
+rg -oIN "$pat" "$@" | sort | uniq -c | sort -rn
