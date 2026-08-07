@@ -1,0 +1,36 @@
+#!/bin/bash
+# Caffeine toggle (the polybar coffee-cup button - see [module/caffeine] in
+# ubuntu/polybar/config.ini): keeps the display awake by pausing the two
+# idle mechanisms - xautolock's idle lock (ubuntu/startup.d/screenlock) and
+# DPMS blanking. X's own screensaver is already off globally
+# (ubuntu/startup.d/display).
+#
+# State lives in a temp file rather than being derived from xset/xautolock:
+# DPMS-disabled is a normal resting state on some machines (see
+# profiles/*/startup.d/dpms), and xautolock's disabled bit isn't queryable.
+# startup.d/screenlock clears the file whenever it spawns a fresh (enabled)
+# xautolock, so the file can't outlive the state it describes.
+
+state_file="$HOME/.dotfiles/temp/.caffeine"
+
+if [ -f "$state_file" ]; then
+	rm -f "$state_file"
+	pgrep -x xautolock > /dev/null && xautolock -enable
+
+	# DPMS's resting state is per-machine (docked tiny_lappy keeps it off -
+	# see profiles/tiny_lappy/startup.d/dpms), so restore by re-running the
+	# profile's dpms script when there is one instead of assuming +dpms.
+	profile_dpms="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile")/startup.d/dpms"
+	if [ -x "$profile_dpms" ]; then
+		"$profile_dpms"
+	else
+		xset +dpms
+	fi
+
+	notify-send "Caffeine" "Off - idle lock & display sleep restored"
+else
+	touch "$state_file"
+	pgrep -x xautolock > /dev/null && xautolock -disable
+	xset -dpms
+	notify-send "Caffeine" "On - idle lock & display sleep disabled"
+fi

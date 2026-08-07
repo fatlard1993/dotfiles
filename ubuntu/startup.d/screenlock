@@ -8,4 +8,10 @@ pgrep -x xss-lock > /dev/null || xss-lock -- $HOME/.dotfiles/ubuntu/bin/system-l
 # xautolock refuses a second instance on its own (logs "already running" and
 # exits), but guard it anyway for consistency/to skip the spawn+immediate-exit.
 warnSeconds=10
-pgrep -x xautolock > /dev/null || xautolock -time 10 -locker "system-lock" -notify $warnSeconds -notifier "$HOME/.dotfiles/ubuntu/bin/lock-warning $warnSeconds" &
+if ! pgrep -x xautolock > /dev/null; then
+	# a fresh xautolock starts enabled, so any caffeine state that survived
+	# the old session is stale - clear it so the bar's coffee cup agrees
+	# (see ubuntu/bin/caffeine)
+	rm -f $HOME/.dotfiles/temp/.caffeine
+	xautolock -time 10 -locker "system-lock" -notify $warnSeconds -notifier "$HOME/.dotfiles/ubuntu/bin/lock-warning $warnSeconds" &
+fi

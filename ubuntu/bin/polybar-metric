@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|volume|wallpaper|brightness|clipboard|power
+# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|volume|wallpaper|brightness|clipboard|caffeine|power
 # Outputs a polybar-formatted icon with threshold coloring (and, where it
 # makes sense, a contextual icon swap at the critical threshold). Detail
 # lives in the rofi menu (ubuntu/bin/polybar-menu), the bar itself stays
@@ -268,6 +268,15 @@ case "$metric" in
 		;;
 	clipboard)
 		render "" "#b5bd68"
+		;;
+	caffeine)
+		# orange while active for the same reason the power-saver leaf is:
+		# a forgotten caffeine leaves the screen unlocked and lit forever
+		if [ -f "$HOME/.dotfiles/temp/.caffeine" ]; then
+			render "" "#de935f"
+		else
+			render "" "#373b41"
+		fi
 		;;
 	power)
 		render "" "#b5bd68"
