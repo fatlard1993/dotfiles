@@ -8,8 +8,15 @@ alias icat="kitty +kitten icat"
 
 claude() {
   kitty-bg
+  # JIT spinner verbs: weighted draw by repo/hour/season/moon/weather.
+  # Fail-soft — a missing compiler or sidecar just means default verbs.
+  "$HOME/.priv-config/claude/compile-spinner.sh" 2>/dev/null || true
   printf '\033[3J'; clear
-  command claude "$@"
+  if [[ -f "$HOME/.claude/spinner.json" ]]; then
+    command claude --settings "$HOME/.claude/spinner.json" "$@"
+  else
+    command claude "$@"
+  fi
   local rc=$?
   printf '\033[3J'; clear
   reload
