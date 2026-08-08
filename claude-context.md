@@ -90,6 +90,19 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 **System:**
 - `chronic`: silence unless fails; `ts`: timestamp stdin; `sponge`: in-place pipe
 
+**Showing you an image** (kitty; `allow_remote_control` + `listen_on` are set in both OS layers):
+- Reading an image renders it into my context only. You see nothing, so never write "the screenshot above"; say I opened it, and where
+- My shell has no controlling terminal: bare `icat` writes graphics escapes into captured output, and `> /dev/tty` fails outright. The remote-control socket is the only route
+- `--hold` on `launch` does not hold; the window closes the instant the command exits. Launch the shell, then send the command to it:
+```
+W=$(kitten @ --to="$KITTY_LISTEN_ON" launch --type=os-window --os-window-title "<what it is>")
+kitten @ --to="$KITTY_LISTEN_ON" send-text --match "id:$W" 'kitten icat --align left a.png b.png
+'
+```
+- The trailing newline inside the quotes is what runs it. `--type=os-window` (a separate window), not `--type=tab`
+- `kitten @ ls` to inspect, `close-window --match id:$W` to clean up; match on id, titles drift to the running command
+- Reach for this whenever the artifact is visual: screenshots, diagrams, charts, rendered pages. Showing beats describing, and I under-use it
+
 **Standard kit** (installed, no notes needed): `gh`, `shellcheck` / `ruff` / `biome`, `gitleaks`, `grpcurl` / `websocat`, `just`, `watchexec`, `hyperfine`, `bats`, `sd`, `lnav`, `tldr`; `fd` / `rg` (ignore configs active)
 
 **rg traps** (earned scars):
