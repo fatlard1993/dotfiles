@@ -1,5 +1,4 @@
-#!/bin/sh
-':' //; exec "/Users/chase.whitfield/.nvm/versions/node/v20.3.0/bin/node" -- "$0" "$@"
+#!/usr/bin/env bun
 // ctx-rhythm — return shape and error-signaling consistency across a module's exports
 //
 // The Rhythm principle: when half a module's functions throw on error and the other
@@ -13,9 +12,8 @@
 //
 // Usage: ctx-rhythm <file|dir>
 
-const { execSync } = require('child_process')
-const globalRoot = execSync('npm root -g 2>/dev/null').toString().trim()
-const { Project, SyntaxKind, Node } = require(`${globalRoot}/ts-morph`)
+const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-morph-loader.js'))
+const { Project, SyntaxKind, Node } = requireTsMorph()
 const path = require('path')
 const fs = require('fs')
 

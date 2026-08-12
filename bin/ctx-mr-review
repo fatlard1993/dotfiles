@@ -24,6 +24,8 @@ echo ""
 
 # Changed TypeScript files
 changed_files=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' | grep -v '\.test\.' | grep -v '\.spec\.' || true)
+# Same set including tests — a type error in a new test file is still this branch's to answer for.
+changed_files_with_tests=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' || true)
 
 # --- Dependency bump detection (runs even when no source files changed) ---
 pkg_changed=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '^package\.json$' || true)
@@ -95,6 +97,22 @@ if [[ -n "$pkg_changed" ]]; then
 fi
 
 if [[ -z "$changed_files" ]]; then
+    # An empty commit range with a dirty tree means the work is uncommitted and this tool cannot
+    # see it. Reporting "no issues" there is a clean bill of health for code never examined, so
+    # say what happened and exit non-zero instead.
+    uncommitted=$(git status --porcelain 2>/dev/null \
+        | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' || true)
+    if [[ -n "$uncommitted" ]]; then
+        uncommitted_count=$(echo "$uncommitted" | wc -l | tr -d ' ')
+        echo "⚠ NOT REVIEWED: ${base}...${branch} is empty, but $uncommitted_count changed source file(s)"
+        echo "  are uncommitted. This tool diffs commits, so it never saw them."
+        echo "  Commit the work, or review the working tree with: ctx-diff HEAD"
+        echo ""
+        echo "---"
+        echo "⚠ INCONCLUSIVE: nothing was analyzed"
+        exit 1
+    fi
+
     [[ -z "$pkg_changed" ]] && echo "No source files or dependencies changed."
     # Still run summary
     echo "---"
@@ -185,7 +203,29 @@ git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 tsconfig_path=""
 [[ -f "$git_root/tsconfig.json" ]] && tsconfig_path="$git_root/tsconfig.json"
 
-if [[ -z "$tsconfig_path" ]]; then
+# A project's own typecheck script knows its layout — which tsconfig covers tests, which
+# workspaces build separately. Prefer it; raw tsc against the root config is the fallback.
+project_typecheck=""
+if [[ -f "$git_root/package.json" ]] && command -v jq &>/dev/null; then
+    for script_name in typecheck type-check tsc; do
+        if jq -e --arg s "$script_name" '.scripts[$s] // empty' "$git_root/package.json" &>/dev/null; then
+            project_typecheck="$script_name"
+            break
+        fi
+    done
+fi
+
+if [[ -n "$project_typecheck" ]]; then
+    pm="npm run"
+    [[ -f "$git_root/yarn.lock" ]] && pm="yarn"
+    [[ -f "$git_root/bun.lockb" ]] && pm="bun run"
+    if (cd "$git_root" && timeout 300 $pm "$project_typecheck" &>/dev/null); then
+        echo "  ✓ Project typecheck passes ($pm $project_typecheck)"
+    else
+        echo "  🔴 Project typecheck fails ($pm $project_typecheck) — run it directly for details"
+        critical=$((critical + 1))
+    fi
+elif [[ -z "$tsconfig_path" ]]; then
     echo "  (no tsconfig.json found — skipping)"
 else
     tsc_bin=""
@@ -195,16 +235,49 @@ else
     if [[ -z "$tsc_bin" ]]; then
         echo "  (tsc not available — run npm ci or install typescript globally to enable)"
     else
-        tsc_errors=$(cd "$git_root" && timeout 60 $tsc_bin --noEmit --skipLibCheck 2>&1 \
-            | grep " error TS" | head -10 || true)
+        all_tsc_errors=$(cd "$git_root" && timeout 120 $tsc_bin --noEmit --skipLibCheck 2>&1 \
+            | grep " error TS" | sed "s|${git_root}/||g" || true)
 
-        if [[ -n "$tsc_errors" ]]; then
-            error_count=$(echo "$tsc_errors" | wc -l | tr -d ' ')
-            echo "  🔴 TypeScript errors ($error_count shown):"
-            echo "$tsc_errors" | sed "s|${git_root}/||g" | sed 's/^/    /'
+        # The root tsconfig rarely describes a whole monorepo: workspaces with project references
+        # report unresolved imports here that their real build never sees, and test files usually
+        # need a separate config for their runner's globals. Only changed non-test files are held
+        # against the branch; everything else is context, not a regression.
+        in_diff_errors=""
+        out_of_diff_errors=""
+        if [[ -n "$all_tsc_errors" ]]; then
+            while IFS= read -r err_line; do
+                [[ -z "$err_line" ]] && continue
+                err_file="${err_line%%(*}"
+                if echo "$changed_files" | grep -qxF "$err_file"; then
+                    in_diff_errors+="${err_line}"$'\n'
+                else
+                    out_of_diff_errors+="${err_line}"$'\n'
+                fi
+            done <<< "$all_tsc_errors"
+        fi
+
+        out_count=$(grep -c '' <<< "${out_of_diff_errors%$'\n'}" 2>/dev/null || echo 0)
+        [[ -z "$out_of_diff_errors" ]] && out_count=0
+
+        # Thousands of errors outside the diff means the root config does not describe this
+        # project at all, so its verdict on the changed files is not worth much either.
+        if [[ $out_count -gt 200 ]]; then
+            echo "  ⚠ The root tsconfig reports $out_count errors across files this branch never"
+            echo "    touched, so it does not describe this project's real build (monorepo"
+            echo "    workspaces, project references, or a separate test config). Treating its"
+            echo "    verdict on changed files as unreliable — run the project's own typecheck."
+        elif [[ -n "$in_diff_errors" ]]; then
+            in_count=$(grep -c '' <<< "${in_diff_errors%$'\n'}")
+            echo "  🔴 TypeScript errors in changed files ($in_count):"
+            head -10 <<< "${in_diff_errors%$'\n'}" | sed 's/^/    /'
             critical=$((critical + 1))
         else
-            echo "  ✓ No TypeScript errors"
+            echo "  ✓ No TypeScript errors in changed source files (root tsconfig)"
+            if [[ $out_count -gt 0 ]]; then
+                echo "  ℹ $out_count error(s) elsewhere — pre-existing, in changed test files, or"
+                echo "    outside the root config's scope. Not counted against this branch."
+                head -3 <<< "${out_of_diff_errors%$'\n'}" | sed 's/^/      /'
+            fi
         fi
     fi
 fi
@@ -236,8 +309,11 @@ echo "### New Dissonance in Changed Code"
 echo ""
 
 has_dissonance=false
-tmp_old=$(mktemp)
-trap 'rm -f "$tmp_old"' EXIT
+# The old revision is analyzed from a temp copy, and ctx-test-gen picks its parser from the
+# file extension — an extensionless temp yields zero flags, which would silently report every
+# pre-existing flag as newly introduced. The suffix is added per file below.
+tmp_old_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_old_dir"' EXIT
 
 while IFS= read -r f; do
     [[ -f "$f" ]] || continue
@@ -261,7 +337,10 @@ while IFS= read -r f; do
         echo ""
     fi
 
-    new_flags=$(timeout 60 ctx-test-gen "$f" $only_arg 2>/dev/null | grep "⚠" | sort -u || true)
+    # ctx-test-gen indents a flag by its nesting depth, so the same finding arrives at several
+    # indents and survives sort -u as duplicates. Normalize before deduping and diffing.
+    new_flags=$(timeout 60 ctx-test-gen "$f" $only_arg 2>/dev/null | grep "⚠" \
+        | sed 's/^[[:space:]]*/  /' | sort -u || true)
     [[ -z "$new_flags" ]] && continue
 
     # Compare against old version — only show what's newly introduced
@@ -270,8 +349,10 @@ while IFS= read -r f; do
     old_content=$(git show "${base}:${rel}" 2>/dev/null || true)
 
     if [[ -n "$old_content" ]]; then
+        tmp_old="${tmp_old_dir}/old.${f##*.}"
         echo "$old_content" > "$tmp_old"
-        old_flags=$(timeout 60 ctx-test-gen "$tmp_old" $only_arg 2>/dev/null | grep "⚠" | sort -u || true)
+        old_flags=$(timeout 60 ctx-test-gen "$tmp_old" $only_arg 2>/dev/null | grep "⚠" \
+            | sed 's/^[[:space:]]*/  /' | sort -u || true)
         new_only=$(comm -23 <(echo "$new_flags") <(echo "$old_flags") 2>/dev/null || echo "$new_flags")
     else
         new_only="$new_flags"
@@ -352,31 +433,44 @@ echo ""
 echo "### Test Coverage"
 echo ""
 
+# Tests are looked up in the reviewed branch's tree, not the working tree: the branch under
+# review is usually not the one checked out, and its new test files would otherwise be invisible.
+branch_tree=$(git ls-tree -r --name-only "$branch" 2>/dev/null || true)
+diff_files=$(git diff --name-only "${base}...${branch}" 2>/dev/null || true)
+
 test_gap=false
 while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
+    [[ -z "$f" ]] && continue
     # Skip files that are themselves test files
     echo "$f" | grep -qE '\.(test|spec)\.' && continue
 
     base_name="${f%.*}"
-    ext="${f##*.}"
+    stem=$(basename "$base_name")
 
-    # Look for a test file alongside the source
-    test_file=""
-    for candidate in "${base_name}.test.${ext}" "${base_name}.test.jsx" "${base_name}.test.tsx" \
-                     "${base_name}.spec.${ext}" "${base_name}.spec.jsx"; do
-        [[ -f "$candidate" ]] && { test_file="$candidate"; break; }
-    done
+    # Colocated first, allowing an infix for repo-specific suites (foo.component.test.tsx,
+    # foo.db.test.ts). Falling back to a basename match elsewhere in the tree catches suites
+    # kept apart, e.g. test/server/middleware/errors.test.ts for controllers/.../errors.ts.
+    test_files=$(grep -E "^${base_name}(\..+)?\.(test|spec)\.[a-z]+$" <<< "$branch_tree" || true)
+    if [[ -z "$test_files" ]]; then
+        test_files=$(grep -E "(^|/)${stem}(\..+)?\.(test|spec)\.[a-z]+$" <<< "$branch_tree" || true)
+    fi
 
-    if [[ -z "$test_file" ]]; then
+    if [[ -z "$test_files" ]]; then
         echo "  🟡 $(basename "$f") — no test file found"
         warnings=$((warnings + 1))
         test_gap=true
     else
-        # Test file exists — was it also updated in this MR?
-        test_in_diff=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -F "$(basename "$test_file")" || true)
-        if [[ -z "$test_in_diff" ]]; then
-            echo "  🟡 $(basename "$f") changed but $(basename "$test_file") was not updated"
+        # A source file can have several suites (unit, db, component); any one of them being
+        # touched means this change carries test work, so only flag when none were.
+        touched=""
+        while IFS= read -r tf; do
+            [[ -z "$tf" ]] && continue
+            grep -qxF "$tf" <<< "$diff_files" && { touched="$tf"; break; }
+        done <<< "$test_files"
+
+        if [[ -z "$touched" ]]; then
+            names=$(while IFS= read -r tf; do [[ -n "$tf" ]] && basename "$tf"; done <<< "$test_files" | paste -sd ", " -)
+            echo "  🟡 $(basename "$f") changed but its tests were not updated ($names)"
             warnings=$((warnings + 1))
             test_gap=true
         fi
@@ -386,7 +480,53 @@ done <<< "$changed_files"
 $test_gap || echo "  (test files updated alongside source)"
 echo ""
 
-# --- 7. Config divergence check ---
+# --- 7. Formatter check ---
+# A formatter is usually its own CI gate, and it fails on files a reviewer would call clean.
+echo "### Formatting"
+echo ""
+
+prettier_bin=""
+[[ -x "$git_root/node_modules/.bin/prettier" ]] && prettier_bin="$git_root/node_modules/.bin/prettier"
+
+format_cap=40
+if [[ -z "$prettier_bin" ]]; then
+    echo "  (prettier not installed locally — skipping)"
+elif [[ -z "$changed_files_with_tests" ]]; then
+    echo "  (no formattable files changed)"
+else
+    file_total=$(grep -c '' <<< "$changed_files_with_tests")
+    # Content is read from the branch rather than the working tree, since the branch under
+    # review is usually not the one checked out. prettier has no branch-aware mode, so each
+    # file is piped through --stdin-filepath and compared with what the branch actually holds.
+    unformatted=""
+    checked=0
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        [[ $checked -ge $format_cap ]] && break
+        checked=$((checked + 1))
+        # The trailing 'x' survives command substitution's newline stripping, so a file that
+        # differs only by a missing or extra final newline is still caught.
+        branch_content=$(git show "${branch}:${f}" 2>/dev/null; printf x) || true
+        [[ "$branch_content" == "x" ]] && continue
+        formatted=$(printf '%s' "${branch_content%x}" \
+            | (cd "$git_root" && timeout 30 "$prettier_bin" --stdin-filepath "$f" 2>/dev/null; printf x) || true)
+        [[ "$formatted" == "x" ]] && continue
+        [[ "$branch_content" == "$formatted" ]] || unformatted+="${f}"$'\n'
+    done <<< "$changed_files_with_tests"
+
+    if [[ -n "$unformatted" ]]; then
+        unformatted_count=$(grep -c '' <<< "${unformatted%$'\n'}")
+        echo "  🟡 $unformatted_count file(s) are not prettier-formatted:"
+        head -5 <<< "${unformatted%$'\n'}" | sed 's/^/    /'
+        warnings=$((warnings + 1))
+    else
+        echo "  ✓ Changed files are formatted"
+    fi
+    [[ $file_total -gt $format_cap ]] && echo "  (checked first $format_cap of $file_total files)"
+fi
+echo ""
+
+# --- 8. Config divergence check ---
 # Check if this MR introduces code that diverges from declared Prettier/tsconfig config
 echo "### Config Conformance"
 echo ""

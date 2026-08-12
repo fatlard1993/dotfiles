@@ -124,7 +124,7 @@ Heavier instruments for bigger jobs.
 - `ctx-symbol <name> [path]`: definition + usages + history in one call (subsumes where / refs / history)
 - `ctx-arch [path] [--cycles-only]`: module dependency graph: coupling table (in/out), cycle detection; ⚠ marks when dynamic loaders make the graph partial
 - `ctx-unused-deps [path]`: packages declared but never imported; Node/Bun and Python
-- `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors) + 🟡 warnings; exits 2/1/0
+- `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors in changed files) + 🟡 warnings (tests, formatting, dissonance); exits 2/1/0. Diffs **commits**, so it refuses with ⚠ INCONCLUSIVE when the work is uncommitted — reach for `ctx-diff HEAD` there
 - `ctx-rhythm <file|dir>`: flags when functions in the same module throw vs return null, or names promise a value but return void
 - `ctx-audit [path]`: security and quality scan via `semgrep --config=auto`
 - `ctx-mutate <file> [test-file]`: surviving mutations are uncovered behaviour
