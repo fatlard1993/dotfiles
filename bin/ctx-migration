@@ -214,21 +214,67 @@ function contentAtRef(ref, filePath) {
 }
 
 // ---------------------------------------------------------------------------
+// Import resolution
+// A symbol imported from the project's own code (relative path, absolute path,
+// or a '#' subpath alias) is not a library — no matter what it is named.
+// Library-migration rules must never be applied to it.
+// ---------------------------------------------------------------------------
+const isLocalSpecifier = spec => /^[./#]/.test(spec || '')
+
+// All import bindings with their module specifiers, in source order.
+// kind 'default' entries (default imports / bare requires) are the only ones
+// eligible for auto-detection — same scope the original detection regex had.
+// Named imports are collected too, but only so a symbol named by --from can be
+// traced back to a local module.
+function importBindings(content) {
+  const out = []
+  const re = /import\s+([\w$]+)\s*(?:,\s*(?:\{[^}]*\}|\*\s+as\s+[\w$]+))?\s+from\s+['"]([^'"]+)['"]|(?:const|let|var)\s+([\w$]+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  let m
+  while ((m = re.exec(content))) {
+    out.push({ binding: m[1] || m[3], specifier: m[2] || m[4], kind: 'default' })
+  }
+  const namedRe = /import\s*(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\s+['"]([^'"]+)['"]/g
+  while ((m = namedRe.exec(content))) {
+    for (const raw of m[1].split(',')) {
+      const name = raw.split(/\s+as\s+/).pop().trim()
+      if (name) out.push({ binding: name, specifier: m[2], kind: 'named' })
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 const newContent = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
 if (!newContent) { console.error(`not found: ${file}`); process.exit(1) }
 
-// Detect library from current or old content if --from not given
-const detectedLib = fromLib || (() => {
-  const content = base ? (contentAtRef(base, file) || newContent) : newContent
-  const match = content.match(/import\s+(\w+)\s+from\s+'([^']+)'|require\s*\(\s*'([^']+)'\s*\)/)
-  return match ? (match[2] || match[3] || '').split('/').pop() : ''
-})()
+const detectionContent = base ? (contentAtRef(base, file) || newContent) : newContent
+const bindings = importBindings(detectionContent)
+
+// Detect library from current or old content if --from not given: first default
+// import or require, exactly as before. Whether it is actually a library is
+// decided by the local-source guard below, not by skipping ahead to a different
+// import — a file whose first import is local has no detectable migration.
+const detectedEntry = fromLib ? null : bindings.find(b => b.kind === 'default' && b.binding) || null
+const detectedLib = fromLib || (detectedEntry ? detectedEntry.specifier.split('/').pop() : '')
 
 if (!detectedLib) {
   console.error('Could not detect library. Specify with --from <lib>')
   process.exit(1)
+}
+
+// Even when named explicitly, verify the symbol actually resolves to a library.
+// If this file binds that name from a local module (or imports a local module
+// whose basename matches), any same-named library rule does not apply here —
+// neither as a failure nor as a green check.
+const localSource = (detectedEntry && isLocalSpecifier(detectedEntry.specifier) && detectedEntry) ||
+  bindings.find(b =>
+    isLocalSpecifier(b.specifier) &&
+    (b.binding === detectedLib || b.specifier.split('/').pop() === detectedLib))
+if (localSource) {
+  console.log(`${path.basename(file)}: no recognized migration — '${detectedLib}' resolves to a local module (${localSource.specifier}), not a library`)
+  process.exit(0)
 }
 
 const mode = base ? 'review' : 'plan'

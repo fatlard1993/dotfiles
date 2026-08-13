@@ -339,8 +339,11 @@ while IFS= read -r f; do
 
     # ctx-test-gen indents a flag by its nesting depth, so the same finding arrives at several
     # indents and survives sort -u as duplicates. Normalize before deduping and diffing.
+    # LC_ALL=C throughout: flag lines hold multibyte characters (⚠, —) whose locale collation
+    # can make sort and comm disagree, and comm on "unsorted" input silently emits pre-existing
+    # flags as new. Byte order is stable.
     new_flags=$(timeout 60 ctx-test-gen "$f" $only_arg 2>/dev/null | grep "⚠" \
-        | sed 's/^[[:space:]]*/  /' | sort -u || true)
+        | sed 's/^[[:space:]]*/  /' | LC_ALL=C sort -u || true)
     [[ -z "$new_flags" ]] && continue
 
     # Compare against old version — only show what's newly introduced
@@ -352,8 +355,8 @@ while IFS= read -r f; do
         tmp_old="${tmp_old_dir}/old.${f##*.}"
         echo "$old_content" > "$tmp_old"
         old_flags=$(timeout 60 ctx-test-gen "$tmp_old" $only_arg 2>/dev/null | grep "⚠" \
-            | sed 's/^[[:space:]]*/  /' | sort -u || true)
-        new_only=$(comm -23 <(echo "$new_flags") <(echo "$old_flags") 2>/dev/null || echo "$new_flags")
+            | sed 's/^[[:space:]]*/  /' | LC_ALL=C sort -u || true)
+        new_only=$(LC_ALL=C comm -23 <(echo "$new_flags") <(echo "$old_flags") 2>/dev/null || echo "$new_flags")
     else
         new_only="$new_flags"
     fi

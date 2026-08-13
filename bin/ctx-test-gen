@@ -374,6 +374,87 @@ function extractDependencies(fn, sourceFile) {
   return { names: [...deps], modules: [...depModules] }
 }
 
+// --- Local callee resolution (for GHOST-CALL) ---
+// A dropped call result only ghosts errors when the callee can actually be
+// async. When the callee is imported from a local module, its definition is
+// readable — a plain synchronous function is never a GHOST-CALL, no matter
+// how the call site looks.
+let _calleeProject = null
+const _calleeSfCache = new Map()
+const _calleeKindCache = new Map()
+
+function calleeSourceFile(absPath) {
+  if (_calleeSfCache.has(absPath)) return _calleeSfCache.get(absPath)
+  let sf = null
+  try {
+    _calleeProject ||= new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: { allowJs: true, checkJs: false },
+    })
+    sf = _calleeProject.addSourceFileAtPath(absPath)
+  } catch {}
+  _calleeSfCache.set(absPath, sf)
+  return sf
+}
+
+function resolveLocalModule(spec, fromDir) {
+  if (!/^[./]/.test(spec || '')) return null
+  const basePath = path.resolve(fromDir, spec)
+  const exts = ['', '.js', '.ts', '.jsx', '.tsx', '.mjs']
+  for (const e of exts) {
+    try { if (fs.statSync(basePath + e).isFile()) return basePath + e } catch {}
+  }
+  for (const e of exts.slice(1)) {
+    const p = path.join(basePath, 'index' + e)
+    try { if (fs.statSync(p).isFile()) return p } catch {}
+  }
+  return null
+}
+
+function namedFunctionNode(sf, name) {
+  const fn = sf.getFunction?.(name)
+  if (fn) return fn
+  const init = sf.getVariableDeclaration?.(name)?.getInitializer?.()
+  if (init && ['ArrowFunction', 'FunctionExpression'].includes(init.getKindName())) return init
+  return null
+}
+
+function defaultExportFunction(sf) {
+  const fn = sf.getFunctions().find(f => f.isDefaultExport?.())
+  if (fn) return fn
+  const expr = sf.getExportAssignments?.()[0]?.getExpression?.()
+  if (!expr) return null
+  const k = expr.getKindName()
+  if (['ArrowFunction', 'FunctionExpression'].includes(k)) return expr
+  if (k === 'Identifier') return namedFunctionNode(sf, expr.getText())
+  return null
+}
+
+function mayReturnPromise(fnNode) {
+  if (fnNode.isAsync?.()) return true
+  const text = fnNode.getBody?.()?.getText?.() || fnNode.getText?.() || ''
+  return /\bnew\s+Promise\b|\bPromise\s*\.\s*(resolve|reject|all|allSettled|race|any)\b|\.then\s*\(|\basync\b/.test(text)
+}
+
+// 'sync' | 'async' | 'unknown' — unknown covers package imports and anything unresolvable
+function localCalleeKind(name, importEntry, fromDir) {
+  const resolved = resolveLocalModule(importEntry.mod, fromDir)
+  if (!resolved) return 'unknown'
+  const exportName = importEntry.isDefault ? 'default' : (importEntry.exportName || name)
+  const key = `${resolved}::${exportName}`
+  if (_calleeKindCache.has(key)) return _calleeKindCache.get(key)
+  let kind = 'unknown'
+  const sf = calleeSourceFile(resolved)
+  if (sf) {
+    const fnNode = importEntry.isDefault
+      ? defaultExportFunction(sf)
+      : namedFunctionNode(sf, importEntry.exportName || name)
+    if (fnNode) kind = mayReturnPromise(fnNode) ? 'async' : 'sync'
+  }
+  _calleeKindCache.set(key, kind)
+  return kind
+}
+
 // --- Dissonance detection ---
 function detectDissonance(fn, sourceFile, branches, deps, fnName) {
   const flags = []
@@ -577,29 +658,49 @@ function detectDissonance(fn, sourceFile, branches, deps, fnName) {
   })
 
   // Missing await on async calls (ghost path)
-  // Check full ancestor chain — handle cases like `fn() as Type` where parent is AsExpression
-  function hasAncestorKind(node, kinds) {
-    let n = node.getParent()
-    while (n) {
-      if (kinds.includes(n.getKindName())) return true
-      n = n.getParent()
+  // A call's result is dropped only when the call is itself a statement —
+  // `foo();` possibly wrapped in parens/casts. In every other position
+  // (argument, arrow concise body, spread, property value, return value,
+  // template piece, await operand, …) the surrounding expression consumes it.
+  function resultDiscarded(call) {
+    let node = call
+    let parent = node.getParent()
+    while (parent) {
+      const k = parent.getKindName()
+      if (['ParenthesizedExpression', 'AsExpression', 'NonNullExpression', 'TypeAssertionExpression'].includes(k)) {
+        node = parent
+        parent = parent.getParent()
+        continue
+      }
+      return k === 'ExpressionStatement'
     }
     return false
   }
-  const asyncCalls = body.getDescendantsOfKind(SyntaxKind.CallExpression).filter(c => {
-    const expr = c.getExpression().getText()
-    const parent = c.getParent()
-    const isAwaited = parent.getKindName() === 'AwaitExpression' ||
-      hasAncestorKind(c, ['AwaitExpression'])
-    const isUsed = hasAncestorKind(c, ['VariableDeclaration','BinaryExpression','ReturnStatement','PropertyAccessExpression'])
-    const isImported = deps.includes(expr.split('.')[0])
-    return isImported && !isAwaited && !isUsed
-  })
-  if (asyncCalls.length > 0) {
-    asyncCalls.forEach(c => {
-      flags.push(`⚠  GHOST-CALL: ${c.getExpression().getText()}() — async call with no await and not assigned; result and errors are silently dropped`)
+
+  // importedName → where it came from, so sync local callees can be excluded
+  const importEntries = {}
+  sourceFile.getImportDeclarations().forEach(imp => {
+    const mod = imp.getModuleSpecifierValue()
+    imp.getNamedImports().forEach(named => {
+      const binding = named.getAliasNode?.()?.getText() || named.getName()
+      importEntries[binding] = { mod, isDefault: false, exportName: named.getName() }
     })
-  }
+    const defImport = imp.getDefaultImport()
+    if (defImport) importEntries[defImport.getText()] = { mod, isDefault: true }
+  })
+  const srcDir = path.dirname(sourceFile.getFilePath())
+
+  body.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(c => {
+    const expr = c.getExpression().getText()
+    const root = expr.split('.')[0]
+    if (!deps.includes(root)) return
+    if (!resultDiscarded(c)) return
+    // Direct calls to a local import with a readable synchronous definition are
+    // not ghost calls; anything unresolvable stays flagged as possibly async.
+    const entry = expr === root ? importEntries[root] : null
+    if (entry && localCalleeKind(root, entry, srcDir) === 'sync') return
+    flags.push(`⚠  GHOST-CALL: ${expr}() — async call with no await and not assigned; result and errors are silently dropped`)
+  })
 
   // Promise.all without try/catch
   const hasPromiseAll = calls.some(c => c.getExpression().getText() === 'Promise.all')
@@ -725,6 +826,21 @@ function detectDissonance(fn, sourceFile, branches, deps, fnName) {
 
   // Build file-scope declared names: imports + top-level declarations
   const fileDeclared = new Set()
+
+  // A declaration's name node is either a plain Identifier or a binding pattern
+  // ({ a, b: c = d }, [x, ...rest]). Collect every bound identifier either way.
+  const addBindingNames = nameNode => {
+    if (!nameNode) return
+    const kind = nameNode.getKindName?.()
+    if (kind === 'Identifier') { fileDeclared.add(nameNode.getText()); return }
+    if (kind === 'ObjectBindingPattern' || kind === 'ArrayBindingPattern') {
+      for (const el of nameNode.getDescendantsOfKind(SyntaxKind.BindingElement)) {
+        const n = el.getNameNode?.()
+        if (n?.getKindName?.() === 'Identifier') fileDeclared.add(n.getText())
+      }
+    }
+  }
+
   for (const imp of sourceFile.getImportDeclarations()) {
     const clause = imp.getImportClause()
     if (!clause) continue
@@ -733,17 +849,37 @@ function detectDissonance(fn, sourceFile, branches, deps, fnName) {
     for (const ni of clause.getNamedImports?.() || [])
       fileDeclared.add(ni.getAliasNode?.()?.getText() || ni.getName())
   }
-  for (const f of sourceFile.getFunctions())          f.getName() && fileDeclared.add(f.getName())
-  for (const v of sourceFile.getVariableDeclarations()) fileDeclared.add(v.getName())
-  for (const c of sourceFile.getClasses())            c.getName() && fileDeclared.add(c.getName())
-  // Also exclude variables/functions declared WITHIN the body (local vars, inner functions)
-  for (const v of body.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) fileDeclared.add(v.getName())
-  for (const f of body.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) f.getName() && fileDeclared.add(f.getName())
+  for (const f of sourceFile.getFunctions())            f.getName() && fileDeclared.add(f.getName())
+  for (const v of sourceFile.getVariableDeclarations()) addBindingNames(v.getNameNode?.())
+  for (const c of sourceFile.getClasses())              c.getName() && fileDeclared.add(c.getName())
 
-  // Param names declared in THIS function
-  const paramNames = new Set(
-    params.filter(p => !p.isDestructured).map(p => p.getName()).filter(Boolean)
-  )
+  // Names bound WITHIN the body, in any scope the body contains:
+  //   - variable declarations, incl. destructured consts and for-of/for-in loop variables
+  //   - parameters of every nested arrow function, function expression, and method
+  //     (incl. destructured parameters)
+  //   - inner function/class declarations and named function expressions
+  //   - catch clause variables
+  // An identifier bound by any of these is not a runtime global, even though this
+  // walker does not model which scopes it is visible from.
+  for (const v of body.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) addBindingNames(v.getNameNode?.())
+  for (const p of body.getDescendantsOfKind(SyntaxKind.Parameter))           addBindingNames(p.getNameNode?.())
+  for (const f of body.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) f.getName() && fileDeclared.add(f.getName())
+  for (const f of body.getDescendantsOfKind(SyntaxKind.FunctionExpression))  f.getName() && fileDeclared.add(f.getName())
+  for (const c of body.getDescendantsOfKind(SyntaxKind.ClassDeclaration))    c.getName() && fileDeclared.add(c.getName())
+  for (const c of body.getDescendantsOfKind(SyntaxKind.ClassExpression))     c.getName() && fileDeclared.add(c.getName())
+  for (const cc of body.getDescendantsOfKind(SyntaxKind.CatchClause))        addBindingNames(cc.getVariableDeclaration?.()?.getNameNode?.())
+
+  // Param names declared in THIS function (incl. destructured params)
+  const paramNames = new Set()
+  for (const p of params) {
+    const nameNode = p.getNameNode?.()
+    if (!nameNode) continue
+    if (nameNode.getKindName?.() === 'Identifier') paramNames.add(nameNode.getText())
+    else for (const el of nameNode.getDescendantsOfKind?.(SyntaxKind.BindingElement) || []) {
+      const n = el.getNameNode?.()
+      if (n?.getKindName?.() === 'Identifier') paramNames.add(n.getText())
+    }
+  }
 
   // Collect identifiers used as property-access receivers or direct call targets
   const runtimeCandidates = new Set()
