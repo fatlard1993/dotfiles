@@ -23,6 +23,10 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin
 
 SNAPSHOT_DIR=$HOME/Library/Logs/dns-snapshots
 PROBE_HOSTS=(github.com apple.com cloudflare.com)
+# The router forwards DNS to the htpc (Starlink app > Custom DNS), so the
+# router's own loss rate can be clean while the real resolver is drowning -
+# the 2026-08-12 flap was invisible until the htpc was probed directly.
+UPSTREAM_DNS=(192.168.1.151)
 
 mkdir -p "$SNAPSHOT_DIR"
 
@@ -78,8 +82,8 @@ capture() {
 		# completely. Measured against a public resolver in the same breath so
 		# a bad local link doesn't read as a bad router.
 		echo "## resolver loss rate, 10 queries each"
-		echo "   (public should be 0/10; anything above 0 for the router is the fault)"
-		for server in "$gw" 1.1.1.1; do
+		echo "   (public should be 0/10; a clean router over a dirty upstream means the forward target is the fault)"
+		for server in "$gw" "${UPSTREAM_DNS[@]}" 1.1.1.1; do
 			[ -z "$server" ] && continue
 
 			fails=0
