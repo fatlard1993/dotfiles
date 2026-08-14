@@ -30,7 +30,30 @@ tickInterval=1.5
 # *this* by lock-tick every $tickInterval, so a tick never re-pays this
 # capture's cost.
 capture() {
-	scrot -o $base && convert $base -blur 8x8 $base
+	shot=/tmp/system-lock/shot.png
+
+	# The panel isn't guaranteed to be lit when this runs: the resume relock
+	# hook fires the instant the process freeze lifts, and the idle lock's
+	# 10-minute timer collides with DPMS's default 600s blank. scrot against
+	# an unlit screen returns pure black, and a black base stays black for
+	# the whole lock session. Wake the display, then shoot to a side file
+	# and only promote a frame with actual light in it - after ~2.5s of
+	# still-black, a previous base (even stale-geometry) beats black.
+	xset dpms force on 2>/dev/null
+
+	tries=0
+	while true; do
+		scrot -o $shot || return 1
+		[ "$(convert $shot -format '%[fx:mean>0.001?1:0]' info:)" = 1 ] && break
+		tries=$((tries + 1))
+		if [ $tries -ge 5 ]; then
+			[ -f $base ] && return 0
+			break
+		fi
+		sleep 0.5
+	done
+
+	convert $shot -blur 8x8 $base
 
 	if [ -f $lockImg ]; then
 		# -gravity center targets the middle of the full captured canvas
