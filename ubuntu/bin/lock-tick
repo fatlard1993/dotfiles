@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
+# ^ pinned, not `env`: PIL comes from apt's python3-pil, which only the
+# distro interpreter can see - a version manager's python3 on PATH (brew's
+# arrived as a semgrep dep) imports nothing from dist-packages and every
+# tick dies, freezing screen_locked.png at whatever composite came last.
 """Regenerates the animated HUD layer (rotating rings, sweep, clock) and
 composites it over the cached static base (blurred desktop + badge, see
 ubuntu/bin/system-lock's capture()). slock (our fork, see
@@ -17,6 +21,7 @@ operation.
 """
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -64,7 +69,7 @@ def main():
     # of drawing its laptop-panel-tuned pixel sizes on whatever screen it
     # lands on (undersized on the 4K external, see gen_lock_hud.py).
     subprocess.run(
-        ["python3", str(DOTFILES / "ubuntu/gen_lock_hud.py"), str(HUD_SVG), str(t), str(W), str(H), str(cx), str(cy), str(ph)],
+        [sys.executable, str(DOTFILES / "ubuntu/gen_lock_hud.py"), str(HUD_SVG), str(t), str(W), str(H), str(cx), str(cy), str(ph)],
         check=True,
     )
     subprocess.run(
