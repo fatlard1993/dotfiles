@@ -3,6 +3,8 @@ brew "awscli"
 brew "glab"
 brew "go"
 
+cask "temurin@25"
+
 cask "figma"
 cask "lastpass"
 cask "slack"
