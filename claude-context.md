@@ -20,7 +20,6 @@ The tools below are the whole working surface; anything in `bin/` not listed her
 - `ctx-refs <symbol>`: every call site, raw list
 - `ctx-impact <symbol>`: blast radius: direct usages plus what those callers export
 - `ctx-api <module>`: public API surface: exported symbols with signatures
-- `ctx-deps [file]`: prod / dev / peer dependencies from package.json
 - `ctx-dead [path]`: exported symbols with no usages outside their own file
 - `ctx-env-scan [path]`: every environment variable the codebase reads
 
@@ -36,9 +35,8 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 - `ctx-semantic-diff <file> <refA> <refB>`: how a file's AST structure changed between two git refs
 - `ctx-hotspots [path]`: cyclomatic complexity × git churn
 - `ctx-complexity <file>`: cyclomatic complexity per function
-- `ctx-todo [path]`: TODO/FIXME/etc, grouped by type
 - `ctx-duplicates [path]`: structurally similar files
-- `ctx-migration`: behavioral equivalence across a library migration
+- `ctx-migration <file> --from <lib> [--base <ref>]`: behavioral equivalence across a library migration; omit `--base` for plan mode
 
 ## Testing
 
@@ -71,7 +69,7 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 
 **Git:**
 - `push.default = current` / `pull.rebase = false`
-- `git lg` / `git lb` / `git recent`; `git summary` / `git effort` / `git changelog`
+- `git summary` / `git effort` / `git changelog` (git-extras: repo overview, per-author churn, tag history)
 - `difft` (difftastic): structural diff: `GIT_EXTERNAL_DIFF=difft git diff`
 
 **Data tools:**
@@ -112,7 +110,8 @@ kitten @ --to="$KITTY_LISTEN_ON" send-text --match "id:$W" 'kitten icat --align 
 **Aliases:**
 - `i`: `bun i` or `npm i` (detects `bunfig.toml`)
 - `ci`: frozen install
-- `jq` → `-M`, `curl` → `-sLf`, `bat` → `--style=plain --color=never`, `diff` → `-u`
+- `jq` → `-M`, `bat` → `--style=plain --color=never`, `diff` → `-u`
+- `curl` → `-sLf`: HTTP errors return empty output + nonzero exit, no error body; drop the alias (`command curl`) when the body matters
 - `port <n>`: what's listening on port n
 
 **Auth:** Anthropic: token in env. GitHub via `gh` (also answers git's credential helper).
@@ -124,7 +123,7 @@ Heavier instruments for bigger jobs.
 - `ctx-symbol <name> [path]`: definition + usages + history in one call (subsumes where / refs / history)
 - `ctx-arch [path] [--cycles-only]`: module dependency graph: coupling table (in/out), cycle detection; ⚠ marks when dynamic loaders make the graph partial
 - `ctx-unused-deps [path]`: packages declared but never imported; Node/Bun and Python
-- `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors in changed files) + 🟡 warnings (tests, formatting, dissonance); exits 2/1/0. Diffs **commits**, so it refuses with ⚠ INCONCLUSIVE when the work is uncommitted — reach for `ctx-diff HEAD` there
+- `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors in changed files) + 🟡 warnings (tests, formatting, dissonance); exits 2/1/0. Diffs **commits**, so it refuses with ⚠ INCONCLUSIVE when the work is uncommitted - reach for `ctx-diff HEAD` there
 - `ctx-rhythm <file|dir>`: flags when functions in the same module throw vs return null, or names promise a value but return void
 - `ctx-audit [path]`: security and quality scan via `semgrep --config=auto`
 - `ctx-mutate <file> [test-file]`: surviving mutations are uncovered behaviour
