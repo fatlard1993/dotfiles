@@ -2,11 +2,18 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# Vanilla Minecraft server, always the newest release. Both the version and
-# the Java it needs come from Mojang's manifest rather than being hardcoded
-# - the required JDK moves with releases (26.2 already wants Java 25), so
-# a pinned openjdk package would go stale. The client (the official
-# launcher deb, which bundles its own game runtime) installs at the bottom.
+# Fabric Minecraft server running the mod suite (~/Projects/minecraft on
+# the dev laptop). Game + loader versions are pinned to what the suite
+# builds against - bump them here in the same breath as the suite's
+# gradle.properties, never independently: the world and every mod jar move
+# with the suite, not with Mojang's release channel. The required Java
+# still comes from Mojang's manifest for the pinned version. Mod jars are
+# NOT managed here - they deploy from the suite workspace (build-all.sh,
+# then scp to ~/minecraft-server/mods) so the server only ever runs jars
+# that came out of a green suite build.
+mcVersion=26.3-snapshot-8
+loaderVersion=0.19.3
+installerVersion=1.1.2
 
 mcDir=$HOME/minecraft-server
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
@@ -19,28 +26,36 @@ if [[ -z $manifest ]]; then
 	return
 fi
 
-latest=$(echo $manifest | jq -r '.latest.release')
 current=$(cat $mcDir/.version 2>/dev/null)
-versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$latest\") | .url"))
+target="$mcVersion+$loaderVersion"
+versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$mcVersion\") | .url"))
+
+if [[ -z $versionJson ]]; then
+	echo "Pinned version $mcVersion not in Mojang's manifest - skipping minecraft"
+
+	return
+fi
 
 javaMajor=$(echo $versionJson | jq -r '.javaVersion.majorVersion')
 
 dpkg -s openjdk-$javaMajor-jre-headless > /dev/null 2>&1 || {
-	echo "Installing Java $javaMajor (required by Minecraft $latest)"
+	echo "Installing Java $javaMajor (required by Minecraft $mcVersion)"
 
 	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre-headless
 }
 
-if [[ $latest != $current ]]; then
-	echo "Installing Minecraft server $latest${current:+ (updating from $current)}"
+if [[ $target != $current ]]; then
+	echo "Installing Fabric server $target${current:+ (updating from $current)}"
 
-	mkdir -p $mcDir
+	mkdir -p $mcDir/mods
 
 	# .new + mv so a dropped connection can't leave a truncated jar where a
-	# working one used to be
-	curl -sf -o $mcDir/server.jar.new $(echo $versionJson | jq -r '.downloads.server.url') \
-		&& mv $mcDir/server.jar.new $mcDir/server.jar \
-		&& echo $latest > $mcDir/.version
+	# working one used to be. The meta jar bundles loader + launcher and
+	# downloads the game jar itself on first boot.
+	curl -sf -o $mcDir/fabric-server.jar.new \
+		"https://meta.fabricmc.net/v2/versions/loader/$mcVersion/$loaderVersion/$installerVersion/server/jar" \
+		&& mv $mcDir/fabric-server.jar.new $mcDir/fabric-server.jar \
+		&& echo $target > $mcDir/.version
 fi
 
 # The server refuses to start until Mojang's EULA (aka.ms/MinecraftEULA)
@@ -57,8 +72,8 @@ systemctl --user daemon-reload
 ensureLinger
 
 if systemctl --user is-active --quiet minecraft-server.service; then
-	if [[ $latest != $current ]]; then
-		echo "Restarting minecraft server for $latest"
+	if [[ $target != $current ]]; then
+		echo "Restarting minecraft server for $target"
 
 		systemctl --user restart minecraft-server.service
 	fi
