@@ -1,0 +1,4 @@
+# RX570: BACO runtime sleep cuts the HDMI port's +5V, so a headless boot
+# deadlocks display detection - the Denon never sees a source, the card never
+# sees a sink, and the machine stays black until woken by hand (2026-08 outage).
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x1002", ATTR{device}=="0x67df", ATTR{power/control}="on"
