@@ -12,13 +12,24 @@
 # short-lived invocation, not a relaunch of the slock that's been running
 # since before suspend (suspend pauses processes, it doesn't kill them).
 #
-# Runs as root with no X session context - see ubuntu/.bspwmrc's
-# DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments for why.
+# The transient unit runs as chase but carries no session env, so
+# DISPLAY/XAUTHORITY are injected by hand - see ubuntu/.bspwmrc's
+# DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments for the wider
+# context.
 #
-# Per systemd-sleep(8), user.slice is frozen for the duration of these
-# hooks, so this runs once the freeze lifts, right as resume completes -
-# a better sync point than any delay we could construct manually.
+# systemd-sleep freezes user.slice for the WHOLE hook run: frozen before
+# the pre hooks, thawed only after the last post hook exits. So a hook
+# may not synchronously touch the user session - Xorg is frozen, and a
+# `su` login lands in a frozen session scope - it deadlocks until the
+# 90s hook timeout kills it, and the whole desktop stays frozen with it.
+# systemd-run detaches instead: the hook exits at once (thaw proceeds),
+# and the transient unit sits in system.slice where its X connection
+# blocks until Xorg thaws, landing the recapture right as resume
+# completes.
 
 [ "$1" = "post" ] || exit 0
 
-su chase -c 'DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority /home/chase/.dotfiles/ubuntu/bin/system-lock recapture'
+systemd-run --collect --property=User=chase \
+	--setenv=DISPLAY=:0 \
+	--setenv=XAUTHORITY=/run/user/1000/gdm/Xauthority \
+	/home/chase/.dotfiles/ubuntu/bin/system-lock recapture
