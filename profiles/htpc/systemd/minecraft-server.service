@@ -15,8 +15,10 @@ WorkingDirectory=%h/minecraft-server
 ExecStart=/usr/bin/java -Xms2G -Xmx6G -jar fabric-server.jar nogui
 # The server saves and exits cleanly on SIGTERM (systemd's default stop
 # signal); java reports that as 143 (128+15), which is still a clean stop.
+# Restart=always because a hard crash can exit 0 (the JVM dies after the
+# crash report writes cleanly); use systemctl stop for a deliberate stop.
 SuccessExitStatus=0 143
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
