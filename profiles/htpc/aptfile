@@ -17,6 +17,12 @@ package "mpv"
 # Input can't remap or emulate them
 package "steam-devices"
 
+# Minecraft client for the couch (dot-update.d/minecraft generates the
+# instance). Chosen over Mojang's launcher for its CLI: --launch plus
+# --server go straight into the house server, so the Steam shortcut skips
+# every mouse-only screen in front of the game.
+package "prismlauncher"
+
 # AirPlay receiver (mirroring/video/audio from Apple devices) + DLNA/UPnP
 # renderer as the cast target for everything else - the actual Google Cast
 # protocol is proprietary with no open receiver, so DLNA-capable phone apps

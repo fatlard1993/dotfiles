@@ -2,15 +2,17 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# Fabric Minecraft server running the mod suite (~/Projects/minecraft on
-# the dev laptop). Game + loader versions are pinned to what the suite
-# builds against - bump them here in the same breath as the suite's
-# gradle.properties, never independently: the world and every mod jar move
-# with the suite, not with Mojang's release channel. The required Java
+# The house Fabric server AND the couch client, both running the mod suite
+# (~/Projects/minecraft on the dev laptop). Game + loader versions are
+# pinned to what the suite builds against - bump them here in the same
+# breath as the suite's gradle.properties, never independently: the world
+# and every mod jar move with the suite, not with Mojang's release channel.
+# The two halves read the same two variables, so a client that can't join
+# this box's server is not a state this file can produce. The required Java
 # still comes from Mojang's manifest for the pinned version. Mod jars are
 # NOT managed here - they deploy from the suite workspace (build-all.sh,
-# then scp to ~/minecraft-server/mods) so the server only ever runs jars
-# that came out of a green suite build.
+# then scp) so nothing ever runs a jar that didn't come out of a green
+# suite build.
 mcVersion=26.3-snapshot-8
 loaderVersion=0.19.3
 installerVersion=1.1.2
@@ -83,7 +85,148 @@ else
 	systemctl --user enable --now minecraft-server.service
 fi
 
-# Official launcher; its deb depends on default-jre and friends, which apt
+echo "Generating the suite client instance"
+
+# The couch client. Prism rather than Mojang's launcher because this box is
+# played from a controller and Mojang's launcher is a mouse-only wall in
+# front of the game: Prism's --launch and --server together boot straight
+# into the house server, past the launcher GUI, the title screen and the
+# server list. Three screens a gamepad navigates badly, removed rather than
+# mapped. The launch line itself lives in the profile's minecraft-couch,
+# which is what Steam points at.
+#
+# Prism resolves these component versions against meta.prismlauncher.org,
+# which does carry the suite's snapshots - but it carries them because
+# Mojang published them, so a version this file pins before Prism's meta
+# picks it up fails at launch, not here.
+prismRoot=$HOME/.local/share/PrismLauncher
+instanceDir=$prismRoot/instances/suite
+
+# The server above runs happily on the headless JRE, but a client needs the
+# full one - LWJGL wants libawt_xawt and friends, which -headless omits. It
+# is present on this box today only as a side effect of the Mojang launcher
+# deb pulling in default-jre, which makes the couch client's runtime a
+# dependency of a launcher nothing uses. Name it here so purging that
+# launcher can't quietly take the client's Java with it.
+dpkg -s openjdk-$javaMajor-jre > /dev/null 2>&1 || {
+	echo "Installing the full Java $javaMajor runtime (the client needs it)"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre
+}
+
+# Where the client's jars go. Creating .minecraft is load-bearing, not
+# just tidy: Prism accepts either that name or a bare "minecraft" and picks
+# whichever already exists, so making this one first is what settles it.
+mkdir -p $instanceDir/.minecraft/mods
+
+# Regenerated every run - the version pin is this file's business and has
+# to keep tracking the server. instance.cfg below is deliberately the
+# opposite: seeded once, then it belongs to Prism, whose settings UI writes
+# to that same file and would lose every change to a rewrite here.
+cat > $instanceDir/mmc-pack.json << EOF
+{
+	"components": [
+		{
+			"important": true,
+			"uid": "net.minecraft",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.intermediary",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.fabric-loader",
+			"version": "$loaderVersion"
+		}
+	],
+	"formatVersion": 1
+}
+EOF
+
+# Heap: the server above can take 6G of this box's 15G and Steam plus the
+# session want ~2G, so 4G is what's actually free for a client sharing the
+# box with the server it's connecting to. Raise it only by lowering the
+# server's -Xmx in systemd/minecraft-server.service in the same breath.
+[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF
+InstanceType=OneSix
+name=suite
+iconKey=default
+OverrideMemory=true
+MinMemAlloc=1024
+MaxMemAlloc=4096
+EOF
+
+# Jar deployment stays manual (see the top of this file), but drift between
+# the two mod sets on this one box is worth catching: a client and server
+# running different builds don't fail informatively, they just refuse to
+# connect. Names only, not hashes - a version bump renames the jar, which is
+# the case that actually happens here.
+#
+# Containment, not equality. The client needs everything the server has, but
+# the reverse is false and getting louder: couch-controls is client-only by
+# design, and every client-side mod added from here on widens the gap. An
+# equality test would report that healthy difference as a fault on every
+# single run, which is the fastest way to teach someone to ignore the check.
+serverMods=($mcDir/mods/*.jar(N:t))
+clientMods=($instanceDir/.minecraft/mods/*.jar(N:t))
+
+missing=(${serverMods:|clientMods})
+
+if (( ${#missing} )); then
+	echo "  The client is missing ${#missing} mod(s) the server runs, and won't"
+	echo "  be able to join until it has them: ${missing[*]}"
+	echo "    cp $mcDir/mods/*.jar $instanceDir/.minecraft/mods/"
+fi
+
+# Prism needs exactly one interactive run before --launch works at all, for
+# two reasons that land together: its setup wizard blocks until Java and
+# language are picked (verified - a --launch against a fresh data dir sits
+# forever with the wizard rendering to nothing), and the Microsoft account
+# is OAuth, so there is no headless login to script. Both settle in that
+# one sitting; every launch after it is headless. Java itself is left to
+# Prism's autodetect rather than pinned into instance.cfg, which is seeded
+# once and would strand a stale path the first time $javaMajor moves.
+[[ -f $prismRoot/accounts.json ]] || {
+	echo "  Prism has no account yet - open it once with a mouse: finish the"
+	echo "  setup wizard, then Accounts > Add Microsoft. One sitting, then"
+	echo "  the Steam shortcut launches straight into the game."
+}
+
+# The Steam side is one-time and manual, on purpose. A non-Steam shortcut
+# lives in shortcuts.vdf - binary VDF, and dot-update.d/cursor already paid
+# for the lesson that scripting Steam's VDFs (anchor-hunting, a
+# steam-is-running guard, surrogate-escape decoding) costs more than it
+# returns. What this repo owns instead is a stable launch target.
+#
+# Steam is only the launcher here, never the controller layer. Steam Input
+# takes the pad *away* from the game it's enabled for - it claims the
+# physical device and feeds the process a synthetic keyboard and mouse
+# instead - so leaving it on would mean couch-controls (which reads the pad
+# straight off SDL) finding no controller attached at all. The pad has to
+# reach the game as a pad, so Steam Input stays off for this shortcut. That
+# was the opposite of the advice here before the mod existed, when
+# emulated keyboard and mouse was the only thing on offer.
+#
+# Reading is fine, though - that was never the expensive half. VDF stores
+# paths as plain null-terminated strings, so grep answers "is it added
+# yet?" without parsing anything. (N) so a box with no shortcuts.vdf yet
+# leaves the array empty instead of dying on an unmatched glob - and the
+# emptiness is tested separately, because a bare grep with no file
+# arguments would sit there reading dot-update's stdin.
+shortcutFiles=($HOME/.steam/debian-installation/userdata/*/config/shortcuts.vdf(N))
+
+if (( ! ${#shortcutFiles} )) || ! grep -qas minecraft-couch $shortcutFiles; then
+	echo "  Minecraft isn't in Steam yet. Once, in Big Picture:"
+	echo "    Add a non-Steam game > Browse > $profilePath/minecraft-couch"
+	echo "    then its Controller settings > disable Steam Input for it"
+	echo "  (couch-controls needs the real pad; Steam Input would hide it)"
+	echo "  See profiles/htpc/minecraft-couch for why this isn't scripted."
+fi
+
+# Official launcher, kept only as the mouse-and-keyboard fallback now that
+# the Prism instance above owns the couch path.
+# Its deb depends on default-jre and friends, which apt
 # resolves when installing from the local file. Mojang hasn't touched the
 # deb's control file in years: it names libgdk-pixbuf2.0-0, dead since the
 # gdk-pixbuf rename and the only Depends entry current Ubuntu doesn't
