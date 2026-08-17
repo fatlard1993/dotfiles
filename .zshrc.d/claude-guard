@@ -1,0 +1,128 @@
+#!/bin/zsh
+
+# Worktree contention guard for any git repo. The begin/end hooks (called
+# from the claude() wrapper in ./kitty) keep a registry of live sessions -
+# one file per shell PID, containing the claimed checkout path. A new session
+# whose checkout is already claimed gets offered a free worktree (or a fresh
+# one) before launch, so two sessions never edit the same working tree
+# unknowingly. Crashed shells never fire the end hook, so begin sweeps dead
+# PIDs first.
+#
+# New worktrees come from `higharc workspace create` in the Higharc product
+# repo, plain `git worktree add` everywhere else.
+
+_claude_guard_registry=$HOME/.local/state/claude-sessions
+_claude_guard_higharc=$HOME/Projects/product/.git
+_claude_guard_common=
+_claude_guard_entry=
+_claude_guard_pushed=
+
+_claude-guard-worktrees() {
+	reply=()
+	local line
+	while IFS= read -r line; do
+		[[ $line == worktree\ * ]] && reply+=("${line#worktree }")
+	done < <(git --git-dir $_claude_guard_common worktree list --porcelain 2>/dev/null)
+}
+
+_claude-guard-create() {
+	echo "┣ Enter a name for the new worktree"
+	local name
+	read -r "name?┗ "
+	echo -e '\e[1A┣'
+	[[ -n $name ]] || return 1
+	_claude-guard-worktrees
+	local -a before=($reply)
+	if [[ $_claude_guard_common == $_claude_guard_higharc ]]; then
+		(cd ${_claude_guard_common:h} && yarn higharc workspace create $name) || return 1
+	else
+		git -C ${before[1]} worktree add ${before[1]}-$name || return 1
+	fi
+	# the creating tool may sanitize the name, so diff the worktree list
+	# instead of guessing the new path
+	_claude-guard-worktrees
+	local -a created=(${reply:|before})
+	[[ -n ${created[1]} ]] || {
+		echo "┣ claude-guard: create finished but no new worktree appeared; not launching" >&2
+		return 1
+	}
+	pushd -q ${created[1]} || return 1
+	_claude_guard_pushed=1
+}
+
+claude-guard-begin() {
+	_claude_guard_entry=
+	_claude_guard_pushed=
+	local -a reply
+
+	_claude_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+	local toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+	[[ -n $_claude_guard_common && -n $toplevel ]] || return 0
+
+	mkdir -p $_claude_guard_registry
+
+	local f
+	for f in $_claude_guard_registry/*(N); do
+		[[ -s $f ]] && kill -0 ${f:t} 2>/dev/null || rm -f $f
+	done
+
+	local -a busy=()
+	for f in $_claude_guard_registry/*(N); do
+		busy+=("$(<$f)")
+	done
+
+	if (( ${busy[(Ie)$toplevel]} )); then
+		_claude-guard-worktrees
+		local -a free=()
+		local wt
+		for wt in $reply; do
+			(( ${busy[(Ie)$wt]} )) || free+=("$wt")
+		done
+
+		echo "┣ claude-guard: another session is already active in $toplevel"
+		local -a options=()
+		local i choice
+		for (( i = 1; i <= $#free; i++ )); do
+			options+=("[$i] ${free[$i]}")
+		done
+		options+=("[n] new worktree" "[h] launch here anyway" "[q] abort")
+		echo "┣━┳ ${options[1]}"
+		for (( i = 2; i < $#options; i++ )); do
+			echo "┃ ┣ ${options[$i]}"
+		done
+		echo "┃ ┗ ${options[-1]}"
+		read -r "choice?┗ "
+		echo -e '\e[1A┣'
+
+		case $choice in
+			h) ;;
+			n) _claude-guard-create || return 1 ;;
+			<->)
+				[[ -n ${free[$choice]} ]] || return 1
+				pushd -q ${free[$choice]} || return 1
+				_claude_guard_pushed=1
+				;;
+			*) return 1 ;;
+		esac
+
+		if [[ -n $_claude_guard_pushed ]]; then
+			toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+			[[ -n $toplevel ]] || {
+				echo "┣ claude-guard: ${(D)PWD} is not a usable worktree; not launching" >&2
+				claude-guard-end
+				return 1
+			}
+		fi
+	fi
+
+	_claude_guard_entry=$_claude_guard_registry/$$
+	print -r -- $toplevel > $_claude_guard_entry
+	return 0
+}
+
+claude-guard-end() {
+	[[ -n $_claude_guard_entry ]] && rm -f $_claude_guard_entry
+	[[ -n $_claude_guard_pushed ]] && popd -q
+	_claude_guard_entry=
+	_claude_guard_pushed=
+}
