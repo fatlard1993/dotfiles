@@ -13,9 +13,3 @@
 
 # Don't use color (cleaner output for tooling)
 --color=never
-
-# Show line numbers
---line-number
-
-# Follow symlinks
---follow

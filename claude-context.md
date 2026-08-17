@@ -104,8 +104,9 @@ kitten @ --to="$KITTY_LISTEN_ON" send-text --match "id:$W" 'kitten icat --align 
 **Standard kit** (installed, no notes needed): `gh`, `shellcheck` / `ruff` / `biome`, `gitleaks`, `grpcurl` / `websocat`, `just`, `watchexec`, `hyperfine`, `bats`, `sd`, `lnav`, `tldr`; `fd` / `rg` (ignore configs active)
 
 **rg traps** (earned scars):
-- Extraction pipelines: add `-IN` before `-o | sort | uniq -c`, or filename:line prefixes pollute the counts
+- Extraction pipelines: add `-I` on multi-file searches before `-o | sort | uniq -c`, or filename prefixes pollute the counts (`freq` does this dance safely)
 - Exits 1 on no-match (breaks `&&` chains) and 2 on error; a downstream `| head` swallows both. Verify rg alone, then pipe
+- Ignore config silently excludes vendor/, dist/, build/, *.lock and more: a "not found" there is a lie; add `--no-ignore` or `-u` when the target may live in excluded dirs
 
 **Aliases:**
 - `i`: `bun i` or `npm i` (detects `bunfig.toml`)
