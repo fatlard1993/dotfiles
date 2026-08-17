@@ -4,7 +4,12 @@
 GRUB_DEFAULT=0
 GRUB_TIMEOUT=1
 GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
-GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0 text"
+# video= pins HDMI-A-1 permanently on (D=digital, e=force-enable) so output
+# never depends on the Denon's hotplug/EDID answering - booting while the
+# receiver is off or on another input otherwise comes up headless. 1080p60 is
+# the blind-safe mode (4K60 needs SCDC negotiation, which needs a live DDC
+# line); X upgrades to 4K60 via autorandr whenever the EDID actually reads.
+GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0 text video=HDMI-A-1:1920x1080@60De"
 GRUB_CMDLINE_LINUX=""
 
 GRUB_TERMINAL=console

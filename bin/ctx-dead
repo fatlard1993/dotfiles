@@ -47,10 +47,26 @@ while IFS= read -r line; do
     else
         live=$((live + 1))
     fi
-done < <(ctx-file "$target" 2>/dev/null)
+done < <(
+    if [[ -d "$target" ]]; then
+        # ctx-file is single-file only: for a directory it prints "# not found" and
+        # the loop would run on empty input, reporting a counterfeit-clean 0/0.
+        rg --no-heading --color=never -n \
+            'export\s+(const|function|class|interface|type|enum|async function|default)\s' \
+            "$target" -g '*.ts' -g '*.tsx' -g '*.js' -g '*.mjs' 2>/dev/null || true
+    else
+        ctx-file "$target" 2>/dev/null
+    fi
+)
 
 echo ""
 echo "$dead dead, $live live exports found"
+
+if [[ $((dead + live)) -eq 0 ]]; then
+    echo ""
+    echo "  ⚠ nothing was scanned: no export declarations found under '$target'."
+    echo "    Do not read this as a clean bill; check the target path and file types."
+fi
 
 # Guard: check if the target file(s) are referenced via dynamic loader calls
 # (.require(), discovery.require(), etc.) anywhere in the search path.

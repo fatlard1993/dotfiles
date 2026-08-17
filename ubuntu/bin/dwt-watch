@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+# libinput's disable-while-typing suppresses the touchpad while keys are
+# held - right for prose, wrong for WASD+mouse gaming, where it kills the
+# pad exactly while a movement key is down. The property is runtime-
+# togglable per device, so: watch bspwm focus, drop DWT while a game
+# window is focused, restore it the moment focus lands anywhere else.
+#
+# Match is on WM_CLASS. Minecraft sets "Minecraft* <version>" itself
+# (LWJGL), so one case-insensitive substring covers vanilla and every
+# modded launcher's game window - the launchers themselves (PrismLauncher
+# etc) don't match, which is correct: typing happens there.
+#
+# node_remove is subscribed alongside focus: closing the last window on a
+# desktop fires no node_focus, and the pad would otherwise stay in game
+# mode until the next focus change.
+
+[ -n "$DISPLAY" ] || export DISPLAY=:0
+
+pad=$(xinput list --name-only | grep -i touchpad | head -1)
+[ -n "$pad" ] || exit 0
+
+prop='libinput Disable While Typing Enabled'
+
+set_dwt() {
+	xinput set-prop "$pad" "$prop" $1
+}
+
+# a killed watcher must not strand the pad in game mode; the signal traps
+# exit explicitly - a bare command trap swallows the signal in zsh and the
+# loop lives on
+trap 'set_dwt 1' EXIT
+trap 'set_dwt 1; exit' INT TERM
+
+current=1
+bspc subscribe node_focus desktop_focus node_remove | while read -r _; do
+	# xprop, not xdotool getwindowclassname: this xdotool predates that
+	# subcommand. Matching the whole WM_CLASS line is fine for substrings.
+	class=$(xprop -id "$(xdotool getactivewindow 2>/dev/null)" WM_CLASS 2>/dev/null)
+	case ${(L)class} in
+		*minecraft*) want=0 ;;
+		*) want=1 ;;
+	esac
+	if [ $want -ne $current ]; then
+		set_dwt $want
+		current=$want
+	fi
+done

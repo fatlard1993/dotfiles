@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Installing amdgpu stay-awake udev rule"
+
+# Copied, not symlinked - udev replays PCI add events at coldplug, before
+# anything under /home is guaranteed mounted.
+sudo cp $profilePath/udev/99-amdgpu-stay-awake.rules /etc/udev/rules.d/
+sudo udevadm control --reload

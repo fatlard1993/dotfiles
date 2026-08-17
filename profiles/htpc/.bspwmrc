@@ -2,3 +2,18 @@
 ## $HOME/.config/bspwmrc
 
 . "$HOME/.dotfiles/ubuntu/.bspwmrc"
+
+# This box is a game console with a window manager behind it, so the game
+# takes the whole panel: fullscreen covers the status bar too, which tiled
+# does not. Tiled also only looks right while nothing shares the desktop -
+# Prism's own window sits there for the first moments after launch, and the
+# game comes up split down the middle.
+#
+# Matched on class, not instance: the instance is "java" (as good as
+# unmatchable), while the class is this. The class moved with 26.3 - the
+# LWJGL/GLFW window carried the version in it ("Minecraft* <version>"), and
+# the SDL one sets a fixed reverse-DNS id instead, which is the better thing
+# to match anyway since it no longer changes every snapshot.
+# ubuntu/bin/dwt-watch greps WM_CLASS for "minecraft" case-insensitively and
+# still matches this, so it keeps working - only its comment is stale.
+bspc rule -a com.mojang.minecraft state=fullscreen
