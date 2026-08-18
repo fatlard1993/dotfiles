@@ -7,7 +7,13 @@ alias icat="kitty +kitten icat"
 [[ -n "$KITTY_WINDOW_ID" ]] || return
 
 claude() {
-  claude-guard-begin || return $?
+  local origin=$PWD
+  claude-guard-begin || {
+    local rc=$?
+    claude-guard-end
+    builtin cd "$origin"
+    return $rc
+  }
   kitty-bg
   # JIT spinner verbs: weighted draw by repo/hour/season/moon/weather.
   # Fail-soft — a missing compiler or sidecar just means default verbs.
@@ -20,6 +26,7 @@ claude() {
   fi
   local rc=$?
   claude-guard-end
+  builtin cd "$origin"
   printf '\033[3J'; clear
   reload
   return $rc
