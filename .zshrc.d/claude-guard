@@ -5,8 +5,10 @@
 # one file per shell PID, containing the claimed checkout path. A new session
 # whose checkout is already claimed gets offered a free worktree (or a fresh
 # one) before launch, so two sessions never edit the same working tree
-# unknowingly. Crashed shells never fire the end hook, so begin sweeps dead
-# PIDs first.
+# unknowingly. Crashed shells never fire the end hook, so begin sweeps the
+# registry first: its own PID's stale claim (reload execs in place, so the
+# PID survives crashes), empty files, dead PIDs, and PIDs reused by
+# non-zsh processes.
 #
 # New worktrees come from `higharc workspace create` in the Higharc product
 # repo, plain `git worktree add` everywhere else.
@@ -19,10 +21,15 @@ _claude_guard_pushed=
 
 _claude-guard-worktrees() {
 	reply=()
-	local line
+	local line current
 	while IFS= read -r line; do
-		[[ $line == worktree\ * ]] && reply+=("${line#worktree }")
+		case $line in
+			worktree\ *) current=${line#worktree } ;;
+			prunable*) current= ;;
+			'') [[ -n $current ]] && reply+=("$current"); current= ;;
+		esac
 	done < <(git --git-dir $_claude_guard_common worktree list --porcelain 2>/dev/null)
+	[[ -n $current ]] && reply+=("$current")
 }
 
 _claude-guard-create() {
@@ -55,16 +62,17 @@ claude-guard-begin() {
 	_claude_guard_pushed=
 	local -a reply
 
-	_claude_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-	local toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
-	[[ -n $_claude_guard_common && -n $toplevel ]] || return 0
-
-	mkdir -p $_claude_guard_registry
+	command mkdir -p $_claude_guard_registry
 
 	local f
 	for f in $_claude_guard_registry/*(N); do
-		[[ -s $f ]] && kill -0 ${f:t} 2>/dev/null || rm -f $f
+		[[ ${f:t} == $$ ]] && { rm -f $f; continue }
+		[[ -s $f && $(ps -o comm= -p ${f:t} 2>/dev/null) == *zsh* ]] || rm -f $f
 	done
+
+	_claude_guard_common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+	local toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+	[[ -n $_claude_guard_common && -n $toplevel ]] || return 0
 
 	local -a busy=()
 	for f in $_claude_guard_registry/*(N); do
