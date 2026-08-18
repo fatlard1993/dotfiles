@@ -4,10 +4,8 @@
 [[ -n "$CLAUDECODE" ]] && return
 
 mkdir() {
-	if [[ "$@" =~ "(\s|^)(\.\/|[^/~$])" ]]; then
-		command mkdir "$@"
-		cd "$_"
-	else
-		command mkdir "$@"
-	fi
+	command mkdir "$@" || return
+	local last=${@[-1]}
+	[[ $# -gt 0 && $last != -* && $last != /* && $last != \~* ]] && cd "$last"
+	return 0
 }
