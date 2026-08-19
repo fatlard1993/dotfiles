@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# Ship built jars to the htpc server without pulling the rug out from under it.
+#
+#   ./deploy.sh                 stage every changed jar, then stop/swap/start
+#   ./deploy.sh --stage-only    stage only; swap on the next ./deploy.sh --swap
+#   ./deploy.sh --swap          swap what is already staged and restart
+#
+# Why this exists: copying a jar straight into mods/ while the server is running
+# looks harmless because everything keeps working. It is not. The JVM reads
+# classes out of that archive lazily, so the first time it needs a class it has
+# not loaded yet it reads from the file you replaced and dies with
+# "Failed to load class file for ...". That killed the server once, an hour and a
+# half after the copy, when a villager died and a nested class was wanted for the
+# first time. Staging elsewhere and swapping while stopped removes the window.
+set -euo pipefail
+# On PATH now rather than sitting in the suite, so the suite is named
+# instead of inferred from $0. MINECRAFT_SUITE overrides it.
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+HOST=htpc
+REMOTE=/home/home/minecraft-server
+STAGE="$REMOTE/mods-staged"
+
+mode="${1:-full}"
+
+# The jar this mod currently declares itself to be.
+#
+# Gradle does not clear build/libs, so after a version bump both the old and the
+# new jar sit there and an alphabetical "head -1" picks the older one: the deploy
+# reports success and ships the previous build. Matching the version out of
+# gradle.properties is exact, and also copes with archives_base_name differing
+# from the folder name.
+mod_jar() {
+	local version
+	version=$(grep -E '^\s*mod_version' "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	[ -z "$version" ] && return 1
+	ls "$1"/build/libs/*-"$version".jar 2>/dev/null | grep -v sources | head -1
+}
+
+stage() {
+	ssh "$HOST" "mkdir -p '$STAGE'"
+	local count=0
+	for dir in */; do
+		local mod="${dir%/}"
+		local jar
+		jar=$(mod_jar "$mod") || true
+		[ -z "$jar" ] && continue
+
+		# Client-only mods have no business on the server: Fabric will not load
+		# them there, so they are dead weight that reads as a deployed feature.
+		# The suite already learned this the other way round, when the htpc client
+		# carried all 34 server mods and one of them crashed it.
+		local env
+		env=$(find "$mod/src" -name fabric.mod.json -exec jq -r '.environment // "*"' {} + 2>/dev/null | head -1)
+		[ "$env" = "client" ] && continue
+
+		local name local_sum remote_sum
+		name=$(basename "$jar")
+		local_sum=$(md5sum "$jar" | cut -d' ' -f1)
+		remote_sum=$(ssh "$HOST" "md5sum '$REMOTE/mods/$name' 2>/dev/null | cut -d' ' -f1" || true)
+
+		if [ "$local_sum" != "$remote_sum" ]; then
+			scp -q "$jar" "$HOST:$STAGE/"
+			echo "  staged $name"
+			count=$((count + 1))
+		fi
+	done
+	echo "staged $count jar(s)"
+}
+
+players_online() {
+	# rcon answers "There are N of a max of M players online". Asking the running
+	# server beats reading the log, which cannot tell a player who left from one
+	# who joined and stayed.
+	local line
+	line=$(ssh -n "$HOST" "python3 '$REMOTE/rcon.py' list 2>/dev/null" || true)
+	[ -z "$line" ] && return 1              # no rcon: fall back to allowing the swap
+	echo "$line" | grep -qE 'There are 0 of' && return 1
+	return 0
+}
+
+swap() {
+	# A restart kicks whoever is playing. This used to be a thing I remembered to
+	# check, which worked until the check and the swap ended up in one command and
+	# the result arrived after the server had already gone down. It is the
+	# script's job now.
+	if [ "${FORCE_SWAP:-}" != "1" ] && players_online; then
+		echo "players are online: staged jars stay put (FORCE_SWAP=1 to override)" >&2
+		return 1
+	fi
+
+	# The remote shell is zsh, so no bash-isms here.
+	ssh "$HOST" "
+		set -e
+		count=\$(ls -1 '$STAGE'/*.jar 2>/dev/null | wc -l)
+		if [ \"\$count\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
+
+		systemctl --user stop minecraft-server
+
+		# Drop any older build of each staged mod first. A version bump renames the
+		# jar, so a plain move leaves both beside each other and Fabric refuses to
+		# start with two copies of one mod: the deploy looks like it worked and the
+		# server never comes back.
+		for jar in '$STAGE'/*.jar; do
+			base=\$(basename \"\$jar\")
+			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
+			for old in '$REMOTE/mods/'\$stem-*.jar; do
+				[ -e \"\$old\" ] || continue
+				[ \"\$(basename \"\$old\")\" = \"\$base\" ] && continue
+				rm -f \"\$old\"
+				echo \"  dropped \$(basename \"\$old\")\"
+			done
+		done
+
+		mv '$STAGE'/*.jar '$REMOTE/mods/'
+		systemctl --user start minecraft-server
+		echo \"swapped \$count jar(s), server restarting\"
+	"
+	ssh "$HOST" 'until journalctl --user -u minecraft-server --since "-3min" --no-pager | rg -q "Done \("; do sleep 3; done
+		journalctl --user -u minecraft-server --since "-3min" --no-pager | rg "Done \(|ERROR|MixinApply" | tail -5'
+}
+
+case "$mode" in
+	--stage-only) stage ;;
+	--swap)       swap ;;
+	full)         stage; swap || true ;;
+	*) echo "usage: $0 [--stage-only|--swap]" >&2; exit 2 ;;
+esac

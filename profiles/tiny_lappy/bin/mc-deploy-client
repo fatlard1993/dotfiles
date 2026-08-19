@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# Ship the client half of the suite to the htpc client, or to a thumb drive.
+#
+#   ./deploy-client.sh              sync the local client, then stage+swap the htpc
+#   ./deploy-client.sh --local      the local client only
+#   ./deploy-client.sh --stage-only stage the htpc only; swap on a later --swap
+#   ./deploy-client.sh --swap       swap what is staged (refuses while the client runs)
+#   ./deploy-client.sh --usb DIR    write the whole client set to DIR
+#
+# Same hazard as the server, same shape of answer: the JVM reads classes out of
+# a mod jar lazily, so replacing one under a running game does not fail at the
+# copy, it fails much later when a class nobody had needed yet comes up missing.
+# Staging elsewhere and swapping while the game is closed removes the window.
+#
+# Which mods count as client-side is in the suite's client-mods.txt.
+set -euo pipefail
+# On PATH now rather than sitting in the suite, so the suite is named
+# instead of inferred from $0. MINECRAFT_SUITE overrides it.
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+# Suite composition (which mods are client-side, which CurseForge slug each
+# publishes under) lives in priv-config, tracked with the account it
+# describes, rather than in the workspace where it had no remote at all.
+DATA="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}"
+
+
+HOST=htpc
+LOCAL="$HOME/Projects/minecraft-client"
+INSTANCE=/home/home/.local/share/PrismLauncher/instances/suite/.minecraft
+MODS="$INSTANCE/mods"
+STAGE="$INSTANCE/mods-staged"
+
+mode="${1:-full}"
+
+mods() {
+	grep -vE '^\s*(#|$)' "$DATA/client-mods.txt"
+}
+
+# The jar this mod currently declares itself to be.
+#
+# Gradle does not clear build/libs, so after a version bump both the old and the
+# new jar sit there and an alphabetical "head -1" picks the older one: the deploy
+# reports success and ships the previous build. Matching the version out of
+# gradle.properties is exact, and also copes with archives_base_name differing
+# from the folder name.
+jar_for() {
+	local version
+	version=$(grep -E '^\s*mod_version' "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	[ -z "$version" ] && return 1
+	ls "$1"/build/libs/*-"$version".jar 2>/dev/null | grep -v sources | head -1
+}
+
+client_running() {
+	# Matching on the instance path alone is not enough: pgrep -f reads whole
+	# command lines, and the ssh wrapper carrying the pattern is itself a command
+	# line containing the pattern. The check matched itself and therefore always
+	# said yes, so --swap refused forever and looked like it was working.
+	#
+	# Filtering to processes actually named java is what separates the game from
+	# whoever is asking about it.
+	ssh -n "$HOST" 'pgrep -lf "instances/suite" 2>/dev/null | awk "\$2 == \"java\"" | grep -q .'
+}
+
+local_running() {
+	# Same lazy-class-loading hazard as the server: replacing a jar under a
+	# running game succeeds at the copy and fails much later. Matched on the
+	# game directory rather than the process name, because "minecraft-launcher"
+	# is 18 characters and pgrep -x truncates comm at 15 - that check can never
+	# match, and reports "not running" forever.
+	pgrep -lf "$LOCAL" 2>/dev/null | awk '$2 == "java"' | grep -q .
+}
+
+sync_local() {
+	if local_running; then
+		echo "the local client is running: not touching its jars" >&2
+		return 1
+	fi
+
+	mkdir -p "$LOCAL/mods"
+	local count=0
+	while read -r mod; do
+		local jar
+		jar=$(jar_for "$mod") || true
+		if [ -z "$jar" ]; then
+			echo "  !! no jar built for $mod" >&2
+			continue
+		fi
+		# Drop the old build first: a version bump renames the jar, and two
+		# copies of one mod stop Fabric starting at all.
+		rm -f "$LOCAL/mods/$mod"-*.jar
+		cp "$jar" "$LOCAL/mods/"
+		echo "  local $(basename "$jar")"
+		count=$((count + 1))
+	done < <(mods)
+	echo "synced $count jar(s) to the local client"
+}
+
+stage() {
+	ssh "$HOST" "mkdir -p '$STAGE'"
+	local count=0
+	while read -r mod; do
+		local jar
+		jar=$(jar_for "$mod") || true
+		if [ -z "$jar" ]; then
+			echo "  !! no jar built for $mod" >&2
+			continue
+		fi
+
+		local name local_sum remote_sum
+		name=$(basename "$jar")
+		local_sum=$(md5sum "$jar" | cut -d' ' -f1)
+		remote_sum=$(ssh -n "$HOST" "md5sum '$MODS/$name' 2>/dev/null | cut -d' ' -f1" || true)
+
+		if [ "$local_sum" != "$remote_sum" ]; then
+			scp -q "$jar" "$HOST:$STAGE/" </dev/null
+			echo "  staged $name"
+			count=$((count + 1))
+		fi
+	done < <(mods)
+	echo "staged $count jar(s)"
+}
+
+swap() {
+	if client_running; then
+		echo "client is running: staged jars stay put until it is closed" >&2
+		return 1
+	fi
+
+	# The remote shell is zsh, so no bash-isms here.
+	ssh "$HOST" "
+		set -e
+		count=\$(ls -1 '$STAGE'/*.jar 2>/dev/null | wc -l)
+		if [ \"\$count\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
+
+		# Same reason as the server script: a version bump renames the jar, so a
+		# plain move leaves both beside each other and the client will not launch
+		# with two copies of one mod.
+		for jar in '$STAGE'/*.jar; do
+			base=\$(basename \"\$jar\")
+			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
+			for prev in '$MODS/'\$stem-*.jar; do
+				[ -e \"\$prev\" ] || continue
+				[ \"\$(basename \"\$prev\")\" = \"\$base\" ] && continue
+				rm -f \"\$prev\"
+			done
+		done
+
+		mv '$STAGE'/*.jar '$MODS/'
+		echo \"swapped \$count jar(s)\"
+	"
+}
+
+usb() {
+	local dest="$1"
+	[ -d "$dest" ] || { echo "no such directory: $dest" >&2; exit 2; }
+
+	while read -r mod; do
+		local jar
+		jar=$(jar_for "$mod") || true
+		if [ -z "$jar" ]; then
+			echo "  !! no jar built for $mod" >&2
+			continue
+		fi
+		# Drop any older copy of the same mod first, or a version bump leaves
+		# two jars of the same mod behind and Fabric refuses to start.
+		rm -f "$dest/$mod"-*.jar
+		cp "$jar" "$dest/"
+		echo "  copied $(basename "$jar")"
+	done < <(mods)
+	echo "client set written to $dest (fabric-api not included)"
+}
+
+case "$mode" in
+	--local)      sync_local ;;
+	--stage-only) stage ;;
+	--swap)       swap ;;
+	--usb)        usb "${2:?usage: $0 --usb DIR}" ;;
+	full)         sync_local || true; stage; swap || true ;;
+	*) echo "usage: $0 [--local|--stage-only|--swap|--usb DIR]" >&2; exit 2 ;;
+esac

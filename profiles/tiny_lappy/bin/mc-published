@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# What is on CurseForge, against what is in this directory.
+#
+#   ./published.sh            every mod, published or not
+#   ./published.sh --stale    only the ones whose local version has moved on
+#
+# Answers the question you actually have before a release: which of these have I
+# changed since anyone last downloaded them.
+#
+# CurseForge itself is behind Cloudflare and returns 403 to anything scripted, so
+# this reads api.cfwidget.com, which mirrors the same data as JSON and needs no
+# key. Slugs live in the suite's curseforge-slugs.txt because they do not reliably match the
+# folder names.
+set -uo pipefail
+# On PATH now rather than sitting in the suite, so the suite is named
+# instead of inferred from $0. MINECRAFT_SUITE overrides it.
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+# Suite composition (which mods are client-side, which CurseForge slug each
+# publishes under) lives in priv-config, tracked with the account it
+# describes, rather than in the workspace where it had no remote at all.
+DATA="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}"
+
+
+MODE="${1:-all}"
+
+local_version() {
+	grep -E '^\s*mod_version' "$1/gradle.properties" 2>/dev/null |
+		head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'
+}
+
+slug_for() {
+	grep -vE '^\s*(#|$)' "$DATA/curseforge-slugs.txt" | awk -v m="$1" '$1 == m { print $2; exit }'
+}
+
+printf "%-20s %-10s %-10s %-12s %-5s %s\n" MOD LOCAL PUBLISHED UPLOADED SINCE STATE
+printf "%-20s %-10s %-10s %-12s %-5s %s\n" ---- ----- --------- -------- ----- -----
+
+for dir in */; do
+	mod="${dir%/}"
+	[ -f "$mod/gradle.properties" ] || continue
+
+	local_v=$(local_version "$mod")
+	[ -z "$local_v" ] && continue
+
+	slug=$(slug_for "$mod")
+	if [ -z "$slug" ]; then
+		[ "$MODE" = "--stale" ] && continue
+		printf "%-20s %-10s %-10s %-12s %-5s %s\n" "$mod" "$local_v" "-" "-" "-" "never published"
+		continue
+	fi
+
+	json=$(curl -s --max-time 25 "https://api.cfwidget.com/minecraft/mc-mods/$slug" 2>/dev/null)
+	pub=$(printf '%s' "$json" | python3 -c '
+import json,sys
+try:
+    d = json.load(sys.stdin)
+    f = d.get("download") or {}
+    # The jar name carries the version; the API has no version field of its own.
+    name = f.get("name","")
+    import re
+    m = re.search(r"-(\d+\.\d+\.\d+)\.jar$", name)
+    print((m.group(1) if m else "?"), (f.get("uploaded_at","") or "-"))
+except Exception:
+    print("? ?")
+' 2>/dev/null)
+
+	pub_v=$(echo "$pub" | cut -d' ' -f1)
+	pub_at=$(echo "$pub" | cut -d' ' -f2)
+	pub_d=${pub_at%%T*}
+
+	# Commits landed since the upload. A version string that never got bumped
+	# reads as current while the code underneath has moved, which is the failure
+	# this whole table exists to catch.
+	# The whole timestamp, not the date. The API gives UTC to the millisecond and
+	# git reads a bare date in local time, so truncating moved the boundary by the
+	# timezone offset and quietly lost same-day commits either side of midnight.
+	commits=0
+	[ "$pub_at" != "-" ] && commits=$(git -C "$mod" log --oneline --since="$pub_at" 2>/dev/null | wc -l | tr -d " ")
+
+	if [ "$pub_v" = "?" ]; then
+		state="no files yet"
+	elif [ "$local_v" != "$pub_v" ]; then
+		state="LOCAL AHEAD"
+	elif [ "$commits" != "0" ]; then
+		state="CHANGED, VERSION NOT BUMPED"
+	else
+		state="current"
+	fi
+
+	case "$MODE" in
+		--stale) [ "$state" = "current" ] && continue ;;
+	esac
+	printf "%-20s %-10s %-10s %-12s %-5s %s\n" "$mod" "$local_v" "$pub_v" "$pub_d" "$commits" "$state"
+done
