@@ -1,0 +1,97 @@
+#!/bin/zsh
+
+# Power-cycle the touchpad controller to clear a stuck contact.
+#
+# This pad's firmware intermittently leaves a contact open in slot 0 and
+# never closes it. Captured with libinput record, a healthy pad cycles
+# both slots; a wedged one puts every real touch in slot 1 and reports
+# BTN_TOOL_DOUBLETAP the whole time, because the phantom in slot 0 still
+# counts as a finger. Two symptoms, one cause: single-finger motion reads
+# as a two-finger scroll, and the pointer freezes until a click-drag.
+# When a real finger lifts the device still reports BTN_TOOL_FINGER=1 -
+# that residual finger is the phantom, and it is the whole diagnosis.
+#
+# The reset has to happen at the i2c layer. Two shallower ones were tried
+# and neither reaches it:
+#
+#   xinput disable/enable  - only stops X reading the stream; the
+#                            firmware keeps holding the contact
+#   hid-multitouch rebind  - re-probes the driver, not the controller
+#
+# Unbinding i2c_hid_acpi re-runs the device power-on sequence, which does
+# clear it - at the cost of a full re-add, which drops every libinput
+# property back to its default (inverted scrolling, button-areas instead
+# of clickfinger, accel back to 0).
+#
+# Settings are saved and restored around the rebind even though
+# xorg/10-touchpad-quirks.conf now carries them as an InputClass. Both are
+# wanted, for different windows: X only parses xorg.conf.d at server
+# start, so the InputClass covers cold boots and any re-add this script
+# didn't cause, while the save/restore covers a reset running under an X
+# session started before the InputClass existed - and preserves live
+# runtime state the static config knows nothing about, such as whatever
+# dwt-watch has done to Disable While Typing.
+#
+# This is a stopgap for failing hardware, not a fix. The wedge rate is
+# climbing (1-5/day in July, 10 on 2026-08-15, 8 by mid-afternoon on
+# 08-16, gaps down to 6 minutes) and a reset only buys minutes. A cell
+# swelling under the palmrest presses the digitizer from below and
+# produces exactly this; check the battery before trusting any of it.
+
+[ -n "$DISPLAY" ] || export DISPLAY=:0
+
+driver=/sys/bus/i2c/drivers/i2c_hid_acpi
+
+# Read from the device list, not the driver's: the name has to survive the
+# window where nothing is bound to it.
+dev=$(ls /sys/bus/i2c/devices/ 2>/dev/null | grep -m1 '^i2c-DLL')
+if [ -z "$dev" ]; then
+	notify-send -u critical "touchpad-reset" "No i2c touchpad device found"
+	exit 1
+fi
+
+if ! sudo -n true 2>/dev/null; then
+	notify-send -u critical "touchpad-reset" "Needs passwordless sudo to rebind $dev"
+	exit 1
+fi
+
+pad=$(xinput list --name-only 2>/dev/null | grep -i touchpad | head -1)
+
+# Writable libinput settings only. Dropped: *Default (read-only baselines),
+# *Available (read-only capability bitmaps), and anything holding
+# "<no items>" - set-prop rejects an empty value list.
+if [ -n "$pad" ]; then
+	saved=$(xinput list-props "$pad" | grep -F 'libinput ' \
+		| grep -vE 'Default \(|Available \(' \
+		| grep -vF '<no items>')
+fi
+
+echo -n "$dev" | sudo -n tee $driver/unbind > /dev/null 2>&1
+sleep 1
+echo -n "$dev" | sudo -n tee $driver/bind > /dev/null 2>&1
+
+# The input device reappears a beat after the bind returns; without the
+# wait the check below races it and reports a false failure.
+for _ in {1..10}; do
+	xinput list --name-only 2>/dev/null | grep -qi touchpad && break
+	sleep 0.5
+done
+
+if xinput list --name-only 2>/dev/null | grep -qi touchpad; then
+	# The paren in the pattern is escaped: zsh globbing reads a bare "("
+	# as an unterminated group and refuses the whole substitution.
+	pad=$(xinput list --name-only | grep -i touchpad | head -1)
+	echo "$saved" | while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		line=${line#$'\t'}
+		prop=${line%% \(*}
+		value=${line##*:$'\t'}
+		xinput set-prop "$pad" "$prop" ${(s:, :)value} 2>/dev/null
+	done
+
+	notify-send -t 2000 "touchpad-reset" "Controller reset - $dev"
+else
+	notify-send -u critical "touchpad-reset" \
+		"Touchpad did not come back after rebinding $dev - reboot to recover"
+	exit 1
+fi
