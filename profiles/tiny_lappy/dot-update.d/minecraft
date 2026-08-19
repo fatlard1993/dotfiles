@@ -31,21 +31,25 @@ dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
 }
 
-# Fabric profile for testing github.com/justfatlard's mod suite
-# (~/Projects/minecraft). Version/loader are read from pandorical's
-# gradle.properties rather than pinned here - pandorical is the platform
-# every other mod in that suite depends on, so its gradle.properties is
-# the suite's actual current target. This intentionally does NOT track a
-# moving "latest" like the server install above: a snapshot this specific
-# is a deliberate compatibility target the mods were built against, not
-# something to float forward on its own.
-modSuitePath="$HOME/Projects/minecraft/pandorical/gradle.properties"
+# The suite's own client and server (~/Projects/minecraft).
+#
+# Versions are read from pandorical's gradle.properties rather than pinned
+# here - pandorical is the platform every other mod depends on, so its pin is
+# the suite's real target. This intentionally does NOT float forward on its
+# own: a snapshot this specific is a compatibility target the mods were built
+# against, not a version to track.
+#
+# mc-meta (profiles/tiny_lappy/bin) reports when upstream has moved past the
+# pin. Reporting only - moving the pin means rebuilding forty jars and taking
+# the household server down with it, which is a decision, not an update step.
+suiteProps="$HOME/Projects/minecraft/pandorical/gradle.properties"
 
-if [[ -f $modSuitePath ]]; then
-	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $modSuitePath)
-	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $modSuitePath)
+if [[ -f $suiteProps ]]; then
+	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $suiteProps)
+	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $suiteProps)
 	fabricVersionId="fabric-loader-$loaderVersion-$mcVersion"
-	testClientDir="$HOME/Projects/minecraft-test-client"
+	clientDir="$HOME/Projects/minecraft-client"
+	serverDir="$HOME/Projects/minecraft-server"
 
 	[[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
 		echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
@@ -55,20 +59,38 @@ if [[ -f $modSuitePath ]]; then
 		rm -f /tmp/fabric-installer.jar
 	}
 
-	echo "Ensuring the 'testees' launcher profile points at $fabricVersionId"
+	# The launcher rewrites launcher_profiles.json wholesale when it exits, so
+	# editing the file underneath a running launcher loses the edit silently -
+	# it looks like it worked and reverts minutes later. Skip instead, and say
+	# so, rather than pretending.
+	#
+	# Matched on the full command line: "minecraft-launcher" is 18 characters
+	# and pgrep -x truncates comm at 15, so the obvious check can never match.
+	if pgrep -f minecraft-launcher > /dev/null 2>&1; then
+		echo "  The Minecraft launcher is open, so its profile list is left alone"
+		echo "  (it would overwrite any change on exit). Close it and rerun."
+	else
+		echo "Ensuring the 'minecraft' launcher profile points at $fabricVersionId"
 
-	python3 - $fabricVersionId "$testClientDir" << 'EOF'
-import json, sys, uuid
+		python3 - $fabricVersionId "$clientDir" << 'EOF'
+import json, os, sys, uuid
 
 versionId, gameDir = sys.argv[1], sys.argv[2]
-path = f"{__import__('os').environ['HOME']}/.minecraft/launcher_profiles.json"
+path = f"{os.environ['HOME']}/.minecraft/launcher_profiles.json"
 
 with open(path) as f:
 	data = json.load(f)
 
-profile = next((p for p in data["profiles"].values() if p.get("name") == "testees"), None)
+# The suite used to be played through two hand-made profiles, "testees" against
+# a throwaway test client and "village-client" against the real one. One client
+# now, so one profile - the old pair are dropped rather than left to rot at
+# whatever snapshot they were last pointed at.
+for key in [k for k, p in data["profiles"].items() if p.get("name") in ("testees", "village-client")]:
+	del data["profiles"][key]
+
+profile = next((p for p in data["profiles"].values() if p.get("name") == "minecraft"), None)
 if profile is None:
-	profile = {"name": "testees", "type": "custom", "created": "2026-07-20T00:00:00.000Z", "icon": "TNT"}
+	profile = {"name": "minecraft", "type": "custom", "created": "2026-08-19T00:00:00.000Z", "icon": "Grass"}
 	data["profiles"][uuid.uuid4().hex] = profile
 
 profile["lastVersionId"] = versionId
@@ -77,6 +99,32 @@ profile["gameDir"] = gameDir
 with open(path, "w") as f:
 	json.dump(data, f)
 EOF
+	fi
+
+	# A local server to test against without taking the household one down.
+	# Maintained here for the same reason the client is: the last one was set
+	# up by hand, nothing kept it current, and it sat three snapshots stale
+	# until it was deleted. The .version marker mirrors htpc's module.
+	mkdir -p $serverDir/mods
+	serverTarget="$mcVersion+$loaderVersion"
+
+	if [[ $serverTarget != $(cat $serverDir/.version 2>/dev/null) ]]; then
+		echo "Installing the local Fabric server $serverTarget"
+
+		curl -sf -o $serverDir/fabric-server.jar.new "$(mc-meta server $mcVersion $loaderVersion)" \
+			&& mv $serverDir/fabric-server.jar.new $serverDir/fabric-server.jar \
+			&& echo $serverTarget > $serverDir/.version
+
+		[[ -f $serverDir/eula.txt ]] || echo "eula=true" > $serverDir/eula.txt
+	fi
+
+	# Advisory only. Exits nonzero when the pin is behind, which is not a
+	# failure of this run - dot-update should not care, so the status is
+	# swallowed deliberately.
+	if command -v mc-meta > /dev/null; then
+		echo "Mod suite target:"
+		mc-meta check $suiteProps || true
+	fi
 else
-	echo "~/Projects/minecraft/pandorical not found - skipping Fabric test profile"
+	echo "~/Projects/minecraft/pandorical not found - skipping the suite client and server"
 fi

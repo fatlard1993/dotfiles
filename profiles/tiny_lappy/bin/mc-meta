@@ -1,0 +1,154 @@
+#!/bin/zsh
+# Upstream Minecraft/Fabric version facts, for deciding when to move the mod
+# suite's pin (~/Projects/minecraft/*/gradle.properties).
+#
+#   mc-meta latest [--release]   newest game version Fabric can build against
+#   mc-meta api <mcver>          the fabric-api build that targets that version
+#   mc-meta java <mcver>         the Java major that version requires
+#   mc-meta loader [<mcver>]     newest loader, or newest that supports <mcver>
+#   mc-meta server <mcver> [ldr] URL of the Fabric server launcher jar
+#   mc-meta check [gradle.properties]  the suite's pin vs upstream
+#
+# Every endpoint here is keyless, which is why this lives in the public
+# dotfiles layer rather than priv-config.
+#
+# Two facts this exists to stop rediscovering:
+#
+#   1. fabric-api's "+26.3" suffix is the RELEASE SERIES, not the snapshot.
+#      0.157.1+26.3 and 0.158.0+26.3 both say 26.3 and target different
+#      snapshots. Nothing in the version string distinguishes them - only
+#      Modrinth's game_versions does. Guessing here puts a server on an API
+#      built for a different snapshot, which starts fine and fails later.
+#
+#   2. The server launcher URL needs the INSTALLER version as well as the
+#      loader: /loader/<mc>/<loader>/server/jar is a 404, and
+#      /loader/<mc>/<loader>/<installer>/server/jar is the real path.
+
+set -u
+
+FABRIC_META=https://meta.fabricmc.net/v2/versions
+PISTON=https://piston-meta.mojang.com/mc/game/version_manifest_v2.json
+MODRINTH=https://api.modrinth.com/v2/project/fabric-api/version
+
+# curl with the flags every call wants. -f so an HTTP error is a failure
+# rather than an error page parsed as JSON.
+fetch() { curl -sfL --max-time 20 "$1" 2>/dev/null }
+
+die() { print -u2 "mc-meta: $*"; exit 1 }
+
+# Newest game version Fabric carries. Fabric's list is the right source
+# rather than Mojang's: a version Mojang published but Fabric has no
+# intermediary for cannot be built against yet.
+cmd_latest() {
+	local json filter='.[]'
+	[[ ${1:-} == --release ]] && filter='.[] | select(.stable == true)'
+
+	json=$(fetch "$FABRIC_META/game") || die "could not reach the Fabric meta API"
+	print -r -- "$json" | jq -r "[$filter][0].version"
+}
+
+# The fabric-api build for a given game version. See note 1 up top.
+cmd_api() {
+	local mcver=${1:?usage: mc-meta api <mcver>} json
+	json=$(fetch "$MODRINTH") || die "could not reach the Modrinth API"
+
+	local found
+	found=$(print -r -- "$json" | jq -r --arg v "$mcver" \
+		'[.[] | select(.game_versions | index($v))][0].version_number // empty')
+
+	[[ -n $found ]] || die "no fabric-api build targets $mcver yet"
+	print -r -- "$found"
+}
+
+# Download URL for that same build, since the CDN path is not derivable
+# from the version number.
+cmd_api_url() {
+	local mcver=${1:?usage: mc-meta api-url <mcver>} json
+	json=$(fetch "$MODRINTH") || die "could not reach the Modrinth API"
+
+	local url
+	url=$(print -r -- "$json" | jq -r --arg v "$mcver" \
+		'[.[] | select(.game_versions | index($v))][0].files[0].url // empty')
+
+	[[ -n $url ]] || die "no fabric-api build targets $mcver yet"
+	print -r -- "$url"
+}
+
+# The Java major a version declares. Read per-version from Mojang rather
+# than assumed: this is what decides whether a bump also needs a new JRE.
+cmd_java() {
+	local mcver=${1:?usage: mc-meta java <mcver>} manifest url
+	manifest=$(fetch "$PISTON") || die "could not reach the Mojang manifest"
+
+	url=$(print -r -- "$manifest" | jq -r --arg v "$mcver" \
+		'.versions[] | select(.id == $v) | .url')
+	[[ -n $url ]] || die "$mcver is not in Mojang's manifest"
+
+	fetch "$url" | jq -r '.javaVersion.majorVersion'
+}
+
+cmd_loader() {
+	local mcver=${1:-} json
+	if [[ -n $mcver ]]; then
+		json=$(fetch "$FABRIC_META/loader/$mcver") || die "no loader list for $mcver"
+		print -r -- "$json" | jq -r '.[0].loader.version'
+	else
+		json=$(fetch "$FABRIC_META/loader") || die "could not reach the Fabric meta API"
+		print -r -- "$json" | jq -r '[.[] | select(.stable == true)][0].version'
+	fi
+}
+
+# See note 2 up top: the installer version is part of the path.
+cmd_server() {
+	local mcver=${1:?usage: mc-meta server <mcver> [loader]}
+	local loader=${2:-$(cmd_loader $mcver)}
+	local installer
+
+	installer=$(fetch "$FABRIC_META/installer" | jq -r '[.[] | select(.stable == true)][0].version') \
+		|| die "could not resolve an installer version"
+
+	print -r -- "$FABRIC_META/loader/$mcver/$loader/$installer/server/jar"
+}
+
+# The suite's pin against upstream. Reads pandorical's gradle.properties by
+# default - every other mod in the suite depends on it, so its pin is the
+# suite's real target (the same source profiles/tiny_lappy/dot-update.d/
+# minecraft reads).
+#
+# Advisory only. Nothing here edits a pin: the world and forty jars move
+# with the suite, not with Mojang's release channel.
+cmd_check() {
+	local props=${1:-$HOME/Projects/minecraft/pandorical/gradle.properties}
+	[[ -f $props ]] || die "no gradle.properties at $props"
+
+	local pinnedMc pinnedApi pinnedLoader
+	pinnedMc=$(grep -oP '(?<=^minecraft_version = ).*' $props)
+	pinnedLoader=$(grep -oP '(?<=^loader_version = ).*' $props)
+	pinnedApi=$(grep -oP '(?<=^fabric_version = ).*' $props)
+
+	local newestMc newestLoader wantApi
+	newestMc=$(cmd_latest) || return 1
+	newestLoader=$(cmd_loader) || return 1
+	wantApi=$(cmd_api $pinnedMc 2>/dev/null || echo '?')
+
+	printf '  %-16s %-22s %s\n' "" "pinned" "upstream"
+	printf '  %-16s %-22s %s\n' "minecraft" "$pinnedMc" \
+		"$newestMc$([[ $pinnedMc != $newestMc ]] && echo '  <- behind')"
+	printf '  %-16s %-22s %s\n' "loader" "$pinnedLoader" \
+		"$newestLoader$([[ $pinnedLoader != $newestLoader ]] && echo '  <- behind')"
+	printf '  %-16s %-22s %s\n' "fabric-api" "$pinnedApi" \
+		"$wantApi$([[ $pinnedApi != $wantApi ]] && echo '  <- wrong build for the pinned snapshot')"
+
+	[[ $pinnedMc == $newestMc && $pinnedLoader == $newestLoader && $pinnedApi == $wantApi ]]
+}
+
+case ${1:-} in
+	latest)  shift; cmd_latest "$@" ;;
+	api)     shift; cmd_api "$@" ;;
+	api-url) shift; cmd_api_url "$@" ;;
+	java)    shift; cmd_java "$@" ;;
+	loader)  shift; cmd_loader "$@" ;;
+	server)  shift; cmd_server "$@" ;;
+	check)   shift; cmd_check "$@" ;;
+	*) sed -n '2,14p' $0 | sed 's/^# \?//' >&2; exit 2 ;;
+esac
