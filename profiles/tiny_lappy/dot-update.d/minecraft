@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
 
 # Minecraft client only - this is a laptop, not an always-on box, so unlike
 # htpc/dot-update.d/minecraft there's no bundled server/systemd unit here.
@@ -59,6 +60,12 @@ if [[ -f $suiteProps ]]; then
 		rm -f /tmp/fabric-installer.jar
 	}
 
+	# The Fabric install above only writes a version JSON that inherits from the
+	# vanilla one; the game jar it inherits is the launcher's to fetch, and it does
+	# so at first launch. Fetch it here instead, so a pin bump leaves a client that
+	# is installed rather than one that is merely configured to be.
+	mcEnsureClientJar $mcVersion $HOME/.minecraft/versions/$mcVersion/$mcVersion.jar
+
 	# The launcher rewrites launcher_profiles.json wholesale when it exits, so
 	# editing the file underneath a running launcher loses the edit silently -
 	# it looks like it worked and reverts minutes later. Skip instead, and say
@@ -86,6 +93,25 @@ with open(path) as f:
 # now, so one profile - the old pair are dropped rather than left to rot at
 # whatever snapshot they were last pointed at.
 for key in [k for k, p in data["profiles"].items() if p.get("name") in ("testees", "village-client")]:
+	del data["profiles"][key]
+
+# Every run of the Fabric installer adds its own installation entry named for the
+# version it just installed, and nothing has ever taken one away: after three pin
+# bumps the launcher's Installations list offers three snapshots, all but one of
+# them dead, with no hint which is the one the suite is built against. Keeping one
+# entry is the whole point of the block below, so the stale siblings go here.
+#
+# Matched on lastVersionId rather than on the name, because the name is the
+# installer's to choose and has changed shape before. The managed entry is exempt
+# by both tests, and the launcher's own latest-release / latest-snapshot entries
+# never match the prefix.
+for key in [
+	k for k, p in data["profiles"].items()
+	if p.get("name") != "minecraft"
+	and str(p.get("lastVersionId", "")).startswith("fabric-loader-")
+	and p.get("lastVersionId") != versionId
+]:
+	print(f"  dropping the stale installation entry {data['profiles'][key].get('lastVersionId')}")
 	del data["profiles"][key]
 
 profile = next((p for p in data["profiles"].values() if p.get("name") == "minecraft"), None)

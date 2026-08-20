@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
 
 # The house Fabric server AND the couch client, both running the mod suite
 # (~/Projects/minecraft on the dev laptop). Game + loader versions are
@@ -118,6 +119,14 @@ dpkg -s openjdk-$javaMajor-jre > /dev/null 2>&1 || {
 # just tidy: Prism accepts either that name or a bare "minecraft" and picks
 # whichever already exists, so making this one first is what settles it.
 mkdir -p $instanceDir/.minecraft/mods
+
+# The game jar for the pinned version, in Prism's own cache layout, so that
+# rewriting mmc-pack.json below leaves an instance that is installed and not just
+# described. Prism would fetch it at first launch otherwise, which on this box
+# means a gamepad in front of a progress bar that is indistinguishable from a
+# hang - and a bumped pin looks completely healthy right up until that moment.
+mcEnsureClientJar $mcVersion \
+	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
 # Regenerated every run - the version pin is this file's business and has
 # to keep tracking the server. instance.cfg below is deliberately the

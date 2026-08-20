@@ -1,0 +1,99 @@
+#!/bin/zsh
+
+# Shared between profiles/tiny_lappy/dot-update.d/minecraft (Mojang launcher) and
+# profiles/htpc/dot-update.d/minecraft (Prism). Both pin the same snapshot and both
+# need the same game jar; only where it lands differs, so the path is the argument.
+#
+# Why this exists at all: a pinned version that is only *configured* looks identical
+# to one that is installed. The launcher profile said 26.3-snapshot-9 and Prism's
+# mmc-pack said 26.3-snapshot-9 while both boxes still held nothing but a
+# snapshot-8 game jar, because the pin had moved and neither client had been
+# launched since. Nothing was wrong to look at, and the first launch after a bump
+# was a silent 41MB download - on the couch box, in front of a gamepad, with no way
+# to tell a slow download from a hang.
+
+# The version manifest, fetched once per shell rather than once per caller.
+mcVersionManifest() {
+	[[ -n $_mcManifest ]] || _mcManifest=$(curl -sf "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
+
+	print -r -- "$_mcManifest"
+}
+
+# The full version JSON for a pinned id, cached per version.
+mcVersionJson() {
+	local version=$1
+	local cacheVar="_mcJson_${version//[^a-zA-Z0-9]/_}"
+
+	if [[ -z ${(P)cacheVar} ]]; then
+		local manifest url
+		manifest=$(mcVersionManifest) || return 1
+		[[ -n $manifest ]] || return 1
+
+		url=$(print -r -- "$manifest" | jq -r ".versions[] | select(.id == \"$version\") | .url")
+		[[ -n $url && $url != null ]] || return 1
+
+		typeset -g $cacheVar="$(curl -sf "$url")"
+	fi
+
+	[[ -n ${(P)cacheVar} ]] || return 1
+
+	print -r -- "${(P)cacheVar}"
+}
+
+# Put the client jar for $1 at $2, and be sure it is the right one.
+#
+# Checked by sha1 rather than by existence: a jar truncated by a dropped connection
+# is present, is the wrong size, and fails at launch with something that reads like
+# a mod problem rather than a download problem. The manifest publishes the digest,
+# so there is no reason to guess.
+mcEnsureClientJar() {
+	local version=$1 dest=$2
+	local versionJson sha1 url actual
+
+	versionJson=$(mcVersionJson "$version") || {
+		echo "  Couldn't resolve $version from Mojang's manifest - leaving the game jar to the launcher"
+
+		return 0
+	}
+
+	sha1=$(print -r -- "$versionJson" | jq -r '.downloads.client.sha1')
+	url=$(print -r -- "$versionJson" | jq -r '.downloads.client.url')
+
+	[[ -n $sha1 && $sha1 != null && -n $url && $url != null ]] || {
+		echo "  $version publishes no client download - leaving the game jar to the launcher"
+
+		return 0
+	}
+
+	if [[ -f $dest ]]; then
+		actual=$(sha1sum "$dest" | cut -d' ' -f1)
+
+		[[ $actual == $sha1 ]] && return 0
+
+		echo "  The $version game jar at $dest is not what the manifest describes - refetching"
+	fi
+
+	echo "Fetching the $version game jar"
+
+	mkdir -p "${dest:h}"
+
+	# .part + mv so an interrupted fetch cannot leave a truncated jar sitting where
+	# a working one used to be, which is the failure this function exists to catch.
+	curl -sf -o "$dest.part" "$url" || {
+		rm -f "$dest.part"
+		echo "  Download failed - the launcher will fetch it on first launch"
+
+		return 0
+	}
+
+	actual=$(sha1sum "$dest.part" | cut -d' ' -f1)
+
+	if [[ $actual != $sha1 ]]; then
+		rm -f "$dest.part"
+		echo "  Downloaded jar did not match the published sha1 - discarded"
+
+		return 0
+	fi
+
+	mv "$dest.part" "$dest"
+}
