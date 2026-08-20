@@ -127,6 +127,78 @@ with open(path, "w") as f:
 EOF
 	fi
 
+	# Prism, as a second way into the same client rather than a second client.
+	#
+	# It is here for one feature the Mojang launcher has no equivalent of:
+	# --launch with --server boots straight into the house server, past the
+	# launcher window, the title screen and the server list. mc-play is the
+	# wrapper; this block is what makes the instance it launches exist.
+	prismRoot=$HOME/.local/share/PrismLauncher
+	instanceDir=$prismRoot/instances/suite
+
+	if command -v prismlauncher > /dev/null 2>&1; then
+		mkdir -p $instanceDir
+
+		# .minecraft is a link to the game directory the Mojang launcher profile
+		# already points at, not a directory of its own. One mods folder - the one
+		# mc-deploy-client writes to - one options.txt, one servers.dat, one set of
+		# screenshots, reachable from either launcher. A private instance directory
+		# would be a second installation to keep in step with the first, which is
+		# the failure this file spent the last commit learning about.
+		if [[ -e $instanceDir/.minecraft && ! -L $instanceDir/.minecraft ]]; then
+			echo "  $instanceDir/.minecraft is a real directory where a link to"
+			echo "  $clientDir was expected - left alone, since moving it would move"
+			echo "  whatever is inside it"
+		else
+			ln -sfn $clientDir $instanceDir/.minecraft
+		fi
+
+		# Regenerated every run, for the same reason htpc's is: the version pin is
+		# this file's business and has to keep tracking the server.
+		cat > $instanceDir/mmc-pack.json << EOF
+{
+	"components": [
+		{
+			"important": true,
+			"uid": "net.minecraft",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.intermediary",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.fabric-loader",
+			"version": "$loaderVersion"
+		}
+	],
+	"formatVersion": 1
+}
+EOF
+
+		# Seeded once and then Prism's, whose settings UI writes to this same file
+		# and would lose every change to a rewrite here. No memory override: this
+		# box is not sharing itself with a server the way the htpc is.
+		[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF
+InstanceType=OneSix
+name=suite
+iconKey=default
+EOF
+
+		# Prism keeps its own library store, so the jar fetched for the Mojang
+		# launcher above does not count for it.
+		mcEnsureClientJar $mcVersion \
+			$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
+
+		[[ -f $prismRoot/accounts.json ]] || {
+			echo "  Prism has no account yet - open it once and add a Microsoft"
+			echo "  account. That flow is OAuth, so there is no headless path; one"
+			echo "  sitting, and mc-play works from then on."
+		}
+	else
+		echo "  prismlauncher is not installed - skipping its instance (aptfile)"
+	fi
+
 	# A local server to test against without taking the household one down.
 	# Maintained here for the same reason the client is: the last one was set
 	# up by hand, nothing kept it current, and it sat three snapshots stale
