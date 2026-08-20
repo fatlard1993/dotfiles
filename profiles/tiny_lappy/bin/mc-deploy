@@ -103,10 +103,18 @@ swap() {
 		# jar, so a plain move leaves both beside each other and Fabric refuses to
 		# start with two copies of one mod: the deploy looks like it worked and the
 		# server never comes back.
+		#
+		# The (N) is zsh's nullglob qualifier and it is not optional. A mod being
+		# deployed for the very first time has nothing in mods/ to match, and an
+		# unmatched glob is a hard error in zsh, not a literal passed through the way
+		# bash does it: the loop never runs, set -e fires, and the swap dies here
+		# having already stopped the server but not yet moved the jars or started it
+		# again. Every deploy before the first new mod updated something already on
+		# the server, so this glob had always matched.
 		for jar in '$STAGE'/*.jar; do
 			base=\$(basename \"\$jar\")
 			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
-			for old in '$REMOTE/mods/'\$stem-*.jar; do
+			for old in '$REMOTE/mods/'\$stem-*.jar(N); do
 				[ -e \"\$old\" ] || continue
 				[ \"\$(basename \"\$old\")\" = \"\$base\" ] && continue
 				rm -f \"\$old\"
