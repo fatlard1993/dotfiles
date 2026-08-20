@@ -2,11 +2,6 @@
 ## as ~/.config/sxhkd/sxhkdrc.common). Only chords that are
 ## machine-specific or bound differently per machine live here.
 
-# Program Launcher (couch-habit chord, kept alongside the base's
-# super+space)
-ctrl + @space
-	rofi -show drun -show-icons=true
-
 # Physical power button: this is an appliance - a bare press shuts the box
 # down, no menu, no confirm (reachable because the shared
 # ubuntu/systemd/logind.conf sets HandlePowerKey=ignore, so the keypress
