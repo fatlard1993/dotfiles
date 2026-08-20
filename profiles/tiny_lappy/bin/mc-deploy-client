@@ -137,10 +137,16 @@ swap() {
 		# Same reason as the server script: a version bump renames the jar, so a
 		# plain move leaves both beside each other and the client will not launch
 		# with two copies of one mod.
+		#
+		# And the same (N) as the server script, for the same reason: a client mod
+		# shipped for the first time matches nothing here, and zsh treats an
+		# unmatched glob as a hard error rather than passing the literal through, so
+		# set -e kills the swap before the mv and the [ -e ] guard never runs. Every
+		# client mod predates this script, which is the only reason it has not fired.
 		for jar in '$STAGE'/*.jar; do
 			base=\$(basename \"\$jar\")
 			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
-			for prev in '$MODS/'\$stem-*.jar; do
+			for prev in '$MODS/'\$stem-*.jar(N); do
 				[ -e \"\$prev\" ] || continue
 				[ \"\$(basename \"\$prev\")\" = \"\$base\" ] && continue
 				rm -f \"\$prev\"
