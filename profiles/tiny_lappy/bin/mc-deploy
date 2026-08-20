@@ -92,9 +92,16 @@ swap() {
 	fi
 
 	# The remote shell is zsh, so no bash-isms here.
-	ssh "$HOST" "
+	local remote result rc=0
+	remote="
 		set -e
-		count=\$(ls -1 '$STAGE'/*.jar 2>/dev/null | wc -l)
+		# Counted through a zsh array rather than \"ls | wc -l\": with nothing staged
+		# the bare glob is a nomatch, and redirecting ls's stderr cannot silence it
+		# because zsh reports it before ls is ever invoked. The count came out right
+		# anyway, so every clean no-op deploy ended by printing what looked like a
+		# failure.
+		staged=('$STAGE'/*.jar(N))
+		count=\${#staged}
 		if [ \"\$count\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
 
 		systemctl --user stop minecraft-server
@@ -126,8 +133,29 @@ swap() {
 		systemctl --user start minecraft-server
 		echo \"swapped \$count jar(s), server restarting\"
 	"
-	ssh "$HOST" 'until journalctl --user -u minecraft-server --since "-3min" --no-pager | rg -q "Done \("; do sleep 3; done
-		journalctl --user -u minecraft-server --since "-3min" --no-pager | rg "Done \(|ERROR|MixinApply" | tail -5'
+
+	# Held in a variable rather than piped through tee: the swap's exit status is
+	# what says whether the server came back, and a pipeline hands back the last
+	# stage's status instead of ssh's.
+	result=$(ssh "$HOST" "$remote") || rc=$?
+	if [ -n "$result" ]; then echo "$result"; fi
+	if [ "$rc" -ne 0 ]; then return "$rc"; fi
+
+	# Only wait for a restart that was actually asked for. With nothing staged the
+	# server is never stopped or started, so "Done (" inside the window never
+	# arrives and the loop below spun forever on what is the most common no-op run
+	# there is: deploying when everything is already current.
+	case "$result" in *'nothing staged'*) return 0 ;; esac
+
+	# Bounded, because the other way to never see "Done (" is a server that came
+	# down and did not come back. That is the case most worth reporting, and an
+	# unbounded wait is the one response that never reports it.
+	ssh "$HOST" 'for _ in $(seq 60); do
+			journalctl --user -u minecraft-server --since "-3min" --no-pager | rg -q "Done \(" && break
+			sleep 3
+		done
+		journalctl --user -u minecraft-server --since "-3min" --no-pager | rg "Done \(|ERROR|MixinApply" | tail -5
+		systemctl --user is-active --quiet minecraft-server || echo "!! server is not running after the swap"'
 }
 
 case "$mode" in

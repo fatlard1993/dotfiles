@@ -131,7 +131,11 @@ swap() {
 	# The remote shell is zsh, so no bash-isms here.
 	ssh "$HOST" "
 		set -e
-		count=\$(ls -1 '$STAGE'/*.jar 2>/dev/null | wc -l)
+		# Same as the server script: a zsh array, because the bare glob is a nomatch
+		# when nothing is staged and ls's stderr redirect cannot silence a complaint
+		# the shell makes before ls runs.
+		staged=('$STAGE'/*.jar(N))
+		count=\${#staged}
 		if [ \"\$count\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
 
 		# Same reason as the server script: a version bump renames the jar, so a
