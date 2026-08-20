@@ -15,7 +15,12 @@
 # The transient unit runs as chase but carries no session env, so
 # DISPLAY/XAUTHORITY are injected by hand - see ubuntu/.bspwmrc's
 # DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments for the wider
-# context.
+# context. They come from the live session (../session-env) rather than
+# being hardcoded: the literal /run/user/1000/gdm/Xauthority this used to
+# carry went stale when gdm moved the file, and the only symptom was a
+# journal line - the recapture died on "Can't open X display" and slock
+# just kept showing its pre-suspend background, the exact staleness this
+# hook exists to fix.
 #
 # systemd-sleep freezes user.slice for the WHOLE hook run: frozen before
 # the pre hooks, thawed only after the last post hook exits. So a hook
@@ -29,7 +34,10 @@
 
 [ "$1" = "post" ] || exit 0
 
+. /home/chase/.dotfiles/profiles/tiny_lappy/systemd/session-env
+[ -n "$sessionDisplay" ] && [ -n "$sessionXauthority" ] || exit 0
+
 systemd-run --collect --property=User=chase \
-	--setenv=DISPLAY=:0 \
-	--setenv=XAUTHORITY=/run/user/1000/gdm/Xauthority \
+	--setenv=DISPLAY="$sessionDisplay" \
+	--setenv=XAUTHORITY="$sessionXauthority" \
 	/home/chase/.dotfiles/ubuntu/bin/system-lock recapture
