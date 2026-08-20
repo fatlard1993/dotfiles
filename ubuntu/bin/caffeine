@@ -10,6 +10,11 @@
 # profiles/*/startup.d/dpms), and xautolock's disabled bit isn't queryable.
 # startup.d/screenlock clears the file whenever it spawns a fresh (enabled)
 # xautolock, so the file can't outlive the state it describes.
+#
+# Everything else that re-derives DPMS reads that same file rather than
+# being told: profiles/*/startup.d/dpms stands down while it exists, which
+# is what keeps ubuntu/autorandr/postswitch from re-enabling DPMS behind an
+# active caffeine on every hotplug and every resume.
 
 state_file="$HOME/.dotfiles/temp/.caffeine"
 
@@ -19,7 +24,8 @@ if [ -f "$state_file" ]; then
 
 	# DPMS's resting state is per-machine (docked tiny_lappy keeps it off -
 	# see profiles/tiny_lappy/startup.d/dpms), so restore by re-running the
-	# profile's dpms script when there is one instead of assuming +dpms.
+	# profile's dpms script when there is one instead of assuming +dpms. The
+	# state file is already gone above, so that script won't stand down.
 	profile_dpms="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile")/startup.d/dpms"
 	if [ -x "$profile_dpms" ]; then
 		"$profile_dpms"
