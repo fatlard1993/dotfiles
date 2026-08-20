@@ -1,0 +1,35 @@
+#!/bin/bash
+# Suspending ends the caffeine intent (ubuntu/bin/caffeine). The coffee cup
+# means "keep *this* sitting awake", and closing the lid is the end of the
+# sitting - lid close suspends (logind HandleLidSwitch=suspend) and xss-lock
+# runs the locker on the way down, so caffeine has already failed to hold
+# the session open by then. Ending the state is honest; carrying it across
+# the cycle leaves an orange cup claiming to hold off an idle lock and a
+# DPMS blank that both came back anyway.
+#
+# Runs on resume rather than before suspend because ending caffeine means
+# talking to X (xautolock -enable, plus the profile's dpms script), and
+# systemd-sleep freezes user.slice for the whole hook run - see the long
+# note in the relock hook beside this one, which is why the work detaches
+# through systemd-run here too. Nothing caffeine holds off matters while the
+# machine is asleep, so deferring to resume costs nothing.
+#
+# Ordering against autorandr's postswitch - also resume-triggered
+# (autorandr.service is WantedBy=sleep.target), and it re-runs the same dpms
+# script - doesn't matter: `caffeine off` clears the state file before
+# calling that script, so either order converges on the same DPMS setting.
+#
+# DBUS_SESSION_BUS_ADDRESS on top of what relock injects: that hook only
+# composites an image, this one notify-sends. The path matches what
+# ubuntu/.bspwmrc points the session's own apps at.
+
+[ "$1" = "post" ] || exit 0
+
+. /home/chase/.dotfiles/profiles/tiny_lappy/systemd/session-env
+[ -n "$sessionDisplay" ] && [ -n "$sessionXauthority" ] || exit 0
+
+systemd-run --collect --property=User=chase \
+	--setenv=DISPLAY="$sessionDisplay" \
+	--setenv=XAUTHORITY="$sessionXauthority" \
+	--setenv=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus \
+	/home/chase/.dotfiles/ubuntu/bin/caffeine off

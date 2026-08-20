@@ -15,10 +15,14 @@
 # being told: profiles/*/startup.d/dpms stands down while it exists, which
 # is what keeps ubuntu/autorandr/postswitch from re-enabling DPMS behind an
 # active caffeine on every hotplug and every resume.
+#
+# `caffeine off` is the idempotent form - ends the state, no-op when it's
+# already ended, never flips it on. For callers that mean "off" rather than
+# "the other one": see profiles/tiny_lappy/systemd/system-sleep/caffeine-off.
 
 state_file="$HOME/.dotfiles/temp/.caffeine"
 
-if [ -f "$state_file" ]; then
+turn_off() {
 	rm -f "$state_file"
 	pgrep -x xautolock > /dev/null && xautolock -enable
 
@@ -34,9 +38,25 @@ if [ -f "$state_file" ]; then
 	fi
 
 	notify-send "Caffeine" "Off - idle lock & display sleep restored"
-else
+}
+
+turn_on() {
 	touch "$state_file"
 	pgrep -x xautolock > /dev/null && xautolock -disable
 	xset -dpms
 	notify-send "Caffeine" "On - idle lock & display sleep disabled"
-fi
+}
+
+case $1 in
+	off)
+		[ -f "$state_file" ] || exit 0
+		turn_off
+		;;
+	*)
+		if [ -f "$state_file" ]; then
+			turn_off
+		else
+			turn_on
+		fi
+		;;
+esac
