@@ -1,0 +1,32 @@
+#!/bin/zsh
+
+echo "Linking .desktop files so they show up in rofi drun"
+
+mkdir -p $HOME/.local/share/applications
+
+# Two layers: the shared entries every ubuntu box gets, and whatever the active
+# profile adds on top. A profile's entries belong to the profile because the
+# things they launch do - mc-play exists only where the mod suite does, and an
+# entry for it on the other three machines would be a menu item that cannot run.
+#
+# (N) on both globs. Three of the four profiles have no applications directory at
+# all, and an unmatched glob is a hard error in zsh rather than an empty list, so
+# without it this hook would fail everywhere except the machine that has one.
+for file in $ubuntuPath/applications/*.desktop(N) $profilePath/applications/*.desktop(N); do
+	ln -sf $file $HOME/.local/share/applications/$(basename $file)
+done
+
+# Renaming or dropping an entry in the repo leaves its link behind, and rofi
+# happily lists a dangling one as an application that then fails to start.
+# Scoped to links pointing into the dotfiles: everything else in that directory
+# belongs to a package or to the user, and is none of this hook's business.
+for link in $HOME/.local/share/applications/*.desktop(N@); do
+	target=$(readlink $link)
+
+	[[ $target == $dotfilesPath/* ]] || continue
+	[[ -e $target ]] && continue
+
+	echo "  removing $(basename $link), the file it points at is gone"
+
+	rm -f $link
+done
