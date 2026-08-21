@@ -18,7 +18,13 @@ super + grave
 	$HOME/.dotfiles/ubuntu/bin/terminal-smart
 
 # Program Launcher
-super + @space
+#
+# Both chords, because the ctrl one started as an htpc couch habit and turned
+# out to be the one the hands actually reach for. Note that this takes ctrl+space
+# away from every application on the machine: it is the autocomplete trigger in
+# VS Code and the input-method toggle under ibus/fcitx, and sxhkd grabs it before
+# either of them sees it. Drop the brace back to a bare super to give it back.
+{super,ctrl} + @space
 	rofi -show drun -show-icons=true
 
 # Program Launcher (magnifying-glass / search function key)

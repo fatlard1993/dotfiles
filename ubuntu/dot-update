@@ -35,7 +35,7 @@ echo "Purgeing unwanted default apt packages"
 # `systemctl enable gdm3` rollback.
 # no MTA needed - nothing here sends mail.
 $ubuntuPath/bin/apt-autopurge \
-	totem thunderbird firefox \
+	totem thunderbird \
 	apport apport-core-dump-handler apport-gtk apport-symptoms whoopsie ubuntu-report \
 	gnome-characters gnome-clocks gnome-disk-utility gnome-font-viewer gnome-logs \
 	gnome-user-docs yelp yelp-xsl \

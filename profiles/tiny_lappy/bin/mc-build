@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Build every mod in the suite and report a per-repo pass/fail tally.
+# "green 36/36" as a command instead of a memory. Run from the workspace root.
+#
+#   ./build-all.sh              # build all mods
+#   ./build-all.sh -q           # quieter: only print the tally and failures
+#   ./build-all.sh pandorical   # build one repo and every repo that depends on it
+#
+# Exit status is the number of failed repos (0 = all green).
+set -uo pipefail
+
+# On PATH now rather than sitting in the suite, so the suite is named
+# instead of inferred from $0. MINECRAFT_SUITE overrides it.
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+quiet=0
+[[ "${1:-}" == "-q" ]] && { quiet=1; shift; }
+
+# A repo is any immediate subdirectory with a gradlew.
+mapfile -t repos < <(for d in */; do [[ -x "${d}gradlew" ]] && echo "${d%/}"; done | sort)
+
+# If a repo is named, build it plus everything that declares it in fabric.mod.json depends.
+if [[ -n "${1:-}" ]]; then
+	target="$1"
+	dependents=("$target")
+	for r in "${repos[@]}"; do
+		[[ "$r" == "$target" ]] && continue
+		if rg -q "\"$target\"" "$r"/src/main/resources/fabric.mod.json 2>/dev/null; then
+			dependents+=("$r")
+		fi
+	done
+	repos=("${dependents[@]}")
+	echo "Building $target and its ${#repos[@]} dependent(s): ${repos[*]}"
+fi
+
+pass=0
+fail=0
+failed_repos=()
+for r in "${repos[@]}"; do
+	if [[ $quiet -eq 1 ]]; then
+		out=$(cd "$r" && ./gradlew build -q 2>&1)
+	else
+		out=$(cd "$r" && ./gradlew build -q 2>&1); echo "$out"
+	fi
+	if [[ $? -eq 0 ]]; then
+		pass=$((pass + 1))
+		printf 'PASS  %s\n' "$r"
+	else
+		fail=$((fail + 1))
+		failed_repos+=("$r")
+		printf 'FAIL  %s\n' "$r"
+		[[ $quiet -eq 1 ]] && echo "$out" | tail -20
+	fi
+done
+
+echo "─────────────────────────────────────"
+printf 'green %d/%d\n' "$pass" "$((pass + fail))"
+((fail > 0)) && printf 'failed: %s\n' "${failed_repos[*]}"
+exit "$fail"

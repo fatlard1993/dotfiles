@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Hold every repo's toolchain pins to one source, and say when they drift.
+#
+#   ./versions.sh          report drift against pandorical
+#   ./versions.sh --all    every repo, drifted or not
+#   ./versions.sh --apply  rewrite the others to match pandorical
+#
+# Pandorical is the source because it already is one: every mod depends on it,
+# dot-update reads its gradle.properties for the client and server it builds,
+# and mc-meta check reads it to decide whether upstream has moved. Bumping a
+# version is one edit there followed by --apply, rather than forty edits and a
+# grep to confirm none were missed.
+#
+# Why not a shared gradle/versions.gradle, as the follow-up first proposed:
+# these are forty separate git repositories, each published on its own. A file
+# every build applies but no repo contains makes each one unbuildable the
+# moment it is cloned alone. Propagating the values keeps every repo complete
+# by itself, which is the property worth more than the indirection.
+set -uo pipefail
+# On PATH now rather than sitting in the suite, so the suite is named
+# instead of inferred from $0. MINECRAFT_SUITE overrides it.
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+SOURCE=pandorical
+mode="${1:-report}"
+
+prop() { grep -E "^\s*$2\s*=" "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'; }
+loom() { grep -oE "fabric-loom' version ['\"][^'\"]+" "$1/build.gradle" 2>/dev/null | head -1 | sed "s/.*['\"]//"; }
+release() { grep -oE 'options\.release = [0-9]+' "$1/build.gradle" 2>/dev/null | head -1 | sed 's/.*= //'; }
+
+wantMc=$(prop $SOURCE minecraft_version)
+wantLoader=$(prop $SOURCE loader_version)
+wantApi=$(prop $SOURCE fabric_version)
+wantLoom=$(loom $SOURCE)
+wantRelease=$(release $SOURCE)
+
+echo "source: $SOURCE  mc=$wantMc loader=$wantLoader api=$wantApi loom=$wantLoom java=$wantRelease"
+echo
+
+drift=0
+for dir in */; do
+	mod="${dir%/}"
+	[ -f "$mod/gradle.properties" ] || continue
+
+	mc=$(prop "$mod" minecraft_version)
+	loader=$(prop "$mod" loader_version)
+	api=$(prop "$mod" fabric_version)
+	lm=$(loom "$mod")
+	rel=$(release "$mod")
+
+	# An absent fabric_version or options.release is a real difference, not a
+	# drift: five mods pull in no Fabric API, and herobrine sets no release. A
+	# check that reported those every run would train you to skip the output.
+	bad=""
+	[ -n "$mc" ] && [ "$mc" != "$wantMc" ] && bad="$bad mc=$mc"
+	[ -n "$loader" ] && [ "$loader" != "$wantLoader" ] && bad="$bad loader=$loader"
+	[ -n "$api" ] && [ "$api" != "$wantApi" ] && bad="$bad api=$api"
+	[ -n "$lm" ] && [ "$lm" != "$wantLoom" ] && bad="$bad loom=$lm"
+	[ -n "$rel" ] && [ "$rel" != "$wantRelease" ] && bad="$bad java=$rel"
+
+	if [ -n "$bad" ]; then
+		drift=$((drift + 1))
+		printf '  %-22s DRIFT:%s\n' "$mod" "$bad"
+	elif [ "$mode" = "--all" ]; then
+		printf '  %-22s ok\n' "$mod"
+	fi
+
+	if [ "$mode" = "--apply" ] && [ "$mod" != "$SOURCE" ]; then
+		[ -n "$mc" ]     && sed -i -E "s|^(\s*minecraft_version\s*=\s*).*$|\1$wantMc|" "$mod/gradle.properties"
+		[ -n "$loader" ] && sed -i -E "s|^(\s*loader_version\s*=\s*).*$|\1$wantLoader|" "$mod/gradle.properties"
+		[ -n "$api" ]    && sed -i -E "s|^(\s*fabric_version\s*=\s*).*$|\1$wantApi|" "$mod/gradle.properties"
+		# Quote character and indentation are captured and put back: three
+		# spellings of this line exist across the suite and reformatting forty
+		# build files is churn nobody asked for.
+		[ -n "$lm" ]  && sed -i -E "s|(fabric-loom' version )(['\"])[^'\"]+(['\"])|\1\2$wantLoom\3|" "$mod/build.gradle"
+		[ -n "$rel" ] && sed -i -E "s|(options\.release = )[0-9]+|\1$wantRelease|" "$mod/build.gradle"
+		sed -i -E "s|JavaVersion\.VERSION_[0-9]+|JavaVersion.VERSION_$wantRelease|g" "$mod/build.gradle"
+	fi
+done
+
+case "$mode" in
+	--apply) echo "applied $SOURCE's pins to every repo" ;;
+	*) [ "$drift" -eq 0 ] && echo "no drift" || echo "$drift repo(s) adrift - ./versions.sh --apply" ;;
+esac
+exit "$drift"

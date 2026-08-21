@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking resume caffeine-off hook"
+
+sudo mkdir -p /usr/lib/systemd/system-sleep
+sudo ln -sf $profilePath/systemd/system-sleep/caffeine-off /usr/lib/systemd/system-sleep/caffeine-off
+sudo chmod +x $profilePath/systemd/system-sleep/caffeine-off

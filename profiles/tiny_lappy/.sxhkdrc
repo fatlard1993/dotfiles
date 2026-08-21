@@ -72,3 +72,13 @@ XF86KbdBrightnessUp
 	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle
 XF86KbdBrightnessDown
 	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle
+
+## Touchpad
+# Unstick a phantom contact: this pad's firmware sometimes reuses a slot
+# without closing the old one, and with no pressure axis to fall back on
+# libinput keeps believing that finger is down - single-finger motion then
+# reads as two-finger scroll, or the pointer freezes until a click-drag.
+# Keyboard-triggered on purpose: the pointer is what's broken when you
+# need this. See ubuntu/bin/touchpad-reset.
+super + shift + t
+	$HOME/.dotfiles/ubuntu/bin/touchpad-reset

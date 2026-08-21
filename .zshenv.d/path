@@ -21,3 +21,25 @@ export PATH="$PATH:$HOME/.dotfiles/bin"
 # Bun
 export PATH="$PATH:$HOME/.bun/bin"
 
+
+# Profile Bin - per-machine tools, dotfiles layer then priv-config layer.
+#
+# The layer that was missing: shared bin, OS bin and ~/bin all existed, but
+# nothing wired the profile's own. profiles/htpc/bin has been sitting there
+# empty because of it.
+#
+# Both are guarded rather than assumed: priv-config is not cloned on every
+# machine (htpc has no copy), and a profile need not own a bin at all.
+# Appended, so a profile tool never silently shadows a shared or system one -
+# a name collision there is a bug to fix, not a precedence puzzle.
+#
+# Anonymous function so the loop variables do not leak into every shell.
+() {
+	local profile=$(cat $HOME/.dotfilesProfile 2>/dev/null)
+	[[ -n $profile ]] || return
+
+	local dir
+	for dir in $HOME/.dotfiles/profiles/$profile/bin $HOME/.priv-config/profiles/$profile/bin; do
+		[[ -d $dir ]] && export PATH="$PATH:$dir"
+	done
+}

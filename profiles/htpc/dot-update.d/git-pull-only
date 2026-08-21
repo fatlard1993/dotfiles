@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# This box consumes config, it does not author it.
+#
+# Pulling needs no credentials at all - the dotfiles repo is public, so fetch
+# works anonymously and dot-update's own `git pull` has always been fine here.
+# Pushing is the only half that ever wanted auth, and this machine deliberately
+# has none: no gh login, no ssh keys, an https remote and no terminal to prompt
+# on.
+#
+# Left alone, that asymmetry only shows up after the fact. A commit made here
+# looks like it worked, and the failure arrives at push time as an unhelpful
+# "could not read Username", leaving the machine holding a commit that has to
+# be relayed by hand from the dev laptop. Blocking the push URL moves the
+# error to the moment it can still be acted on, and says what to do instead.
+#
+# Edit the dotfiles on the dev machine; this one pulls.
+
+echo "Asserting dotfiles is pull-only on this machine"
+
+git -C $HOME/.dotfiles remote set-url --push origin \
+	'htpc-is-pull-only--edit-the-dotfiles-on-the-dev-machine'
