@@ -101,12 +101,9 @@ kitten @ --to="$KITTY_LISTEN_ON" send-text --match "id:$W" 'kitten icat --align 
 - `kitten @ ls` to inspect, `close-window --match id:$W` to clean up; match on id, titles drift to the running command
 - Reach for this whenever the artifact is visual: screenshots, diagrams, charts, rendered pages. Showing beats describing, and I under-use it
 
-**Standard kit** (installed, no notes needed): `gh`, `shellcheck` / `ruff` / `biome`, `gitleaks`, `grpcurl` / `websocat`, `just`, `watchexec`, `hyperfine`, `bats`, `sd`, `lnav`, `tldr`; `fd` / `rg` (ignore configs active)
+**Standard kit** (installed, no notes needed): `gh`, `shellcheck` / `ruff` / `biome`, `gitleaks`, `grpcurl` / `websocat`, `just`, `watchexec`, `hyperfine`, `bats`, `sd`, `lnav`, `tldr`; `fd` (ignore configs active)
 
-**rg traps** (earned scars):
-- Extraction pipelines: add `-I` on multi-file searches before `-o | sort | uniq -c`, or filename prefixes pollute the counts (`freq` does this dance safely)
-- Exits 1 on no-match (breaks `&&` chains) and 2 on error; a downstream `| head` swallows both. Verify rg alone, then pipe
-- Ignore config silently excludes vendor/, dist/, build/, *.lock and more: a "not found" there is a lie; add `--no-ignore` or `-u` when the target may live in excluded dirs
+**rg is an engine, not a reach**: it powers the `bin/` scripts and the Grep tool; typed bare in bash it costs rework (grep muscle memory bites: `-r` means recursive there, replace here). Route by question: content search → Grep tool (plain `grep -rn` when the harness lacks it), symbol questions → `ctx-refs` / `ctx-where`, match counting → `freq`, search-then-edit → Grep files mode + `sd` / `comby`. One trap rides the engine everywhere: the `RIPGREP_CONFIG_PATH` globs silently drop vendor/, dist/, build/, *.lock and more, so a "not found" there is a lie, and `-u`/`--no-ignore` does not lift globs. The one bare-rg reach left is the escape hatch: `RIPGREP_CONFIG_PATH= rg -uu <pattern> <path>` when the target may live in excluded dirs.
 
 **Aliases:**
 - `i`: `bun i` or `npm i` (detects `bunfig.toml`)
