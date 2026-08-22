@@ -62,7 +62,15 @@ stage() {
 		remote_sum=$(ssh "$HOST" "md5sum '$REMOTE/mods/$name' 2>/dev/null | cut -d' ' -f1" || true)
 
 		if [ "$local_sum" != "$remote_sum" ]; then
-			scp -q "$jar" "$HOST:$STAGE/"
+			# Clear any other version of this same mod out of staging first. Staging
+			# more than once before a swap is the ordinary case - it is what happens
+			# every time somebody is playing - and each bump lands under a new name,
+			# so they pile up. The swap drops older builds out of mods/, but nothing
+			# was dropping them out of here, and it moved the whole pile in: three
+			# copies of one mod, which is the exact thing that drop loop exists to
+			# prevent. Fabric happened to pick the newest rather than refuse.
+			ssh -n "$HOST" "rm -f '$STAGE/$(stem_of "$name")'-*.jar"
+			scp -q "$jar" "$HOST:$STAGE/" </dev/null
 			echo "  staged $name"
 			count=$((count + 1))
 		fi
