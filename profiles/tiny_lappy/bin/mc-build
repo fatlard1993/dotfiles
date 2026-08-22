@@ -39,12 +39,16 @@ pass=0
 fail=0
 failed_repos=()
 for r in "${repos[@]}"; do
-	if [[ $quiet -eq 1 ]]; then
-		out=$(cd "$r" && ./gradlew build -q 2>&1)
-	else
-		out=$(cd "$r" && ./gradlew build -q 2>&1); echo "$out"
-	fi
-	if [[ $? -eq 0 ]]; then
+	out=$(cd "$r" && ./gradlew build -q 2>&1)
+	# Taken before anything else runs. This used to be read after the echo below, so in
+	# the default noisy mode $? was echo's status rather than gradle's - echo does not
+	# fail, so every repo passed. It printed "green 4/4" directly underneath the compile
+	# errors it had just shown, three times in one day, and the errors were the only
+	# reason anybody noticed.
+	status=$?
+	[[ $quiet -eq 1 ]] || echo "$out"
+
+	if [[ $status -eq 0 ]]; then
 		pass=$((pass + 1))
 		printf 'PASS  %s\n' "$r"
 	else
