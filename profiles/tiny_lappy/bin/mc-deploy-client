@@ -91,9 +91,11 @@ api_jar() {
 # gradle.properties is exact, and also copes with archives_base_name differing
 # from the folder name.
 # The mod a jar belongs to, with the version taken off: "loot-ender-1.1.3.jar"
-# becomes "loot-ender". The same rule the swap uses to find older builds.
+# becomes "loot-ender". Anchored on the last hyphen that starts a number, so a
+# version with a word in it still comes apart: "village-castles-0.2.1-alpha.jar"
+# defeated the simpler rule and left that mod out of every dedupe.
 stem_of() {
-	echo "$1" | sed 's/-[0-9][^-]*\.jar$//'
+	echo "$1" | sed 's/\(.*\)-[0-9].*\.jar$/\1/'
 }
 
 jar_for() {
@@ -212,7 +214,8 @@ stage() {
 		if [ "$local_sum" != "$remote_sum" ]; then
 			# See the same guard in mc-deploy: without this, staging twice before a
 			# swap leaves both versions here and the swap moves both into mods/.
-			ssh -n "$host" "rm -f '$stage_dir/$(stem_of "$name")'-*.jar"
+			# find, not a glob: see the same call in mc-deploy.
+			ssh -n "$host" "find '$stage_dir' -maxdepth 1 -name '$(stem_of "$name")-*.jar' -delete"
 			scp -q "$jar" "$host:$stage_dir/" </dev/null
 			echo "  staged $name"
 			count=$((count + 1))
@@ -273,7 +276,7 @@ if [ "$count" -eq 0 ]; then echo "  nothing staged"; exit 0; fi
 for jar in "$stage_dir"/*.jar; do
 	[ -e "$jar" ] || continue
 	base=$(basename "$jar")
-	stem=$(echo "$base" | sed 's/-[0-9][^-]*\.jar$//')
+	stem=$(echo "$base" | sed 's/\(.*\)-[0-9].*\.jar$/\1/')
 	for prev in "$mods_dir/$stem"-*.jar; do
 		[ -e "$prev" ] || continue
 		if [ "$(basename "$prev")" != "$base" ]; then
