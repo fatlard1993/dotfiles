@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# Empty on purpose - shadows ubuntu/startup.d/screenlock. No slock here (the
+# fork builds from a repo this machine has no key for) and greetd autologs in,
+# so a lock would buy nothing: a reboot lands back in the session anyway.

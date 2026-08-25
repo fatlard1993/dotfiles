@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+touchpad=$(xinput list --name-only | grep -i touchpad | head -1)
+[[ -n $touchpad ]] || exit 0
+
+xinput set-prop "$touchpad" "libinput Tapping Enabled" 0
+xinput set-prop "$touchpad" "libinput Tapping Drag Enabled" 0
+xinput set-prop "$touchpad" "libinput Natural Scrolling Enabled" 1
+xinput set-prop "$touchpad" "libinput Click Method Enabled" 0 1
+xinput set-prop "$touchpad" "libinput Accel Speed" 0.5

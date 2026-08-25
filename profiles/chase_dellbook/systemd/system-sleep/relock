@@ -1,0 +1,43 @@
+#!/bin/bash
+# slock (our fork, profiles/chase_dellbook/slock/) starts once via xss-lock
+# before suspend and runs straight through resume. If autorandr
+# reconfigures the monitor on resume (autorandr.service,
+# WantedBy=sleep.target) while it's still up, its cached background no
+# longer matches the new geometry - used to render as a blank/white lock
+# screen with stock i3lock, which had no way to redraw itself.
+#
+# `system-lock recapture` re-shoots the screenshot/blur/badge base at the
+# current resolution; slock polls screen_locked.png's mtime itself (see
+# config.def.h) and picks up the refresh on its own. This is a separate
+# short-lived invocation, not a relaunch of the slock that's been running
+# since before suspend (suspend pauses processes, it doesn't kill them).
+#
+# The transient unit runs as chase but carries no session env, so
+# DISPLAY/XAUTHORITY are injected by hand - see ubuntu/.bspwmrc's
+# DBUS_SESSION_BUS_ADDRESS/XDG_SESSION_TYPE comments for the wider
+# context. They come from the live session (../session-env) rather than
+# being hardcoded: the literal /run/user/1000/gdm/Xauthority this used to
+# carry went stale when gdm moved the file, and the only symptom was a
+# journal line - the recapture died on "Can't open X display" and slock
+# just kept showing its pre-suspend background, the exact staleness this
+# hook exists to fix.
+#
+# systemd-sleep freezes user.slice for the WHOLE hook run: frozen before
+# the pre hooks, thawed only after the last post hook exits. So a hook
+# may not synchronously touch the user session - Xorg is frozen, and a
+# `su` login lands in a frozen session scope - it deadlocks until the
+# 90s hook timeout kills it, and the whole desktop stays frozen with it.
+# systemd-run detaches instead: the hook exits at once (thaw proceeds),
+# and the transient unit sits in system.slice where its X connection
+# blocks until Xorg thaws, landing the recapture right as resume
+# completes.
+
+[ "$1" = "post" ] || exit 0
+
+. /home/chase/.dotfiles/profiles/chase_dellbook/systemd/session-env
+[ -n "$sessionDisplay" ] && [ -n "$sessionXauthority" ] || exit 0
+
+systemd-run --collect --property=User=chase \
+	--setenv=DISPLAY="$sessionDisplay" \
+	--setenv=XAUTHORITY="$sessionXauthority" \
+	/home/chase/.dotfiles/ubuntu/bin/system-lock recapture

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+export apps=(
+	"nautilus -w $HOME/Projects"
+	"nautilus -w $HOME/Downloads"
+	"kitty --directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"kitty --directory $HOME/Projects"
+	"code -n"
+	"google-chrome"
+)
+
+export desktops=(
+	"5"
+	"5"
+	"4"
+	"4"
+	"4"
+	"4"
+	"2"
+	"1"
+)
+
+export desktopNames=(
+	"5 Files"
+	"5 Files"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"4 Term"
+	"2 Code"
+	"1 Web"
+)

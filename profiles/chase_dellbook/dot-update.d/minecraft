@@ -1,0 +1,228 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
+# Minecraft client only - this is a laptop, not an always-on box, so unlike
+# htpc/dot-update.d/minecraft there's no bundled server/systemd unit here.
+# To play multiplayer against the household server, connect to the htpc.
+
+# Official launcher; its deb depends on default-jre and friends, which apt
+# resolves when installing from the local file. Mojang hasn't touched the
+# deb's control file in years: it names libgdk-pixbuf2.0-0, dead since the
+# gdk-pixbuf rename and the only Depends entry current Ubuntu doesn't
+# satisfy via Provides (the t64 transition packages cover the rest). The
+# installed libgdk-pixbuf-2.0-0 satisfies the real >= 2.22 requirement, so
+# rewrite the name and repack. If a future release trips on another dead
+# name, extend the sed. (Same fix as profiles/htpc/dot-update.d/minecraft -
+# keep both in sync if Mojang's deb changes again.)
+dpkg -s minecraft-launcher > /dev/null 2>&1 || {
+	echo "Installing Minecraft launcher"
+
+	curl -sf -o /tmp/Minecraft.deb https://launcher.mojang.com/download/Minecraft.deb
+
+	rm -rf /tmp/Minecraft.deb.d
+	dpkg-deb -R /tmp/Minecraft.deb /tmp/Minecraft.deb.d
+	sed -i 's/libgdk-pixbuf2\.0-0/libgdk-pixbuf-2.0-0/' /tmp/Minecraft.deb.d/DEBIAN/control
+	# --root-owner-group: the extracted tree is owned by this user, and a
+	# plain repack would bake that uid into the installed files
+	dpkg-deb -b --root-owner-group /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft-fixed.deb
+	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
+}
+
+# The suite's own client and server (~/Projects/minecraft).
+#
+# Versions are read from pandorical's gradle.properties rather than pinned
+# here - pandorical is the platform every other mod depends on, so its pin is
+# the suite's real target. This intentionally does NOT float forward on its
+# own: a snapshot this specific is a compatibility target the mods were built
+# against, not a version to track.
+#
+# mc-meta (profiles/chase_dellbook/bin) reports when upstream has moved past the
+# pin. Reporting only - moving the pin means rebuilding forty jars and taking
+# the household server down with it, which is a decision, not an update step.
+suiteProps="$HOME/Projects/minecraft/pandorical/gradle.properties"
+
+if [[ -f $suiteProps ]]; then
+	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $suiteProps)
+	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $suiteProps)
+	fabricVersionId="fabric-loader-$loaderVersion-$mcVersion"
+	clientDir="$HOME/Projects/minecraft-client"
+	serverDir="$HOME/Projects/minecraft-server"
+
+	[[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
+		echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
+
+		curl -sf -o /tmp/fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar
+		java -jar /tmp/fabric-installer.jar client -mcversion $mcVersion -loader $loaderVersion
+		rm -f /tmp/fabric-installer.jar
+	}
+
+	# The Fabric install above only writes a version JSON that inherits from the
+	# vanilla one; the game jar it inherits is the launcher's to fetch, and it does
+	# so at first launch. Fetch it here instead, so a pin bump leaves a client that
+	# is installed rather than one that is merely configured to be.
+	mcEnsureClientJar $mcVersion $HOME/.minecraft/versions/$mcVersion/$mcVersion.jar
+
+	# The launcher rewrites launcher_profiles.json wholesale when it exits, so
+	# editing the file underneath a running launcher loses the edit silently -
+	# it looks like it worked and reverts minutes later. Skip instead, and say
+	# so, rather than pretending.
+	#
+	# Matched on the full command line: "minecraft-launcher" is 18 characters
+	# and pgrep -x truncates comm at 15, so the obvious check can never match.
+	if pgrep -f minecraft-launcher > /dev/null 2>&1; then
+		echo "  The Minecraft launcher is open, so its profile list is left alone"
+		echo "  (it would overwrite any change on exit). Close it and rerun."
+	else
+		echo "Ensuring the 'minecraft' launcher profile points at $fabricVersionId"
+
+		python3 - $fabricVersionId "$clientDir" << 'EOF'
+import json, os, sys, uuid
+
+versionId, gameDir = sys.argv[1], sys.argv[2]
+path = f"{os.environ['HOME']}/.minecraft/launcher_profiles.json"
+
+with open(path) as f:
+	data = json.load(f)
+
+# The suite used to be played through two hand-made profiles, "testees" against
+# a throwaway test client and "village-client" against the real one. One client
+# now, so one profile - the old pair are dropped rather than left to rot at
+# whatever snapshot they were last pointed at.
+for key in [k for k, p in data["profiles"].items() if p.get("name") in ("testees", "village-client")]:
+	del data["profiles"][key]
+
+# Every run of the Fabric installer adds its own installation entry named for the
+# version it just installed, and nothing has ever taken one away: after three pin
+# bumps the launcher's Installations list offers three snapshots, all but one of
+# them dead, with no hint which is the one the suite is built against. Keeping one
+# entry is the whole point of the block below, so the stale siblings go here.
+#
+# Matched on lastVersionId rather than on the name, because the name is the
+# installer's to choose and has changed shape before. The managed entry is exempt
+# by both tests, and the launcher's own latest-release / latest-snapshot entries
+# never match the prefix.
+for key in [
+	k for k, p in data["profiles"].items()
+	if p.get("name") != "minecraft"
+	and str(p.get("lastVersionId", "")).startswith("fabric-loader-")
+	and p.get("lastVersionId") != versionId
+]:
+	print(f"  dropping the stale installation entry {data['profiles'][key].get('lastVersionId')}")
+	del data["profiles"][key]
+
+profile = next((p for p in data["profiles"].values() if p.get("name") == "minecraft"), None)
+if profile is None:
+	profile = {"name": "minecraft", "type": "custom", "created": "2026-08-19T00:00:00.000Z", "icon": "Grass"}
+	data["profiles"][uuid.uuid4().hex] = profile
+
+profile["lastVersionId"] = versionId
+profile["gameDir"] = gameDir
+
+with open(path, "w") as f:
+	json.dump(data, f)
+EOF
+	fi
+
+	# Prism, as a second way into the same client rather than a second client.
+	#
+	# It is here for one feature the Mojang launcher has no equivalent of:
+	# --launch with --server boots straight into the house server, past the
+	# launcher window, the title screen and the server list. mc-play is the
+	# wrapper; this block is what makes the instance it launches exist.
+	prismRoot=$HOME/.local/share/PrismLauncher
+	instanceDir=$prismRoot/instances/suite
+
+	if command -v prismlauncher > /dev/null 2>&1; then
+		mkdir -p $instanceDir
+
+		# .minecraft is a link to the game directory the Mojang launcher profile
+		# already points at, not a directory of its own. One mods folder - the one
+		# mc-deploy-client writes to - one options.txt, one servers.dat, one set of
+		# screenshots, reachable from either launcher. A private instance directory
+		# would be a second installation to keep in step with the first, which is
+		# the failure this file spent the last commit learning about.
+		if [[ -e $instanceDir/.minecraft && ! -L $instanceDir/.minecraft ]]; then
+			echo "  $instanceDir/.minecraft is a real directory where a link to"
+			echo "  $clientDir was expected - left alone, since moving it would move"
+			echo "  whatever is inside it"
+		else
+			ln -sfn $clientDir $instanceDir/.minecraft
+		fi
+
+		# Regenerated every run, for the same reason htpc's is: the version pin is
+		# this file's business and has to keep tracking the server.
+		cat > $instanceDir/mmc-pack.json << EOF
+{
+	"components": [
+		{
+			"important": true,
+			"uid": "net.minecraft",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.intermediary",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.fabric-loader",
+			"version": "$loaderVersion"
+		}
+	],
+	"formatVersion": 1
+}
+EOF
+
+		# Seeded once and then Prism's, whose settings UI writes to this same file
+		# and would lose every change to a rewrite here. No memory override: this
+		# box is not sharing itself with a server the way the htpc is.
+		[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF
+InstanceType=OneSix
+name=suite
+iconKey=default
+EOF
+
+		# Prism keeps its own library store, so the jar fetched for the Mojang
+		# launcher above does not count for it.
+		mcEnsureClientJar $mcVersion \
+			$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
+
+		[[ -f $prismRoot/accounts.json ]] || {
+			echo "  Prism has no account yet - open it once and add a Microsoft"
+			echo "  account. That flow is OAuth, so there is no headless path; one"
+			echo "  sitting, and mc-play works from then on."
+		}
+	else
+		echo "  prismlauncher is not installed - skipping its instance (aptfile)"
+	fi
+
+	# A local server to test against without taking the household one down.
+	# Maintained here for the same reason the client is: the last one was set
+	# up by hand, nothing kept it current, and it sat three snapshots stale
+	# until it was deleted. The .version marker mirrors htpc's module.
+	mkdir -p $serverDir/mods
+	serverTarget="$mcVersion+$loaderVersion"
+
+	if [[ $serverTarget != $(cat $serverDir/.version 2>/dev/null) ]]; then
+		echo "Installing the local Fabric server $serverTarget"
+
+		curl -sf -o $serverDir/fabric-server.jar.new "$(mc-meta server $mcVersion $loaderVersion)" \
+			&& mv $serverDir/fabric-server.jar.new $serverDir/fabric-server.jar \
+			&& echo $serverTarget > $serverDir/.version
+
+		[[ -f $serverDir/eula.txt ]] || echo "eula=true" > $serverDir/eula.txt
+	fi
+
+	# Advisory only. Exits nonzero when the pin is behind, which is not a
+	# failure of this run - dot-update should not care, so the status is
+	# swallowed deliberately.
+	if command -v mc-meta > /dev/null; then
+		echo "Mod suite target:"
+		mc-meta check $suiteProps || true
+	fi
+else
+	echo "~/Projects/minecraft/pandorical not found - skipping the suite client and server"
+fi

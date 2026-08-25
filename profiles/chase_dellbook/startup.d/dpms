@@ -1,0 +1,30 @@
+#!/bin/zsh
+
+# The shared startup.d/display already disables X's screensaver blanking
+# (xset s off), but DPMS is separate and still blanks outputs after its
+# default 600s timeout. That's normally harmless - input un-blanks it - but
+# on the docked external monitor the wake path doesn't reliably restore a
+# mode: DPMS off/on isn't a real hotplug or a systemd suspend/resume, so
+# neither udev's autorandr trigger nor the sleep-target hook fires, and the
+# output can come back "connected" with no CRTC assigned - the external output up but
+# blank, keyboard (powered through the monitor's hub) still working.
+#
+# That failure is specific to the external output - the built-in panel cycles DPMS fine -
+# so only disable it while docked. Undocked, leave DPMS on: xautolock
+# (startup.d/screenlock) still locks the session on the same timeout, but
+# locking alone never blanks the panel, so disabling DPMS unconditionally
+# left the screen lit behind the lock screen forever instead of sleeping.
+#
+# Skipped entirely while caffeine holds DPMS off (ubuntu/bin/caffeine):
+# ubuntu/autorandr/postswitch re-runs this on every hotplug *and* every
+# resume (autorandr.service is WantedBy=sleep.target), so without the guard
+# one lid cycle silently re-enabled DPMS behind an orange coffee cup.
+# caffeine's off-branch clears the state file before calling this, so
+# restoring the machine's own rule still lands in the branch below.
+if [[ ! -f $HOME/.dotfiles/temp/.caffeine ]]; then
+	if xrandr --query 2>/dev/null | grep -Eq "^DP-[0-9-]+ connected"; then
+		xset -dpms
+	else
+		xset +dpms
+	fi
+fi

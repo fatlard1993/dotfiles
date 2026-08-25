@@ -1,0 +1,74 @@
+#!/bin/zsh
+# Where each mod's jar belongs: server, client, or both.
+#
+#   mc-where          the three groups
+#   mc-where <mod>    just that one
+#
+# Derived from each mod's own fabric.mod.json rather than kept as a list. The
+# list this replaces sat in the suite README and had already drifted: two mods
+# added and never filed, which is what a hand-maintained inventory does.
+#
+# The rule:
+#   environment "client"        -> client only, the server neither needs nor
+#                                  benefits from it
+#   depends on pandorical       -> server only; connecting players need
+#                                  Pandorical and nothing else, because the
+#                                  framework serves the mod's content to them
+#   neither                     -> server only, and vanilla clients are fully
+#                                  served with nothing extra
+
+set -uo pipefail
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { print -u2 "no mod suite at $SUITE"; exit 2 }
+cd "$SUITE" || exit 2
+
+classify() {
+	local mod=$1 manifest env pandorical
+	manifest=$(find "$mod/src" -name fabric.mod.json 2>/dev/null | head -1)
+	[ -n "$manifest" ] || return 1
+
+	env=$(jq -r '.environment // "*"' "$manifest" 2>/dev/null)
+	pandorical=$(jq -r '(.depends // {}) | has("pandorical")' "$manifest" 2>/dev/null)
+
+	# The framework itself belongs to neither group: it depends on no pandorical
+	# because it is pandorical, which would file it under "vanilla clients fully
+	# served" - the exact opposite of true, since it is the one jar those clients
+	# do need.
+	if [[ $mod == pandorical ]]; then print framework
+	elif [[ $env == client ]]; then print client
+	elif [[ $pandorical == true ]]; then print server-pandorical
+	else print server-vanilla
+	fi
+}
+
+if (( $# )); then
+	for mod in "$@"; do
+		printf '  %-22s %s\n' "$mod" "$(classify $mod || echo 'no fabric.mod.json')"
+	done
+	exit 0
+fi
+
+typeset -a client serverPan serverVanilla
+for dir in */; do
+	mod=${dir%/}
+	case $(classify $mod) in
+		client)            client+=($mod) ;;
+		server-pandorical) serverPan+=($mod) ;;
+		server-vanilla)    serverVanilla+=($mod) ;;
+	esac
+done
+
+print "Server-side, Pandorical on the client (${#serverPan}). Jar on the server only;"
+print "connecting players need Pandorical and nothing else. The suite's default shape."
+print "  ${serverPan}"
+print
+print "Server-side, vanilla clients fully served (${#serverVanilla}). No client-side anything."
+print "  ${serverVanilla}"
+print
+print "Client-side (${#client}). The server neither needs nor benefits from these."
+print "  ${client}"
+print
+print "pandorical is the exception: it belongs on the server AND on every client that"
+print "wants to see the first group. couch-controls is the other - a client mod that"
+print "compiles against Pandorical for NavigableScreen, kept a soft runtime dependency"
+print "behind one class a Pandorical-less client never loads."

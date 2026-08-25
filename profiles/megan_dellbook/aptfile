@@ -1,0 +1,9 @@
+#!/usr/bin/env aptfile
+
+update
+
+package "vlc"
+package "mpv"
+package "gimp"
+package "onboard"
+package "prismlauncher"

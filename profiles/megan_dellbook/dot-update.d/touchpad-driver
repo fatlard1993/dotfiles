@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The ELAN touchpad (PNP: DLL075b) gets claimed by both the legacy psmouse
+# driver (over PS/2) and i2c-hid at once, showing up as two separate xinput
+# devices fighting over the same hardware - this causes intermittent
+# freezes that only clear on a click-drag. Forcing synaptics_intertouch
+# tells psmouse to hand the device over to i2c-hid exclusively instead of
+# also registering the PS/2 path. See: dmesg | grep psmouse
+modprobeFile=/etc/modprobe.d/psmouse.conf
+desiredLine="options psmouse synaptics_intertouch=1"
+
+if ! sudo test -f $modprobeFile || ! sudo grep -qF "$desiredLine" $modprobeFile; then
+	echo "Forcing psmouse synaptics_intertouch=1 (touchpad dual-driver fix)"
+
+	echo "$desiredLine" | sudo tee $modprobeFile > /dev/null
+	sudo update-initramfs -u
+
+	echo "Touchpad driver fix needs a reboot to take effect"
+fi

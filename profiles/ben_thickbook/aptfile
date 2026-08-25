@@ -1,0 +1,7 @@
+#!/usr/bin/env aptfile
+
+update
+
+package "vlc"
+package "mpv"
+package "prismlauncher"

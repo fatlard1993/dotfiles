@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# The AC udev rule (dot-update.d/power-profile-ac) only catches plug
+# events; on a boot that starts already on AC, the coldplug replay fires
+# before power-profiles-daemon is up, so a persisted power-saver survives
+# into the session. Catch that case here.
+if [[ $(cat /sys/class/power_supply/AC/online 2>/dev/null) == 1 && $(powerprofilesctl get) == power-saver ]]; then
+	powerprofilesctl set balanced
+fi

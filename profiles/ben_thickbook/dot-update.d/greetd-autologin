@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Appliance boot: power on -> couch UI, no keyboard involved. greetd's
+# [initial_session] logs in exactly once at boot; logging out still lands on
+# tuigreet as usual. The command mirrors what tuigreet itself wraps X
+# sessions in (its default --xsession-wrapper is `startx /usr/bin/env`),
+# since greetd runs an initial_session directly without tuigreet in the loop.
+#
+# Appended rather than shipped as a whole-file copy so the base config stays
+# owned by ubuntu/greetd/config.toml (theme and all) with no drifting
+# duplicate here. The shared greetd hook (run just before this via 0_ubuntu)
+# re-copies that base file every dot-update, wiping this section - so this
+# append runs after it every time; the grep guard makes the no-change case
+# idempotent.
+greetdConfig=/etc/greetd/config.toml
+
+if ! sudo grep -q "^\[initial_session\]" $greetdConfig; then
+	echo "Enabling greetd autologin (initial_session -> bspwm)"
+
+	sudo tee -a $greetdConfig > /dev/null <<-EOF
+
+	[initial_session]
+	command = "startx /usr/bin/env bspwm"
+	user = "$USER"
+	EOF
+fi

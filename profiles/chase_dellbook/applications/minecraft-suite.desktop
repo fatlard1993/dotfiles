@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Minecraft (house server)
+Comment=Join htpc.home with the mod suite, straight past the launcher
+Exec=/home/chase/.dotfiles/profiles/chase_dellbook/bin/mc-play
+Icon=org.prismlauncher.PrismLauncher
+Terminal=false
+Categories=Game;
+Keywords=minecraft;mc;suite;prism;fabric;server;
+StartupNotify=true
+StartupWMClass=PrismLauncher
+Actions=menu;
+
+[Desktop Action menu]
+Name=Title screen (don't join a server)
+Exec=/home/chase/.dotfiles/profiles/chase_dellbook/bin/mc-play --menu

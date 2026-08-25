@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Our own maintained fork of suckless slock (github.com/fatlard1993/slock) -
+# imlib2 background image support (polled by mtime, since privileges are
+# already dropped to nobody:nogroup before it's ever read) and a
+# typing-state square indicator (one square per typed character, red
+# shake on a wrong password, green shrink-away on a correct one). The
+# auth path itself (gethash/readpw's password check, main()'s setuid
+# drop sequence) is untouched from upstream. See ubuntu/bin/system-lock
+# and ubuntu/bin/lock-tick for the background image this expects at
+# /tmp/system-lock/screen_locked.png. Pinned to a specific tested commit
+# rather than floating on the fork's own master.
+slockRef="2866261b6637233813361a6a56718d91de8e4d84"
+slockSrc="$HOME/.cache/dotfiles-src/slock"
+
+echo "Fetching slock"
+
+mkdir -p $(dirname $slockSrc)
+
+if [[ -d $slockSrc ]]; then
+	(cd $slockSrc && git fetch --quiet && git checkout --quiet $slockRef)
+else
+	git clone --quiet git@github.com:fatlard1993/slock.git $slockSrc
+	(cd $slockSrc && git checkout --quiet $slockRef)
+fi
+
+echo "Building slock"
+
+make -C $slockSrc clean >/dev/null 2>&1
+
+echo "Installing slock (setuid root)"
+
+sudo make -C $slockSrc install
