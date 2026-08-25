@@ -1,0 +1,24 @@
+# Built by dot-update.d/ollama as the `code` model - used via the `aider`
+# wrapper function (.zshrc.d/aider), or directly with `ollama run code`.
+#
+# Same role as htpc's Modelfile.code (a Claude stand-in for when Claude
+# itself isn't reachable), sized for this box's real ceiling: CPU-only,
+# 2c/4t. This is the one that actually matters when there's no LAN either -
+# htpc's qwen2.5-coder:14b needs the network; this is what's left without
+# it. Weaker, but present.
+#
+# No SYSTEM block here - dot-update.d/ollama assembles it at build time from
+# ~/.claude/context/{workbench,garden}.md (the same identity/approach layer
+# every real Claude Code session gets via SessionStart hooks) plus
+# code-system-addendum.md in this directory. Editing those source files and
+# rerunning dot-update keeps this in sync automatically; editing SYSTEM here
+# would do nothing, there isn't one. `offload` deliberately skips this -
+# it's meant to be fast and low-stakes, and 150+ lines of philosophy on
+# every quick call works against that.
+
+FROM qwen2.5-coder:7b
+
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER num_ctx 4096
+PARAMETER repeat_penalty 1.1

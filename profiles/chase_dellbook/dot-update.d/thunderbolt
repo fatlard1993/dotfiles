@@ -1,0 +1,34 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The WD19TBS is a Thunderbolt dock, and Thunderbolt peripherals are not
+# trusted by default: with the BIOS at "User Authorization" (Dell's default)
+# nothing behind the dock works until the device is enrolled. GNOME does that
+# with a dialog; this session has no GNOME, so bolt gets a nudge from here.
+# --policy auto persists the enrolment, so this is a one-time act per device,
+# and a fresh device plugged in later just needs a rerun.
+#
+# Dock firmware is fwupd's business (ubuntu/dot-update.d/fwupd): LVFS carries
+# the WD19 family, and it updates when the dock is connected.
+
+command -v boltctl > /dev/null || {
+	echo "Installing bolt"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y bolt
+}
+
+sudo systemctl enable --now bolt > /dev/null 2>&1 || true
+
+# boltctl list prints one block per device: a name line, then indented
+# "key: value" fields. Enrol whatever is connected but not yet authorized.
+boltctl list 2>/dev/null | awk '
+	/uuid:/   { uuid = $NF }
+	/status:/ { status = $NF; if (status == "connected" && uuid != "") print uuid; uuid = "" }
+' | while read -r uuid; do
+	echo "Enrolling Thunderbolt device $uuid"
+
+	sudo boltctl enroll --policy auto $uuid
+done
+
+boltctl list 2>/dev/null | grep -q . || echo "  No Thunderbolt devices seen - plug the dock in and rerun to enrol it"

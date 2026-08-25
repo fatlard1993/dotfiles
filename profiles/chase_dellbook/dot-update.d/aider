@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Aider - CLI coding agent, driven by the `code` Ollama model (see
+# dot-update.d/ollama). The actual model/host selection lives in the
+# `aider` wrapper function, .zshrc.d/aider - this script only gets the
+# binary in place.
+#
+# Installed via uv, not pipx: aider-chat 0.16.0 hard-pins numpy==1.24.3,
+# which only ever shipped wheels for cp38-cp311
+# (https://pypi.org/pypi/numpy/1.24.3/json). This box's only system Python
+# is 3.14 (no older version packaged, no PPA) - pipx would try to build
+# that ancient numpy from source against a CPython it was never designed
+# for and fail. uv sidesteps the whole problem: it fetches its own isolated
+# Python 3.11 for aider's venv, untouched by whatever the system ships.
+
+command -v uv > /dev/null || {
+	echo "Installing uv"
+
+	curl -LsSf https://astral.sh/uv/install.sh | sh
+}
+
+command -v aider > /dev/null || {
+	echo "Installing aider (isolated Python 3.11 via uv, see comment above)"
+
+	uv tool install aider-chat --python 3.11
+}
