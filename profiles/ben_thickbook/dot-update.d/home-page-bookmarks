@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Seeded once, then the home-page's own: it writes back to the resolved file,
+# so a symlink into a pull-only tree would dirty it and break the next pull.
+[[ -e $HOME/.homePage.json ]] || {
+	echo "Seeding home-page bookmarks"
+
+	cp $profilePath/home-page.json $HOME/.homePage.json
+}

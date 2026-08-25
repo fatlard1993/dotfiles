@@ -1,0 +1,8 @@
+#!/bin/zsh
+## $HOME/.config/bspwmrc
+
+# ctrl/alt swap - was previously reapplied on every new shell (.zshrc), which
+# is wasted work for something that's session-wide X state; once here at
+# session start is enough.
+
+. "$HOME/.dotfiles/ubuntu/.bspwmrc"

@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Same stance as htpc: this box consumes config, it does not author it. The
+# dotfiles repo is public so pulling needs no credentials, and this machine
+# deliberately has none - no gh login, no ssh keys, no priv-config. Blocking
+# the push URL turns a doomed push into an error that says what to do instead.
+
+echo "Asserting dotfiles is pull-only on this machine"
+
+git -C $HOME/.dotfiles remote set-url --push origin \
+	'ben_thickbook-is-pull-only--edit-the-dotfiles-on-the-dev-machine'
