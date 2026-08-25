@@ -27,6 +27,18 @@ SOURCE=pandorical
 mode="${1:-report}"
 
 prop() { grep -E "^\s*$2\s*=" "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'; }
+# A pin this script does not know by name is a pin it never syncs. Three repos
+# spelled it fabric_api_version and sat two Fabric API releases behind while the
+# report said "no drift". Anything else ending in _version is surfaced rather
+# than skipped, and --apply deliberately will not touch it: the fix is to spell
+# it the way the others do, which is a decision, not a substitution.
+unknown() {
+	grep -oE '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*_version[[:space:]]*=' "$1/gradle.properties" 2>/dev/null \
+		| tr -d ' \t=' \
+		| grep -vxE 'minecraft_version|loader_version|fabric_version|mod_version' \
+		| tr '\n' ' ' | sed 's/ $//'
+}
+
 loom() { grep -oE "fabric-loom' version ['\"][^'\"]+" "$1/build.gradle" 2>/dev/null | head -1 | sed "s/.*['\"]//"; }
 release() { grep -oE 'options\.release = [0-9]+' "$1/build.gradle" 2>/dev/null | head -1 | sed 's/.*= //'; }
 
@@ -49,9 +61,10 @@ for dir in */; do
 	api=$(prop "$mod" fabric_version)
 	lm=$(loom "$mod")
 	rel=$(release "$mod")
+	uk=$(unknown "$mod")
 
 	# An absent fabric_version or options.release is a real difference, not a
-	# drift: five mods pull in no Fabric API, and herobrine sets no release. A
+	# drift: two mods pull in no Fabric API, and herobrine sets no release. A
 	# check that reported those every run would train you to skip the output.
 	bad=""
 	[ -n "$mc" ] && [ "$mc" != "$wantMc" ] && bad="$bad mc=$mc"
@@ -59,6 +72,7 @@ for dir in */; do
 	[ -n "$api" ] && [ "$api" != "$wantApi" ] && bad="$bad api=$api"
 	[ -n "$lm" ] && [ "$lm" != "$wantLoom" ] && bad="$bad loom=$lm"
 	[ -n "$rel" ] && [ "$rel" != "$wantRelease" ] && bad="$bad java=$rel"
+	[ -n "$uk" ] && bad="$bad unknown-pin=$uk"
 
 	if [ -n "$bad" ]; then
 		drift=$((drift + 1))
