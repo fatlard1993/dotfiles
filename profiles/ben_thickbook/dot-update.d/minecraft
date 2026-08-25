@@ -175,6 +175,17 @@ if (( ! ${#clientPandorical} )); then
 	echo "  server. From the dev machine: mc-deploy-client --client ben_thickbook"
 fi
 
+# The colonies server (turkeyday.modded.fun, Minecraft 1.21.1) runs the
+# MineColonies Official Modpack. Prism installs that pack itself from
+# CurseForge, and a few of its mods block third-party download and want a
+# click in the browser, so the import stays a one-time hand step: Add
+# Instance > CurseForge > "MineColonies Official Modpack", named exactly
+# "minecolonies" so mc-play's --launch finds it.
+[[ -d $prismRoot/instances/minecolonies ]] || {
+	echo "  No 'minecolonies' Prism instance yet - import the MineColonies Official"
+	echo "  Modpack from CurseForge in Prism and name the instance 'minecolonies'"
+}
+
 [[ -f $prismRoot/accounts.json ]] || {
 	echo "  Prism has no account yet - open it once, finish its setup wizard and"
 	echo "  add Ben's Microsoft account. That flow is OAuth, so there is no"

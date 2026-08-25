@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=PBS Kids
+Icon=desk-pbskids
+Exec=google-chrome --app=https://pbskids.org/
+Terminal=false
+Categories=Desk;

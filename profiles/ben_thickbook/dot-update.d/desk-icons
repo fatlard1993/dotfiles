@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Site tiles need an icon a pre-reader recognises: the site's own logo, at a
+# size the desk grid can show. Fetched once per site into the user icon theme
+# under the desk-<id> name the .desktop entries reference. The Minecraft
+# tiles borrow Prism's icon, which every tile already depends on.
+iconDir=$HOME/.local/share/icons/hicolor/256x256/apps
+mkdir -p $iconDir
+
+while read -r id url; do
+	[[ -n $id && -s $iconDir/desk-$id.png ]] && continue
+
+	echo "Fetching desk icon for $id"
+
+	domain=${${url#*://}%%/*}
+	curl -sf -o $iconDir/desk-$id.png.new \
+		"https://www.google.com/s2/favicons?domain=$domain&sz=256" \
+		&& mv $iconDir/desk-$id.png.new $iconDir/desk-$id.png \
+		|| rm -f $iconDir/desk-$id.png.new
+done < $profilePath/desk-icons/sites.txt
+
+for tile in home minecolonies; do
+	[[ -e $iconDir/desk-$tile.png ]] || ln -sf /usr/share/icons/hicolor/256x256/apps/org.prismlauncher.PrismLauncher.png $iconDir/desk-$tile.png
+done
+
+gtk-update-icon-cache -q $HOME/.local/share/icons/hicolor 2>/dev/null || true

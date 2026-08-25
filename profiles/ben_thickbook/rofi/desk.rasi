@@ -1,0 +1,39 @@
+@theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
+
+* {
+	font: "Hack Nerd Font Mono 18";
+}
+
+window {
+	width: 100%;
+	height: 100%;
+	fullscreen: true;
+}
+
+inputbar {
+	enabled: false;
+}
+
+listview {
+	columns: 4;
+	lines: 4;
+	flow: horizontal;
+	fixed-columns: true;
+	spacing: 24px;
+	padding: 48px;
+}
+
+element {
+	orientation: vertical;
+	padding: 24px;
+}
+
+element-icon {
+	size: 160px;
+	horizontal-align: 0.5;
+}
+
+element-text {
+	horizontal-align: 0.5;
+	vertical-align: 0.5;
+}

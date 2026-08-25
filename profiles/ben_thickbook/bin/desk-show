@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+pgrep -x rofi > /dev/null && exit 0
+
+exec rofi -show desk -modes "desk:$HOME/.dotfiles/profiles/ben_thickbook/bin/desk" \
+	-theme $HOME/.dotfiles/profiles/ben_thickbook/rofi/desk.rasi
