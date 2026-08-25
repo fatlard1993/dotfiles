@@ -14,7 +14,7 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # NOT managed here - they deploy from the suite workspace (build-all.sh,
 # then scp) so nothing ever runs a jar that didn't come out of a green
 # suite build.
-mcVersion=26.3-snapshot-9
+mcVersion=26.3-snapshot-10
 loaderVersion=0.19.3
 installerVersion=1.1.2
 
