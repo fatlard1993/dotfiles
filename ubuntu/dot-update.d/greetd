@@ -12,6 +12,15 @@ echo "Installing greetd + tuigreet"
 
 command -v greetd >/dev/null || sudo apt install -y greetd tuigreet
 
+# Everything below assumes the install landed. On a first run with no network
+# it did not, and the module went on to disable gdm3 anyway - leaving the
+# machine with no display manager at all, booting to a bare getty.
+command -v greetd >/dev/null || {
+	echo "  greetd is not installed (apt failed?) - leaving the display manager alone"
+
+	return
+}
+
 echo "Installing greetd config"
 
 # Copied, not symlinked: no ProtectHome on greetd.service today, but see

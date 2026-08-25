@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The profiles' grub puts net.ifnames=0 on the kernel line, so the first
+# reboot after bootstrap renames the installer's wlp0s20f3 to wlan0 - and the
+# Wi-Fi profile the installer wrote is bound to the old name, so the machine
+# comes back up with no network. Unbinding Wi-Fi profiles from interface names
+# lets NetworkManager match them to whatever the radio is called.
+command -v nmcli > /dev/null || return
+
+nmcli -t -f NAME,TYPE connection show | awk -F: '$2 ~ /wireless/ {print $1}' | while IFS= read -r name; do
+	bound=$(nmcli -g connection.interface-name connection show "$name")
+	[[ -z $bound ]] && continue
+
+	echo "Unbinding Wi-Fi profile '$name' from interface $bound"
+	nmcli connection modify "$name" connection.interface-name ""
+done
