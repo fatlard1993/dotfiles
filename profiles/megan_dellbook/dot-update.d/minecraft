@@ -1,0 +1,96 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
+# Client only, and a player's machine rather than a developer's: there is no
+# suite workspace here to read the pin from, so like htpc this file pins the
+# game and loader itself. Bump the three together with htpc/dot-update.d/
+# minecraft - a client on a different pin than the house server cannot join it.
+# Mod jars are not managed here either: they arrive over ssh from the dev
+# machine (mc-deploy-client, registered in priv-config/minecraft/clients.txt).
+mcVersion=26.3-snapshot-10
+loaderVersion=0.19.3
+
+manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+manifest=$(curl -sf $manifestUrl)
+
+if [[ -z $manifest ]]; then
+	echo "Couldn't reach the Mojang version manifest - skipping minecraft"
+
+	return
+fi
+
+versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$mcVersion\") | .url"))
+
+if [[ -z $versionJson ]]; then
+	echo "Pinned version $mcVersion not in Mojang's manifest - skipping minecraft"
+
+	return
+fi
+
+# The full runtime, not -headless: LWJGL wants libawt_xawt and friends.
+javaMajor=$(echo $versionJson | jq -r '.javaVersion.majorVersion')
+
+dpkg -s openjdk-$javaMajor-jre > /dev/null 2>&1 || {
+	echo "Installing Java $javaMajor (required by Minecraft $mcVersion)"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre
+}
+
+command -v prismlauncher > /dev/null 2>&1 || {
+	echo "prismlauncher is not installed - skipping the suite instance (aptfile)"
+
+	return
+}
+
+prismRoot=$HOME/.local/share/PrismLauncher
+instanceDir=$prismRoot/instances/suite
+
+# Creating .minecraft first is what settles Prism on that name over "minecraft".
+mkdir -p $instanceDir/.minecraft/mods
+
+mcEnsureClientJar $mcVersion \
+	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
+
+# Regenerated every run so the pin keeps tracking the server; instance.cfg is
+# seeded once and then belongs to Prism's settings UI.
+cat > $instanceDir/mmc-pack.json << EOF2
+{
+	"components": [
+		{
+			"important": true,
+			"uid": "net.minecraft",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.intermediary",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.fabric-loader",
+			"version": "$loaderVersion"
+		}
+	],
+	"formatVersion": 1
+}
+EOF2
+
+[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF2
+InstanceType=OneSix
+name=suite
+iconKey=default
+EOF2
+
+clientPandorical=($instanceDir/.minecraft/mods/pandorical-*.jar(N:t))
+
+if (( ! ${#clientPandorical} )); then
+	echo "  No Pandorical in the suite instance yet, so it cannot join the house"
+	echo "  server. From the dev machine: mc-deploy-client --client megan_dellbook"
+fi
+
+[[ -f $prismRoot/accounts.json ]] || {
+	echo "  Prism has no account yet - open it once, finish its setup wizard and"
+	echo "  add Megan's Microsoft account. That flow is OAuth, so there is no"
+	echo "  headless path; one sitting, and mc-play works from then on."
+}

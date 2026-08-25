@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+sudo env DEBIAN_FRONTEND=noninteractive $profilePath/aptfile

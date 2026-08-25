@@ -1,0 +1,14 @@
+export apps=(
+	"nautilus -w $HOME/Downloads"
+	"google-chrome"
+)
+
+export desktops=(
+	"2"
+	"1"
+)
+
+export desktopNames=(
+	"2 Files"
+	"1 Web"
+)
