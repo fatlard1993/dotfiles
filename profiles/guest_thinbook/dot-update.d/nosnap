@@ -1,0 +1,25 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# This machine runs no snap applications (2026-07-13 audit: every installed
+# snap existed to support snapd itself - bases, themes, a firmware GUI that
+# duplicates deb fwupd), so the whole stack stays off: no loop mounts, no
+# background refreshes, no snapd-desktop-integration crash-looping against
+# the startx session. The pin outranks any package that lists snapd as a
+# dependency, so apt can't quietly bring it back on an upgrade.
+
+if dpkg -s snapd > /dev/null 2>&1; then
+	echo "Purging snapd stack"
+
+	sudo apt-get purge -y snapd
+	rm -rf $HOME/snap
+fi
+
+nosnapPin=/etc/apt/preferences.d/nosnap
+
+if [ ! -f $nosnapPin ]; then
+	echo "Pinning snapd out of apt"
+
+	printf 'Package: snapd\nPin: release a=*\nPin-Priority: -10\n' | sudo tee $nosnapPin > /dev/null
+fi

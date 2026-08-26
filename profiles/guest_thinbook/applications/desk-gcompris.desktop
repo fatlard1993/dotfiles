@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GCompris
+Icon=gcompris-qt
+Exec=gcompris-qt
+Terminal=false
+Categories=Desk;

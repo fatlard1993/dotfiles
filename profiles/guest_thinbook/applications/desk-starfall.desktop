@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Starfall
+Icon=desk-starfall
+Exec=google-chrome --app=https://www.starfall.com/
+Terminal=false
+Categories=Desk;

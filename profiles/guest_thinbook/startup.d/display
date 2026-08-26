@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+# Shadows ubuntu/startup.d/display to keep everything except picom: on
+# this Ivy Bridge iGPU the compositor taxes every frame for shadows,
+# fades, and transparency nobody asked for, and the games feel it.
+# Opaque windows are a fine price on an appliance.
+xset s off
+
+xrdb -merge ~/.Xresources
+
+xsetroot -cursor_name left_ptr &

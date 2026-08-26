@@ -1,0 +1,91 @@
+## guest_thinbook overlay - loaded alongside the shared base (ubuntu/.sxhkdrc,
+## linked as ~/.config/sxhkd/sxhkdrc.common). Only chords that are
+## machine-specific or bound differently per machine live here.
+
+# AI Search: natural-language file/content search across the computer,
+# via claude -p (see ubuntu/bin/ai-search)
+super + shift + space
+	$HOME/.dotfiles/ubuntu/bin/ai-search
+
+# Mac-like copy/cut/paste: forward as ctrl+c/x/v to whatever's focused, so
+# super acts as a global stand-in for ctrl on these three regardless of app.
+# Release-triggered (@) so holding the combo doesn't fire it repeatedly via
+# X11 key auto-repeat - each repeat would spawn another xdotool call and
+# their overlapping --clearmodifiers dances corrupt the modifier state.
+# forward-key (not bare xdotool): releasing super mid-forward used to leave
+# it synthetically re-pressed and stuck - every click a super+click - until
+# forward-key started re-syncing logical modifier state to physical truth.
+super + @c
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+c
+super + @x
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+x
+super + @v
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+v
+
+# Rest of the Mac-like set, same release-triggered forwarding pattern
+super + @a
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+a
+super + @z
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+z
+super + shift + @z
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+shift+z
+super + @s
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+s
+super + @f
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+f
+super + @r
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+r
+super + @t
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+t
+super + @q
+	$HOME/.dotfiles/ubuntu/bin/quit-or-close
+
+# Delete to line start/end (readline-style; not every GTK app honors these,
+# same caveat as redo). super+arrow is deliberately not remapped to cursor
+# movement - it's already bspwm's window-focus navigation.
+super + @BackSpace
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+u
+super + @Delete
+	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+k
+
+# Physical power button: same as the bar's power button - the glyph power
+# menu (bin/power-click, through ubuntu/bin/power-click's dispatch).
+# logind.conf still sets HandlePowerKey=ignore so the keypress reaches
+# sxhkd instead of logind acting on it directly.
+XF86PowerOff
+	$HOME/.dotfiles/ubuntu/bin/power-click
+
+# Close (forwards ctrl+w, release-triggered like the Mac-like forwards
+# above so Super is already up when it fires - see
+# ubuntu/bin/close-tab-or-window) and Kill
+super + @w
+	$HOME/.dotfiles/ubuntu/bin/close-tab-or-window
+super + shift + w
+	bspc node -k
+
+## Backlight
+XF86MonBrightnessUp
+	$HOME/.dotfiles/ubuntu/bin/brightness screen up
+XF86MonBrightnessDown
+	$HOME/.dotfiles/ubuntu/bin/brightness screen down
+XF86KbdBrightnessUp
+	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle
+XF86KbdBrightnessDown
+	$HOME/.dotfiles/ubuntu/bin/brightness kbd cycle
+
+## Touchpad
+# Unstick a phantom contact: this pad's firmware sometimes reuses a slot
+# without closing the old one, and with no pressure axis to fall back on
+# libinput keeps believing that finger is down - single-finger motion then
+# reads as two-finger scroll, or the pointer freezes until a click-drag.
+# Keyboard-triggered on purpose: the pointer is what's broken when you
+# need this. See ubuntu/bin/touchpad-reset.
+super + shift + t
+	$HOME/.dotfiles/ubuntu/bin/touchpad-reset
+
+# The desk: the tile grid, on the two keys a small hand finds first.
+super + d
+	$HOME/.dotfiles/profiles/guest_thinbook/bin/desk-show
+
+Menu
+	$HOME/.dotfiles/profiles/guest_thinbook/bin/desk-show

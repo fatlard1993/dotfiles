@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+# Kid-sized power menu: glyph tiles instead of the shared text list
+# (ubuntu/bin/polybar-menu power). Reached through that script's profile
+# dispatch, so the bar's power button and XF86PowerOff both land here.
+
+pgrep -x rofi > /dev/null && exit 0
+
+exec rofi -show power -show-icons -dpi 131 -me-select-entry "" -me-accept-entry MousePrimary \
+	-modi "power:$HOME/.dotfiles/profiles/guest_thinbook/bin/power-tiles" \
+	-theme $HOME/.dotfiles/profiles/guest_thinbook/rofi/tiles.rasi \
+	-theme-str "listview { columns: 4; } window { width: 800px; }"

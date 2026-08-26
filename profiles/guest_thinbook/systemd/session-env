@@ -1,0 +1,39 @@
+#!/bin/bash
+# Sourced (never executed - it is not marked +x) by the system-sleep hooks
+# beside this file, system-sleep/relock and system-sleep/caffeine-off, to
+# reach the running X session from a root context that has none of its
+# environment.
+#
+# Lives outside system-sleep/ on purpose: systemd-sleep executes every file
+# in that directory, and this one is a library, not a hook.
+#
+# The values are read off the live session rather than hardcoded. They were
+# hardcoded once - XAUTHORITY=/run/user/1000/gdm/Xauthority, true when the
+# relock hook was written - and gdm later moved it to ~/.Xauthority. The
+# stale path then failed silently: the hook ran, systemd-run started, X
+# refused the connection, and the only trace was "Authorization required,
+# but no authorization protocol specified" in the journal while the lock
+# screen quietly kept its stale background. Reading bspwm's own environ
+# can't go stale - whatever the session is using is what this returns.
+#
+# Both variables come back empty when no session is up (a suspend from the
+# greeter, say); callers check before using them.
+
+# Consumed by the sourcing hook, not here.
+# shellcheck disable=SC2034
+sessionDisplay=""
+# shellcheck disable=SC2034
+sessionXauthority=""
+
+sessionBspwmPid=$(pgrep -x bspwm | head -1)
+
+# shellcheck disable=SC2034
+sessionUser=""
+
+if [ -n "$sessionBspwmPid" ]; then
+	sessionDisplay=$(tr '\0' '\n' < "/proc/$sessionBspwmPid/environ" | sed -n 's/^DISPLAY=//p')
+	sessionXauthority=$(tr '\0' '\n' < "/proc/$sessionBspwmPid/environ" | sed -n 's/^XAUTHORITY=//p')
+	# The session owner too, for the hooks' systemd-run - it was User=chase
+	# hardcoded until the chase login became ben and resume stopped locking
+	sessionUser=$(ps -o user= -p "$sessionBspwmPid" | tr -d ' ')
+fi

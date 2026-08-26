@@ -1,0 +1,61 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Site tiles need an icon a pre-reader recognises: the site's own logo, at a
+# size the desk grid can show. Fetched once per site into the user icon theme
+# under the desk-<id> name the .desktop entries reference. The Minecraft
+# tiles borrow Prism's icon, which every tile already depends on.
+iconDir=$HOME/.local/share/icons/hicolor/256x256/apps
+mkdir -p $iconDir
+
+# Repo-owned icons first: the ones no service can produce - jellyfin's home
+# domain answers nothing and the favicon service hands ytkids a bare G, so
+# these ship in desk-icons/ as files. The fetch loop's image check then
+# sees a valid icon and leaves it alone.
+for static in $profilePath/desk-icons/desk-*.png(N); do
+	ln -sf $static $iconDir/${static:t}
+done
+
+while read -r id url; do
+	# image/*, not just non-empty: the favicon service answers with a
+	# redirect, and a fetch that didn't follow it left a "301 Moved" page
+	# here that a size check kept treating as done
+	[[ -n $id && -s $iconDir/desk-$id.png && $(file -b --mime-type $iconDir/desk-$id.png) == image/* ]] && continue
+
+	echo "Fetching desk icon for $id"
+
+	# The site itself is the fallback because the service can't be the whole
+	# answer: it never sees LAN-only names like games.home. Every candidate
+	# is validated as an image - both failure modes here return HTML with a
+	# smile - and a miss leaves no file, so the next run tries again.
+	domain=${${url#*://}%%/*}
+	origin=${url%%$domain*}$domain
+	for iconUrl in \
+		"https://www.google.com/s2/favicons?domain=$domain&sz=256" \
+		"$origin/favicon.png" \
+		"$origin/favicon.ico"; do
+		if curl -sfL --max-time 10 -o $iconDir/desk-$id.png.new "$iconUrl" \
+			&& [[ $(file -b --mime-type $iconDir/desk-$id.png.new) == image/* ]]; then
+			mv $iconDir/desk-$id.png.new $iconDir/desk-$id.png
+			break
+		fi
+
+		rm -f $iconDir/desk-$id.png.new
+	done
+done < $profilePath/desk-icons/sites.txt
+
+# Prism's png where the distro ships one (any size beats none), else the
+# official launcher's symbolic svg (jammy has no prismlauncher package at
+# all) - gdk-pixbuf loads by content, so the .png name on an svg is fine
+for tile in home minecolonies; do
+	[[ -s $iconDir/desk-$tile.png ]] && continue
+
+	for candidate in /usr/share/icons/hicolor/256x256/apps/org.prismlauncher.PrismLauncher.png \
+		/usr/share/icons/hicolor/*/apps/org.prismlauncher.PrismLauncher.png(N) \
+		/usr/share/icons/hicolor/symbolic/apps/minecraft-launcher.svg; do
+		[[ -s $candidate ]] && { ln -sf $candidate $iconDir/desk-$tile.png; break }
+	done
+done
+
+gtk-update-icon-cache -q $HOME/.local/share/icons/hicolor 2>/dev/null || true

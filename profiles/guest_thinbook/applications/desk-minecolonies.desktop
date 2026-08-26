@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=MineColonies
+Icon=desk-minecolonies
+Exec=$HOME/.dotfiles/profiles/guest_thinbook/bin/mc-play minecolonies
+Terminal=false
+Categories=Desk;

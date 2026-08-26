@@ -1,0 +1,6 @@
+#!/bin/zsh
+# This machine's launcher is the desk, not drun - picked up by
+# ubuntu/bin/launcher's profile dispatch, so the shared launcher chords
+# (super+space, XF86Search) summon the tile grid here.
+
+exec $HOME/.dotfiles/profiles/guest_thinbook/bin/desk-show

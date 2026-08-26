@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# neverball and neverputt share this rc, and neither takes a fullscreen
+# flag or survives a wm-forced resize (the GL viewport stays 800x600 in a
+# corner of the stretched frame) - the rc is the only lever. Asserted, not
+# seeded: an in-game toggle to windowed drifts back on the next update.
+echo "Asserting neverball/neverputt fullscreen at the panel's resolution"
+
+rc=$HOME/.neverball/neverballrc
+mkdir -p $HOME/.neverball
+touch $rc
+
+sed -i -E 's/^fullscreen[[:space:]]+.*/fullscreen 0/' $rc
+grep -q '^fullscreen' $rc || echo 'fullscreen 0' >> $rc
+
+sed -i -E 's/^width[[:space:]]+.*/width 1576/' $rc
+grep -q '^width' $rc || echo 'width 1576' >> $rc
+
+sed -i -E 's/^height[[:space:]]+.*/height 842/' $rc
+grep -q '^height' $rc || echo 'height 842' >> $rc
+
+# gcompris remembers a fullscreen toggle in its own conf (a -f run wrote
+# true there once and it sticks) - asserted back like the rc above. Only
+# when the file exists: a fresh gcompris defaults windowed.
+gcConf=$HOME/.config/gcompris/gcompris-qt.conf
+[[ -f $gcConf ]] && sed -i 's/^fullscreen=true/fullscreen=false/' $gcConf

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Minecraft Wiki
+Icon=desk-mcwiki
+Exec=google-chrome --app=https://minecraft.wiki/
+Terminal=false
+Categories=Desk;

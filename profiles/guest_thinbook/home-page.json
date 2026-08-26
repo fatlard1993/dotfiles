@@ -1,0 +1,155 @@
+{
+  "bookmarks": {
+    "Youtube": {
+      "id": "Youtube",
+      "name": "Youtube",
+      "url": "http://youtube.com",
+      "color": "hsl(0, 0%, 100%)",
+      "category": "dRwcMK",
+      "favicon": "image/png",
+      "order": 1
+    },
+    "bXdOH0": {
+      "id": "bXdOH0",
+      "name": "Jellyfin",
+      "url": "https://jellyfin.interstellarblues.com/web/index.html#!/home.html",
+      "color": "hsl(0, 0%, 50%)",
+      "category": "dRwcMK",
+      "order": 2
+    },
+    "w3CjBL": {
+      "name": "Roll Dice",
+      "url": "http://google.com/search?q=dice roller",
+      "color": "rgb(140, 206, 219)",
+      "category": "vsCqjM",
+      "id": "w3CjBL",
+      "favicon": "image/x-icon",
+      "order": 5
+    },
+    "tfScdU": {
+      "name": "Stardew Wiki",
+      "url": "https://stardewvalleywiki.com/Stardew_Valley_Wiki",
+      "color": "hsl(43, 86%, 50%)",
+      "id": "tfScdU",
+      "favicon": "image/png",
+      "category": "",
+      "order": 6
+    },
+    "7SOknA": {
+      "name": "Netflix",
+      "url": "https://www.netflix.com/",
+      "color": "hsl(0, 0%, 18%)",
+      "category": "dRwcMK",
+      "id": "7SOknA",
+      "favicon": "image/png",
+      "order": 3
+    },
+    "sTbclg": {
+      "name": "Disney Plus",
+      "url": "https://www.disneyplus.com/",
+      "color": "random",
+      "category": "dRwcMK",
+      "id": "sTbclg",
+      "favicon": "image/png",
+      "order": 4
+    },
+    "rtcgBsJ_ywt_": {
+      "name": "Remote",
+      "url": "http://remote.home/#/",
+      "color": "hsl(0, 0%, 18%)",
+      "category": "Yl70OJQt1VNA",
+      "favicon": "",
+      "order": 0,
+      "id": "rtcgBsJ_ywt_"
+    },
+    "W4LdsSP0hQXX": {
+      "name": "Bookmarks",
+      "url": "http://htpc.home/#/",
+      "color": "hsl(0, 0%, 18%)",
+      "category": "Yl70OJQt1VNA",
+      "favicon": "",
+      "order": 2,
+      "id": "W4LdsSP0hQXX"
+    },
+    "vTWQ8FcoEcil": {
+      "name": "Game Night",
+      "url": "http://games.home/",
+      "color": "#7a34b2",
+      "category": "Yl70OJQt1VNA",
+      "favicon": "",
+      "order": 6,
+      "id": "vTWQ8FcoEcil"
+    },
+    "Minecraft Wiki": {
+      "id": "Minecraft Wiki",
+      "name": "Minecraft Wiki",
+      "url": "https://minecraft.wiki/",
+      "color": "",
+      "category": "RoZjVl",
+      "order": 0
+    }
+  },
+  "categories": {
+    "RoZjVl": {
+      "id": "RoZjVl",
+      "name": "Minecraft",
+      "color": "",
+      "order": 0
+    },
+    "dRwcMK": {
+      "id": "dRwcMK",
+      "name": "Streaming",
+      "color": "",
+      "order": 1
+    },
+    "Yl70OJQt1VNA": {
+      "id": "Yl70OJQt1VNA",
+      "name": "Home",
+      "color": "",
+      "order": 2
+    },
+    "vsCqjM": {
+      "id": "vsCqjM",
+      "name": "Tools",
+      "color": "",
+      "order": 3
+    }
+  },
+  "searchEngines": {
+    "fvqwI0": {
+      "label": "Google Search Results",
+      "url": "http://suggestqueries.google.com/complete/search?client=chrome&q=:term",
+      "resultsPath": "1",
+      "limit": 5,
+      "id": "fvqwI0",
+      "default": true
+    },
+    "M6sD5J": {
+      "label": "Stardew Wiki Search Results",
+      "url": "https://stardewvalleywiki.com/mediawiki/api.php?action=opensearch&format=json&formatversion=2&search=:term&namespace=0&limit=10",
+      "resultsPath": "3",
+      "limit": 5,
+      "id": "M6sD5J",
+      "nameProperty": "",
+      "urlProperty": "",
+      "orderBy": {
+        "property": "",
+        "direction": "asc"
+      },
+      "nameResultsPath": "1"
+    },
+    "EYALSA3FrgkS": {
+      "label": "Wikipedia Search Results",
+      "url": "https://en.wikipedia.org/w/api.php?action=opensearch&format=json&formatversion=2&search=:term&namespace=0&limit=10",
+      "resultsPath": "3",
+      "nameResultsPath": "1",
+      "nameProperty": "",
+      "urlProperty": "",
+      "limit": 5,
+      "orderBy": "",
+      "id": "EYALSA3FrgkS"
+    }
+  },
+  "items": {},
+  "filters": {}
+}

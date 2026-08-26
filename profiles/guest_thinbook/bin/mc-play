@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+# mc-play <home|minecolonies> [--menu]
+#
+# One click onto a server. Each target is a Prism instance (built or checked
+# by dot-update.d/minecraft) plus the server it belongs to; --menu lands on
+# the title screen instead.
+
+case ${1:-home} in
+	home)        instance=suite;        server=htpc.home ;;
+	minecolonies) instance=minecolonies; server=turkeyday.modded.fun ;;
+	*) echo "usage: mc-play <home|minecolonies> [--menu]" >&2; exit 2 ;;
+esac
+
+joinServer=(--server $server)
+[[ $2 == --menu ]] && joinServer=()
+
+command -v prismlauncher > /dev/null 2>&1 || {
+	echo "prismlauncher is not installed - it comes from this profile's aptfile" >&2
+	exit 1
+}
+
+# PrismMeta ingests a new snapshot with a lag, and until it does Prism's
+# resolve of a fresh pin dies in a crash dialog while the official
+# launcher (reading Mojang's own meta) plays it fine. Only a real 404
+# falls back - offline or flaky just proceeds and lets Prism use its
+# cache. Direct join is lost for the day; the game is not (the server
+# is in servers.dat, one Multiplayer click away).
+# A patches/ dir means the pin is locally resolvable (dot-update.d/minecraft
+# installs the overrides) and PrismMeta's opinion is irrelevant
+if [[ ! -f $HOME/.local/share/PrismLauncher/instances/$instance/patches/net.minecraft.json ]]; then
+
+mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
+	$HOME/.local/share/PrismLauncher/instances/$instance/mmc-pack.json 2>/dev/null)
+
+if [[ -n $mcVersion ]]; then
+	metaStatus=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
+		"https://meta.prismlauncher.org/v1/net.minecraft/$mcVersion.json")
+
+	if [[ $metaStatus == 404 ]]; then
+		notify-send "Minecraft" "Direct join is resting today - hit Multiplayer, ${server} is saved"
+		exec minecraft-launcher
+	fi
+fi
+
+fi
+
+exec prismlauncher --launch $instance $joinServer
