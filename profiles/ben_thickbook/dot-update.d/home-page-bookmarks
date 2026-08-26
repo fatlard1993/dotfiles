@@ -9,3 +9,8 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 	cp $profilePath/home-page.json $HOME/.homePage.json
 }
+
+# Fill in the favicons the seeded json names but never carried - fetched
+# on this machine, into the app's favicon dir (see home-page's
+# scripts/fetch-favicons.js); reruns are cheap and retry dark sites.
+[[ -d $HOME/Projects/home-page ]] && (cd $HOME/Projects/home-page && bun scripts/fetch-favicons.js)
