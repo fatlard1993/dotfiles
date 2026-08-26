@@ -1,5 +1,17 @@
 #!/bin/zsh
 
-# Empty on purpose - shadows ubuntu/startup.d/screenlock. No slock here (the
-# fork builds from a repo this machine has no key for) and greetd autologs in,
-# so a lock would buy nothing: a reboot lands back in the session anyway.
+# Bridges systemd-logind's Lock request (e.g. from the power button, see
+# ubuntu/systemd/logind.conf's HandlePowerKey=lock) to the actual locker -
+# logind only emits the request, something has to be listening for it.
+pgrep -x xss-lock > /dev/null || xss-lock -- $HOME/.dotfiles/ubuntu/bin/system-lock &
+
+# xautolock refuses a second instance on its own (logs "already running" and
+# exits), but guard it anyway for consistency/to skip the spawn+immediate-exit.
+warnSeconds=10
+if ! pgrep -x xautolock > /dev/null; then
+	# a fresh xautolock starts enabled, so any caffeine state that survived
+	# the old session is stale - clear it so the bar's coffee cup agrees
+	# (see ubuntu/bin/caffeine)
+	rm -f $HOME/.dotfiles/temp/.caffeine
+	xautolock -time 30 -locker "system-lock" -notify $warnSeconds -notifier "$HOME/.dotfiles/ubuntu/bin/lock-warning $warnSeconds" &
+fi

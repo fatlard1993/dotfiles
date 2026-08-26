@@ -9,4 +9,11 @@ sudo mkdir -p /etc/systemd
 # compiled-in defaults instead of erroring.
 sudo cp $HOME/.dotfiles/ubuntu/systemd/logind.conf /etc/systemd/logind.conf
 
-sudo systemctl restart systemd-logind
+# Restarting logind under a live graphical session drops that session to a VT
+# (and kills whatever ran dot-update from inside it). The config is read at
+# start, so when a desktop is up it waits for the next boot instead.
+if [[ -n $DISPLAY || -n $WAYLAND_DISPLAY ]]; then
+	echo "  A graphical session is running - logind picks the config up at next boot"
+else
+	sudo systemctl restart systemd-logind
+fi

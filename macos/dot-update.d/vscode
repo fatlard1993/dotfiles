@@ -18,5 +18,5 @@ echo "Linking vscode keybinds config"
 ln -sf $dotfilesPath/vscode/keybindings.json "$HOME/Library/Application Support/Code/User/"
 
 # $binPath, not a bare name: ~/.dotfiles/bin only reaches PATH via .zshenv,
-# which dot-update.d/zsh links after this runs on a first setup.
+# which dot-update.d/1_zsh links; on a first setup this shell predates that.
 $binPath/code-ext-restore

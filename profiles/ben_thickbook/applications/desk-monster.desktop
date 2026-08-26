@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Teach Your Monster
+Icon=desk-monster
+Exec=google-chrome --app=https://www.teachyourmonster.org/
+Terminal=false
+Categories=Desk;

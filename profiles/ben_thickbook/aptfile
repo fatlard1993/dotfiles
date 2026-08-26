@@ -5,3 +5,8 @@ update
 package "vlc"
 package "mpv"
 package "prismlauncher"
+package "frozen-bubble"
+package "neverball"
+package "supertuxkart"
+package "tuxpaint"
+package "gcompris-qt"

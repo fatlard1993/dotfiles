@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Home
+Icon=desk-home
+Exec=/home/chase/.dotfiles/profiles/ben_thickbook/bin/mc-play home
+Terminal=false
+Categories=Desk;

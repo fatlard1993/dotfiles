@@ -14,7 +14,7 @@ profilePath="$dotfilesPath/profiles/$profileName"
 # Homebrew installs itself somewhere off the stock PATH (/opt/homebrew on
 # Apple Silicon, /home/linuxbrew on Ubuntu), and normally gets onto PATH via
 # the shellenv eval in macos/.zshenv.d/path - which only helps once
-# dot-update.d/zsh has linked ~/.zshenv. That hook sorts last, so on a
+# dot-update.d/1_zsh has linked ~/.zshenv. That hook used to sort last, so on a
 # machine's *first* dot-update every brew call before it ran in a shell that
 # had never heard of brew: the install step "succeeded" and then every
 # `brew bundle` died with "command not found", silently, since the hooks are

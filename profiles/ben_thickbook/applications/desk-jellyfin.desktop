@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Jellyfin
+Icon=desk-jellyfin
+Exec=google-chrome --app=https://jellyfin.interstellarblues.com/web/index.html#!/home.html
+Terminal=false
+Categories=Desk;

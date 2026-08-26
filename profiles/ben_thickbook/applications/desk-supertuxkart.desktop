@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SuperTuxKart
+Icon=supertuxkart
+Exec=supertuxkart
+Terminal=false
+Categories=Desk;

@@ -82,3 +82,10 @@ XF86KbdBrightnessDown
 # need this. See ubuntu/bin/touchpad-reset.
 super + shift + t
 	$HOME/.dotfiles/ubuntu/bin/touchpad-reset
+
+# The desk: the tile grid, on the two keys a small hand finds first.
+super + d
+	$HOME/.dotfiles/profiles/ben_thickbook/bin/desk-show
+
+Menu
+	$HOME/.dotfiles/profiles/ben_thickbook/bin/desk-show
