@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+# Shadows ubuntu/startup.d/status-bar only to reshape the bar for this
+# machine before delegating to the shared launcher (the htpc pattern):
+# a kid's bar keeps the desktops pager, clock, the wallpaper button (its
+# menu is the two-tile glyph version, bin/polybar-menu-wallpaper), battery,
+# and the power button. Not volume or network: jammy's polybar 3.5 breaks
+# on the colons in their click commands (3.6 started escaping those
+# itself) and volume's wpctl doesn't exist under jammy's PulseAudio -
+# volume lives on the hardware keys here. .bar-scale doubles the whole bar
+# on top of the EDID-derived size; small eyes, small panel. Keep this list
+# in step with the default in ubuntu/polybar/config.ini when modules
+# change there.
+export POLYBAR_MODULES_RIGHT="quit-desktop wallpaper caffeine battery power"
+
+. $HOME/.dotfiles/ubuntu/startup.d/status-bar
