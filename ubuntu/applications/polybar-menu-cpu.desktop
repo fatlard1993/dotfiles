@@ -2,7 +2,7 @@
 Type=Application
 Name=CPU Menu
 Comment=CPU usage, top processes, htop
-Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu cpu
+Exec=polybar-menu cpu
 Icon=utilities-system-monitor
 Terminal=false
 Categories=System;

@@ -34,10 +34,15 @@
 
 [ "$1" = "post" ] || exit 0
 
-. /home/chase/.dotfiles/profiles/tiny_lappy/systemd/session-env
-[ -n "$sessionDisplay" ] && [ -n "$sessionXauthority" ] || exit 0
+# Own path resolved through the /usr/lib symlink, not hardcoded: the last
+# hardcode (/home/chase/...) died silently when that login became ben
+hookDir=$(dirname "$(readlink -f "$0")")
+repoRoot=$(readlink -f "$hookDir/../../../..")
 
-systemd-run --collect --property=User=chase \
+. "$hookDir/../session-env"
+[ -n "$sessionDisplay" ] && [ -n "$sessionXauthority" ] && [ -n "$sessionUser" ] || exit 0
+
+systemd-run --collect --property=User="$sessionUser" \
 	--setenv=DISPLAY="$sessionDisplay" \
 	--setenv=XAUTHORITY="$sessionXauthority" \
-	/home/chase/.dotfiles/ubuntu/bin/system-lock recapture
+	"$repoRoot/ubuntu/bin/system-lock" recapture

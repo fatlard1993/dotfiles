@@ -2,7 +2,7 @@
 Type=Application
 Name=Network Menu
 Comment=Wifi networks, connection status
-Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu network
+Exec=polybar-menu network
 Icon=network-wireless
 Terminal=false
 Categories=System;

@@ -27,7 +27,13 @@ sessionXauthority=""
 
 sessionBspwmPid=$(pgrep -x bspwm | head -1)
 
+# shellcheck disable=SC2034
+sessionUser=""
+
 if [ -n "$sessionBspwmPid" ]; then
 	sessionDisplay=$(tr '\0' '\n' < "/proc/$sessionBspwmPid/environ" | sed -n 's/^DISPLAY=//p')
 	sessionXauthority=$(tr '\0' '\n' < "/proc/$sessionBspwmPid/environ" | sed -n 's/^XAUTHORITY=//p')
+	# The session owner too, for the hooks' systemd-run - it was User=chase
+	# hardcoded until the chase login became ben and resume stopped locking
+	sessionUser=$(ps -o user= -p "$sessionBspwmPid" | tr -d ' ')
 fi

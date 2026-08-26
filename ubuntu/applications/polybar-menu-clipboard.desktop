@@ -2,7 +2,7 @@
 Type=Application
 Name=Clipboard History
 Comment=Recent clipboard entries
-Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu clipboard
+Exec=polybar-menu clipboard
 Icon=edit-paste
 Terminal=false
 Categories=System;
