@@ -12,11 +12,11 @@ rc=$HOME/.neverball/neverballrc
 mkdir -p $HOME/.neverball
 touch $rc
 
-sed -i -E 's/^fullscreen[[:space:]]+.*/fullscreen 1/' $rc
-grep -q '^fullscreen' $rc || echo 'fullscreen 1' >> $rc
+sed -i -E 's/^fullscreen[[:space:]]+.*/fullscreen 0/' $rc
+grep -q '^fullscreen' $rc || echo 'fullscreen 0' >> $rc
 
-sed -i -E 's/^width[[:space:]]+.*/width 1600/' $rc
-grep -q '^width' $rc || echo 'width 1600' >> $rc
+sed -i -E 's/^width[[:space:]]+.*/width 1576/' $rc
+grep -q '^width' $rc || echo 'width 1576' >> $rc
 
-sed -i -E 's/^height[[:space:]]+.*/height 900/' $rc
-grep -q '^height' $rc || echo 'height 900' >> $rc
+sed -i -E 's/^height[[:space:]]+.*/height 842/' $rc
+grep -q '^height' $rc || echo 'height 842' >> $rc

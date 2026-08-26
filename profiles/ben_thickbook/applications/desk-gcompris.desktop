@@ -2,6 +2,6 @@
 Type=Application
 Name=GCompris
 Icon=gcompris-qt
-Exec=gcompris-qt -f
+Exec=gcompris-qt
 Terminal=false
 Categories=Desk;

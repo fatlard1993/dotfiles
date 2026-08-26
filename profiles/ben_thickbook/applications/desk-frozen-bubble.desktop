@@ -2,6 +2,6 @@
 Type=Application
 Name=Frozen Bubble
 Icon=frozen-bubble
-Exec=frozen-bubble --fullscreen --solo
+Exec=frozen-bubble --no-fullscreen --solo
 Terminal=false
 Categories=Desk;

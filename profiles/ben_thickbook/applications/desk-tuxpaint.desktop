@@ -2,6 +2,6 @@
 Type=Application
 Name=Tux Paint
 Icon=tuxpaint
-Exec=tuxpaint --fullscreen=native --fullscreen
+Exec=tuxpaint --windowsize 1576x842
 Terminal=false
 Categories=Desk;
