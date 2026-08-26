@@ -25,11 +25,11 @@ super + grave
 # VS Code and the input-method toggle under ibus/fcitx, and sxhkd grabs it before
 # either of them sees it. Drop the brace back to a bare super to give it back.
 {super,ctrl} + @space
-	rofi -show drun -show-icons=true
+	$HOME/.dotfiles/ubuntu/bin/launcher
 
 # Program Launcher (magnifying-glass / search function key)
 XF86Search
-	rofi -show drun -show-icons=true
+	$HOME/.dotfiles/ubuntu/bin/launcher
 
 # Clipboard history (paste something other than the most recent copy)
 super + shift + v

@@ -1,4 +1,0 @@
-#!/bin/zsh
-
-# The desk opens on login so the first thing on screen is the grid of tiles.
-(sleep 3; $HOME/.dotfiles/profiles/ben_thickbook/bin/desk-show) &
