@@ -94,3 +94,23 @@ ollama create offload -f $profilePath/ollama/Modelfile.offload
 # and can't wait. htpc keeps the full layer; it's essentially free there
 # (300-470 tok/s prompt-eval on GPU).
 buildCodeModel --addendum-only
+
+# The fabric-mod-specialist agent, as a local model too. It exists on the
+# machine this profile was written on, built by hand with the command below and
+# tracked by nothing - so the next machine got a suite toolchain and no local
+# specialist behind it, with nothing saying why the two boxes differed.
+#
+# Rebuilt every run for the same reason offload and code are: the source is the
+# agent markdown in priv-config, which changes, and relayering already-pulled
+# weights is instant.
+#
+# What does NOT carry over is in claude-agent-to-ollama's own header: ollama has
+# no tool harness here, so the agent's WebSearch mandate is inert. It is the
+# persona and the embedded conventions that are worth having locally.
+if [[ -f $HOME/.claude/agents/fabric-mod-specialist.md ]]; then
+	echo "Building the 'fabric-mod-specialist' model from its agent definition"
+
+	$binPath/claude-agent-to-ollama fabric-mod-specialist > /dev/null
+else
+	echo "  No fabric-mod-specialist agent definition (priv-config links ~/.claude/agents) - skipping its model"
+fi
