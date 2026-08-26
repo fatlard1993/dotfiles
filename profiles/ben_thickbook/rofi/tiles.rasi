@@ -1,0 +1,43 @@
+/* One centered row of big glyph tiles, desk-styled, shared by the
+   profile's small menus (power, wallpaper) - each launcher overrides
+   columns to its tile count via -theme-str. Sized for the same 1600x900
+   panel as desk.rasi. */
+@theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
+
+* {
+	font: "Hack Nerd Font Mono 14";
+}
+
+window {
+	width: 100%;
+	height: 100%;
+	fullscreen: true;
+}
+
+inputbar {
+	enabled: false;
+}
+
+listview {
+	columns: 4;
+	lines: 1;
+	flow: horizontal;
+	fixed-columns: true;
+	spacing: 24px;
+	padding: 300px 80px;
+}
+
+element {
+	orientation: vertical;
+	padding: 16px;
+}
+
+element-icon {
+	size: 160px;
+	horizontal-align: 0.5;
+}
+
+element-text {
+	horizontal-align: 0.5;
+	vertical-align: 0.5;
+}
