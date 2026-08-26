@@ -1,0 +1,23 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# 2G of disk swapfile beside 7.4G of ram means modded minecraft's worst
+# moments stall on SSD writes; compressed ram swap absorbs them instead.
+# The swapfile goes entirely - half the ram as zram covers the same
+# headroom without touching the disk.
+echo "Swapping the swapfile for zram"
+
+# the generator binary, not zramctl - zramctl is util-linux and always
+# present, which made this guard skip the install forever
+[[ -x /usr/lib/systemd/system-generators/zram-generator ]] || sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-zram-generator
+
+printf '[zram0]\nzram-size = ram / 2\n' | sudo tee /etc/systemd/zram-generator.conf > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl start systemd-zram-setup@zram0.service 2>/dev/null
+
+if [[ -f /swapfile ]]; then
+	sudo swapoff /swapfile 2>/dev/null
+	sudo sed -i '\|^/swapfile|d' /etc/fstab
+	sudo rm -f /swapfile
+fi
