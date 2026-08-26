@@ -12,13 +12,11 @@ rc=$HOME/.neverball/neverballrc
 mkdir -p $HOME/.neverball
 touch $rc
 
-for kv in "fullscreen 1" "width 1600" "height 900"; do
-	k=${kv%% *}
-	v=${kv##* }
+sed -i -E 's/^fullscreen[[:space:]]+.*/fullscreen 1/' $rc
+grep -q '^fullscreen' $rc || echo 'fullscreen 1' >> $rc
 
-	if grep -qE "^$k\b" $rc; then
-		sed -i -E "s/^$k[[:space:]]+.*/$k $v/" $rc
-	else
-		echo "$k $v" >> $rc
-	fi
-done
+sed -i -E 's/^width[[:space:]]+.*/width 1600/' $rc
+grep -q '^width' $rc || echo 'width 1600' >> $rc
+
+sed -i -E 's/^height[[:space:]]+.*/height 900/' $rc
+grep -q '^height' $rc || echo 'height 900' >> $rc
