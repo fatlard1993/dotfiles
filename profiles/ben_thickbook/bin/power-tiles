@@ -4,12 +4,17 @@
 # tiles are the confirmation the shared menu does with a second prompt -
 # Escape or a click on empty space lands on nothing.
 
+# Repo files, not theme names, for every tile (see desk-icons/): the
+# theme's circled icons clashed with the bare glyph set, and theme lookup
+# has burned us on half of these anyway
+deskIcons=$HOME/.dotfiles/profiles/ben_thickbook/desk-icons
+
 if [[ -z $1 ]]; then
 	printf '%s\0icon\x1f%s\n' \
-		"Lock" "system-lock-screen" \
-		"Sleep" "$HOME/.dotfiles/profiles/ben_thickbook/desk-icons/sleep.png" \
-		"Restart" "system-reboot" \
-		"Power Off" "system-shutdown"
+		"Lock" "$deskIcons/lock.png" \
+		"Sleep" "$deskIcons/sleep.png" \
+		"Restart" "$deskIcons/restart.png" \
+		"Power Off" "$deskIcons/poweroff.png"
 	exit 0
 fi
 
