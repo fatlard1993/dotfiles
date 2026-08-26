@@ -23,7 +23,10 @@ profilePath="$dotfilesPath/profiles/$profileName"
 
 echo "Creating common directories"
 
-mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/bin $HOME/Projects $HOME/.dot-update.d $HOME/.zshrc.d $HOME/.zshenv.d
+# temp/ is gitignored scratch that polybar-metric, polybar-menu, and caffeine
+# all write into; a fresh clone ships without it, and the first symptom is the
+# bar's cpu module erroring on a brand-new account.
+mkdir -p $HOME/Pictures/Wallpapers $HOME/Pictures/Screenshots $HOME/bin $HOME/Projects $HOME/.dot-update.d $HOME/.zshrc.d $HOME/.zshenv.d $dotfilesPath/temp
 
 [[ ! -e $HOME/.dot-update.d/local ]] && {
 	echo "Creating local update stub"
