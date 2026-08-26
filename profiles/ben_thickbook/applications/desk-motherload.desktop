@@ -2,6 +2,6 @@
 Type=Application
 Name=Motherload
 Icon=desk-motherload
-Exec=google-chrome --app=https://www.xgenstudios.com/play/motherload
+Exec=google-chrome --app=https://archive.org/embed/motherload_202209
 Terminal=false
 Categories=Desk;
