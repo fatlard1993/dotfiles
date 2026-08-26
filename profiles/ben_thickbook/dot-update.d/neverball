@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# neverball and neverputt share this rc, and neither takes a fullscreen
+# flag or survives a wm-forced resize (the GL viewport stays 800x600 in a
+# corner of the stretched frame) - the rc is the only lever. Asserted, not
+# seeded: an in-game toggle to windowed drifts back on the next update.
+echo "Asserting neverball/neverputt fullscreen at the panel's resolution"
+
+rc=$HOME/.neverball/neverballrc
+mkdir -p $HOME/.neverball
+touch $rc
+
+for kv in "fullscreen 1" "width 1600" "height 900"; do
+	k=${kv%% *}
+	v=${kv##* }
+
+	if grep -qE "^$k\b" $rc; then
+		sed -i -E "s/^$k[[:space:]]+.*/$k $v/" $rc
+	else
+		echo "$k $v" >> $rc
+	fi
+done
