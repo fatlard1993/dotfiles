@@ -171,8 +171,8 @@ mcEnsureClientJar $mcVersion \
 # snapshot by days, and a machine with no cached meta gets a crash dialog
 # instead of a game. Tracked beside the pin; regenerate both when it bumps.
 mkdir -p $instanceDir/patches
-cp $profilePath/minecraft-patches/net.minecraft.json $instanceDir/patches/
-cp $profilePath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
+cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
 
 # Regenerated every run so the pin keeps tracking the server; instance.cfg is
 # seeded once and then belongs to Prism's settings UI.

@@ -53,6 +53,14 @@ mkdir -p $instanceDir/.minecraft/mods
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
+# Local component overrides so Prism never asks meta.prismlauncher.org for
+# the pin - their ingest lags a fresh snapshot by days and a fresh machine
+# has no cached meta to coast on. Shared at minecraft-patches/; regenerate
+# them when the pin bumps.
+mkdir -p $instanceDir/patches
+cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
+cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+
 # Regenerated every run so the pin keeps tracking the server; instance.cfg is
 # seeded once and then belongs to Prism's settings UI.
 cat > $instanceDir/mmc-pack.json << EOF2
