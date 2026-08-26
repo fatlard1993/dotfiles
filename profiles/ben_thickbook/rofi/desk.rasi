@@ -9,10 +9,12 @@
 	font: "Hack Nerd Font Mono 14";
 }
 
+/* A full-width sheet from the top, not fullscreen: the rofi wrapper's
+   per-monitor y-offset drops it flush under the bar, which stays visible
+   and clickable while the desk is up. Height follows the 4 rows. */
 window {
 	width: 100%;
-	height: 100%;
-	fullscreen: true;
+	location: north;
 }
 
 inputbar {

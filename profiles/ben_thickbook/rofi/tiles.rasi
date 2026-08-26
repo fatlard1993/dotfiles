@@ -1,7 +1,7 @@
-/* One centered row of big glyph tiles, desk-styled, shared by the
-   profile's small menus (power, wallpaper) - each launcher overrides
-   columns to its tile count via -theme-str. Sized for the same 1600x900
-   panel as desk.rasi. */
+/* A centered panel of big glyph tiles for the profile's small menus
+   (wallpaper); each launcher sets columns to its tile count via
+   -theme-str. Floats over the desktop instead of owning it - the bar
+   stays visible and clickable. */
 @theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
 
 * {
@@ -9,9 +9,7 @@
 }
 
 window {
-	width: 100%;
-	height: 100%;
-	fullscreen: true;
+	width: 700px;
 }
 
 inputbar {
@@ -19,21 +17,21 @@ inputbar {
 }
 
 listview {
-	columns: 4;
+	columns: 2;
 	lines: 1;
 	flow: horizontal;
 	fixed-columns: true;
-	spacing: 24px;
-	padding: 300px 80px;
+	spacing: 16px;
+	padding: 24px;
 }
 
 element {
 	orientation: vertical;
-	padding: 16px;
+	padding: 12px;
 }
 
 element-icon {
-	size: 160px;
+	size: 128px;
 	horizontal-align: 0.5;
 }
 
