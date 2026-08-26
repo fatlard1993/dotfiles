@@ -1,0 +1,8 @@
+// The shared config's dpi is sized for hidpi panels; this machine's LVDS
+// panel is 1600x900 in 310mm - 131dpi physical (xrandr). Linked over the
+// ubuntu-layer link by dot-update.d/rofi.
+@import "~/.dotfiles/ubuntu/rofi/config.rasi"
+
+configuration {
+	dpi: 131;
+}
