@@ -6,7 +6,14 @@
 # Plain click rotates to a new wallpaper; shift+click deletes and
 # blacklists the current one.
 
-mask=$(python3 -c "
+# Same profile dispatch as power-click: ben_thickbook's opens the glyph
+# menu instead (its menus all live on plain left-click)
+override="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/bin/wallpaper-click"
+[ -x "$override" ] && exec "$override"
+
+# /usr/bin/python3, not PATH python3: python3-xlib is apt's package and
+# brew's python (PATH-first) cannot import it
+mask=$(/usr/bin/python3 -c "
 from Xlib import display
 print(display.Display().screen().root.query_pointer()._data['mask'])
 ")

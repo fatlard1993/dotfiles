@@ -4,7 +4,9 @@
 # whether Shift is held at click time is checked directly against the X
 # server's pointer state instead.
 
-mask=$(python3 -c "
+# /usr/bin/python3, not PATH python3: python3-xlib is apt's package and
+# brew's python (PATH-first) cannot import it
+mask=$(/usr/bin/python3 -c "
 from Xlib import display
 print(display.Display().screen().root.query_pointer()._data['mask'])
 ")
