@@ -64,16 +64,34 @@ suiteOwner=$(git config --global github.user)
 
 if [[ -z $suiteOwner ]]; then
 	echo "  No git github.user, so the suite cannot be located (priv-config git.config sets it)"
-elif ! command -v gh > /dev/null; then
-	echo "  No gh, so the suite cannot be cloned (ubuntu/aptfile)"
-elif ! gh auth status > /dev/null 2>&1; then
-	echo "  gh is not authenticated, so the suite cannot be cloned - run: gh auth login"
 else
 	mkdir -p $HOME/Projects/minecraft
 
-	# --limit is not optional: gh pages at 30, which would have quietly fetched
-	# two thirds of the suite and left the rest to turn up as compile errors.
-	suiteRepos=(${(f)"$(gh repo list $suiteOwner --topic $suiteTopic --limit 200 --json name --jq '.[].name' 2>/dev/null)"})
+	# gh when it is logged in, the public search API when it is not. Nothing
+	# else here needs gh signed in: priv-config is cloned over ssh with the key
+	# priv-config itself manages, so a machine can be fully set up with gh
+	# never authenticated - which is exactly what the new laptop was, and the
+	# first version of this block refused to clone anything on it.
+	#
+	# The mods are public repos, so the unauthenticated query answers fine. It
+	# is rate limited at ten searches a minute, which one run of dot-update is
+	# in no danger of.
+	#
+	# --limit / per_page are not optional: gh pages at 30 and the API at 30,
+	# which would have quietly fetched the first thirty and left the rest to
+	# turn up later as compile errors.
+	if command -v gh > /dev/null && gh auth status > /dev/null 2>&1; then
+		suiteRepos=(${(f)"$(gh repo list $suiteOwner --topic $suiteTopic --limit 200 --json name --jq '.[].name' 2>/dev/null)"})
+	else
+		suiteJson=$(curl -sf "https://api.github.com/search/repositories?q=user:$suiteOwner+topic:$suiteTopic&per_page=100" 2>/dev/null)
+		suiteRepos=(${(f)"$(print -r -- $suiteJson | jq -r '.items[].name' 2>/dev/null)"})
+
+		# The API reports how many it matched separately from how many it
+		# returned; a suite that outgrows one page should say so rather than
+		# silently clone the first hundred.
+		suiteTotal=$(print -r -- $suiteJson | jq -r '.total_count // 0' 2>/dev/null)
+		(( suiteTotal > ${#suiteRepos} )) && echo "  $suiteTotal repos carry the topic but only ${#suiteRepos} fit one page - this needs paginating"
+	fi
 
 	if (( ${#suiteRepos} == 0 )); then
 		echo "  No repos carry the $suiteTopic topic - nothing to clone"
