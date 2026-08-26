@@ -2,5 +2,7 @@
 
 pgrep -x rofi > /dev/null && exit 0
 
-exec rofi -show desk -modes "desk:$HOME/.dotfiles/profiles/ben_thickbook/bin/desk" \
+# -modi, not its 1.7.3+ rename -modes: jammy's rofi 1.7.1 ignores the new
+# name and then "Mode desk is not found"; current rofi still takes the old one
+exec rofi -show desk -show-icons -modi "desk:$HOME/.dotfiles/profiles/ben_thickbook/bin/desk" \
 	-theme $HOME/.dotfiles/profiles/ben_thickbook/rofi/desk.rasi
