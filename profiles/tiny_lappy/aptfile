@@ -16,6 +16,15 @@ package "vlc"
 package "mpv"
 package "onboard"
 package "android-tools-adb"
+# The suite is built here, not just played, and building needs a compiler:
+# default-jre (ubuntu/aptfile, for the Minecraft launcher) has none, so every
+# gradle run failed with "does not provide the required capabilities:
+# [JAVA_COMPILER]". It worked on the machine this profile was written on only
+# because a JDK had been unpacked into ~/.jdks by hand and pointed at from
+# ~/.gradle/gradle.properties - neither of which any of this tracked, so a new
+# machine got a suite it could not compile. The suite targets release 25.
+package "openjdk-25-jdk"
+
 package "python3-venv"
 package "python3-wheel"
 

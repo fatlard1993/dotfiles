@@ -52,6 +52,36 @@ if [[ -f $suiteProps ]]; then
 	clientDir="$HOME/Projects/minecraft-client"
 	serverDir="$HOME/Projects/minecraft-server"
 
+	# The suite is compiled on this machine, and a compiler is not the same
+	# thing as a runtime: default-jre (ubuntu/aptfile, there for the Minecraft
+	# launcher) ships no javac, and gradle turns that down with "does not
+	# provide the required capabilities: [JAVA_COMPILER]". The JDK is in this
+	# profile's aptfile now, so what is left here is the check and the daemon.
+	if ! command -v javac > /dev/null 2>&1; then
+		echo "  No javac, so the suite cannot be built here (openjdk-25-jdk, this profile's aptfile)"
+	elif pgrep -f GradleDaemon > /dev/null 2>&1; then
+		# A gradle daemon scans for toolchains once and caches the answer for
+		# its whole lifetime. 1_apt runs before this file, so the run that
+		# installs the JDK leaves any daemon started earlier still convinced
+		# there is no compiler - and it says so with the *same* message the
+		# genuinely-missing JDK gives, naming a path that by then does contain
+		# javac. Two full 42-repo builds went into seeing that.
+		#
+		# Skipped while a build is running rather than reasoned about: gradle
+		# does not document what --stop does to a busy daemon, and a dot-update
+		# that can interrupt a forty-repo build to save a warm-up is a bad
+		# trade in the only case where it matters. -Dorg.gradle.appname is the
+		# wrapper launcher, which exists only for the length of a build.
+		if pgrep -f "org.gradle.appname" > /dev/null 2>&1; then
+			echo "  Gradle is mid-build, so its daemons are left alone (rerun after it finishes"
+			echo "  if a build then reports no JAVA_COMPILER)"
+		else
+			echo "Stopping gradle daemons (they cache the toolchain scan across a JDK install)"
+
+			(cd $HOME/Projects/minecraft/pandorical && ./gradlew --stop > /dev/null 2>&1) || true
+		fi
+	fi
+
 	# The Fabric installer writes into a launcher directory, it does not create
 	# one: with no $HOME/.minecraft/launcher_profiles.json it stops at "Launcher
 	# directory not found" and installs nothing. That file is written by the
