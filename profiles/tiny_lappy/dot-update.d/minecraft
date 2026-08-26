@@ -52,12 +52,39 @@ if [[ -f $suiteProps ]]; then
 	clientDir="$HOME/Projects/minecraft-client"
 	serverDir="$HOME/Projects/minecraft-server"
 
+	# The Fabric installer writes into a launcher directory, it does not create
+	# one: with no $HOME/.minecraft/launcher_profiles.json it stops at "Launcher
+	# directory not found" and installs nothing. That file is written by the
+	# Mojang launcher's first run, so on a machine nobody has opened it on yet -
+	# which is every fresh install - this step could not succeed. It went
+	# unnoticed because the machines this ran on had all had a launcher opened
+	# years earlier. Seed the empty shape instead of depending on that; the
+	# launcher rewrites the file wholesale anyway, and the block below is what
+	# puts the suite's profile back into it.
+	mkdir -p $HOME/.minecraft
+	[[ -f $HOME/.minecraft/launcher_profiles.json ]] || {
+		echo "Seeding an empty launcher profile list (the launcher has not run here yet)"
+
+		echo '{"profiles":{},"version":3}' > $HOME/.minecraft/launcher_profiles.json
+	}
+
 	[[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
 		echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
 
 		curl -sf -o /tmp/fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar
 		java -jar /tmp/fabric-installer.jar client -mcversion $mcVersion -loader $loaderVersion
+		# Read before rm, which would otherwise be the status this tests - the
+		# same trap mc-build's own comment records. Everything below assumes a
+		# client that exists, and without this the whole hook ran through a
+		# failed install and still finished green.
+		fabricStatus=$?
 		rm -f /tmp/fabric-installer.jar
+
+		[[ $fabricStatus -eq 0 ]] || {
+			echo "  Fabric install failed (status $fabricStatus) - skipping the client setup below" >&2
+
+			return 1
+		}
 	}
 
 	# The Fabric install above only writes a version JSON that inherits from the
