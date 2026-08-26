@@ -6,6 +6,11 @@ export RIPGREP_CONFIG_PATH="$HOME/.dotfiles/.ripgreprc"
 # Base Path
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
+# Debian puts every packaged game here, and this file rebuilds PATH from
+# scratch - without it, gcompris/tuxpaint/supertuxkart install fine and
+# then fail to launch from the desk
+export PATH="$PATH:/usr/games"
+
 # NPM Bin
 export PATH="$PATH:$HOME/.npm-global/bin"
 
