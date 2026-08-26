@@ -11,7 +11,7 @@ tmp_file="$HOME/.dotfiles/temp/.polybar-cpu-prev"
 active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
 
 render() {
-	local icon=$1 color=$2 tier=${3:-T2}
+	local icon=$1 color=$2 tier=${3:-${POLYBAR_GLYPH_FONT:-T2}}
 	local active
 	active=$(cat "$active_menu_file" 2>/dev/null)
 
@@ -197,7 +197,7 @@ case "$metric" in
 		value=$(cat /sys/class/power_supply/BAT0/capacity)
 		status=$(cat /sys/class/power_supply/BAT0/status)
 
-		tier=T2
+		tier=${POLYBAR_GLYPH_FONT:-T2}
 
 		if [ "$status" = "Charging" ]; then
 			icon=""
