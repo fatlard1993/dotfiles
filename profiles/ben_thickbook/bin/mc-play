@@ -20,4 +20,23 @@ command -v prismlauncher > /dev/null 2>&1 || {
 	exit 1
 }
 
+# PrismMeta ingests a new snapshot with a lag, and until it does Prism's
+# resolve of a fresh pin dies in a crash dialog while the official
+# launcher (reading Mojang's own meta) plays it fine. Only a real 404
+# falls back - offline or flaky just proceeds and lets Prism use its
+# cache. Direct join is lost for the day; the game is not (the server
+# is in servers.dat, one Multiplayer click away).
+mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
+	$HOME/.local/share/PrismLauncher/instances/$instance/mmc-pack.json 2>/dev/null)
+
+if [[ -n $mcVersion ]]; then
+	metaStatus=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
+		"https://meta.prismlauncher.org/v1/net.minecraft/$mcVersion.json")
+
+	if [[ $metaStatus == 404 ]]; then
+		notify-send "Minecraft" "Direct join is resting today - hit Multiplayer, ${server} is saved"
+		exec minecraft-launcher
+	fi
+fi
+
 exec prismlauncher --launch $instance $joinServer
