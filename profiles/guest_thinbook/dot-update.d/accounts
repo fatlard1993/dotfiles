@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Two seats on one machine: kid (this profile - the desk appliance) and
+# guest (profiles/guest_thinbook_guest - the stock experience, drun and
+# all). Both passwords are deliberately trivial walk-up credentials,
+# asserted every run - this is a loaner, not anyone's private machine.
+echo "Asserting the kid and guest accounts"
+
+echo "kid:kid" | sudo chpasswd 2>/dev/null
+
+id guest > /dev/null 2>&1 || {
+	echo "Creating the guest account"
+
+	sudo useradd -m -s /usr/bin/zsh guest
+}
+
+echo "guest:guest" | sudo chpasswd 2>/dev/null
+
+# guest runs its own dot-update below, and that run needs three things
+# armed before it starts: sudo (the ubuntu sudo step arms it mid-run, too
+# late for the steps before it), a git identity (the git step's prompt has
+# no tty here), and its own clone of the public repo.
+echo "guest ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/010_guest-nopasswd > /dev/null
+
+sudo -u guest bash -c '[ -f ~/.gitconfig ] || printf "[user]\n\tname = justfatlard\n\temail = fatlard1993@gmail.com\n" > ~/.gitconfig'
+
+sudo -u guest bash -c '[ -d ~/Projects/dotfiles ] || { mkdir -p ~/Projects && git clone -q https://github.com/fatlard1993/dotfiles ~/Projects/dotfiles; }'
+
+echo "Converging the guest account (guest_thinbook_guest)"
+
+sudo -u guest env HOME=/home/guest zsh -c 'cd ~/Projects/dotfiles && git pull -q; ./dot-update guest_thinbook_guest' < /dev/null
