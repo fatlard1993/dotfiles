@@ -48,12 +48,12 @@ super + @BackSpace
 super + @Delete
 	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+k
 
-# Physical power button: open the power menu (lock/suspend/log out/reboot/
-# shutdown, each behind its own confirm) rather than act immediately -
-# see ubuntu/systemd/logind.conf, which sets HandlePowerKey=ignore so this
-# keypress reaches sxhkd instead of logind handling it directly.
+# Physical power button: same as the bar's power button - power off, no
+# menu (bin/power-click, through ubuntu/bin/power-click's dispatch).
+# logind.conf still sets HandlePowerKey=ignore so the keypress reaches
+# sxhkd instead of logind acting on it directly.
 XF86PowerOff
-	$HOME/.dotfiles/ubuntu/bin/polybar-menu power
+	$HOME/.dotfiles/ubuntu/bin/power-click
 
 # Close (forwards ctrl+w, release-triggered like the Mac-like forwards
 # above so Super is already up when it fires - see

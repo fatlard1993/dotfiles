@@ -1,0 +1,10 @@
+#!/bin/bash
+# Left-click handler for polybar's power module, behind the same profile
+# dispatch as bin/launcher: a machine can make the button mean something
+# else (ben_thickbook's powers off outright - an appliance wants the lid
+# button semantics, not a menu). Default stays the lock it always was.
+
+override="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/bin/power-click"
+[ -x "$override" ] && exec "$override"
+
+exec "$HOME/.dotfiles/ubuntu/bin/system-lock"

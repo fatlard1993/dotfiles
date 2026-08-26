@@ -1,0 +1,5 @@
+#!/bin/zsh
+# The bar's power button and the physical power key both land here: power
+# off, no menu. pc-leave does the graceful teardown first.
+
+exec $HOME/.dotfiles/ubuntu/bin/pc-leave shutdown
