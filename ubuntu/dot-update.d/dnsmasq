@@ -3,62 +3,81 @@
 # Installs its own package (like the greetd hook) instead of trusting the
 # aptfile: packages install via the *profile's* 1_apt, which sorts after
 # the whole ubuntu chain - so on a never-bootstrapped machine this hook
-# always runs before the aptfile has installed anything. On the htpc's
-# first bootstrap, that ordering meant the setup block below disabled
-# systemd-resolved and pointed resolv.conf at a dnsmasq that didn't exist,
-# and the box rebooted into a total DNS blackout.
-command -v dnsmasq > /dev/null || {
+# always runs before the aptfile has installed anything.
+#
+# dpkg -s, not command -v: Ubuntu desktop ships dnsmasq-base for
+# NetworkManager, which puts a dnsmasq binary on PATH with no service behind
+# it. Testing the binary is how chase_dellbook's first run "found" dnsmasq,
+# skipped the install, and handed the resolver to a daemon that never
+# started - a DNS blackout that starved every apt step after it.
+dpkg -s dnsmasq > /dev/null 2>&1 || {
 	echo "Installing dnsmasq"
 
 	sudo env DEBIAN_FRONTEND=noninteractive apt install -y dnsmasq
 }
 
+dpkg -s dnsmasq > /dev/null 2>&1 || {
+	echo "dnsmasq did not install (apt failed?) - leaving the system resolver alone"
+
+	return
+}
+
+command -v dig > /dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt install -y bind9-dnsutils
+
 echo "Updating dnsmasq blocklist"
 
 $HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
 
-if [[ ! -f $HOME/.dotfiles/temp/.dnsmasqSetup ]] && ! command -v dnsmasq > /dev/null; then
-	# Belt to the install's suspenders: never hand the system resolver to
-	# a daemon that isn't there. Setup (and its marker) wait for a run
-	# where the install worked, so this self-heals on the next dot-update.
-	echo "dnsmasq still missing (apt failed?) - NOT switching the system resolver"
-elif [[ ! -f $HOME/.dotfiles/temp/.dnsmasqSetup ]]; then
-	echo "Setting up dnsmasq"
+# Config is asserted every run, not once behind a marker: a reinstall lands a
+# fresh /etc/default/dnsmasq, and without IGNORE_RESOLVCONF the Debian helper
+# passes its own -r resolv-file on top of ours - "only one resolv.conf file
+# allowed in no-poll mode", and the service never starts.
+echo "Asserting dnsmasq config"
 
-	mkdir -p $HOME/.dotfiles/temp
+getent group dnsmasq > /dev/null || sudo groupadd -r dnsmasq
 
-	getent group dnsmasq > /dev/null || sudo groupadd -r dnsmasq
+sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
+sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
 
-	systemctl list-unit-files resolvconf.service > /dev/null 2>&1 && sudo systemctl disable --now resolvconf
+# dnsmasq runs as an unprivileged user and can't traverse into $HOME (mode 750),
+# so these two (read post-privilege-drop) must be real files, not symlinks into $HOME.
+# install -m, not cp: cp preserves whatever mode the repo copy has (mktemp in
+# the blocklist updater once left it 600 - adblock silently loaded nothing).
+sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
+sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
 
-	sudo systemctl stop systemd-resolved
-	sudo systemctl disable systemd-resolved
+sudo grep -q '^IGNORE_RESOLVCONF=yes' /etc/default/dnsmasq \
+	|| echo 'IGNORE_RESOLVCONF=yes' | sudo tee -a /etc/default/dnsmasq > /dev/null
 
-	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
-	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
-	sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
+sudo systemctl enable dnsmasq > /dev/null 2>&1
+sudo systemctl restart dnsmasq
 
-	# dnsmasq runs as an unprivileged user and can't traverse into $HOME (mode 750),
-	# so these two (read post-privilege-drop) must be real files, not symlinks into $HOME.
-	# install -m, not cp: dnsmasq reads both post-privilege-drop, and cp
-	# preserves whatever mode the repo copy has (mktemp in the blocklist
-	# updater once left it 600 - adblock silently loaded nothing).
-	sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/resolv.personal /etc/resolv.personal
-	sudo install -m 644 $HOME/.dotfiles/ubuntu/dnsmasq/hosts.adblock /etc/hosts.adblock
+# The resolver only changes hands once dnsmasq demonstrably answers. If it
+# does not, the machine keeps (or gets back) a working upstream resolver so
+# the rest of this run can still reach apt and GitHub.
+if dig +short +time=3 +tries=1 @127.0.0.1 ubuntu.com 2>/dev/null | grep -q .; then
+	if [[ $(cat /etc/resolv.conf 2>/dev/null) != "nameserver 127.0.0.1" ]]; then
+		echo "Switching the system resolver to dnsmasq"
 
-	# Without this, dnsmasq's resolvconf integration adds its own resolv-file
-	# alongside ours and refuses to start ("only one resolv.conf file allowed in no-poll mode").
-	sudo sed -i 's/^#IGNORE_RESOLVCONF=yes/IGNORE_RESOLVCONF=yes/' /etc/default/dnsmasq
+		systemctl list-unit-files resolvconf.service > /dev/null 2>&1 && sudo systemctl disable --now resolvconf
+		sudo systemctl disable --now systemd-resolved
 
-	# NetworkManager.conf sets dns=none, so it no longer manages resolv.conf;
-	# dnsmasq (not NM's internal dns=dnsmasq plugin) owns port 53 and adblock/upstream resolution.
-	sudo rm -f /etc/resolv.conf
-	echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf > /dev/null
+		# NetworkManager.conf sets dns=none, so it no longer manages resolv.conf;
+		# dnsmasq (not NM's internal dns=dnsmasq plugin) owns port 53 and adblock/upstream resolution.
+		sudo rm -f /etc/resolv.conf
+		echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf > /dev/null
 
-	sudo systemctl restart NetworkManager
+		sudo systemctl restart NetworkManager
+	fi
+else
+	echo "dnsmasq is not answering on 127.0.0.1 - NOT switching the system resolver"
+	journalctl -u dnsmasq --no-pager -n 5
 
-	sudo systemctl enable --now dnsmasq
-	sudo systemctl restart dnsmasq
+	if [[ $(cat /etc/resolv.conf 2>/dev/null) == "nameserver 127.0.0.1" ]]; then
+		echo "  resolv.conf pointed at the dead dnsmasq; falling back to 1.1.1.1 so this run can continue"
 
-	echo "1" > $HOME/.dotfiles/temp/.dnsmasqSetup
+		sudo rm -f /etc/resolv.conf
+		echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf > /dev/null
+	fi
 fi
