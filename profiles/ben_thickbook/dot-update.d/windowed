@@ -20,3 +20,9 @@ grep -q '^width' $rc || echo 'width 1576' >> $rc
 
 sed -i -E 's/^height[[:space:]]+.*/height 842/' $rc
 grep -q '^height' $rc || echo 'height 842' >> $rc
+
+# gcompris remembers a fullscreen toggle in its own conf (a -f run wrote
+# true there once and it sticks) - asserted back like the rc above. Only
+# when the file exists: a fresh gcompris defaults windowed.
+gcConf=$HOME/.config/gcompris/gcompris-qt.conf
+[[ -f $gcConf ]] && sed -i 's/^fullscreen=true/fullscreen=false/' $gcConf
