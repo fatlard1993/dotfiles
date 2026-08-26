@@ -47,6 +47,20 @@ mod_jar() {
 	ls "$1"/build/libs/*-"$version".jar 2>/dev/null | grep -v sources | head -1
 }
 
+# The Fabric API jar the suite is pinned to. Nothing shipped this to the server:
+# it was put in mods/ by hand once and then sat there while the pin moved on, and
+# nothing noticed because every manifest asked for "*". Now that they name a
+# floor, a stale copy stops the whole server from starting, so the deploy owns it
+# the way mc-deploy-client already owns the client's.
+fabric_api_jar() {
+	local want
+	want=$(grep -E '^\s*fabric_version' pandorical/gradle.properties 2>/dev/null \
+		| head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	[ -z "$want" ] && return 1
+	find "$HOME/.gradle/caches/modules-2" -name "fabric-api-$want.jar" 2>/dev/null \
+		| grep -v sources | head -1
+}
+
 stage() {
 	ssh "$HOST" "mkdir -p '$STAGE'"
 	local count=0
@@ -86,6 +100,24 @@ stage() {
 			count=$((count + 1))
 		fi
 	done
+
+	# Fabric API last, on the same compare-then-copy terms as the mods.
+	local api api_name api_local api_remote
+	api=$(fabric_api_jar) || true
+	if [ -z "$api" ]; then
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
+	else
+		api_name=$(basename "$api")
+		api_local=$(md5sum "$api" | cut -d' ' -f1)
+		api_remote=$(ssh "$HOST" "md5sum '$REMOTE/mods/$api_name' 2>/dev/null | cut -d' ' -f1" || true)
+		if [ "$api_local" != "$api_remote" ]; then
+			ssh -n "$HOST" "find '$STAGE' -maxdepth 1 -name 'fabric-api-*.jar' -delete"
+			scp -q "$api" "$HOST:$STAGE/" </dev/null
+			echo "  staged $api_name"
+			count=$((count + 1))
+		fi
+	fi
+
 	echo "staged $count jar(s)"
 }
 
