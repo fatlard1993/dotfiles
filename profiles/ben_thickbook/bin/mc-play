@@ -26,6 +26,10 @@ command -v prismlauncher > /dev/null 2>&1 || {
 # falls back - offline or flaky just proceeds and lets Prism use its
 # cache. Direct join is lost for the day; the game is not (the server
 # is in servers.dat, one Multiplayer click away).
+# A patches/ dir means the pin is locally resolvable (dot-update.d/minecraft
+# installs the overrides) and PrismMeta's opinion is irrelevant
+if [[ ! -f $HOME/.local/share/PrismLauncher/instances/$instance/patches/net.minecraft.json ]]; then
+
 mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
 	$HOME/.local/share/PrismLauncher/instances/$instance/mmc-pack.json 2>/dev/null)
 
@@ -37,6 +41,8 @@ if [[ -n $mcVersion ]]; then
 		notify-send "Minecraft" "Direct join is resting today - hit Multiplayer, ${server} is saved"
 		exec minecraft-launcher
 	fi
+fi
+
 fi
 
 exec prismlauncher --launch $instance $joinServer
