@@ -6,7 +6,7 @@
 
 pgrep -x rofi > /dev/null && exit 0
 
-exec rofi -show wallpaper -show-icons \
+exec rofi -show wallpaper -show-icons -dpi 131 \
 	-modi "wallpaper:$HOME/.dotfiles/profiles/ben_thickbook/bin/wallpaper-tiles" \
 	-theme $HOME/.dotfiles/profiles/ben_thickbook/rofi/tiles.rasi \
 	-theme-str "listview { columns: 2; }"
