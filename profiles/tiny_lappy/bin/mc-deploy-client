@@ -73,14 +73,23 @@ reachable() {
 	ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$1" true 2>/dev/null
 }
 
-# fabric-api is nobody's mod here, so it is absent from client-mods.txt, and the
-# local client's copy is the only one this machine has. It still has to go out
-# with every set: a machine being set up for the first time has no Minecraft on
-# it yet, let alone a fabric-api, and four suite jars without it is a client that
-# will not start. The local client and htpc only got away without it because
-# somebody had already put one there by hand.
+# fabric-api is nobody's mod here, so it is absent from client-mods.txt. It still
+# has to go out with every set: a machine being set up for the first time has no
+# Minecraft on it yet, let alone a fabric-api, and four suite jars without it is a
+# client that will not start.
+#
+# Resolved from the pin rather than from the local client's mods/, which is where
+# it used to come from. That made whatever had been copied in by hand the version
+# every client got, and it sat at 0.158.0 while the pin moved to 0.158.2 - unnoticed
+# only because the manifests asked for "*". They name a floor now, so a stale copy
+# is a client that refuses to start rather than one that crashes later.
 api_jar() {
-	ls "$LOCAL"/mods/fabric-api-*.jar 2>/dev/null | head -1
+	local want
+	want=$(grep -E '^\s*fabric_version' pandorical/gradle.properties 2>/dev/null \
+		| head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	[ -z "$want" ] && return 1
+	find "$HOME/.gradle/caches/modules-2" -name "fabric-api-$want.jar" 2>/dev/null \
+		| grep -v sources | head -1
 }
 
 # The jar this mod currently declares itself to be.
@@ -186,6 +195,21 @@ sync_local() {
 		echo "  local $(basename "$jar")"
 		count=$((count + 1))
 	done < <(mods)
+
+	# Fabric API on the same terms. This copy used to be placed by hand and never
+	# touched again, which is how it ended up older than the pin every client is
+	# built against.
+	local api
+	api=$(api_jar) || true
+	if [ -z "$api" ]; then
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
+	elif [ ! -f "$LOCAL/mods/$(basename "$api")" ]; then
+		rm -f "$LOCAL"/mods/fabric-api-*.jar
+		cp "$api" "$LOCAL/mods/"
+		echo "  local $(basename "$api")"
+		count=$((count + 1))
+	fi
+
 	echo "synced $count jar(s) to the local client"
 }
 
@@ -234,7 +258,7 @@ stage() {
 			count=$((count + 1))
 		fi
 	else
-		echo "  !! no fabric-api in the local client to copy" >&2
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
 	fi
 
 	echo "staged $count jar(s)"
@@ -345,7 +369,7 @@ usb_write() {
 		echo "  copied $(basename "$api")"
 		count=$((count + 1))
 	else
-		echo "  !! no fabric-api in the local client to copy" >&2
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
 	fi
 
 	usb_readme "$dest"
