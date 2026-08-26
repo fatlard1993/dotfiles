@@ -2,6 +2,14 @@
 
 update
 
+# build deps for the slock fork this profile builds from source (see
+# dot-update.d/slock); config.mk shells out to pkg-config for the imlib2 flags
+package "pkg-config"
+package "libx11-dev"
+package "libxext-dev"
+package "libxrandr-dev"
+package "libimlib2-dev"
+
 package "vlc"
 package "mpv"
 package "gimp"
