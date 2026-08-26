@@ -15,7 +15,9 @@ launch_bars() {
 		local dpi height
 		read -r dpi height <<<"$($HOME/.dotfiles/ubuntu/bin/bar-height "$mon")"
 
-		MONITOR="$mon" BAR_DPI="$dpi" BAR_HEIGHT="$height" polybar main &
+		# --config, not name-magic: 3.5.x (jammy) never learned to find
+		# config.ini on its own - that arrived in 3.6
+		MONITOR="$mon" BAR_DPI="$dpi" BAR_HEIGHT="$height" polybar --config="$HOME/.config/polybar/config.ini" main &
 	done
 }
 
