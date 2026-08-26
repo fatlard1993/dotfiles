@@ -7,6 +7,12 @@
 
 metric=$1
 
+# Profile dispatch, same shape as bin/launcher: a machine can replace one
+# menu wholesale (ben_thickbook's glyph power menu) by shipping
+# bin/polybar-menu-<name> in its profile.
+override="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/bin/polybar-menu-$metric"
+[ -x "$override" ] && exec "$override"
+
 active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
 echo "$metric" > "$active_menu_file"
 polybar-msg action "#${metric}.hook.0" 2>/dev/null
