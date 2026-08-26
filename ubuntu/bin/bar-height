@@ -36,8 +36,11 @@ fi
 scaleFile="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/.bar-scale"
 if [ -f "$scaleFile" ]; then
 	scale=$(cat "$scaleFile")
-	dpi=$((dpi * scale))
-	height=$((height * scale))
+	# awk, not $((...)): the scale may be fractional - ben_thickbook's 2
+	# clipped the bar's own text (12pt at doubled dpi outgrew the doubled
+	# height), 1.5 keeps the dellbook's proven text-to-bar ratio
+	dpi=$(awk -v n="$dpi" -v s="$scale" 'BEGIN{printf "%d", n*s}')
+	height=$(awk -v n="$height" -v s="$scale" 'BEGIN{printf "%d", n*s}')
 fi
 
 echo "$dpi $height"
