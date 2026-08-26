@@ -9,6 +9,14 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 iconDir=$HOME/.local/share/icons/hicolor/256x256/apps
 mkdir -p $iconDir
 
+# Repo-owned icons first: the ones no service can produce - jellyfin's home
+# domain answers nothing and the favicon service hands ytkids a bare G, so
+# these ship in desk-icons/ as files. The fetch loop's image check then
+# sees a valid icon and leaves it alone.
+for static in $profilePath/desk-icons/desk-*.png(N); do
+	ln -sf $static $iconDir/${static:t}
+done
+
 while read -r id url; do
 	# image/*, not just non-empty: the favicon service answers with a
 	# redirect, and a fetch that didn't follow it left a "301 Moved" page

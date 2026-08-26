@@ -7,7 +7,7 @@
 if [[ -z $1 ]]; then
 	printf '%s\0icon\x1f%s\n' \
 		"Lock" "system-lock-screen" \
-		"Sleep" "weather-clear-night" \
+		"Sleep" "$HOME/.dotfiles/profiles/ben_thickbook/desk-icons/sleep.png" \
 		"Restart" "system-reboot" \
 		"Power Off" "system-shutdown"
 	exit 0

@@ -1,25 +1,27 @@
 #!/bin/zsh
 
 # rofi script mode for the wallpaper menu: two glyph tiles - a fresh
-# wallpaper, or trash this one (delete + blacklist + fresh) - over the
-# same shared scripts the full menu drives (see ubuntu/bin/polybar-menu's
-# wallpaper section for everything this deliberately leaves out).
+# wallpaper, or delete this one (delete + blacklist + fresh), via the same
+# shared scripts the full menu uses. Icons are repo files (desk-icons/),
+# same as the power menu's moon - theme lookup has burned us twice.
+
+deskIcons=$HOME/.dotfiles/profiles/ben_thickbook/desk-icons
 
 if [[ -z $1 ]]; then
 	printf '%s\0icon\x1f%s\n' \
-		"New Wallpaper" "go-next" \
-		"Trash This One" "user-trash"
+		"New" "$deskIcons/new.png" \
+		"Delete" "$deskIcons/delete.png"
 	exit 0
 fi
 
 case $1 in
-	"New Wallpaper")
+	"New")
 		# MONITOR rides in from the clicked bar (see startup.d/status-bar);
 		# wallpaper-delete resolves the same way internally
 		desktop=$(bspc query -D -m "${MONITOR:-focused}" -d .active --names)
 		$HOME/.dotfiles/ubuntu/bin/wallpaper-next "$desktop"
 		;;
-	"Trash This One")
+	"Delete")
 		$HOME/.dotfiles/ubuntu/bin/wallpaper-delete
 		;;
 esac

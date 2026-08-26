@@ -12,5 +12,8 @@
 # the bar). Keep this list in step with the default in
 # ubuntu/polybar/config.ini when modules change there.
 export POLYBAR_MODULES_RIGHT="quit-desktop wallpaper caffeine battery power"
+# T2 glyphs (the battery plug, the ramp icons) at text size - 15pt reads
+# cartoonish on this panel
+export POLYBAR_FONT1_SIZE=12
 
 . $HOME/.dotfiles/ubuntu/startup.d/status-bar
