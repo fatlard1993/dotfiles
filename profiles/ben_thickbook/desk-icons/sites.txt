@@ -4,7 +4,7 @@ pbskids https://pbskids.org/
 storyline https://storylineonline.net/
 ytkids https://www.youtubekids.com/
 jellyfin https://jellyfin.interstellarblues.com/web/index.html#!/home.html
-gamenight http://games.home/
+voiddriller http://void-driller.home/
 disneyplus https://www.disneyplus.com/
 mcwiki https://minecraft.wiki/
 motherload https://www.xgenstudios.com/play/motherload
