@@ -2,11 +2,28 @@
 
 update
 
+# build deps for the slock fork this profile builds from source (see
+# dot-update.d/slock); config.mk shells out to pkg-config for the imlib2 flags
+package "pkg-config"
+package "libx11-dev"
+package "libxext-dev"
+package "libxrandr-dev"
+package "libimlib2-dev"
+
 package "vlc"
 package "mpv"
-package "prismlauncher"
+# guarded: a package the archive doesn't carry (prismlauncher predates
+# jammy) FAILs, and a FAIL aborts the whole aptfile - on the thickpad that
+# starved every package below this line. dot-update.d/minecraft already
+# falls back to the official launcher when prism is absent.
+apt-cache show prismlauncher > /dev/null 2>&1 \
+	&& package "prismlauncher" \
+	|| echo "no prismlauncher in this archive - skipping (minecraft step falls back)"
 package "frozen-bubble"
 package "neverball"
+# neverputt has its own package (and desk tile) even though it ships from
+# the neverball source
+package "neverputt"
 package "supertuxkart"
 package "tuxpaint"
 package "gcompris-qt"
