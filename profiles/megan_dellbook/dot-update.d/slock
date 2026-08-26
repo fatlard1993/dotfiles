@@ -22,7 +22,7 @@ mkdir -p $(dirname $slockSrc)
 if [[ -d $slockSrc ]]; then
 	(cd $slockSrc && git fetch --quiet && git checkout --quiet $slockRef)
 else
-	git clone --quiet git@github.com:fatlard1993/slock.git $slockSrc
+	git clone --quiet https://github.com/fatlard1993/slock.git $slockSrc
 	(cd $slockSrc && git checkout --quiet $slockRef)
 fi
 
