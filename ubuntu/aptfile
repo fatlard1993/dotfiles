@@ -44,6 +44,12 @@ package "python3-xlib"
 package "scrot"
 package "feh"
 package "imagemagick"
+# lock-tick's HUD tick: rsvg-convert rasterizes the layer, Pillow composites
+# it. Neither is pulled in by anything else here - Pillow only ever arrived
+# as an hplip dependency, and machines without a printer stack got a lock
+# screen with no graphics at all.
+package "librsvg2-bin"
+package "python3-pil"
 package "tesseract-ocr"
 package "libcanberra-gtk3-module"
 package "ffmpeg"

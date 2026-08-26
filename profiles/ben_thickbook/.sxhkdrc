@@ -48,7 +48,7 @@ super + @BackSpace
 super + @Delete
 	$HOME/.dotfiles/ubuntu/bin/forward-key ctrl+k
 
-# Physical power button: same as the bar's power button - power off, no
+# Physical power button: same as the bar's power button - the glyph power
 # menu (bin/power-click, through ubuntu/bin/power-click's dispatch).
 # logind.conf still sets HandlePowerKey=ignore so the keypress reaches
 # sxhkd instead of logind acting on it directly.

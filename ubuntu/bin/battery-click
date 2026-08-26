@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Same profile dispatch as power-click: ben_thickbook's battery is an
+# indicator only - no menu behind it
+override="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/bin/battery-click"
+[ -x "$override" ] && exec "$override"
 # Left-click handler for polybar's battery module. Polybar has no
 # per-modifier click actions (click-left is a single fixed command), so
 # whether Shift is held at click time is checked directly against the X

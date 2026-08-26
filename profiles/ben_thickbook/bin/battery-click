@@ -1,0 +1,5 @@
+#!/bin/zsh
+# The battery is an indicator on this machine, not a button - the glyph
+# already says everything a kid needs to know.
+
+exit 0
