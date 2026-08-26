@@ -2,6 +2,13 @@
 
 [[ ! -e $HOME/.dotfiles ]] && ln -sf `pwd` $HOME/.dotfiles
 
+# A cold bootstrap runs before 1_zsh has linked ~/.zshenv, so the PATH built
+# in .zshenv.d/path doesn't exist yet - the thickpad's first run silently
+# skipped the whole ubuntu aptfile (~/.local/bin) and both autopurges
+# (ubuntu/bin's sudo-enforce). Warm runs re-add these ahead of the same
+# entries, harmlessly.
+export PATH="$HOME/.dotfiles/ubuntu/bin:$HOME/.local/bin:$PATH"
+
 [[ -e $HOME/.dotfiles/dot-update.d/0_setup ]] && $HOME/.dotfiles/dot-update.d/0_setup $@
 
 echo "Fetching latest dotfiles"
