@@ -8,7 +8,9 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # headroom without touching the disk.
 echo "Swapping the swapfile for zram"
 
-command -v zramctl > /dev/null || sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-zram-generator
+# the generator binary, not zramctl - zramctl is util-linux and always
+# present, which made this guard skip the install forever
+[[ -x /usr/lib/systemd/system-generators/zram-generator ]] || sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-zram-generator
 
 printf '[zram0]\nzram-size = ram / 2\n' | sudo tee /etc/systemd/zram-generator.conf > /dev/null
 sudo systemctl daemon-reload
