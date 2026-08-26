@@ -24,10 +24,6 @@ dpkg -s dnsmasq > /dev/null 2>&1 || {
 
 command -v dig > /dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt install -y bind9-dnsutils
 
-echo "Updating dnsmasq blocklist"
-
-$HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
-
 # Config is asserted every run, not once behind a marker: a reinstall lands a
 # fresh /etc/default/dnsmasq, and without IGNORE_RESOLVCONF the Debian helper
 # passes its own -r resolv-file on top of ours - "only one resolv.conf file
@@ -53,6 +49,12 @@ sudo grep -q '^IGNORE_RESOLVCONF=yes' /etc/default/dnsmasq \
 sudo systemctl enable dnsmasq > /dev/null 2>&1
 sudo systemctl restart dnsmasq
 
+# After the config assert, not before: the updater restarts dnsmasq, and a
+# restart on a not-yet-asserted /etc/default/dnsmasq is the failure above.
+echo "Updating dnsmasq blocklist"
+
+$HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
+
 # The resolver only changes hands once dnsmasq demonstrably answers. If it
 # does not, the machine keeps (or gets back) a working upstream resolver so
 # the rest of this run can still reach apt and GitHub.
@@ -69,6 +71,13 @@ if dig +short +time=3 +tries=1 @127.0.0.1 ubuntu.com 2>/dev/null | grep -q .; th
 		echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf > /dev/null
 
 		sudo systemctl restart NetworkManager
+
+		# The two restarts open a window with no resolution at all; the modules
+		# after this one download things, and fwupd and Chrome once fell into it.
+		for i in {1..20}; do
+			getent hosts github.com > /dev/null 2>&1 && break
+			sleep 0.5
+		done
 	fi
 else
 	echo "dnsmasq is not answering on 127.0.0.1 - NOT switching the system resolver"

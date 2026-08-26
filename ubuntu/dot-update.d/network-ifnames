@@ -6,7 +6,8 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # reboot after bootstrap renames the installer's wlp0s20f3 to wlan0 - and the
 # Wi-Fi profile the installer wrote is bound to the old name, so the machine
 # comes back up with no network. Unbinding Wi-Fi profiles from interface names
-# lets NetworkManager match them to whatever the radio is called.
+# lets NetworkManager match them to whatever the radio is called. sudo: over
+# ssh there is no polkit session, and plain nmcli is refused.
 command -v nmcli > /dev/null || return
 
 nmcli -t -f NAME,TYPE connection show | awk -F: '$2 ~ /wireless/ {print $1}' | while IFS= read -r name; do
@@ -14,5 +15,5 @@ nmcli -t -f NAME,TYPE connection show | awk -F: '$2 ~ /wireless/ {print $1}' | w
 	[[ -z $bound ]] && continue
 
 	echo "Unbinding Wi-Fi profile '$name' from interface $bound"
-	nmcli connection modify "$name" connection.interface-name ""
+	sudo nmcli connection modify "$name" connection.interface-name ""
 done
