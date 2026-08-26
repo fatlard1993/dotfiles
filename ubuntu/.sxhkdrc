@@ -98,9 +98,11 @@ super + Tab
 super + {comma,period}
 	bspc desktop -f {prev,next}.local
 
-# Focus the given desktop
+# Focus the given desktop - via bin/desktop-focus, which also creates it
+# when a machine's default pool is smaller than nine (see
+# profiles/*/.desktop-pool)
 {ctrl,super} + {1-9}
-	{bspc, bspc} desktop -f '^{1-9}'
+	{$HOME,$HOME}/.dotfiles/ubuntu/bin/desktop-focus {1-9}
 
 # Send to the given desktop (super+ctrl, not shift: super+shift+3/4 are
 # the mac-style screenshot chords below, and shift+number is what typing
