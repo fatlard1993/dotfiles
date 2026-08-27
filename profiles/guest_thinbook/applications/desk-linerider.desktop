@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Line Rider
+Icon=desk-linerider
+Exec=google-chrome --app=https://www.linerider.com/
+Terminal=false
+Categories=Desk;
