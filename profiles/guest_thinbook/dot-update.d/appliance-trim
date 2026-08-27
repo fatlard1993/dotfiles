@@ -10,7 +10,7 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # in this machine's life). Bluetooth deliberately stays - headphones.
 echo "Trimming appliance services"
 
-for svc in cups cups-browsed smbd nmbd avahi-daemon rsyslog networkd-dispatcher sysstat chrony; do
+for svc in cups cups-browsed smbd nmbd avahi-daemon rsyslog networkd-dispatcher sysstat; do
 	sudo systemctl disable --now $svc > /dev/null 2>&1
 done
 
