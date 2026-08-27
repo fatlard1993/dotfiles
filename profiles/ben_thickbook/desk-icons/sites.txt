@@ -14,5 +14,4 @@ linerider https://www.linerider.com/
 grow https://www.eyezmaze.com/
 sandspiel https://sandspiel.club/
 orbfarm https://orb.farm/
-chess https://lichess.org/
 windmap https://earth.nullschool.net/

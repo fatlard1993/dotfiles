@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Chess
-Icon=desk-chess
-Exec=google-chrome --app=https://lichess.org/
-Terminal=false
-Categories=Desk;
