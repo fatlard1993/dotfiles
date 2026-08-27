@@ -1,0 +1,6 @@
+<!doctype html><title>Snow Line</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#s{position:absolute;top:50%;left:50%;width:800px;height:600px;transform-origin:center center}
+iframe{border:0;width:100%;height:100%;display:block}</style>
+<div id=s><iframe src="https://archive.org/embed/snow-line-miniclip" allowfullscreen></iframe></div>
+<script>const fit=()=>{const k=Math.min(innerWidth/800,innerHeight/600);document.getElementById('s').style.transform=`translate(-50%,-50%) scale(${k})`};addEventListener('resize',fit);fit();</script>
