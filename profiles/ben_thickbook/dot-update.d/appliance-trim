@@ -20,10 +20,6 @@ for svc in udisks2 colord; do
 	sudo systemctl mask --now $svc > /dev/null 2>&1
 done
 
-# chrony (a full NTP server, if the installer chose it) leaves above; the
-# built-in client is plenty for a laptop
-systemctl is-active systemd-timesyncd > /dev/null 2>&1 || sudo systemctl enable --now systemd-timesyncd > /dev/null 2>&1
-
 # touchegg rode in with the profile's first draft; a kid clicks and
 # scrolls, and the daemon + client watched every touch for gestures
 # nobody makes. The install step and client launcher are gone from the
