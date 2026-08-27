@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Storyline Online
+Name=Storyline
 Icon=desk-storyline
 Exec=google-chrome --app=https://storylineonline.net/
 Terminal=false

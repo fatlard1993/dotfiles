@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Fire & Water
+Icon=desk-fireboy
+Exec=google-chrome --app=https://archive.org/embed/fireboy_and-watergirl-in-the-forest-temple
+Terminal=false
+Categories=Desk;

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Blockly Games
+Name=Blockly
 Icon=desk-blockly
 Exec=google-chrome --app=https://blockly.games/
 Terminal=false

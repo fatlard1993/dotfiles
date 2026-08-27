@@ -5,7 +5,7 @@
    ~251px element holds "NASA Space Place" without ellipsis. The old 160px/48px values were authored on a taller
    screen and paged the grid down to 2 rows of 4. */
 * {
-	font: "Hack Nerd Font Mono 14";
+	font: "Hack Nerd Font Mono 13";
 }
 
 /* A full-width sheet from the top, not fullscreen: the rofi wrapper's
@@ -21,7 +21,7 @@ inputbar {
 }
 
 listview {
-	columns: 6;
+	columns: 8;
 	lines: 5;
 	flow: horizontal;
 	fixed-columns: true;

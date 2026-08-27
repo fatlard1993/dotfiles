@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Minecraft Wiki
+Name=MC Wiki
 Icon=desk-mcwiki
 Exec=google-chrome --app=https://minecraft.wiki/
 Terminal=false

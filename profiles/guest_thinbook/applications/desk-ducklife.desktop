@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Duck Life
+Icon=desk-ducklife
+Exec=google-chrome --app=https://archive.org/embed/duck-life-1
+Terminal=false
+Categories=Desk;

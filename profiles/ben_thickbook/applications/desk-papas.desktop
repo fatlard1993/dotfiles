@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Freezeria
+Icon=desk-papas
+Exec=google-chrome --app=https://archive.org/embed/papas-freezeria-to-go
+Terminal=false
+Categories=Desk;

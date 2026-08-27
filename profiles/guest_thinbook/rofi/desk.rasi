@@ -22,7 +22,7 @@ inputbar {
 }
 
 listview {
-	columns: 6;
+	columns: 8;
 	lines: 5;
 	flow: horizontal;
 	fixed-columns: true;

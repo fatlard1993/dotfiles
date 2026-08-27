@@ -11,3 +11,8 @@ spaceplace https://spaceplace.nasa.gov/
 radiogarden https://radio.garden/
 earth https://earth.google.com/web/
 linerider https://www.linerider.com/
+grow https://www.eyezmaze.com/
+sandspiel https://sandspiel.club/
+orbfarm https://orb.farm/
+chess https://lichess.org/
+windmap https://earth.nullschool.net/

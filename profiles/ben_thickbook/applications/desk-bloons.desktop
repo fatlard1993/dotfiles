@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Bloons TD
+Icon=desk-bloons
+Exec=google-chrome --app=https://archive.org/embed/bloons_tower_defense_1
+Terminal=false
+Categories=Desk;
