@@ -5,3 +5,10 @@ voiddriller http://void-driller.home/
 disneyplus https://www.disneyplus.com/
 mcwiki https://minecraft.wiki/
 motherload https://www.xgenstudios.com/play/motherload
+musiclab https://musiclab.chromeexperiments.com/
+blockly https://blockly.games/
+quickdraw https://quickdraw.withgoogle.com/
+spaceplace https://spaceplace.nasa.gov/
+radiogarden https://radio.garden/
+khan https://www.khanacademy.org/
+earth https://earth.google.com/web/

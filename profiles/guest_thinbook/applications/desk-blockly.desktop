@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Blockly Games
+Icon=desk-blockly
+Exec=google-chrome --app=https://blockly.games/
+Terminal=false
+Categories=Desk;

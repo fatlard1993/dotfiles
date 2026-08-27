@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Tux Typing
+Icon=tuxtype
+Exec=tuxtype
+Terminal=false
+Categories=Desk;

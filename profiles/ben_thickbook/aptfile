@@ -24,6 +24,12 @@ package "neverball"
 # neverputt has its own package (and desk tile) even though it ships from
 # the neverball source
 package "neverputt"
+package "supertux"
+package "tuxmath"
+package "tuxtype"
+package "extremetuxracer"
+package "pingus"
+package "stellarium"
 package "supertuxkart"
 package "tuxpaint"
 package "gcompris-qt"

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Khan Academy
+Icon=desk-khan
+Exec=google-chrome --app=https://www.khanacademy.org/
+Terminal=false
+Categories=Desk;

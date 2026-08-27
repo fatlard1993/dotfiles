@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Stellarium
+Icon=stellarium
+Exec=stellarium
+Terminal=false
+Categories=Desk;

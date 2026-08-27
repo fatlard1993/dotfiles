@@ -1,9 +1,8 @@
 @theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
 
 /* Sized to the machine's 1600x900 panel at the profile config's dpi (131):
-   4 rows of 128px icons + one label line fit with ~100px to spare, and a
-   ~297px-wide element holds the longest label ("Teach Your Monster")
-   without ellipsis. The old 160px/48px values were authored on a taller
+   5 rows of 96px icons + one label line fit the 866px tiled area, and a
+   ~251px element holds "NASA Space Place" without ellipsis. The old 160px/48px values were authored on a taller
    screen and paged the grid down to 2 rows of 4. */
 * {
 	font: "Hack Nerd Font Mono 14";
@@ -22,21 +21,21 @@ inputbar {
 }
 
 listview {
-	columns: 5;
-	lines: 4;
+	columns: 6;
+	lines: 5;
 	flow: horizontal;
 	fixed-columns: true;
-	spacing: 16px;
-	padding: 24px;
+	spacing: 12px;
+	padding: 16px;
 }
 
 element {
 	orientation: vertical;
-	padding: 12px;
+	padding: 8px;
 }
 
 element-icon {
-	size: 128px;
+	size: 96px;
 	horizontal-align: 0.5;
 }
 

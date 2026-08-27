@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Google Earth
+Icon=desk-earth
+Exec=google-chrome --app=https://earth.google.com/web/
+Terminal=false
+Categories=Desk;
