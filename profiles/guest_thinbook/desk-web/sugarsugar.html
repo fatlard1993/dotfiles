@@ -1,3 +1,13 @@
 <!doctype html><title>Sugar Sugar</title>
-<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style>
-<iframe src="https://archive.org/embed/sugarsugar_flash" allowfullscreen></iframe>
+<!-- The embed's ruffle player snaps to the swf's native size on load, so
+     the iframe holds a fixed 800x600 stage and a css transform scales the
+     whole thing to the window - loaded state included. -->
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#s{position:absolute;top:50%;left:50%;width:800px;height:600px;transform-origin:center center}
+iframe{border:0;width:100%;height:100%;display:block}</style>
+<div id=s><iframe src="https://archive.org/embed/sugarsugar_flash" allowfullscreen></iframe></div>
+<script>
+const fit=()=>{const k=Math.min(innerWidth/800,innerHeight/600);
+document.getElementById('s').style.transform=`translate(-50%,-50%) scale(${k})`};
+addEventListener('resize',fit);fit();
+</script>
