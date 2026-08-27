@@ -45,9 +45,8 @@ while read -r id url; do
 	done
 done < $profilePath/desk-icons/sites.txt
 
-# Prism's png where the distro ships one (any size beats none), else the
-# official launcher's symbolic svg (jammy has no prismlauncher package at
-# all) - gdk-pixbuf loads by content, so the .png name on an svg is fine
+# The minecraft tiles borrow a launcher icon - gdk-pixbuf loads by
+# content, so the .png name on an svg is fine
 for tile in home minecolonies; do
 	[[ -s $iconDir/desk-$tile.png ]] && continue
 
