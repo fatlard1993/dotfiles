@@ -2,6 +2,6 @@
 Type=Application
 Name=Freezeria
 Icon=desk-papas
-Exec=google-chrome --app=https://archive.org/embed/papas-freezeria-to-go
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/papas.html
 Terminal=false
 Categories=Desk;

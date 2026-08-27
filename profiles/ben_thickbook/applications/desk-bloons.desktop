@@ -2,6 +2,6 @@
 Type=Application
 Name=Bloons TD
 Icon=desk-bloons
-Exec=google-chrome --app=https://archive.org/embed/bloons_tower_defense_1
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/bloons.html
 Terminal=false
 Categories=Desk;
