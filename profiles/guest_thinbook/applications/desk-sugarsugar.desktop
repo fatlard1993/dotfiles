@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Sugar Sugar
+Icon=desk-sugarsugar
+Exec=google-chrome --app=https://archive.org/embed/sugarsugar_flash
+Terminal=false
+Categories=Desk;
