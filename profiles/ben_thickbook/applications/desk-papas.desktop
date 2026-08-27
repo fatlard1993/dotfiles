@@ -2,6 +2,6 @@
 Type=Application
 Name=Freezeria
 Icon=desk-papas
-Exec=google-chrome --ignore-gpu-blocklist --enable-gpu-rasterization --user-data-dir=$HOME/.config/chrome-games --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/papas.html
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/papas.html
 Terminal=false
 Categories=Desk;

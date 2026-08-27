@@ -2,6 +2,6 @@
 Type=Application
 Name=Sugar Sugar
 Icon=desk-sugarsugar
-Exec=google-chrome --ignore-gpu-blocklist --enable-gpu-rasterization --user-data-dir=$HOME/.config/chrome-games --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/sugarsugar.html
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/sugarsugar.html
 Terminal=false
 Categories=Desk;
