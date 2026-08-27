@@ -14,7 +14,7 @@ if [[ -z $1 ]]; then
 		"Lock" "$deskIcons/lock.png" \
 		"Sleep" "$deskIcons/sleep.png" \
 		"Restart" "$deskIcons/restart.png" \
-		"Power Off" "$deskIcons/poweroff.png"
+		"Off" "$deskIcons/poweroff.png"
 	exit 0
 fi
 
@@ -22,5 +22,5 @@ case $1 in
 	"Lock") setsid -f system-lock > /dev/null 2>&1 ;;
 	"Sleep") systemctl suspend ;;
 	"Restart") setsid -f $HOME/.dotfiles/ubuntu/bin/pc-leave reboot > /dev/null 2>&1 ;;
-	"Power Off") setsid -f $HOME/.dotfiles/ubuntu/bin/pc-leave shutdown > /dev/null 2>&1 ;;
+	"Off") setsid -f $HOME/.dotfiles/ubuntu/bin/pc-leave shutdown > /dev/null 2>&1 ;;
 esac
