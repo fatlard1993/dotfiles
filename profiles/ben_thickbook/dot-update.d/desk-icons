@@ -21,7 +21,7 @@ while read -r id url; do
 	# image/*, not just non-empty: the favicon service answers with a
 	# redirect, and a fetch that didn't follow it left a "301 Moved" page
 	# here that a size check kept treating as done
-	[[ -n $id && -s $iconDir/desk-$id.png && $(file -b --mime-type $iconDir/desk-$id.png) == image/* ]] && continue
+	[[ -n $id && -s $iconDir/desk-$id.png && $(file -Lb --mime-type $iconDir/desk-$id.png) == image/* ]] && continue
 
 	echo "Fetching desk icon for $id"
 

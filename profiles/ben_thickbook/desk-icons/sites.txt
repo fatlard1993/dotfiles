@@ -4,7 +4,6 @@ storyline https://storylineonline.net/
 voiddriller http://void-driller.home/
 disneyplus https://www.disneyplus.com/
 mcwiki https://minecraft.wiki/
-motherload https://www.xgenstudios.com/play/motherload
 musiclab https://musiclab.chromeexperiments.com/
 blockly https://blockly.games/
 quickdraw https://quickdraw.withgoogle.com/
