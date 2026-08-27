@@ -2,6 +2,6 @@
 Type=Application
 Name=Motherload
 Icon=desk-motherload
-Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/motherload.html
+Exec=google-chrome --use-angle=swiftshader --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/motherload.html
 Terminal=false
 Categories=Desk;

@@ -2,6 +2,6 @@
 Type=Application
 Name=Fireboy
 Icon=desk-fireboy
-Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/fireboy.html
+Exec=google-chrome --use-angle=swiftshader --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/fireboy.html
 Terminal=false
 Categories=Desk;
