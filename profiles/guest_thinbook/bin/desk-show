@@ -6,5 +6,5 @@ pgrep -x rofi > /dev/null && exit 0
 # name and then "Mode desk is not found"; current rofi still takes the old one.
 # -dpi pinned here because 1.7.1 also drops the rofi/config.rasi override
 # block - the flag outranks config on every version
-exec rofi -show desk -show-icons -dpi 131 -me-select-entry "" -me-accept-entry MousePrimary -modi "desk:$HOME/.dotfiles/profiles/guest_thinbook/bin/desk" \
+exec rofi -show desk -show-icons -dpi 157 -me-select-entry "" -me-accept-entry MousePrimary -modi "desk:$HOME/.dotfiles/profiles/guest_thinbook/bin/desk" \
 	-theme $HOME/.dotfiles/profiles/guest_thinbook/rofi/desk.rasi

@@ -6,7 +6,7 @@
 
 pgrep -x rofi > /dev/null && exit 0
 
-exec rofi -show power -show-icons -dpi 131 -me-select-entry "" -me-accept-entry MousePrimary \
+exec rofi -show power -show-icons -dpi 157 -me-select-entry "" -me-accept-entry MousePrimary \
 	-modi "power:$HOME/.dotfiles/profiles/guest_thinbook/bin/power-tiles" \
 	-theme $HOME/.dotfiles/profiles/guest_thinbook/rofi/tiles.rasi \
 	-theme-str "listview { columns: 4; } window { width: 800px; }"

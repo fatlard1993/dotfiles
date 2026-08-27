@@ -1,11 +1,11 @@
 // The shared config's dpi is sized for hidpi panels; this machine's LVDS
-// panel is 1600x900 in 310mm - 131dpi physical (xrandr). Linked over the
+// panel is 1920x1080 in 310mm - 157dpi physical (EDID). Linked over the
 // ubuntu-layer link by dot-update.d/rofi. jammy's rofi 1.7.1 ignores this
-// second configuration block, so the profile's own launchers pin -dpi 131
+// second configuration block, so the profile's own launchers pin -dpi 157
 // themselves; this file serves the shared menus once the box runs a rofi
 // that merges it.
 @import "~/.dotfiles/ubuntu/rofi/config.rasi"
 
 configuration {
-	dpi: 131;
+	dpi: 157;
 }

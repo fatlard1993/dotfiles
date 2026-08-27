@@ -1,6 +1,6 @@
 @theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
 
-/* Sized to the machine's 1600x900 panel at the profile config's dpi (131):
+/* Sized to the machine's 1920x1080 panel at the profile config's dpi (157):
    4 rows of 128px icons + one label line fit with ~100px to spare, and a
    ~297px-wide element holds the longest label ("Teach Your Monster")
    without ellipsis. The old 160px/48px values were authored on a taller
