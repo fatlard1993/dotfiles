@@ -51,9 +51,11 @@ done < $profilePath/desk-icons/sites.txt
 for tile in home minecolonies; do
 	[[ -s $iconDir/desk-$tile.png ]] && continue
 
-	for candidate in /usr/share/icons/hicolor/256x256/apps/org.prismlauncher.PrismLauncher.png \
-		/usr/share/icons/hicolor/*/apps/org.prismlauncher.PrismLauncher.png(N) \
-		/usr/share/icons/hicolor/symbolic/apps/minecraft-launcher.svg; do
+	# the creeper first: prism's abstract cube says nothing to a kid
+	# scanning for minecraft (the thinbook's Home tile got walked past)
+	for candidate in /usr/share/icons/hicolor/symbolic/apps/minecraft-launcher.svg \
+		/usr/share/icons/hicolor/256x256/apps/org.prismlauncher.PrismLauncher.png \
+		/usr/share/icons/hicolor/*/apps/org.prismlauncher.PrismLauncher.png(N); do
 		[[ -s $candidate ]] && { ln -sf $candidate $iconDir/desk-$tile.png; break }
 	done
 done
