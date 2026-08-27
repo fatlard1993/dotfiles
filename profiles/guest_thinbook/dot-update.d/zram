@@ -16,8 +16,11 @@ printf '[zram0]\nzram-size = ram / 2\n' | sudo tee /etc/systemd/zram-generator.c
 sudo systemctl daemon-reload
 sudo systemctl start systemd-zram-setup@zram0.service 2>/dev/null
 
-if [[ -f /swapfile ]]; then
-	sudo swapoff /swapfile 2>/dev/null
-	sudo sed -i '\|^/swapfile|d' /etc/fstab
-	sudo rm -f /swapfile
-fi
+# both spellings: our own installs used /swapfile, resolute's installer
+# writes /swap.img
+for swapfile in /swapfile /swap.img; do
+	[[ -f $swapfile ]] || continue
+	sudo swapoff $swapfile 2>/dev/null
+	sudo sed -i "\|^$swapfile|d" /etc/fstab
+	sudo rm -f $swapfile
+done
