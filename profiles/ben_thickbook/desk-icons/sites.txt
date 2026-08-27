@@ -9,6 +9,5 @@ blockly https://blockly.games/
 quickdraw https://quickdraw.withgoogle.com/
 spaceplace https://spaceplace.nasa.gov/
 radiogarden https://radio.garden/
-khan https://www.khanacademy.org/
 earth https://earth.google.com/web/
 linerider https://www.linerider.com/
