@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Frozen Bubble
+Name=Bubbles
 Icon=frozen-bubble
 Exec=frozen-bubble --no-fullscreen --solo
 Terminal=false

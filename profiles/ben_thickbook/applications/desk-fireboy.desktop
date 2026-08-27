@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Fire & Water
+Name=Fireboy
 Icon=desk-fireboy
 Exec=google-chrome --app=https://archive.org/embed/fireboy_and-watergirl-in-the-forest-temple
 Terminal=false

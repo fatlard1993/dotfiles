@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Void Driller
+Name=Void Drill
 Icon=desk-voiddriller
 Exec=google-chrome --app=http://void-driller.home/#/
 Terminal=false
