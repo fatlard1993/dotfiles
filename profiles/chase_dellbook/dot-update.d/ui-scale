@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# This machine runs one notch (x1.125) above the shared scale baseline.
+# The full set: this text scale (1.5 * 1.125), .bar-scale (1.125 -> polybar
+# dpi 216, and rofi's y-offset via bin/rofi), and rofi/config.rasi (dpi
+# 216 = 192 * 1.125).
+#
+# text-scaling-factor carries more than GTK text here: gsd-xsettings
+# re-derives xrdb's Xft.dpi as 96 * this value whenever it asserts, so
+# kitty and every other Xft reader ride this knob too (1.6875 -> 162).
+# That same race is why ubuntu/.Xresources' "Xft.dpi: 192" never sticks on
+# this machine - measured live at 144 = 96 * the shared 1.5.
+#
+# Runs after 0_ubuntu (alphabetical), so this override of the shared gtk
+# hook's 1.5 wins.
+echo "Bumping text scale one notch over shared baseline"
+
+dconf write /org/gnome/desktop/interface/text-scaling-factor "1.6875"
