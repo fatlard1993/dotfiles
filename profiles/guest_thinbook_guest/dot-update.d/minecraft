@@ -1,0 +1,122 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
+# The guest seat on the shared thinkpad. The kid seat beside it
+# (profiles/guest_thinbook) carries both launchers because Ben started on the
+# official one and its game dir is what clients.txt already ships mods to;
+# nothing here has that history, so this seat is Prism only and the instance's
+# own .minecraft is the game directory - the same layout megan_dellbook and
+# htpc use.
+#
+# Client only, and a player's machine rather than a developer's: there is no
+# suite workspace here to read the pin from, so like htpc this file pins the
+# game and loader itself. Bump the three together with htpc/dot-update.d/
+# minecraft - a client on a different pin than the house server cannot join it.
+# Mod jars are not managed here either: they arrive over ssh from the dev
+# machine (mc-deploy-client, registered in priv-config/minecraft/clients.txt).
+#
+# Two seats on one laptop means two copies of the game: separate users, so
+# separate Prism roots, separate saves and separate accounts. The libraries
+# are the bulk of it (~700M per seat) - worth checking df before assuming a
+# third seat would fit.
+mcVersion=26.3-snapshot-10
+loaderVersion=0.19.3
+
+manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+manifest=$(curl -sf $manifestUrl)
+
+if [[ -z $manifest ]]; then
+	echo "Couldn't reach the Mojang version manifest - skipping minecraft"
+
+	return
+fi
+
+versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$mcVersion\") | .url"))
+
+if [[ -z $versionJson ]]; then
+	echo "Pinned version $mcVersion not in Mojang's manifest - skipping minecraft"
+
+	return
+fi
+
+# The full runtime, not -headless: LWJGL wants libawt_xawt and friends.
+javaMajor=$(echo $versionJson | jq -r '.javaVersion.majorVersion')
+
+dpkg -s openjdk-$javaMajor-jre > /dev/null 2>&1 || {
+	echo "Installing Java $javaMajor (required by Minecraft $mcVersion)"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre
+}
+
+# No aptfile on this profile: prismlauncher is a system package the kid seat's
+# aptfile already installs on this machine. If that ever stops being true this
+# guard is what says so, rather than a half-built instance.
+command -v prismlauncher > /dev/null 2>&1 || {
+	echo "prismlauncher is not installed - skipping the suite instance"
+	echo "  (it comes from profiles/guest_thinbook/aptfile, the kid seat)"
+
+	return
+}
+
+prismRoot=$HOME/.local/share/PrismLauncher
+instanceDir=$prismRoot/instances/suite
+
+# Creating .minecraft first is what settles Prism on that name over "minecraft".
+mkdir -p $instanceDir/.minecraft/mods
+
+mcEnsureClientJar $mcVersion \
+	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
+
+# Local component overrides so Prism never asks meta.prismlauncher.org for
+# the pin - their ingest lags a fresh snapshot by days and a fresh machine
+# has no cached meta to coast on. Shared at minecraft-patches/; regenerate
+# them when the pin bumps.
+mkdir -p $instanceDir/patches
+cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
+cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+
+# Regenerated every run so the pin keeps tracking the server; instance.cfg is
+# seeded once and then belongs to Prism's settings UI.
+cat > $instanceDir/mmc-pack.json << EOF2
+{
+	"components": [
+		{
+			"important": true,
+			"uid": "net.minecraft",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.intermediary",
+			"version": "$mcVersion"
+		},
+		{
+			"uid": "net.fabricmc.fabric-loader",
+			"version": "$loaderVersion"
+		}
+	],
+	"formatVersion": 1
+}
+EOF2
+
+[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF2
+InstanceType=OneSix
+name=suite
+iconKey=default
+EOF2
+
+clientPandorical=($instanceDir/.minecraft/mods/pandorical-*.jar(N:t))
+
+if (( ! ${#clientPandorical} )); then
+	echo "  No Pandorical in the suite instance yet, so it cannot join the house"
+	echo "  server. From the dev machine: mc-deploy-client --client thinbook_guest"
+fi
+
+[[ -f $prismRoot/accounts.json ]] || {
+	echo "  Prism has no account yet - open it once, finish its setup wizard and"
+	echo "  add this seat's own Microsoft account. That flow is OAuth, so there is"
+	echo "  no headless path; one sitting, and mc-play works from then on. It has"
+	echo "  to be a different account than the kid seat's: one Minecraft account"
+	echo "  cannot be on the server from two clients at once."
+}
