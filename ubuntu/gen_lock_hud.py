@@ -75,9 +75,20 @@ for k in range(4):
     )
 
 # --- HUD clock readout: bracket-frame viewfinder style, monospace ---
-clock_y = CY + s(340)
+# The block hangs off the outermost dial ring rather than off its own tuned
+# offset from center: at a fixed s(340) the LOCKED label's cap height sat
+# exactly on that ring's bottom arc. Measuring down from the ring means
+# changing a radius above moves this text with it instead of into it.
+LABEL_SIZE = s(18)
+LABEL_CAP = LABEL_SIZE * 0.7  # monospace cap height, near enough to space by
+BAND_GAP = s(18)
+
+ring_bottom_y = CY + R_RING + s(96)  # lowest point of the outermost dial ring
+label_y = ring_bottom_y + BAND_GAP + LABEL_CAP  # baseline
+
 clock_str = time.strftime("%H:%M", time.localtime(t))
 fw, fh = s(260), s(74)
+clock_y = label_y + BAND_GAP + fh / 2
 bx0, by0 = CX - fw / 2, clock_y - fh / 2
 bx1, by1 = CX + fw / 2, clock_y + fh / 2
 notch = s(18)
@@ -100,7 +111,7 @@ parts.append(
     f'letter-spacing="{s(4)}" fill="#f7dc9c" text-anchor="middle">{clock_str}</text>'
 )
 parts.append(
-    f'<text x="{CX}" y="{by0 - s(14):.1f}" font-family="monospace" font-size="{s(18)}" '
+    f'<text x="{CX}" y="{label_y:.1f}" font-family="monospace" font-size="{LABEL_SIZE}" '
     f'letter-spacing="{s(6)}" fill="#f0c674" opacity="0.55" text-anchor="middle">LOCKED</text>'
 )
 
