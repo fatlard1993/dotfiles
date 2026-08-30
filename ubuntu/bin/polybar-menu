@@ -234,7 +234,12 @@ volume)
 	;;
 network)
 	while true; do
-		iface=wlan0
+		# iw dev also lists P2P devices, which are never the connection, so take
+		# the first one the kernel calls managed. wlan0 stays the fallback: the
+		# profiles carrying etc/grub set net.ifnames=0 and really are wlan0, the
+		# ones without it (thinbook, thickpad) get whatever the kernel named it.
+		iface=$(iw dev 2>/dev/null | awk '/Interface /{name=$2} /type managed/{print name; exit}')
+		iface=${iface:-wlan0}
 		ip=$(ip -4 -o addr show "$iface" | awk '{print $4}' | cut -d/ -f1)
 
 		# --rescan no: reuse NetworkManager's own periodically-refreshed scan
