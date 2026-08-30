@@ -30,6 +30,15 @@ echo "Building slock"
 
 make -C $slockSrc clean >/dev/null 2>&1
 
+# The Makefile only generates config.h when it's absent, so a config.h left
+# from an older ref silently drops any option added since - and building
+# under sudo below leaves it owned by root. Drop it (the directory is ours,
+# so no sudo needed) and build as us, so the tree stays ours and the
+# install step has nothing left to compile.
+rm -f $slockSrc/config.h
+
+make -C $slockSrc
+
 echo "Installing slock (setuid root)"
 
 sudo make -C $slockSrc install
