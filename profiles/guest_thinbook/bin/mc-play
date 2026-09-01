@@ -20,6 +20,19 @@ command -v prismlauncher > /dev/null 2>&1 || {
 	exit 1
 }
 
+instanceDir=$HOME/.local/share/PrismLauncher/instances/$instance
+
+# An unknown --launch instance ID is not an error Prism shows anywhere a
+# launcher button can carry: it drops the flag and opens its main window, which
+# from the desk is indistinguishable from clicking Prism itself. The
+# minecolonies instance is the hand-imported one (dot-update.d/minecraft says
+# how), so it is the one that is missing when this fires.
+[[ -d $instanceDir ]] || {
+	notify-send "Minecraft" "The $instance instance is not set up on this machine yet, so this button cannot join $server"
+	echo "no Prism instance '$instance' - see dot-update.d/minecraft" >&2
+	exit 1
+}
+
 # PrismMeta ingests a new snapshot with a lag, and until it does Prism's
 # resolve of a fresh pin dies in a crash dialog while the official
 # launcher (reading Mojang's own meta) plays it fine. Only a real 404
@@ -28,10 +41,10 @@ command -v prismlauncher > /dev/null 2>&1 || {
 # is in servers.dat, one Multiplayer click away).
 # A patches/ dir means the pin is locally resolvable (dot-update.d/minecraft
 # installs the overrides) and PrismMeta's opinion is irrelevant
-if [[ ! -f $HOME/.local/share/PrismLauncher/instances/$instance/patches/net.minecraft.json ]]; then
+if [[ ! -f $instanceDir/patches/net.minecraft.json ]]; then
 
 mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
-	$HOME/.local/share/PrismLauncher/instances/$instance/mmc-pack.json 2>/dev/null)
+	$instanceDir/mmc-pack.json 2>/dev/null)
 
 if [[ -n $mcVersion ]]; then
 	metaStatus=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
