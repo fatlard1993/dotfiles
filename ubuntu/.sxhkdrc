@@ -31,6 +31,14 @@ super + grave
 XF86Search
 	$HOME/.dotfiles/ubuntu/bin/launcher
 
+# The full drun, past whatever front door the profile installed (see
+# ubuntu/bin/launcher's dispatch): the way in at a seat whose launcher is a
+# curated desk. Alt because it is unused everywhere else in this file, and
+# because super+shift+d would sit one slip from the desk's own super+d,
+# which is where small hands already are.
+super + alt + space
+	$HOME/.dotfiles/ubuntu/bin/launcher --full
+
 # Clipboard history (paste something other than the most recent copy)
 super + shift + v
 	rofi -modi "clipboard:greenclip print" -show clipboard -run-command '{cmd}'
