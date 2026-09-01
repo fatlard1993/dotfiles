@@ -211,11 +211,11 @@ if (( ! ${#clientPandorical} )); then
 fi
 
 # The colonies server (turkeyday.modded.fun, Minecraft 1.21.1) runs the
-# MineColonies Official Modpack. Prism installs that pack itself from
-# CurseForge, and a few of its mods block third-party download and want a
-# click in the browser, so the import stays a one-time hand step: Add
-# Instance > CurseForge > "MineColonies Official Modpack", named exactly
-# "minecolonies" so mc-play's --launch finds it.
+# MineColonies Official pack ("official-reforged" on CurseForge, NeoForge).
+# Prism's CurseForge browser installs it whole, no manual mod downloads - but
+# only through the GUI, and that is what keeps this a hand step: Add Instance >
+# CurseForge > "MineColonies Official", named exactly "minecolonies" so
+# mc-play's --launch finds it.
 [[ -d $prismRoot/instances/minecolonies ]] || {
 	echo "  No 'minecolonies' Prism instance yet - import the MineColonies Official"
 	echo "  Modpack from CurseForge in Prism and name the instance 'minecolonies'"
