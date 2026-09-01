@@ -15,3 +15,4 @@ grow https://www.eyezmaze.com/
 sandspiel https://sandspiel.club/
 orbfarm https://orb.farm/
 windmap https://earth.nullschool.net/
+discord https://discord.com/
