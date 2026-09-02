@@ -132,9 +132,16 @@ client_running() {
 	# memory all morning while the folder said pre-1. A java process whose working
 	# directory or open files sit under the instance dir is the hazard itself.
 	#
-	# POSIX sh on stdin, because the remote shells differ (zsh, bash).
-	ssh -n "$1" sh -s -- "$2" <<'REMOTE'
-root=$(readlink -f "$1" 2>/dev/null || echo "$1")
+	# POSIX sh on stdin, because the remote shells differ (zsh, bash). No -n on
+	# this ssh: -n is /dev/null on stdin, which is where the script is.
+	#
+	# A game run by another user (the kid seat, reached over a different login)
+	# keeps its cwd and fd links unreadable, so the command line is the second
+	# signal: Prism passes --gameDir with the instance path, and either the
+	# configured path or its resolved target may be the one on the line.
+	ssh "$1" sh -s -- "$2" <<'REMOTE'
+inst=$1
+root=$(readlink -f "$inst" 2>/dev/null || echo "$inst")
 for dir in /proc/[0-9]*; do
 	[ "$(cat "$dir/comm" 2>/dev/null)" = java ] || continue
 	target=$(readlink "$dir/cwd" 2>/dev/null)
@@ -143,6 +150,8 @@ for dir in /proc/[0-9]*; do
 		target=$(readlink "$fd" 2>/dev/null) || continue
 		case "$target" in "$root"/*) exit 0 ;; esac
 	done
+	line=$(tr '\0' ' ' < "$dir/cmdline" 2>/dev/null)
+	case "$line" in *"$inst"*|*"$root"*) exit 0 ;; esac
 done
 exit 1
 REMOTE
