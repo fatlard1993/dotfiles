@@ -261,6 +261,10 @@ EOF
 
 	if command -v prismlauncher > /dev/null 2>&1; then
 		mkdir -p $instanceDir
+		# No local component patches: Prism publishes the pin, and a patches/
+		# directory left from a version it did not yet carry shadows the published
+		# component permanently. Removed every run so a stale set cannot outlive a bump.
+		rm -rf $instanceDir/patches
 
 		# .minecraft is a link to the game directory the Mojang launcher profile
 		# already points at, not a directory of its own. One mods folder - the one
