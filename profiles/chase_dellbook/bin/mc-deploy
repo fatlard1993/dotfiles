@@ -25,13 +25,6 @@ STAGE="$REMOTE/mods-staged"
 
 mode="${1:-full}"
 
-# The jar this mod currently declares itself to be.
-#
-# Gradle does not clear build/libs, so after a version bump both the old and the
-# new jar sit there and an alphabetical "head -1" picks the older one: the deploy
-# reports success and ships the previous build. Matching the version out of
-# gradle.properties is exact, and also copes with archives_base_name differing
-# from the folder name.
 # The mod a jar belongs to, with the version taken off: "loot-ender-1.1.3.jar"
 # becomes "loot-ender". Anchored on the last hyphen that starts a number, so a
 # version with a word in it still comes apart: "village-castles-0.2.1-alpha.jar"
@@ -41,10 +34,24 @@ stem_of() {
 }
 
 mod_jar() {
-	local version
+	# The jar this mod currently declares itself to be: the archive name its build.gradle
+	# takes from gradle.properties (mod_id for most, archives_base_name for the rest),
+	# joined to the version. Read, not globbed. Gradle never clears build/libs, so a
+	# rename leaves the old jar beside the new one at the same version, and a glob
+	# sorted alphabetically shipped "better-companions-1.0.0.jar" over
+	# "better-companions-justfatlard-1.0.0.jar": the server came back running the old
+	# mod id, and two others it had never been told about were simply gone.
+	local version prop name jar
 	version=$(grep -E '^\s*mod_version' "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
 	[ -z "$version" ] && return 1
-	ls "$1"/build/libs/*-"$version".jar 2>/dev/null | grep -v sources | head -1
+	prop=$(sed -n 's/.*archivesName *= *project\.\([A-Za-z_]*\).*/\1/p' "$1/build.gradle" 2>/dev/null | head -1)
+	name=""
+	[ -n "$prop" ] && name=$(grep -E "^\s*$prop\s*=" "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	# No archivesName line means Gradle's default, the project name, which is the folder.
+	[ -z "$name" ] && name=$(basename "$1")
+	jar="$1/build/libs/$name-$version.jar"
+	[ -f "$jar" ] || return 1
+	echo "$jar"
 }
 
 # The Fabric API jar the suite is pinned to. Nothing shipped this to the server:

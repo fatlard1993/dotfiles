@@ -14,8 +14,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # ~/minecraft-suite as its game dir, and that dir is what clients.txt already
 # ships mods to; Prism joins it for mc-play's straight-to-server launch, with
 # its instance .minecraft linked to the same place rather than a second copy.
-mcVersion=26.3-snapshot-10
-loaderVersion=0.19.3
+mcVersion=26.3-pre-1
+loaderVersion=0.19.5
 gameDir=$HOME/minecraft-suite
 
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
@@ -166,13 +166,12 @@ fi
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
-# Local component overrides (built from Mojang's own data) so Prism never
-# asks meta.prismlauncher.org for the pin - their ingest lags a fresh
-# snapshot by days, and a machine with no cached meta gets a crash dialog
-# instead of a game. Tracked beside the pin; regenerate both when it bumps.
-mkdir -p $instanceDir/patches
-cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
-cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+# No local component patches. Prism publishes this pin at
+# meta.prismlauncher.org, and a patches/ directory left over from a version it
+# did not yet carry shadows the published component permanently: the instance
+# would keep launching the old game against the new pin. Removed every run so a
+# stale set cannot survive a bump.
+rm -rf $instanceDir/patches
 
 # Regenerated every run so the pin keeps tracking the server; instance.cfg is
 # seeded once and then belongs to Prism's settings UI.

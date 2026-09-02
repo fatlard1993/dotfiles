@@ -14,8 +14,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # NOT managed here - they deploy from the suite workspace (build-all.sh,
 # then scp) so nothing ever runs a jar that didn't come out of a green
 # suite build.
-mcVersion=26.3-snapshot-10
-loaderVersion=0.19.3
+mcVersion=26.3-pre-1
+loaderVersion=0.19.5
 installerVersion=1.1.2
 
 mcDir=$HOME/minecraft-server
@@ -128,13 +128,12 @@ mkdir -p $instanceDir/.minecraft/mods
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
-# Local component overrides so Prism never asks meta.prismlauncher.org for
-# the pin - their ingest lags a fresh snapshot by days, and this box's
-# cache still ends at snapshot-9. Shared at minecraft-patches/; regenerate
-# them when the pin bumps.
-mkdir -p $instanceDir/patches
-cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
-cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+# No local component patches. Prism publishes this pin at
+# meta.prismlauncher.org, and a patches/ directory left over from a version it
+# did not yet carry shadows the published component permanently: the instance
+# would keep launching the old game against the new pin. Removed every run so a
+# stale set cannot survive a bump.
+rm -rf $instanceDir/patches
 
 # Regenerated every run - the version pin is this file's business and has
 # to keep tracking the server. instance.cfg below is deliberately the

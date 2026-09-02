@@ -9,8 +9,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # minecraft - a client on a different pin than the house server cannot join it.
 # Mod jars are not managed here either: they arrive over ssh from the dev
 # machine (mc-deploy-client, registered in priv-config/minecraft/clients.txt).
-mcVersion=26.3-snapshot-10
-loaderVersion=0.19.3
+mcVersion=26.3-pre-1
+loaderVersion=0.19.5
 
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 manifest=$(curl -sf $manifestUrl)
@@ -53,13 +53,12 @@ mkdir -p $instanceDir/.minecraft/mods
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
-# Local component overrides so Prism never asks meta.prismlauncher.org for
-# the pin - their ingest lags a fresh snapshot by days and a fresh machine
-# has no cached meta to coast on. Shared at minecraft-patches/; regenerate
-# them when the pin bumps.
-mkdir -p $instanceDir/patches
-cp $dotfilesPath/minecraft-patches/net.minecraft.json $instanceDir/patches/
-cp $dotfilesPath/minecraft-patches/net.fabricmc.intermediary.json $instanceDir/patches/
+# No local component patches. Prism publishes this pin at
+# meta.prismlauncher.org, and a patches/ directory left over from a version it
+# did not yet carry shadows the published component permanently: the instance
+# would keep launching the old game against the new pin. Removed every run so a
+# stale set cannot survive a bump.
+rm -rf $instanceDir/patches
 
 # Regenerated every run so the pin keeps tracking the server; instance.cfg is
 # seeded once and then belongs to Prism's settings UI.
