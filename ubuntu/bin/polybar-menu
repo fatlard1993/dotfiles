@@ -472,29 +472,54 @@ printer)
 		[ "${p[accepting]}" = "false" ] && detail="$detail | refusing new jobs"
 
 		menu_lines=()
-		declare -A job_owner job_id_by_label
+		declare -A job_owner job_id_by_label local_id_by_label
 
+		# Two separate places a job can be stuck, and they need telling apart.
+		# One is held inside the printer; the rest are still queued on this
+		# machine and will be fed to it one at a time, each one wedging it
+		# again. Cancelling only the first looks like it worked until the next
+		# one lands a few seconds later.
 		while IFS='|' read -r jid jstate jowner jname; do
 			[ -z "$jid" ] && continue
-			label=" Cancel job ${jid} - ${jname} (${jowner}, ${jstate})"
+			label=" Cancel job ${jid} held in the printer - ${jname} (${jowner}, ${jstate})"
 			job_id_by_label["$label"]=$jid
 			job_owner["$label"]=$jowner
 			menu_lines+=("$label")
 		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --jobs)
 
-		test_line=" Print test page (direct IPP, bypasses CUPS)"
-		queue_line=" Open the local CUPS queue"
-		refresh_line=" Refresh"
+		local_count=0
+		while IFS='|' read -r lid lowner lsize; do
+			[ -z "$lid" ] && continue
+			local_count=$((local_count + 1))
+			mb=$(awk -v b="$lsize" 'BEGIN { printf "%.1fMB", b/1048576 }')
+			label=" Cancel queued ${lid} (${lowner}, ${mb})"
+			local_id_by_label["$label"]=$lid
+			menu_lines+=("$label")
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --local-jobs)
+
+		cancel_all_line=" Cancel ALL ${local_count} jobs queued on this machine"
+		[ "$local_count" -gt 0 ] && menu_lines+=("$cancel_all_line")
+
+		test_line=" Print test page (direct IPP, bypasses CUPS)"
+		queue_line=" Open the local CUPS queue"
+		refresh_line=" Refresh"
 		menu_lines+=("$test_line" "$queue_line" "$refresh_line")
 
 		choice=$(printf '%s\n' "${menu_lines[@]}" |
-			rofi_menu "${p[model]:-Printer}" "${detail} | ${ink_summary}")
+			rofi_menu "${p[model]:-Printer}" \
+				"${detail} | ${local_count} queued here | ${ink_summary}")
 
 		[ -z "$choice" ] && break
 
 		case "$choice" in
 			"$refresh_line")
-				unset job_owner job_id_by_label
+				unset job_owner job_id_by_label local_id_by_label
+				continue
+				;;
+			"$cancel_all_line")
+				$HOME/.dotfiles/ubuntu/bin/printer-status --cancel-local-all
+				notify-send "Printer" "Cancelled ${local_count} queued jobs"
+				unset job_owner job_id_by_label local_id_by_label
 				continue
 				;;
 			"$queue_line")
@@ -512,11 +537,19 @@ printer)
 				# it - including the retries the originating machine keeps
 				# sending, which is what makes it look like nothing is
 				# happening at all.
+				lid=${local_id_by_label[$choice]}
+				if [ -n "$lid" ]; then
+					$HOME/.dotfiles/ubuntu/bin/printer-status --cancel-local "$lid"
+					notify-send "Printer" "Cancelled queued $lid"
+					unset job_owner job_id_by_label local_id_by_label
+					continue
+				fi
+
 				jid=${job_id_by_label[$choice]}
 				[ -z "$jid" ] && break
 				$HOME/.dotfiles/ubuntu/bin/printer-status --cancel "$jid" "${job_owner[$choice]}"
 				notify-send "Printer" "Cancelled job $jid"
-				unset job_owner job_id_by_label
+				unset job_owner job_id_by_label local_id_by_label
 				continue
 				;;
 		esac

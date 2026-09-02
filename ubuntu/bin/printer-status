@@ -1,5 +1,6 @@
 #!/bin/bash
 # Usage: printer-status [--refresh|--uri|--jobs|--cancel ID USER|--test]
+#                       [--local-jobs|--cancel-local ID|--cancel-local-all]
 # One source of truth for printer state, read off the printer over IPP rather
 # than out of lpstat.
 #
@@ -245,6 +246,26 @@ case "$1" in
 				/job-state \(/ { if (st != "") flush(); st = $NF; next }
 				END { flush() }
 			'
+		;;
+	--local-jobs)
+		# The other half of the picture, and the half that regenerates. A job
+		# is copied into /var/spool/cups the moment the Print-Job POST returns,
+		# so it outlives the application that sent it, the logout, and the
+		# reboot - closing windows never reaches these. ErrorPolicy retry-job
+		# then keeps a failed one cycling instead of letting it die, which is
+		# what makes a fixed backlog read as new jobs arriving.
+		lpstat -o 2>/dev/null | awk '{ print $1 "|" $2 "|" $3 }'
+		;;
+	--cancel-local)
+		[ -z "$2" ] && exit 1
+		cancel "$2" 2>/dev/null
+		;;
+	--cancel-local-all)
+		# No destination argument: cancels every queue on this machine, which
+		# is the point - a household printer can have more than one local queue
+		# pointing at it, and a backlog on the one you did not think of blocks
+		# the printer just as well.
+		cancel -a 2>/dev/null
 		;;
 	--cancel)
 		# A blank job id would still build a well-formed Cancel-Job, and the
