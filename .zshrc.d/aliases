@@ -21,16 +21,58 @@ alias l!="spinner"
 
 alias C="claude"
 
+# Flags are parsed here, not passed to trash: macOS's trash takes none of them.
 safe-rm() {
-  local paths=()
-  for arg in "$@"; do
-    [[ "$arg" != -* ]] && paths+=("$arg")
+  local force= recurse= dir= verbose= rc=0 arg p
+  local -a paths keep contents
+  while (( $# )); do
+    arg=$1; shift
+    case $arg in
+      --) paths+=("$@"); break ;;
+      --force) force=1 ;;
+      --recursive) recurse=1 ;;
+      --dir) dir=1 ;;
+      --verbose) verbose=1 ;;
+      --*) ;;
+      -?*)
+        [[ $arg == *f* ]] && force=1
+        [[ $arg == *[rR]* ]] && recurse=1
+        [[ $arg == *d* ]] && dir=1
+        [[ $arg == *v* ]] && verbose=1
+        ;;
+      *) paths+=("$arg") ;;
+    esac
   done
-  if [[ ${#paths[@]} -eq 0 ]]; then
-    echo "safe-rm: no paths specified" >&2
+  if (( ! ${#paths} )); then
+    [[ -n $force ]] && return 0
+    echo "rm: missing operand" >&2
     return 1
   fi
-  trash "${paths[@]}"
+  for p in "${paths[@]}"; do
+    if [[ ! -e $p && ! -L $p ]]; then
+      [[ -n $force ]] && continue
+      echo "rm: cannot remove '$p': No such file or directory" >&2
+      rc=1
+      continue
+    fi
+    if [[ -d $p && ! -L $p && -z $recurse ]]; then
+      if [[ -z $dir ]]; then
+        echo "rm: cannot remove '$p': Is a directory" >&2
+        rc=1
+        continue
+      fi
+      contents=("$p"/*(DN))
+      if (( ${#contents} )); then
+        echo "rm: cannot remove '$p': Directory not empty" >&2
+        rc=1
+        continue
+      fi
+    fi
+    keep+=("$p")
+  done
+  (( ${#keep} )) || return $rc
+  trash ${verbose:+-v} -- "${keep[@]}" || rc=1
+  return $rc
 }
 
 [[ "$CLAUDECODE" = "1" ]] && NON_INTERACTIVE=1
