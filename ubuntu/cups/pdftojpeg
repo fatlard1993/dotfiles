@@ -1,0 +1,48 @@
+#!/bin/bash
+# CUPS filter: application/pdf -> image/jpeg
+#
+# For printers that advertise image/urf and cannot actually print it. The Canon
+# iX6800 (firmware 2.000) publishes both image/urf in document-format-supported
+# and a full urf-supported capability list, then halts with other-error on any
+# URF it is sent - including URF handed to it raw over IPP with no CUPS in the
+# path at all. It also halts on PDF. JPEG is the only format it really prints,
+# verified at 68KB and 4.7MB, with and without a full set of job attributes.
+#
+# CUPS renders everything to PDF on the way to a printer, so bridging PDF to
+# JPEG here catches every application. Photos exported straight to JPEG skip
+# this filter entirely via the passthrough rule in the PPD, which keeps them at
+# their original quality.
+#
+# ONE PAGE PER JOB. A job carries a single document and JPEG holds a single
+# image, so page 1 is what prints. That fits what this printer is used for
+# (photos out of GIMP and Chrome) and it is why the page count is announced
+# back to the job rather than silently dropped.
+#
+# argv: job-id user title copies options [filename]
+
+set -o pipefail
+
+input=${6:-}
+if [ -z "$input" ]; then
+	input=$(mktemp /tmp/pdftojpeg.XXXXXX)
+	trap 'rm -f "$input"' EXIT
+	cat > "$input"
+fi
+
+pages=$(gs -q -dNODISPLAY -dNOSAFER -c "($input) (r) file runpdfbegin pdfpagecount = quit" 2>/dev/null)
+if [ -n "$pages" ] && [ "$pages" -gt 1 ] 2>/dev/null; then
+	echo "WARNING: this printer takes one page per job; printing page 1 of $pages" >&2
+fi
+
+# 300dpi, not the 600 the PPD nominally offers: a 600dpi letter page is
+# 5100x6600 and buys nothing on a photo printer that halftones anyway, while
+# doubling what has to cross the wire on every print.
+gs -q -dNOPAUSE -dBATCH -dSAFER \
+	-sDEVICE=jpeg -dJPEGQ=92 -r300 \
+	-dFirstPage=1 -dLastPage=1 \
+	-sOutputFile=- \
+	"$input" 2>/dev/null
+
+status=$?
+[ "$status" -ne 0 ] && echo "ERROR: ghostscript failed to render the page as JPEG" >&2
+exit "$status"

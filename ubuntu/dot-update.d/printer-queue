@@ -1,0 +1,84 @@
+#!/bin/zsh
+
+# A working queue for the house Canon iX6800, which cannot be driven the
+# ordinary way.
+#
+# The printer advertises image/urf in document-format-supported and publishes a
+# full urf-supported list (V1.3,CP1,PQ4-5,RS600,SRGB24,W8,OB9,OFU0,IS1), and
+# then halts with other-error on any URF it receives - including URF handed to
+# it raw over IPP with no CUPS in the path at all. It halts on PDF the same
+# way. JPEG is the only format it actually prints; that held at 68KB and at
+# 4.7MB, with and without a full set of job attributes. The advertisement is a
+# firmware lie (2.000, 2014), so this is worked around rather than fixed.
+#
+# What cups-browsed builds on its own is worse than nothing here: lpadmin -m
+# everywhere refuses this printer outright ("does not support required IPP
+# attributes or document formats", because IPP Everywhere wants pwg-raster),
+# so cups-browsed falls back to a generic PPD that emits application/pdf. Every
+# machine in the house had a byte-identical broken PPD and none of them could
+# print. That queue also churned - cups-browsed deleted and recreated it four
+# times in twelve minutes while the printer sat in an error state - so it is
+# taken out of the path rather than left to compete with this one.
+
+command -v ippfind > /dev/null || return
+command -v driverless > /dev/null || return
+
+printerUri=$(ippfind -T 4 _ipp._tcp -p 2>/dev/null | head -1)
+
+[[ -z "$printerUri" ]] && return
+
+echo "Setting up the printer queue ($printerUri)"
+
+# The filter shells out to gs. Installed here rather than trusted to the
+# aptfile because the profile's 1_apt sorts after the whole ubuntu chain, so on
+# a cold machine this hook runs before anything has been installed.
+command -v gs > /dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt install -y ghostscript
+
+# Root-owned copy, not the usual symlink into the repo: cupsd refuses to run a
+# filter it does not like the permissions of ("has insecure permissions
+# (0100775/uid=1000/gid=1000)"), and a link to a file in $HOME is exactly that.
+# The job stops in the local queue and never reaches the printer.
+sudo install -o root -g root -m 755 "$ubuntuPath/cups/pdftojpeg" /usr/lib/cups/filter/pdftojpeg
+
+ppd=$(mktemp)
+
+# driverless builds the PPD from the printer's live attributes, which is the
+# only source that gets the paper sizes and margins right for this model.
+if ! driverless cat "driverless:$printerUri" 2>/dev/null > "$ppd" || [[ ! -s "$ppd" ]]; then
+	echo "Could not generate a PPD for $printerUri - leaving the existing queue alone"
+	rm -f "$ppd"
+
+	return
+fi
+
+# Drop every filter driverless offers and state the two that work. The urf line
+# has to go, not just be outranked: leave it in and CUPS prefers it, and the
+# printer wedges on every job. The jpeg passthrough keeps a photo exported
+# straight to JPEG at its original quality instead of round-tripping it.
+grep -av '^\*cupsFilter2:' "$ppd" > "$ppd.jpeg"
+echo '*cupsFilter2: "image/jpeg image/jpeg 0 -"' >> "$ppd.jpeg"
+echo '*cupsFilter2: "application/pdf image/jpeg 100 pdftojpeg"' >> "$ppd.jpeg"
+
+sudo lpadmin -p Canon_iX6800 -E -v "$printerUri" -P "$ppd.jpeg" 2>&1 | grep -v deprecated
+lpoptions -d Canon_iX6800 > /dev/null
+
+rm -f "$ppd" "$ppd.jpeg"
+
+# cups-browsed's implicitclass queue for the same printer prints nothing and is
+# still selectable in every print dialog, so a wrong pick puts someone back in
+# the hole. Nothing else on these machines needs cups-browsed - this queue
+# points straight at the printer's own mDNS name, which is derived from its MAC
+# and so survives DHCP.
+if systemctl is-enabled cups-browsed > /dev/null 2>&1; then
+	echo "Disabling cups-browsed (its queue for this printer emits PDF and cannot print)"
+
+	sudo systemctl disable --now cups-browsed
+fi
+
+# Matched against lpstat -v, which lists configured destinations. lpstat -p
+# exits 0 for a printer that does not exist, so guarding on it is a guard that
+# always passes - the removal then ran on an already-removed queue and printed
+# "The printer or class does not exist" on every run after the first.
+if lpstat -v 2>/dev/null | grep -q '^device for Canon_iX6800_series:'; then
+	sudo lpadmin -x Canon_iX6800_series
+fi

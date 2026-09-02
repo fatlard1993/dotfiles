@@ -32,6 +32,11 @@ package "plocate"
 # any machine that happened not to pull them in.
 package "cups-ipp-utils"
 
+# The pdftojpeg CUPS filter (ubuntu/cups/pdftojpeg) shells out to gs. Present
+# on a desktop install as someone else's dependency, which is exactly how
+# python3-pil below went missing on the machines that needed it.
+package "ghostscript"
+
 package "xinit"
 package "xserver-xorg"
 package "pasystray"
