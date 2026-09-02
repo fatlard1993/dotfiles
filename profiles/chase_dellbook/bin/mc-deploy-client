@@ -124,17 +124,28 @@ jar_for() {
 
 # client_running HOST INSTANCE
 client_running() {
-	# Matching on the instance path alone is not enough: pgrep -f reads whole
-	# command lines, and the ssh wrapper carrying the pattern is itself a command
-	# line containing the pattern. The check matched itself and therefore always
-	# said yes, so --swap refused forever and looked like it was working.
+	# Asked of the filesystem, the way local_running asks. The command-line match
+	# this used to make could not see a Prism launch: Prism runs the game through
+	# its own instance directory and never puts the configured game dir on the
+	# command line, so the guard said "clear" while a game was open, and the swap
+	# went in under it - a snapshot-10 client on the thickpad kept its old jars in
+	# memory all morning while the folder said pre-1. A java process whose working
+	# directory or open files sit under the instance dir is the hazard itself.
 	#
-	# Filtering to processes actually named java is what separates the game from
-	# whoever is asking about it.
-	#
-	# The pattern is the instance directory this client was configured with, so a
-	# machine running some other Minecraft is not mistaken for this one.
-	ssh -n "$1" "pgrep -lf '$2' 2>/dev/null | awk '\$2 == \"java\"' | grep -q ."
+	# POSIX sh on stdin, because the remote shells differ (zsh, bash).
+	ssh -n "$1" sh -s -- "$2" <<'REMOTE'
+root=$(readlink -f "$1" 2>/dev/null || echo "$1")
+for dir in /proc/[0-9]*; do
+	[ "$(cat "$dir/comm" 2>/dev/null)" = java ] || continue
+	target=$(readlink "$dir/cwd" 2>/dev/null)
+	case "$target" in "$root"|"$root"/*) exit 0 ;; esac
+	for fd in "$dir"/fd/*; do
+		target=$(readlink "$fd" 2>/dev/null) || continue
+		case "$target" in "$root"/*) exit 0 ;; esac
+	done
+done
+exit 1
+REMOTE
 }
 
 # Set by local_running so the refusal can name the process rather than the guess.
