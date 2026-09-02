@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: polybar-menu cpu|temp|ram|disk|battery|volume|network|bluetooth|datetime|wallpaper|brightness|clipboard
+# Usage: polybar-menu cpu|temp|ram|disk|battery|volume|network|bluetooth|printer|datetime|wallpaper|brightness|clipboard
 # Right-click handler for polybar's icon-only modules - shows detail and
 # lets you act on it via rofi, since the bar itself only has room for an icon.
 # (right-click, not left: polybar's internal pulseaudio module owns left-click
@@ -442,6 +442,83 @@ bluetooth)
 			fi
 			continue
 			;;
+		esac
+	done
+	;;
+printer)
+	while true; do
+		# Cleared each pass, not just topped up: a key that stops being
+		# reported (model and ink both vanish when the printer drops offline)
+		# would otherwise keep showing its value from the previous loop.
+		unset p
+		declare -A p
+		while IFS='=' read -r key value; do
+			p[$key]=$value
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --refresh)
+
+		if [ "${p[state]}" = "none" ]; then
+			notify-send "Printer" "No IPP printer found on this network"
+			break
+		fi
+
+		# Ink reads as "Magenta 100  Yellow 0" rather than a bare percent list -
+		# which tank is empty is the whole question, and this printer halts on
+		# any empty tank even for a page that needs no colour from it.
+		ink_summary=$(tr ',' '\n' <<<"${p[ink]}" |
+			awk -F: 'NF==2 { printf "%s %s  ", $1, $2 }')
+
+		detail="${p[state]}"
+		[ "${p[reasons]}" != "none" ] && detail="$detail (${p[reasons]})"
+		[ "${p[accepting]}" = "false" ] && detail="$detail | refusing new jobs"
+
+		menu_lines=()
+		declare -A job_owner job_id_by_label
+
+		while IFS='|' read -r jid jstate jowner jname; do
+			[ -z "$jid" ] && continue
+			label=" Cancel job ${jid} - ${jname} (${jowner}, ${jstate})"
+			job_id_by_label["$label"]=$jid
+			job_owner["$label"]=$jowner
+			menu_lines+=("$label")
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --jobs)
+
+		test_line=" Print test page (direct IPP, bypasses CUPS)"
+		queue_line=" Open the local CUPS queue"
+		refresh_line=" Refresh"
+		menu_lines+=("$test_line" "$queue_line" "$refresh_line")
+
+		choice=$(printf '%s\n' "${menu_lines[@]}" |
+			rofi_menu "${p[model]:-Printer}" "${detail} | ${ink_summary}")
+
+		[ -z "$choice" ] && break
+
+		case "$choice" in
+			"$refresh_line")
+				unset job_owner job_id_by_label
+				continue
+				;;
+			"$queue_line")
+				xdg-open "http://localhost:631/printers/" >/dev/null 2>&1 &
+				break
+				;;
+			"$test_line")
+				notify-send "Printer" "Sending a test page straight to the printer"
+				$HOME/.dotfiles/ubuntu/bin/printer-status --test
+				break
+				;;
+			*)
+				# Cancel is the one that matters: a job the printer cannot
+				# render wedges its spool, and it then refuses every job behind
+				# it - including the retries the originating machine keeps
+				# sending, which is what makes it look like nothing is
+				# happening at all.
+				jid=${job_id_by_label[$choice]}
+				[ -z "$jid" ] && break
+				$HOME/.dotfiles/ubuntu/bin/printer-status --cancel "$jid" "${job_owner[$choice]}"
+				notify-send "Printer" "Cancelled job $jid"
+				unset job_owner job_id_by_label
+				continue
+				;;
 		esac
 	done
 	;;

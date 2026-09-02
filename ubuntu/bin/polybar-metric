@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|volume|wallpaper|brightness|clipboard|caffeine|power
+# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|printer|volume|wallpaper|brightness|clipboard|caffeine|power
 # Outputs a polybar-formatted icon with threshold coloring (and, where it
 # makes sense, a contextual icon swap at the critical threshold). Detail
 # lives in the rofi menu (ubuntu/bin/polybar-menu), the bar itself stays
@@ -196,6 +196,31 @@ case "$metric" in
 			render "󰂰" "#b5bd68" T1
 		else
 			render "󰂯" "#de935f" T1
+		fi
+		;;
+	printer)
+		# One glyph, colour carries the state. The usual contextual swap is
+		# skipped here on purpose: the printer glyphs live in the md block at
+		# tier T1 while this one is fa at the default tier, and mixing the two
+		# makes the icon change size as the printer changes state.
+		declare -A p
+		while IFS='=' read -r key value; do
+			p[$key]=$value
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status)
+
+		# No printer has ever been found from this machine, so render nothing
+		# at all - this module ships in the default list and the machines
+		# without a printer stack should not carry a dead icon for it.
+		[ "${p[state]}" = "none" ] && exit 0
+
+		if [ "${p[state]}" = "offline" ]; then
+			render "" "#373b41"
+		elif [ "${p[state]}" = "stopped" ] || [ "${p[accepting]}" = "false" ]; then
+			render "" "#cc6666"
+		elif [ -n "${p[inklow]}" ]; then
+			render "" "#de935f"
+		else
+			render "" "#b5bd68"
 		fi
 		;;
 	battery)

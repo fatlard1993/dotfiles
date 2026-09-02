@@ -26,6 +26,12 @@ package "python3-setuptools"
 package "libusb-1.0-0-dev"
 package "plocate"
 
+# ipptool and ippfind, which bin/printer-status talks to the printer with.
+# Same trap as python3-pil below: they were only ever here as something else's
+# dependency, so the bar module would have silently reported "no printer" on
+# any machine that happened not to pull them in.
+package "cups-ipp-utils"
+
 package "xinit"
 package "xserver-xorg"
 package "pasystray"

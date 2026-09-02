@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Printer Menu
+Comment=Printer state, ink levels, held jobs
+Exec=polybar-menu printer
+Icon=printer
+Terminal=false
+Categories=System;
