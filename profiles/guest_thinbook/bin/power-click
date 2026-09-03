@@ -1,0 +1,5 @@
+#!/bin/zsh
+# The bar's power button and the physical power key both open the glyph
+# power menu (all of this machine's menus live on plain left-click).
+
+exec $HOME/.dotfiles/profiles/guest_thinbook/bin/polybar-menu-power

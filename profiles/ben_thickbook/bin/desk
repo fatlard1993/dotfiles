@@ -8,9 +8,20 @@ deskDir=$HOME/.dotfiles/profiles/ben_thickbook/applications
 
 field() { sed -n "s/^$1=//p" "$2" | head -1 }
 
+# The fetched desk icons go to rofi as absolute paths, not theme names:
+# name lookup needs an icon-theme index the user dir doesn't have on a
+# fresh machine (and rofi 1.7.1's lookup is pickier still). System icons
+# keep their names and resolve through the theme as usual.
+icon() {
+	local name=$(field Icon $1)
+	local fetched=$HOME/.local/share/icons/hicolor/256x256/apps/$name.png
+
+	[[ -s $fetched ]] && print -r -- "$fetched" || print -r -- "$name"
+}
+
 if [[ -z $1 ]]; then
 	for file in $deskDir/desk-*.desktop(N); do
-		printf '%s\0icon\x1f%s\n' "$(field Name $file)" "$(field Icon $file)"
+		printf '%s\0icon\x1f%s\n' "$(field Name $file)" "$(icon $file)"
 	done
 	exit 0
 fi

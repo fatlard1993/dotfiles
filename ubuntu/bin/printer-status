@@ -1,0 +1,313 @@
+#!/bin/bash
+# Usage: printer-status [--refresh|--uri|--jobs|--cancel ID USER|--test]
+#                       [--local-jobs|--cancel-local ID|--cancel-local-all]
+# One source of truth for printer state, read off the printer over IPP rather
+# than out of lpstat.
+#
+# lpstat only knows what the local queue believes. On 2026-09-01 it reported
+# "idle, enabled, accepting requests, no jobs" for a solid hour while the Canon
+# stood physically stopped with two empty tanks and a job wedged in its own
+# spool - every fault that actually stops paper coming out was invisible from
+# the client side, because the client had already handed the job off and
+# considered itself done. The printer knows all of it. Ask the printer.
+#
+# Default output is key=value lines: uri model state reasons accepting jobs
+# ink inklow. Network reads are cached with a TTL so polybar's poll never
+# blocks on a printer that has gone to sleep.
+
+cache_dir="$HOME/.dotfiles/temp"
+uri_file="$cache_dir/.printer-uri"
+state_file="$cache_dir/.printer-state"
+test_dir="$cache_dir/.printer-ipp"
+ttl=30
+
+mkdir -p "$cache_dir" "$test_dir"
+
+# ipptool wants its request on disk, so the three we send live here rather
+# than being rewritten on every poll.
+write_requests() {
+	[ -f "$test_dir/status.test" ] && return
+
+	cat > "$test_dir/status.test" <<-'EOF'
+		{
+		    OPERATION Get-Printer-Attributes
+		    GROUP operation-attributes-tag
+		    ATTR charset attributes-charset utf-8
+		    ATTR language attributes-natural-language en
+		    ATTR uri printer-uri $uri
+		    ATTR name requesting-user-name $user
+		    ATTR keyword requested-attributes all
+		    STATUS successful-ok
+		    DISPLAY printer-state
+		    DISPLAY printer-state-reasons
+		    DISPLAY printer-is-accepting-jobs
+		    DISPLAY printer-make-and-model
+		    DISPLAY queued-job-count
+		    DISPLAY marker-names
+		    DISPLAY marker-levels
+		    DISPLAY marker-low-levels
+		}
+	EOF
+
+	cat > "$test_dir/jobs.test" <<-'EOF'
+		{
+		    OPERATION Get-Jobs
+		    GROUP operation-attributes-tag
+		    ATTR charset attributes-charset utf-8
+		    ATTR language attributes-natural-language en
+		    ATTR uri printer-uri $uri
+		    ATTR name requesting-user-name $user
+		    ATTR keyword which-jobs not-completed
+		    ATTR keyword requested-attributes all
+		    STATUS successful-ok
+		    DISPLAY job-id
+		    DISPLAY job-state
+		    DISPLAY job-name
+		    DISPLAY job-originating-user-name
+		}
+	EOF
+
+	cat > "$test_dir/cancel.test" <<-'EOF'
+		{
+		    OPERATION Cancel-Job
+		    GROUP operation-attributes-tag
+		    ATTR charset attributes-charset utf-8
+		    ATTR language attributes-natural-language en
+		    ATTR uri printer-uri $uri
+		    ATTR integer job-id $jobid
+		    ATTR name requesting-user-name $owner
+		}
+	EOF
+
+	cat > "$test_dir/print.test" <<-'EOF'
+		{
+		    OPERATION Print-Job
+		    GROUP operation-attributes-tag
+		    ATTR charset attributes-charset utf-8
+		    ATTR language attributes-natural-language en
+		    ATTR uri printer-uri $uri
+		    ATTR name requesting-user-name $user
+		    ATTR name job-name "printer-status test page"
+		    ATTR mimeMediaType document-format image/jpeg
+		    FILE $testpage
+		    STATUS successful-ok
+		}
+	EOF
+}
+
+# The printer's mDNS hostname is derived from its MAC (357D5A000000.local on
+# the Canon here), so there is nothing stable enough to hardcode, and DHCP
+# makes the address no safer. Discover it, then remember it - a hit costs a
+# multicast round trip, and re-discovering on every 5s bar poll is absurd.
+discover_uri() {
+	local uri
+	uri=$(ippfind -T 4 _ipp._tcp -p 2>/dev/null | head -1)
+	[ -z "$uri" ] && return 1
+
+	echo "$uri" > "$uri_file"
+	echo "$uri"
+}
+
+# Trusted without probing: validating here would cost a round trip on top of
+# the one the caller is about to make anyway. The caller retries through
+# discover_uri when a remembered address stops answering, which is the only
+# case where validation would have told us anything.
+#
+# A failed discovery deliberately leaves the remembered URI in place. "We have
+# a printer and it is unreachable" and "this machine has no printer" want
+# different glyphs, and the remembered URI is what separates them.
+resolve_uri() {
+	local uri
+	uri=$(cat "$uri_file" 2>/dev/null)
+
+	if [ -n "$uri" ]; then
+		echo "$uri"
+		return 0
+	fi
+
+	discover_uri
+}
+
+field() {
+	sed -n "s/^ *$1 ([^)]*) = //p" <<<"$2" | head -1
+}
+
+refresh() {
+	local uri raw state reasons accepting model jobs names levels lows ink low_list
+	uri=$(resolve_uri)
+
+	if [ -z "$uri" ]; then
+		if [ -s "$uri_file" ]; then
+			printf 'uri=%s\nstate=offline\n' "$(cat "$uri_file")" > "$state_file"
+		else
+			printf 'state=none\n' > "$state_file"
+		fi
+		cat "$state_file"
+		return
+	fi
+
+	raw=$(ipptool -T 4 -t "$uri" "$test_dir/status.test" 2>/dev/null)
+
+	# A remembered address that stops answering is usually DHCP moving the
+	# printer, not the printer being off. Rediscover once before calling it.
+	if ! grep -q 'printer-state (' <<<"$raw"; then
+		uri=$(discover_uri) &&
+			raw=$(ipptool -T 4 -t "$uri" "$test_dir/status.test" 2>/dev/null)
+	fi
+
+	if ! grep -q 'printer-state (' <<<"$raw"; then
+		printf 'uri=%s\nstate=offline\n' "$(cat "$uri_file" 2>/dev/null)" > "$state_file"
+		cat "$state_file"
+		return
+	fi
+
+	state=$(field printer-state "$raw")
+	reasons=$(field printer-state-reasons "$raw")
+	accepting=$(field printer-is-accepting-jobs "$raw")
+	model=$(field printer-make-and-model "$raw")
+	jobs=$(field queued-job-count "$raw")
+	names=$(field marker-names "$raw")
+	levels=$(field marker-levels "$raw")
+	lows=$(field marker-low-levels "$raw")
+
+	# marker-* are positional parallel arrays: names[i] is at levels[i] and is
+	# low below lows[i]. The Canon reports a hard 0 on an empty tank and halts
+	# outright on one, even for a page that needs no colour at all.
+	#
+	# A negative level is RFC 8011's "level unknown", not an empty tank. Testing
+	# it against the threshold would score every such printer as permanently
+	# low and paint the bar orange forever, so it reports as "?" and is left
+	# out of the low list.
+	ink=""
+	low_list=""
+	if [ -n "$names" ]; then
+		local -a n_arr l_arr t_arr
+		IFS=, read -ra n_arr <<<"$names"
+		IFS=, read -ra l_arr <<<"$levels"
+		IFS=, read -ra t_arr <<<"$lows"
+
+		local i lvl thr
+		for i in "${!n_arr[@]}"; do
+			lvl=${l_arr[i]}
+			thr=${t_arr[i]}
+			[[ "$thr" =~ ^[0-9]+$ ]] || thr=15
+
+			if [[ ! "$lvl" =~ ^[0-9]+$ ]]; then
+				ink+="${n_arr[i]}:?,"
+				continue
+			fi
+
+			ink+="${n_arr[i]}:${lvl},"
+			[ "$lvl" -le "$thr" ] && low_list+="${n_arr[i]},"
+		done
+	fi
+
+	{
+		printf 'uri=%s\n' "$uri"
+		printf 'model=%s\n' "$model"
+		printf 'state=%s\n' "${state:-unknown}"
+		printf 'reasons=%s\n' "${reasons:-none}"
+		printf 'accepting=%s\n' "${accepting:-unknown}"
+		printf 'jobs=%s\n' "${jobs:-0}"
+		printf 'ink=%s\n' "${ink%,}"
+		printf 'inklow=%s\n' "${low_list%,}"
+	} > "$state_file"
+
+	cat "$state_file"
+}
+
+write_requests
+
+case "$1" in
+	--refresh)
+		refresh
+		;;
+	--uri)
+		resolve_uri
+		;;
+	--jobs)
+		# Always fresh: a job list is only ever read when someone has the menu
+		# open and is about to act on it.
+		uri=$(resolve_uri) || exit 1
+		# ipptool emits attributes in whatever order the printer returns them
+		# (this Canon answers user, name, id, state) and puts nothing between
+		# one job and the next, so a record ends where a key repeats.
+		ipptool -T 4 -t "$uri" "$test_dir/jobs.test" 2>/dev/null |
+			awk '
+				function flush() {
+					if (id != "") print id "|" st "|" own "|" nm
+					id = ""; st = ""; own = ""; nm = ""
+				}
+				/job-originating-user-name \(/ { if (own != "") flush(); own = $NF; next }
+				# ipptool backslash-escapes brackets in values, and "\[Untitled]"
+				# in a menu reads as a bug in the menu
+				/job-name \(/  { if (nm != "") flush(); $1=$2=$3=""; sub(/^ +/,""); gsub(/\\/,""); nm = $0; next }
+				/job-id \(/    { if (id != "") flush(); id = $NF; next }
+				/job-state \(/ { if (st != "") flush(); st = $NF; next }
+				END { flush() }
+			'
+		;;
+	--local-jobs)
+		# The other half of the picture, and the half that regenerates. A job
+		# is copied into /var/spool/cups the moment the Print-Job POST returns,
+		# so it outlives the application that sent it, the logout, and the
+		# reboot - closing windows never reaches these. ErrorPolicy retry-job
+		# then keeps a failed one cycling instead of letting it die, which is
+		# what makes a fixed backlog read as new jobs arriving.
+		lpstat -o 2>/dev/null | awk '{ print $1 "|" $2 "|" $3 }'
+		;;
+	--cancel-local)
+		[ -z "$2" ] && exit 1
+		cancel "$2" 2>/dev/null
+		;;
+	--cancel-local-all)
+		# No destination argument: cancels every queue on this machine, which
+		# is the point - a household printer can have more than one local queue
+		# pointing at it, and a backlog on the one you did not think of blocks
+		# the printer just as well.
+		cancel -a 2>/dev/null
+		;;
+	--cancel)
+		# A blank job id would still build a well-formed Cancel-Job, and the
+		# printer answers those with successful-ok while cancelling nothing.
+		[ -z "$2" ] && exit 1
+		uri=$(resolve_uri) || exit 1
+		ipptool -T 4 -d jobid="$2" -d owner="${3:-$USER}" "$uri" "$test_dir/cancel.test" >/dev/null 2>&1
+		;;
+	--test)
+		# Direct IPP, deliberately bypassing CUPS. This printer advertises only
+		# image/jpeg, image/urf and application/octet-stream - no PDF, no
+		# pwg-raster - so a client queue that negotiated the wrong raster format
+		# has its jobs accepted and then silently dropped. When the bar says the
+		# printer is fine and printing still fails, this splits the two apart:
+		# a page here means the fault is the queue, not the hardware.
+		uri=$(resolve_uri) || exit 1
+		page="$cache_dir/.printer-testpage.jpg"
+		magick -size 1275x1650 xc:white \
+			-fill black -gravity north -pointsize 64 -annotate +0+220 'PRINTER TEST' \
+			-pointsize 34 -annotate +0+340 "direct IPP from $(hostname), format image/jpeg" \
+			-annotate +0+400 "$(date '+%Y-%m-%d %H:%M:%S')" \
+			-fill '#D945DD' -draw 'rectangle 200,620 480,820' \
+			-fill '#DFD31D' -draw 'rectangle 520,620 800,820' \
+			-fill '#39D2E7' -draw 'rectangle 840,620 1075,820' \
+			-fill black -pointsize 30 -annotate +0+880 'colour blocks confirm the non-black tanks' \
+			"$page" 2>/dev/null
+
+		# Without this an ImageMagick failure sends the printer a Print-Job
+		# naming a file that does not exist, and the resulting empty job is
+		# exactly the wedge this whole tool exists to diagnose.
+		[ -s "$page" ] || exit 1
+
+		ipptool -T 10 -d testpage="$page" "$uri" "$test_dir/print.test" >/dev/null 2>&1
+		;;
+	*)
+		# Serve the cache while it is warm; the bar polls far faster than a
+		# printer's state actually moves.
+		if [ -f "$state_file" ] &&
+			[ "$(( $(date +%s) - $(stat -c %Y "$state_file") ))" -lt "$ttl" ]; then
+			cat "$state_file"
+		else
+			refresh
+		fi
+		;;
+esac

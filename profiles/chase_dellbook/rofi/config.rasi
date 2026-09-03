@@ -1,0 +1,11 @@
+// The shared config's 192 was tuned on this panel, but the whole machine
+// runs one notch (x1.125) above baseline now - see dot-update.d/ui-scale
+// for the set this value belongs to. Linked over the ubuntu-layer link by
+// dot-update.d/rofi. This machine's rofi (2.0.0) merges this second
+// configuration block; only jammy's 1.7.1 ignored it (ben_thickbook's
+// copy of this file carries that scar).
+@import "~/.dotfiles/ubuntu/rofi/config.rasi"
+
+configuration {
+	dpi: 216;
+}

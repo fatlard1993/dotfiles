@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Bloons TD
+Icon=desk-bloons
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/bloons.html
+Terminal=false
+Categories=Desk;

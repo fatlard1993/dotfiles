@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Game Night
-Icon=desk-gamenight
-Exec=google-chrome --app=http://games.home/
-Terminal=false
-Categories=Desk;

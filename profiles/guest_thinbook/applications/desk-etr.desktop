@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Tux Racer
+Icon=etr
+Exec=etr
+Terminal=false
+Categories=Desk;

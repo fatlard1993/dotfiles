@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=MineColonies
+Name=Colonies
 Icon=desk-minecolonies
-Exec=/home/chase/.dotfiles/profiles/ben_thickbook/bin/mc-play minecolonies
+Exec=$HOME/.dotfiles/profiles/ben_thickbook/bin/mc-play minecolonies
 Terminal=false
 Categories=Desk;

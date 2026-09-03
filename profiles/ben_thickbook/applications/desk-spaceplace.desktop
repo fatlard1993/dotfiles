@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Space Place
+Icon=desk-spaceplace
+Exec=google-chrome --app=https://spaceplace.nasa.gov/
+Terminal=false
+Categories=Desk;

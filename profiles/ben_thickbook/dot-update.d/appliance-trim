@@ -1,0 +1,31 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# An appliance runs what the kid uses and nothing else. Everything here
+# was measured running on the machine while serving nobody: the printer
+# stack (no printer), samba (nothing mounts from a kid's laptop), avahi
+# (dnsmasq owns .home, minecraft LAN discovery is its own broadcast),
+# rsyslog (journald already keeps the log), and udisks2 (no thumb drives
+# in this machine's life). Bluetooth deliberately stays - headphones.
+echo "Trimming appliance services"
+
+for svc in cups cups-browsed smbd nmbd avahi-daemon rsyslog networkd-dispatcher sysstat; do
+	sudo systemctl disable --now $svc > /dev/null 2>&1
+done
+
+# masked, not just disabled: these are dbus-activated and resurrect on
+# demand otherwise (udisks2 came back on the thinbook within an hour)
+for svc in udisks2 colord; do
+	sudo systemctl mask --now $svc > /dev/null 2>&1
+done
+
+# touchegg rode in with the profile's first draft; a kid clicks and
+# scrolls, and the daemon + client watched every touch for gestures
+# nobody makes. The install step and client launcher are gone from the
+# profile; this cleans machines that already have it.
+dpkg -l touchegg 2>/dev/null | grep -q "^ii" && {
+	echo "Purging touchegg"
+	sudo systemctl disable --now touchegg > /dev/null 2>&1
+	sudo DEBIAN_FRONTEND=noninteractive apt purge -y touchegg > /dev/null 2>&1
+}

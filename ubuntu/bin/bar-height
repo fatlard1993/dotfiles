@@ -28,6 +28,16 @@ if [ -n "$mon" ] && [ "$mon" != "eDP-1" ]; then
 	fi
 fi
 
+# The eDP-1 hardcode above is the dellbook's panel (GTK 2x scaling skews
+# its true DPI); any other laptop's eDP-1 inherits it wrongly. A profile
+# can pin its panel's real DPI in .bar-dpi (the thinbook's 1080p/14" is
+# 157) and the height re-derives from it.
+dpiFile="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/.bar-dpi"
+if [ -f "$dpiFile" ]; then
+	dpi=$(cat "$dpiFile")
+	height=$((35 * dpi / 192))
+fi
+
 # True physical DPI assumes desk viewing distance; a TV is meters away, so
 # the same math renders a couch-invisible bar (htpc's 32" 4K measures 137
 # DPI -> a 24px bar on 2160 lines). A profile can ship a .bar-scale
@@ -36,8 +46,11 @@ fi
 scaleFile="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/.bar-scale"
 if [ -f "$scaleFile" ]; then
 	scale=$(cat "$scaleFile")
-	dpi=$((dpi * scale))
-	height=$((height * scale))
+	# awk, not $((...)): the scale may be fractional - ben_thickbook's 2
+	# clipped the bar's own text (12pt at doubled dpi outgrew the doubled
+	# height), 1.5 keeps the dellbook's proven text-to-bar ratio
+	dpi=$(awk -v n="$dpi" -v s="$scale" 'BEGIN{printf "%d", n*s}')
+	height=$(awk -v n="$height" -v s="$scale" 'BEGIN{printf "%d", n*s}')
 fi
 
 echo "$dpi $height"

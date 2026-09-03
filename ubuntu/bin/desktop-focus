@@ -1,0 +1,16 @@
+#!/bin/bash
+# Focus a desktop by name, creating it on the primary monitor first when it
+# doesn't exist yet: a machine with a small default pool (see
+# bspwm-desktop-pools and profiles/*/.desktop-pool) opens more as it goes
+# from the same super+N keys. On a machine whose pool already holds every N
+# the create branch never fires.
+
+d=$1
+
+if ! bspc query -D -d "$d" >/dev/null 2>&1; then
+	mon=$(bspc query -M --names -m primary 2>/dev/null | head -1)
+	[ -z "$mon" ] && mon=$(bspc query -M --names | head -1)
+	bspc monitor "$mon" -a "$d"
+fi
+
+bspc desktop -f "$d"

@@ -87,7 +87,12 @@ bspc config pointer_modifier      mod4
 bspc config pointer_action1       move
 bspc config pointer_action3       resize_corner
 
-bspc rule -a Gimp state=floating follow=on
+# No Gimp rule here on purpose. It used to be forced floating, which GIMP 2's
+# multi-window mode needed - a toolbox and two docks as separate windows tile
+# horribly. GIMP 3 is single-window by default ((single-window-mode yes) in its
+# sessionrc), so the main window is an ordinary one and belongs in the tiling.
+# Its dialogs still float on their own: bspwm floats
+# _NET_WM_WINDOW_TYPE_DIALOG without being told to.
 
 # Quake-style dropdown terminal (see ubuntu/bin/terminal-smart) - floats and
 # stays put across desktop switches so the hidden-flag toggle in

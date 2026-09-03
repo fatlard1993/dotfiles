@@ -21,6 +21,20 @@ bspc wm -g >/dev/null 2>&1 || exit 0
 main_pool=(1 2 3 4 5 6 7 8 9)
 f_pool=(F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12)
 
+# A machine can shrink the default pool: profiles/<name>/.desktop-pool holds
+# the count (ben_thickbook ships 4 - a kid's bar wants four, not nine).
+# bin/desktop-focus grows past the pool on demand from the same super+N
+# keys; on-demand desktops last until the session ends. Same profile-file
+# pattern as .bar-scale.
+poolFile="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/.desktop-pool"
+if [ -f "$poolFile" ]; then
+	read -r poolSize < "$poolFile"
+	case $poolSize in
+	'' | *[!0-9]*) ;;
+	*) main_pool=($(seq 1 "$poolSize")) ;;
+	esac
+fi
+
 mapfile -t monitors < <(bspc query -M --names)
 [ ${#monitors[@]} -eq 0 ] && exit 0
 

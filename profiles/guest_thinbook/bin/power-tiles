@@ -1,0 +1,26 @@
+#!/bin/zsh
+
+# rofi script mode for the power menu: four glyph tiles. The full-screen
+# tiles are the confirmation the shared menu does with a second prompt -
+# Escape or a click on empty space lands on nothing.
+
+# Repo files, not theme names, for every tile (see desk-icons/): the
+# theme's circled icons clashed with the bare glyph set, and theme lookup
+# has burned us on half of these anyway
+deskIcons=$HOME/.dotfiles/profiles/guest_thinbook/desk-icons
+
+if [[ -z $1 ]]; then
+	printf '%s\0icon\x1f%s\n' \
+		"Lock" "$deskIcons/lock.png" \
+		"Sleep" "$deskIcons/sleep.png" \
+		"Restart" "$deskIcons/restart.png" \
+		"Off" "$deskIcons/poweroff.png"
+	exit 0
+fi
+
+case $1 in
+	"Lock") setsid -f system-lock > /dev/null 2>&1 ;;
+	"Sleep") systemctl suspend ;;
+	"Restart") setsid -f $HOME/.dotfiles/ubuntu/bin/pc-leave reboot > /dev/null 2>&1 ;;
+	"Off") setsid -f $HOME/.dotfiles/ubuntu/bin/pc-leave shutdown > /dev/null 2>&1 ;;
+esac

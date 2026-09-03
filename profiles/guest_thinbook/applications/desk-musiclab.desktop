@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Music Lab
+Icon=desk-musiclab
+Exec=google-chrome --app=https://musiclab.chromeexperiments.com/
+Terminal=false
+Categories=Desk;

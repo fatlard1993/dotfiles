@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+# Kid-sized wallpaper menu: two glyph tiles instead of the shared ten-line
+# text list (ubuntu/bin/polybar-menu wallpaper). Reached through that
+# script's profile dispatch from the bar's wallpaper button.
+
+pgrep -x rofi > /dev/null && exit 0
+
+exec rofi -show wallpaper -show-icons -dpi 131 -me-select-entry "" -me-accept-entry MousePrimary \
+	-modi "wallpaper:$HOME/.dotfiles/profiles/ben_thickbook/bin/wallpaper-tiles" \
+	-theme $HOME/.dotfiles/profiles/ben_thickbook/rofi/tiles.rasi \
+	-theme-str "listview { columns: 2; }"

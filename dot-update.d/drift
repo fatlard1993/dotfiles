@@ -1,0 +1,86 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Installers that write to a dotfile write into a tracked repo, because the
+# dotfile is a symlink pointing there. It has happened twice in one day: bun's
+# installer appended its completion block to profiles/<p>/.zshrc through
+# ~/.zshrc, and Claude Code dropped a key from priv-config's claude/settings.json
+# through ~/.claude/settings.json. Both looked like an unexplained diff days
+# later, in a file nobody remembered editing.
+#
+# So: resolve the symlinks that point into either repo, and say which of their
+# targets git considers dirty. Only linked files are checked, because that is
+# what separates drift from work - uncommitted changes anywhere else are
+# somebody deliberately editing their own dotfiles, and reporting those every
+# run is how a check trains you to ignore it.
+#
+# Reports by default and changes nothing. `dot-update <profile> --fix` reverts
+# the drifted files to their committed state, which is destructive by design:
+# it is the right call for an installer's edit and the wrong one for yours,
+# and only you can tell them apart - hence the flag rather than a default.
+fix=0
+for arg in "$@"; do [[ $arg == --fix ]] && fix=1; done
+[[ -n $DOTFILES_FIX ]] && fix=1
+
+# Where links into the repos actually live. Not a scan of all of $HOME: that
+# walks node_modules and every project checkout to answer a question about a
+# dozen files.
+# $HOME itself is depth 1 only - at depth 2 it walks every project checkout to
+# answer a question about a dozen files. The rest are small and nest one level.
+linkDirsShallow=($HOME)
+linkDirsDeep=($HOME/.config $HOME/.claude $HOME/.zshrc.d $HOME/.zshenv.d $HOME/.ssh/config.d $HOME/.dot-update.d)
+
+checkRepo() {
+	local repo=$1 label=$2
+	[[ -d $repo/.git ]] || return 0
+
+	# Both repos are reached through a symlink ($HOME/.dotfiles, $HOME/.priv-config)
+	# while readlink -f hands back the real path under Projects/. Comparing the
+	# two forms directly matches nothing, which is exactly how the first version
+	# of this check passed a planted drift without a word.
+	repo=$(readlink -f $repo)
+
+	local dirty
+	dirty=$(git -C $repo status --porcelain 2>/dev/null | awk '{print $NF}')
+	[[ -n $dirty ]] || return 0
+
+	local link target rel found=() links=()
+	for dir in $linkDirsShallow; do
+		[[ -d $dir ]] && links+=(${(f)"$(find $dir -maxdepth 1 -type l 2>/dev/null)"})
+	done
+	for dir in $linkDirsDeep; do
+		[[ -d $dir ]] && links+=(${(f)"$(find $dir -maxdepth 2 -type l 2>/dev/null)"})
+	done
+
+	for link in $links; do
+		{
+		target=$(readlink -f $link 2>/dev/null) || continue
+		[[ $target == $repo/* ]] || continue
+
+		rel=${target#$repo/}
+		print -r -- $dirty | grep -qxF -- $rel && found+=("$rel  <- $link")
+		}
+	done
+
+	(( ${#found} )) || return 0
+
+	echo "  $label has drifted in files that are symlinked into \$HOME:"
+	for entry in $found; do echo "    $entry"; done
+
+	if (( fix )); then
+		for entry in $found; do
+			rel=${entry%%  <- *}
+			echo "    reverting $rel"
+			git -C $repo checkout -- $rel
+		done
+	else
+		echo "    review: git -C $repo diff -- <file>"
+		echo "    revert:  rerun with --fix, or git -C $repo checkout -- <file>"
+	fi
+}
+
+echo "Checking for drift in linked dotfiles"
+
+checkRepo $dotfilesPath dotfiles
+checkRepo $HOME/.priv-config priv-config

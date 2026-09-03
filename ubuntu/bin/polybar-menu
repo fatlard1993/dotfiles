@@ -1,11 +1,17 @@
 #!/bin/bash
-# Usage: polybar-menu cpu|temp|ram|disk|battery|volume|network|bluetooth|datetime|wallpaper|brightness|clipboard
+# Usage: polybar-menu cpu|temp|ram|disk|battery|volume|network|bluetooth|printer|datetime|wallpaper|brightness|clipboard
 # Right-click handler for polybar's icon-only modules - shows detail and
 # lets you act on it via rofi, since the bar itself only has room for an icon.
 # (right-click, not left: polybar's internal pulseaudio module owns left-click
 # for its own mute-toggle default and would otherwise fight this script)
 
 metric=$1
+
+# Profile dispatch, same shape as bin/launcher: a machine can replace one
+# menu wholesale (ben_thickbook's glyph power menu) by shipping
+# bin/polybar-menu-<name> in its profile.
+override="$HOME/.dotfiles/profiles/$(cat "$HOME/.dotfilesProfile" 2>/dev/null)/bin/polybar-menu-$metric"
+[ -x "$override" ] && exec "$override"
 
 active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
 echo "$metric" > "$active_menu_file"
@@ -228,7 +234,12 @@ volume)
 	;;
 network)
 	while true; do
-		iface=wlan0
+		# iw dev also lists P2P devices, which are never the connection, so take
+		# the first one the kernel calls managed. wlan0 stays the fallback: the
+		# profiles carrying etc/grub set net.ifnames=0 and really are wlan0, the
+		# ones without it (thinbook, thickpad) get whatever the kernel named it.
+		iface=$(iw dev 2>/dev/null | awk '/Interface /{name=$2} /type managed/{print name; exit}')
+		iface=${iface:-wlan0}
 		ip=$(ip -4 -o addr show "$iface" | awk '{print $4}' | cut -d/ -f1)
 
 		# --rescan no: reuse NetworkManager's own periodically-refreshed scan
@@ -431,6 +442,116 @@ bluetooth)
 			fi
 			continue
 			;;
+		esac
+	done
+	;;
+printer)
+	while true; do
+		# Cleared each pass, not just topped up: a key that stops being
+		# reported (model and ink both vanish when the printer drops offline)
+		# would otherwise keep showing its value from the previous loop.
+		unset p
+		declare -A p
+		while IFS='=' read -r key value; do
+			p[$key]=$value
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --refresh)
+
+		if [ "${p[state]}" = "none" ]; then
+			notify-send "Printer" "No IPP printer found on this network"
+			break
+		fi
+
+		# Ink reads as "Magenta 100  Yellow 0" rather than a bare percent list -
+		# which tank is empty is the whole question, and this printer halts on
+		# any empty tank even for a page that needs no colour from it.
+		ink_summary=$(tr ',' '\n' <<<"${p[ink]}" |
+			awk -F: 'NF==2 { printf "%s %s  ", $1, $2 }')
+
+		detail="${p[state]}"
+		[ "${p[reasons]}" != "none" ] && detail="$detail (${p[reasons]})"
+		[ "${p[accepting]}" = "false" ] && detail="$detail | refusing new jobs"
+
+		menu_lines=()
+		declare -A job_owner job_id_by_label local_id_by_label
+
+		# Two separate places a job can be stuck, and they need telling apart.
+		# One is held inside the printer; the rest are still queued on this
+		# machine and will be fed to it one at a time, each one wedging it
+		# again. Cancelling only the first looks like it worked until the next
+		# one lands a few seconds later.
+		while IFS='|' read -r jid jstate jowner jname; do
+			[ -z "$jid" ] && continue
+			label=" Cancel job ${jid} held in the printer - ${jname} (${jowner}, ${jstate})"
+			job_id_by_label["$label"]=$jid
+			job_owner["$label"]=$jowner
+			menu_lines+=("$label")
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --jobs)
+
+		local_count=0
+		while IFS='|' read -r lid lowner lsize; do
+			[ -z "$lid" ] && continue
+			local_count=$((local_count + 1))
+			mb=$(awk -v b="$lsize" 'BEGIN { printf "%.1fMB", b/1048576 }')
+			label=" Cancel queued ${lid} (${lowner}, ${mb})"
+			local_id_by_label["$label"]=$lid
+			menu_lines+=("$label")
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status --local-jobs)
+
+		cancel_all_line=" Cancel ALL ${local_count} jobs queued on this machine"
+		[ "$local_count" -gt 0 ] && menu_lines+=("$cancel_all_line")
+
+		test_line=" Print test page (direct IPP, bypasses CUPS)"
+		queue_line=" Open the local CUPS queue"
+		refresh_line=" Refresh"
+		menu_lines+=("$test_line" "$queue_line" "$refresh_line")
+
+		choice=$(printf '%s\n' "${menu_lines[@]}" |
+			rofi_menu "${p[model]:-Printer}" \
+				"${detail} | ${local_count} queued here | ${ink_summary}")
+
+		[ -z "$choice" ] && break
+
+		case "$choice" in
+			"$refresh_line")
+				unset job_owner job_id_by_label local_id_by_label
+				continue
+				;;
+			"$cancel_all_line")
+				$HOME/.dotfiles/ubuntu/bin/printer-status --cancel-local-all
+				notify-send "Printer" "Cancelled ${local_count} queued jobs"
+				unset job_owner job_id_by_label local_id_by_label
+				continue
+				;;
+			"$queue_line")
+				xdg-open "http://localhost:631/printers/" >/dev/null 2>&1 &
+				break
+				;;
+			"$test_line")
+				notify-send "Printer" "Sending a test page straight to the printer"
+				$HOME/.dotfiles/ubuntu/bin/printer-status --test
+				break
+				;;
+			*)
+				# Cancel is the one that matters: a job the printer cannot
+				# render wedges its spool, and it then refuses every job behind
+				# it - including the retries the originating machine keeps
+				# sending, which is what makes it look like nothing is
+				# happening at all.
+				lid=${local_id_by_label[$choice]}
+				if [ -n "$lid" ]; then
+					$HOME/.dotfiles/ubuntu/bin/printer-status --cancel-local "$lid"
+					notify-send "Printer" "Cancelled queued $lid"
+					unset job_owner job_id_by_label local_id_by_label
+					continue
+				fi
+
+				jid=${job_id_by_label[$choice]}
+				[ -z "$jid" ] && break
+				$HOME/.dotfiles/ubuntu/bin/printer-status --cancel "$jid" "${job_owner[$choice]}"
+				notify-send "Printer" "Cancelled job $jid"
+				unset job_owner job_id_by_label local_id_by_label
+				continue
+				;;
 		esac
 	done
 	;;

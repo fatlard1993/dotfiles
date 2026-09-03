@@ -10,7 +10,8 @@
 #   ./deploy-client.sh --clients      list the clients and say which are reachable
 #
 # A full run also refreshes any connected drive already carrying a set, so the
-# thumb drive keeps up without being asked.
+# thumb drive keeps up without being asked. A set is the loose jars plus
+# suite-guest.zip, a ready-made Prism instance built from those same jars.
 #
 # Same hazard as the server, same shape of answer: the JVM reads classes out of
 # a mod jar lazily, so replacing one under a running game does not fail at the
@@ -320,27 +321,160 @@ REMOTE
 # uninvited, and this folder is the only signal that says which is which.
 USB_SET_DIR=village-client-mods
 
+# The drive carries a ready-made Prism instance beside the loose jars, because
+# Prism cannot always resolve the pinned snapshot from its own metadata server.
+# What the instance carries to work around that, and when to stop carrying it,
+# is in the template's patches/README.
+#
+# It is rebuilt out of the folder that was just written rather than from a second
+# resolve of the same mods, so the zip and the jars beside it cannot disagree
+# about what the client set is. That is the whole reason this is here: the zip
+# used to be exported by hand, and a version bump refreshed the loose folder and
+# left the instance sitting on the previous mods with nothing saying so.
+GUEST_TEMPLATE="$DATA/guest-instance"
+GUEST_ZIP=suite-guest.zip
+GUEST_DIR=suite
+
 # A value from the suite's pin file, which is pandorical's by convention.
 pin() {
 	grep -E "^\s*$1" "$SUITE/pandorical/gradle.properties" 2>/dev/null |
 		head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'
 }
 
-# Keep the one line on the drive that can quietly stop being true.
+# The lwjgl the carried component names. It has no pin of its own: it follows the
+# Minecraft version, so the patch the instance ships is the only place that knows
+# it. Empty once the template stops carrying patches, which is the state where
+# nothing local knows it any more.
+lwjgl_version() {
+	local f="$GUEST_TEMPLATE/patches/org.lwjgl3.json"
+	[ -f "$f" ] || return 0
+	sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1
+}
+
+# Keep the lines on the drive that can quietly stop being true.
 #
-# The prose belongs to whoever wrote it; only the version fact is rewritten,
-# from the same pins the jars beside it were built against. It sat there saying
-# snapshot-8 while the suite had moved to snapshot-9, which is worse than no
-# README: it sends a reader to the wrong loader with confidence.
+# The prose belongs to whoever wrote it; only the version facts are rewritten,
+# from the same pins the jars beside it were built against. The Requires: line
+# sat there saying snapshot-8 while the suite had moved to snapshot-9, which is
+# worse than no README: it sends a reader to the wrong loader with confidence.
+#
+# The Prism error the page quotes is four more of the same fact, and it is quoted
+# so a reader can match it against their screen. It named LWJGL 3.4.2 while the
+# instance beside it asked for 3.4.3, so the match came out three lines of four -
+# which is the reading that sends somebody hunting a fault that is not there,
+# exactly what the paragraph under it says not to do.
 usb_readme() {
-	local readme="$1/README.txt" mc loader
+	local readme="$1/README.txt" mc loader lwjgl
 	[ -f "$readme" ] || return 0
 
 	mc=$(pin minecraft_version)
 	loader=$(pin loader_version)
 	[ -n "$mc" ] && [ -n "$loader" ] || return 0
 
-	sed -i "s|^Requires: Fabric Loader .*|Requires: Fabric Loader $loader for Minecraft $mc.|" "$readme"
+	# The quoted lines are indented; the capture holds whatever that indent is
+	# rather than this script having an opinion about someone else's layout.
+	sed -i \
+		-e "s|^Requires: Fabric Loader .*|Requires: Fabric Loader $loader for Minecraft $mc.|" \
+		-e "s|^\( *\)Could not download metadata for Minecraft .*|\1Could not download metadata for Minecraft $mc|" \
+		-e "s|^\( *\)Could not download metadata for Intermediary Mappings .*|\1Could not download metadata for Intermediary Mappings $mc|" \
+		-e "s|^\( *\)Could not download metadata for Fabric Loader .*|\1Could not download metadata for Fabric Loader $loader|" \
+		"$readme"
+
+	lwjgl=$(lwjgl_version)
+	[ -n "$lwjgl" ] || return 0
+	sed -i "s|^\( *\)Could not download metadata for LWJGL 3 .*|\1Could not download metadata for LWJGL 3 $lwjgl|" "$readme"
+}
+
+# The component list Prism reads, written from the same pins the jars were built
+# against rather than kept as a file somebody has to remember to edit.
+#
+# org.lwjgl3 is named only while patches/ carries it: snapshot-10 wants 3.4.3
+# where the published component still says 3.4.2, and once Prism publishes the
+# version the patch goes and lwjgl resolves from net.minecraft's own requires.
+mmc_pack() {
+	local inst="$1" mc="$2" loader="$3" lwjgl
+	lwjgl=$(lwjgl_version)
+
+	echo '{'
+	echo '    "components": ['
+	if [ -n "$lwjgl" ]; then
+		printf '        {\n            "uid": "org.lwjgl3",\n            "version": "%s"\n        },\n' "$lwjgl"
+	fi
+	printf '        {\n            "important": true,\n            "uid": "net.minecraft",\n            "version": "%s"\n        },\n' "$mc"
+	printf '        {\n            "uid": "net.fabricmc.intermediary",\n            "version": "%s"\n        },\n' "$mc"
+	printf '        {\n            "uid": "net.fabricmc.fabric-loader",\n            "version": "%s"\n        }\n' "$loader"
+	echo '    ],'
+	echo '    "formatVersion": 1'
+	echo '}'
+}
+
+# guest_zip SET_DIR - rebuild the instance zip beside the folder it is given.
+guest_zip() {
+	local set_dir="$1" zip_path staging inst mc loader jar jars=0
+
+	# No template, no instance. A drive seeded before this existed keeps the zip
+	# it already has rather than losing it to an empty rebuild.
+	[ -d "$GUEST_TEMPLATE" ] || return 0
+
+	mc=$(pin minecraft_version)
+	loader=$(pin loader_version)
+	if [ -z "$mc" ] || [ -z "$loader" ]; then
+		echo "  !! no version pins in pandorical/gradle.properties: guest instance left alone" >&2
+		return 1
+	fi
+
+	staging=$(mktemp -d) || return 1
+	inst="$staging/$GUEST_DIR"
+	mkdir -p "$inst/.minecraft/mods"
+	cp "$GUEST_TEMPLATE/instance.cfg" "$inst/"
+	if [ -d "$GUEST_TEMPLATE/patches" ]; then
+		cp -r "$GUEST_TEMPLATE/patches" "$inst/"
+	fi
+
+	for jar in "$set_dir"/*.jar; do
+		[ -e "$jar" ] || continue
+		cp "$jar" "$inst/.minecraft/mods/"
+		jars=$((jars + 1))
+	done
+	if [ "$jars" = 0 ]; then
+		echo "  !! no jars in $set_dir: guest instance left alone" >&2
+		rm -rf "$staging"
+		return 1
+	fi
+
+	mmc_pack "$inst" "$mc" "$loader" > "$inst/mmc-pack.json"
+
+	# Built whole in a temp dir and copied over, so a rebuild that dies halfway
+	# leaves the drive's working zip where it is rather than a truncated one.
+	zip_path="$(dirname "$set_dir")/$GUEST_ZIP"
+	if ( cd "$staging" && zip -qr "$GUEST_ZIP" "$GUEST_DIR" ) && cp "$staging/$GUEST_ZIP" "$zip_path"; then
+		echo "  rebuilt $GUEST_ZIP ($jars jars, Minecraft $mc, loader $loader)"
+	else
+		echo "  !! could not write $zip_path" >&2
+		rm -rf "$staging"
+		return 1
+	fi
+
+	rm -rf "$staging"
+}
+
+# The loose copy of the same component metadata, for a guest who has an instance
+# already and needs only the patches. Refreshed when the drive carries it, and
+# taken away when the template stops carrying patches at all - a folder of
+# metadata for a version Prism now publishes is worse than none, because it
+# shadows the published component permanently.
+usb_metadata() {
+	local dir="$1/prism-metadata"
+	[ -d "$dir" ] || return 0
+
+	if [ -d "$GUEST_TEMPLATE/patches" ]; then
+		rm -f "$dir"/*.json "$dir"/README
+		cp "$GUEST_TEMPLATE/patches"/* "$dir/"
+		echo "  refreshed prism-metadata"
+	else
+		rm -rf "$dir"
+		echo "  dropped prism-metadata: the template no longer carries patches"
+	fi
 }
 
 usb_write() {
@@ -373,6 +507,10 @@ usb_write() {
 	fi
 
 	usb_readme "$dest"
+	# One failed rebuild is not a reason to abandon the drive, or the next one:
+	# usb_auto walks every drive that carries a set.
+	usb_metadata "$dest" || true
+	guest_zip "$dest" || true
 	sync -f "$dest" 2>/dev/null || true
 	echo "client set written to $dest ($count jars)"
 }

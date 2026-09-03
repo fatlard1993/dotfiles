@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Radio
+Icon=desk-radiogarden
+Exec=google-chrome --app=https://radio.garden/
+Terminal=false
+Categories=Desk;

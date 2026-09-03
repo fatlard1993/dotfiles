@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Wind Map
+Icon=desk-windmap
+Exec=google-chrome --app=https://earth.nullschool.net/
+Terminal=false
+Categories=Desk;

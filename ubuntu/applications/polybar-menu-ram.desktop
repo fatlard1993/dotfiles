@@ -2,7 +2,7 @@
 Type=Application
 Name=RAM Menu
 Comment=Memory usage, top processes, free memory
-Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu ram
+Exec=polybar-menu ram
 Icon=utilities-system-monitor
 Terminal=false
 Categories=System;

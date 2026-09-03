@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Freezeria
+Icon=desk-papas
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/ben_thickbook/desk-web/papas.html
+Terminal=false
+Categories=Desk;

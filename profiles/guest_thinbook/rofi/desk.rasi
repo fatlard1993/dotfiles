@@ -1,0 +1,46 @@
+@theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
+
+/* Sized to the machine's 1920x1080 panel at the profile config's dpi (157):
+   5 rows of 112px icons + one label line fit with ~100px to spare, and a
+   ~297px-wide element holds the longest label ("Teach Your Monster")
+   without ellipsis. The old 160px/48px values were authored on a taller
+   screen and paged the grid down to 2 rows of 4. */
+* {
+	font: "Hack Nerd Font Mono 13";
+}
+
+/* A full-width sheet from the top, not fullscreen: the rofi wrapper's
+   per-monitor y-offset drops it flush under the bar, which stays visible
+   and clickable while the desk is up. Height follows the 4 rows. */
+window {
+	width: 100%;
+	location: north;
+}
+
+inputbar {
+	enabled: false;
+}
+
+listview {
+	columns: 8;
+	lines: 5;
+	flow: horizontal;
+	fixed-columns: true;
+	spacing: 16px;
+	padding: 24px;
+}
+
+element {
+	orientation: vertical;
+	padding: 12px;
+}
+
+element-icon {
+	size: 112px;
+	horizontal-align: 0.5;
+}
+
+element-text {
+	horizontal-align: 0.5;
+	vertical-align: 0.5;
+}

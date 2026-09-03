@@ -39,7 +39,12 @@ pass=0
 fail=0
 failed_repos=()
 for r in "${repos[@]}"; do
-	out=$(cd "$r" && ./gradlew build -q 2>&1)
+	# Cleared first, because Gradle never does. A version bump or a rename leaves the
+	# previous jar beside the new one, and everything downstream that looks in
+	# build/libs (the deploys, a sibling mod's compileOnly integration) then has two
+	# to choose from. A mod that fails to build is left with nothing there, which is
+	# the honest state: a stale jar that still deploys is how a broken build ships.
+	out=$(cd "$r" && rm -f build/libs/*.jar && ./gradlew build -q 2>&1)
 	# Taken before anything else runs. This used to be read after the echo below, so in
 	# the default noisy mode $? was echo's status rather than gradle's - echo does not
 	# fail, so every repo passed. It printed "green 4/4" directly underneath the compile

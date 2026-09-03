@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GROW
+Icon=desk-grow
+Exec=google-chrome --app=https://www.eyezmaze.com/
+Terminal=false
+Categories=Desk;

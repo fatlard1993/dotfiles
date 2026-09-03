@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Duck Life
+Icon=desk-ducklife
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/ducklife.html
+Terminal=false
+Categories=Desk;

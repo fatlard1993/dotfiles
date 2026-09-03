@@ -14,8 +14,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # NOT managed here - they deploy from the suite workspace (build-all.sh,
 # then scp) so nothing ever runs a jar that didn't come out of a green
 # suite build.
-mcVersion=26.3-snapshot-10
-loaderVersion=0.19.3
+mcVersion=26.3-pre-1
+loaderVersion=0.19.5
 installerVersion=1.1.2
 
 mcDir=$HOME/minecraft-server
@@ -127,6 +127,13 @@ mkdir -p $instanceDir/.minecraft/mods
 # hang - and a bumped pin looks completely healthy right up until that moment.
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
+
+# No local component patches. Prism publishes this pin at
+# meta.prismlauncher.org, and a patches/ directory left over from a version it
+# did not yet carry shadows the published component permanently: the instance
+# would keep launching the old game against the new pin. Removed every run so a
+# stale set cannot survive a bump.
+rm -rf $instanceDir/patches
 
 # Regenerated every run - the version pin is this file's business and has
 # to keep tracking the server. instance.cfg below is deliberately the

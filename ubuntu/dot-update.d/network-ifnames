@@ -2,12 +2,19 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# The profiles' grub puts net.ifnames=0 on the kernel line, so the first
-# reboot after bootstrap renames the installer's wlp0s20f3 to wlan0 - and the
-# Wi-Fi profile the installer wrote is bound to the old name, so the machine
+# A profile carrying etc/grub puts net.ifnames=0 on the kernel line, so the
+# first reboot after bootstrap renames the installer's wlp0s20f3 to wlan0 - and
+# the Wi-Fi profile the installer wrote is bound to the old name, so the machine
 # comes back up with no network. Unbinding Wi-Fi profiles from interface names
 # lets NetworkManager match them to whatever the radio is called. sudo: over
 # ssh there is no polkit session, and plain nmcli is refused.
+#
+# Not every profile carries that file: chase_dellbook, megan_dellbook,
+# tiny_lappy and htpc do, so those really are wlan0; guest_thinbook and
+# ben_thickbook do not, and keep whatever the kernel named the radio
+# (wlp58s0 on the thinbook). That is why nothing reads an interface name as
+# a given - see the network branch of ubuntu/bin/polybar-metric. The unbind
+# below is what makes this hook right on both kinds of machine.
 command -v nmcli > /dev/null || return
 
 nmcli -t -f NAME,TYPE connection show | awk -F: '$2 ~ /wireless/ {print $1}' | while IFS= read -r name; do

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Tux Math
+Icon=tuxmath
+Exec=tuxmath
+Terminal=false
+Categories=Desk;

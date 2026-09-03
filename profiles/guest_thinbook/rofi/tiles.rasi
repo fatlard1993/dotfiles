@@ -1,0 +1,41 @@
+/* A centered panel of big glyph tiles for the profile's small menus
+   (wallpaper); each launcher sets columns to its tile count via
+   -theme-str. Floats over the desktop instead of owning it - the bar
+   stays visible and clickable. */
+@theme "~/.dotfiles/ubuntu/rofi/theme.rasi"
+
+* {
+	font: "Hack Nerd Font Mono 14";
+}
+
+window {
+	width: 700px;
+}
+
+inputbar {
+	enabled: false;
+}
+
+listview {
+	columns: 2;
+	lines: 1;
+	flow: horizontal;
+	fixed-columns: true;
+	spacing: 16px;
+	padding: 24px;
+}
+
+element {
+	orientation: vertical;
+	padding: 12px;
+}
+
+element-icon {
+	size: 128px;
+	horizontal-align: 0.5;
+}
+
+element-text {
+	horizontal-align: 0.5;
+	vertical-align: 0.5;
+}

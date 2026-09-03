@@ -1,0 +1,5 @@
+#!/bin/zsh
+# No battery menu on this machine - the indicator is the whole story
+# (see bin/battery-click).
+
+exit 0

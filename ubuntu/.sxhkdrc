@@ -25,11 +25,19 @@ super + grave
 # VS Code and the input-method toggle under ibus/fcitx, and sxhkd grabs it before
 # either of them sees it. Drop the brace back to a bare super to give it back.
 {super,ctrl} + @space
-	rofi -show drun -show-icons=true
+	$HOME/.dotfiles/ubuntu/bin/launcher
 
 # Program Launcher (magnifying-glass / search function key)
 XF86Search
-	rofi -show drun -show-icons=true
+	$HOME/.dotfiles/ubuntu/bin/launcher
+
+# The full drun, past whatever front door the profile installed (see
+# ubuntu/bin/launcher's dispatch): the way in at a seat whose launcher is a
+# curated desk. Alt because it is unused everywhere else in this file, and
+# because super+shift+d would sit one slip from the desk's own super+d,
+# which is where small hands already are.
+super + alt + space
+	$HOME/.dotfiles/ubuntu/bin/launcher --full
 
 # Clipboard history (paste something other than the most recent copy)
 super + shift + v
@@ -98,9 +106,11 @@ super + Tab
 super + {comma,period}
 	bspc desktop -f {prev,next}.local
 
-# Focus the given desktop
+# Focus the given desktop - via bin/desktop-focus, which also creates it
+# when a machine's default pool is smaller than nine (see
+# profiles/*/.desktop-pool)
 {ctrl,super} + {1-9}
-	{bspc, bspc} desktop -f '^{1-9}'
+	{$HOME,$HOME}/.dotfiles/ubuntu/bin/desktop-focus {1-9}
 
 # Send to the given desktop (super+ctrl, not shift: super+shift+3/4 are
 # the mac-style screenshot chords below, and shift+number is what typing

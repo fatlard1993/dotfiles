@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SuperTux
+Icon=supertux2
+Exec=supertux2
+Terminal=false
+Categories=Desk;

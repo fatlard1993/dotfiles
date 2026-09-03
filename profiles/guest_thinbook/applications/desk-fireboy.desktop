@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Fireboy
+Icon=desk-fireboy
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/fireboy.html
+Terminal=false
+Categories=Desk;

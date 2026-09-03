@@ -1,0 +1,4 @@
+#!/bin/zsh
+## $HOME/.config/bspwmrc
+
+. "$HOME/.dotfiles/ubuntu/.bspwmrc"

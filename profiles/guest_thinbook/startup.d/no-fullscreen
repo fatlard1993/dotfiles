@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+# Nothing gets to cover the bar: its red x is the always-visible way out
+# of whatever is running, so apps asking for ewmh fullscreen are refused
+# and land as plain tiled windows under the bar instead. (bspc's own
+# fullscreen state still works - that's parent territory, not an app ask.)
+bspc config ignore_ewmh_fullscreen all

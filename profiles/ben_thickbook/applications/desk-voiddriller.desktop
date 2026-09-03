@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Void Drill
+Icon=desk-voiddriller
+Exec=google-chrome --app=http://void-driller.home/#/
+Terminal=false
+Categories=Desk;

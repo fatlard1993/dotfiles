@@ -45,6 +45,72 @@ dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 # the household server down with it, which is a decision, not an update step.
 suiteProps="$HOME/Projects/minecraft/pandorical/gradle.properties"
 
+# The suite itself. Everything below is downstream of it, and until now nothing
+# fetched it: a cold machine ran this file, printed "pandorical not found", and
+# skipped the client, the server and the mods. What it ended up with was a
+# launcher, Prism, an instance, and nothing to play - the one-stop-shop promise
+# broken at exactly the step that mattered. The 42 repos were cloned by hand.
+#
+# Membership is a GitHub topic rather than a list kept in this repo, because a
+# list is a thing to forget: a mod started next month joins by being tagged, and
+# every machine picks it up on its next update. The account carries 114 repos and
+# the topic is the only thing that separates the suite from the rest of them.
+#
+# Missing clones only - existing ones are left alone. These are working trees
+# with uncommitted work in them as often as not, and a dot-update that pulled
+# forty repos underneath you would be a maintenance step nobody could trust.
+suiteTopic="minecraft-mod-suite"
+suiteOwner=$(git config --global github.user)
+
+if [[ -z $suiteOwner ]]; then
+	echo "  No git github.user, so the suite cannot be located (priv-config git.config sets it)"
+else
+	mkdir -p $HOME/Projects/minecraft
+
+	# gh when it is logged in, the public search API when it is not. Nothing
+	# else here needs gh signed in: priv-config is cloned over ssh with the key
+	# priv-config itself manages, so a machine can be fully set up with gh
+	# never authenticated - which is exactly what the new laptop was, and the
+	# first version of this block refused to clone anything on it.
+	#
+	# The mods are public repos, so the unauthenticated query answers fine. It
+	# is rate limited at ten searches a minute, which one run of dot-update is
+	# in no danger of.
+	#
+	# --limit / per_page are not optional: gh pages at 30 and the API at 30,
+	# which would have quietly fetched the first thirty and left the rest to
+	# turn up later as compile errors.
+	if command -v gh > /dev/null && gh auth status > /dev/null 2>&1; then
+		suiteRepos=(${(f)"$(gh repo list $suiteOwner --topic $suiteTopic --limit 200 --json name --jq '.[].name' 2>/dev/null)"})
+	else
+		suiteJson=$(curl -sf "https://api.github.com/search/repositories?q=user:$suiteOwner+topic:$suiteTopic&per_page=100" 2>/dev/null)
+		suiteRepos=(${(f)"$(print -r -- $suiteJson | jq -r '.items[].name' 2>/dev/null)"})
+
+		# The API reports how many it matched separately from how many it
+		# returned; a suite that outgrows one page should say so rather than
+		# silently clone the first hundred.
+		suiteTotal=$(print -r -- $suiteJson | jq -r '.total_count // 0' 2>/dev/null)
+		(( suiteTotal > ${#suiteRepos} )) && echo "  $suiteTotal repos carry the topic but only ${#suiteRepos} fit one page - this needs paginating"
+	fi
+
+	if (( ${#suiteRepos} == 0 )); then
+		echo "  No repos carry the $suiteTopic topic - nothing to clone"
+	else
+		cloned=0
+		for repo in $suiteRepos; do
+			[[ -d $HOME/Projects/minecraft/$repo/.git ]] && continue
+
+			echo "Cloning $repo into the suite"
+
+			# https, not ssh: a cold machine has no key on GitHub yet, and this
+			# is the same reason dot-update.d/slock clones over https.
+			git -C $HOME/Projects/minecraft clone -q https://github.com/$suiteOwner/$repo && cloned=$((cloned + 1))
+		done
+
+		(( cloned > 0 )) && echo "  cloned $cloned of ${#suiteRepos} suite repo(s)"
+	fi
+fi
+
 if [[ -f $suiteProps ]]; then
 	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $suiteProps)
 	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $suiteProps)
@@ -52,12 +118,69 @@ if [[ -f $suiteProps ]]; then
 	clientDir="$HOME/Projects/minecraft-client"
 	serverDir="$HOME/Projects/minecraft-server"
 
+	# The suite is compiled on this machine, and a compiler is not the same
+	# thing as a runtime: default-jre (ubuntu/aptfile, there for the Minecraft
+	# launcher) ships no javac, and gradle turns that down with "does not
+	# provide the required capabilities: [JAVA_COMPILER]". The JDK is in this
+	# profile's aptfile now, so what is left here is the check and the daemon.
+	if ! command -v javac > /dev/null 2>&1; then
+		echo "  No javac, so the suite cannot be built here (openjdk-25-jdk, this profile's aptfile)"
+	elif pgrep -f GradleDaemon > /dev/null 2>&1; then
+		# A gradle daemon scans for toolchains once and caches the answer for
+		# its whole lifetime. 1_apt runs before this file, so the run that
+		# installs the JDK leaves any daemon started earlier still convinced
+		# there is no compiler - and it says so with the *same* message the
+		# genuinely-missing JDK gives, naming a path that by then does contain
+		# javac. Two full 42-repo builds went into seeing that.
+		#
+		# Skipped while a build is running rather than reasoned about: gradle
+		# does not document what --stop does to a busy daemon, and a dot-update
+		# that can interrupt a forty-repo build to save a warm-up is a bad
+		# trade in the only case where it matters. -Dorg.gradle.appname is the
+		# wrapper launcher, which exists only for the length of a build.
+		if pgrep -f "org.gradle.appname" > /dev/null 2>&1; then
+			echo "  Gradle is mid-build, so its daemons are left alone (rerun after it finishes"
+			echo "  if a build then reports no JAVA_COMPILER)"
+		else
+			echo "Stopping gradle daemons (they cache the toolchain scan across a JDK install)"
+
+			(cd $HOME/Projects/minecraft/pandorical && ./gradlew --stop > /dev/null 2>&1) || true
+		fi
+	fi
+
+	# The Fabric installer writes into a launcher directory, it does not create
+	# one: with no $HOME/.minecraft/launcher_profiles.json it stops at "Launcher
+	# directory not found" and installs nothing. That file is written by the
+	# Mojang launcher's first run, so on a machine nobody has opened it on yet -
+	# which is every fresh install - this step could not succeed. It went
+	# unnoticed because the machines this ran on had all had a launcher opened
+	# years earlier. Seed the empty shape instead of depending on that; the
+	# launcher rewrites the file wholesale anyway, and the block below is what
+	# puts the suite's profile back into it.
+	mkdir -p $HOME/.minecraft
+	[[ -f $HOME/.minecraft/launcher_profiles.json ]] || {
+		echo "Seeding an empty launcher profile list (the launcher has not run here yet)"
+
+		echo '{"profiles":{},"version":3}' > $HOME/.minecraft/launcher_profiles.json
+	}
+
 	[[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
 		echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
 
 		curl -sf -o /tmp/fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar
 		java -jar /tmp/fabric-installer.jar client -mcversion $mcVersion -loader $loaderVersion
+		# Read before rm, which would otherwise be the status this tests - the
+		# same trap mc-build's own comment records. Everything below assumes a
+		# client that exists, and without this the whole hook ran through a
+		# failed install and still finished green.
+		fabricStatus=$?
 		rm -f /tmp/fabric-installer.jar
+
+		[[ $fabricStatus -eq 0 ]] || {
+			echo "  Fabric install failed (status $fabricStatus) - skipping the client setup below" >&2
+
+			return 1
+		}
 	}
 
 	# The Fabric install above only writes a version JSON that inherits from the

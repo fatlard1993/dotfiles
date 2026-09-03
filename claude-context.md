@@ -65,7 +65,12 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 **Runtime:**
 - Node: nvm loaded; `nvm use <version>` to switch
 - Bun: preferred where `bunfig.toml` present
-- Python: system `python3` only; no version manager here
+- Python: no version manager, but two interpreters. `python3` on PATH is
+  **Homebrew's**, not `/usr/bin/python3`, and they keep separate site-packages:
+  brew python cannot see apt's `/usr/lib/python3/dist-packages`, so an
+  `apt install python3-*` lands somewhere `python3` will never import from.
+  Add libraries via the Brewfile (`pillow` is there); reach for
+  `/usr/bin/python3` only when you specifically want the apt-installed set
 
 **Git:**
 - `push.default = current` / `pull.rebase = false`

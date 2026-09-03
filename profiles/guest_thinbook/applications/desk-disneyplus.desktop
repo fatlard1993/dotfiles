@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Disney Plus
+Icon=desk-disneyplus
+Exec=google-chrome --app=https://www.disneyplus.com/
+Terminal=false
+Categories=Desk;

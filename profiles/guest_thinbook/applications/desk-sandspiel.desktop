@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Sandspiel
+Icon=desk-sandspiel
+Exec=google-chrome --app=https://sandspiel.club/
+Terminal=false
+Categories=Desk;

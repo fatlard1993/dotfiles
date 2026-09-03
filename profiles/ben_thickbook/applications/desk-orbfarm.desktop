@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orb Farm
+Icon=desk-orbfarm
+Exec=google-chrome --app=https://orb.farm/
+Terminal=false
+Categories=Desk;

@@ -1,0 +1,36 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Claude Code - the CLI this profile's whole ctx-* toolset is built for. Its
+# configuration (settings, agents, commands, skills, the compiled tool shelf)
+# is priv-config's business and is already linked into ~/.claude by
+# priv-config/update; this script only gets the binary in place.
+#
+# The native installer rather than npm: it drops a versioned tree in
+# ~/.local/share/claude and points ~/.local/bin/claude at it (on PATH via
+# .zshenv.d/path), then updates itself from then on. So this is install-if-
+# absent, not install-every-run - re-running it would fight the binary's own
+# updater over which version is current.
+#
+# Nothing here can log you in. Auth is an OAuth round trip through a browser,
+# so a fresh machine needs `claude` run once by hand; ~/.claude/.credentials.json
+# appearing is how you know it took.
+command -v claude > /dev/null || {
+	echo "Installing Claude Code"
+
+	# Not `curl | bash` with stdin still attached to a terminal: the installer
+	# is happy either way, but every other install in this tree that reads a
+	# prompt has been bitten by an inherited stdin, so keep the habit.
+	curl -fsSL https://claude.ai/install.sh | bash < /dev/null
+}
+
+# ~/.claude/settings.json is a symlink into priv-config, and the CLI rewrites
+# that file wholesale when it normalises settings - which means it edits a
+# tracked repo through the link. It has already dropped a key that way once
+# (skipAutoPermissionPrompt). Say so rather than let it be discovered as a
+# mystery diff later; reverting is `git -C ~/.priv-config checkout -- claude/settings.json`.
+if [[ -n $(git -C $HOME/.priv-config status --porcelain claude/settings.json 2>/dev/null) ]]; then
+	echo "  ~/.claude/settings.json has drifted from priv-config (the CLI rewrites it"
+	echo "  through the symlink) - review with: git -C ~/.priv-config diff claude/settings.json"
+fi

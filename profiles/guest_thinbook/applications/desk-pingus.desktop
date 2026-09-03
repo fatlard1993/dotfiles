@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Pingus
+Icon=pingus
+Exec=pingus
+Terminal=false
+Categories=Desk;

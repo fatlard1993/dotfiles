@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Tux Paint
+Icon=tuxpaint
+Exec=tuxpaint --windowsize 1896x1013
+Terminal=false
+Categories=Desk;

@@ -1,0 +1,12 @@
+#!/bin/bash
+# Close every window on the clicked bar's visible desktop - the couch/kid
+# "get me out of whatever this is" button. Polite close (-c), not kill:
+# apps get their WM_DELETE and can prompt or save; pressing again for a
+# stubborn window is cheaper than lost state. MONITOR rides in from the
+# clicked bar (see startup.d/status-bar), same reasoning as wallpaper-delete.
+
+desktop=$(bspc query -D -m "${MONITOR:-focused}" -d .active --names)
+
+for node in $(bspc query -N -d "$desktop" -n .window); do
+	bspc node "$node" -c
+done

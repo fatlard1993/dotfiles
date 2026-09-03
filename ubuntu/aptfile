@@ -26,6 +26,17 @@ package "python3-setuptools"
 package "libusb-1.0-0-dev"
 package "plocate"
 
+# ipptool and ippfind, which bin/printer-status talks to the printer with.
+# Same trap as python3-pil below: they were only ever here as something else's
+# dependency, so the bar module would have silently reported "no printer" on
+# any machine that happened not to pull them in.
+package "cups-ipp-utils"
+
+# The pdftojpeg CUPS filter (ubuntu/cups/pdftojpeg) shells out to gs. Present
+# on a desktop install as someone else's dependency, which is exactly how
+# python3-pil below went missing on the machines that needed it.
+package "ghostscript"
+
 package "xinit"
 package "xserver-xorg"
 package "pasystray"
@@ -44,6 +55,12 @@ package "python3-xlib"
 package "scrot"
 package "feh"
 package "imagemagick"
+# lock-tick's HUD tick: rsvg-convert rasterizes the layer, Pillow composites
+# it. Neither is pulled in by anything else here - Pillow only ever arrived
+# as an hplip dependency, and machines without a printer stack got a lock
+# screen with no graphics at all.
+package "librsvg2-bin"
+package "python3-pil"
 package "tesseract-ocr"
 package "libcanberra-gtk3-module"
 package "ffmpeg"

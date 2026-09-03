@@ -4,15 +4,17 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 # Our own maintained fork of suckless slock (github.com/fatlard1993/slock) -
 # imlib2 background image support (polled by mtime, since privileges are
-# already dropped to nobody:nogroup before it's ever read) and a
+# already dropped to nobody:nogroup before it's ever read), a
 # typing-state square indicator (one square per typed character, red
-# shake on a wrong password, green shrink-away on a correct one). The
+# shake on a wrong password, green shrink-away on a correct one), and a
+# Caps Lock glyph above that row, since several of these keyboards have
+# no caps light and slock holds the keyboard grab while it runs. The
 # auth path itself (gethash/readpw's password check, main()'s setuid
 # drop sequence) is untouched from upstream. See ubuntu/bin/system-lock
 # and ubuntu/bin/lock-tick for the background image this expects at
 # /tmp/system-lock/screen_locked.png. Pinned to a specific tested commit
 # rather than floating on the fork's own master.
-slockRef="2866261b6637233813361a6a56718d91de8e4d84"
+slockRef="12e8925e4d4c307e07ed2b6702f57668574ec3c2"
 slockSrc="$HOME/.cache/dotfiles-src/slock"
 
 echo "Fetching slock"
@@ -29,6 +31,15 @@ fi
 echo "Building slock"
 
 make -C $slockSrc clean >/dev/null 2>&1
+
+# The Makefile only generates config.h when it's absent, so a config.h left
+# from an older ref silently drops any option added since - and building
+# under sudo below leaves it owned by root. Drop it (the directory is ours,
+# so no sudo needed) and build as us, so the tree stays ours and the
+# install step has nothing left to compile.
+rm -f $slockSrc/config.h
+
+make -C $slockSrc
 
 echo "Installing slock (setuid root)"
 

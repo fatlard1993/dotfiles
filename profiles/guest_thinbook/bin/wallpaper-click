@@ -1,0 +1,6 @@
+#!/bin/zsh
+# This machine's menus all live on plain left-click (no right-click
+# mixing): the bar's wallpaper button opens the two-tile glyph menu
+# instead of insta-rotating - "New Wallpaper" is one tap inside it.
+
+exec $HOME/.dotfiles/profiles/guest_thinbook/bin/polybar-menu-wallpaper

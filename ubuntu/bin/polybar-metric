@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|volume|wallpaper|brightness|clipboard|caffeine|power
+# Usage: polybar-metric cpu|temp|ram|disk|battery|network|bluetooth|printer|volume|wallpaper|brightness|clipboard|caffeine|power
 # Outputs a polybar-formatted icon with threshold coloring (and, where it
 # makes sense, a contextual icon swap at the critical threshold). Detail
 # lives in the rofi menu (ubuntu/bin/polybar-menu), the bar itself stays
@@ -11,7 +11,7 @@ tmp_file="$HOME/.dotfiles/temp/.polybar-cpu-prev"
 active_menu_file="$HOME/.dotfiles/temp/.polybar-active-menu"
 
 render() {
-	local icon=$1 color=$2 tier=${3:-T2}
+	local icon=$1 color=$2 tier=${3:-${POLYBAR_GLYPH_FONT:-T2}}
 	local active
 	active=$(cat "$active_menu_file" 2>/dev/null)
 
@@ -119,7 +119,12 @@ case "$metric" in
 		render "$icon" "$color"
 		;;
 	network)
-		iface=wlan0
+		# iw dev also lists P2P devices, which are never the connection, so take
+		# the first one the kernel calls managed. wlan0 stays the fallback: the
+		# profiles carrying etc/grub set net.ifnames=0 and really are wlan0, the
+		# ones without it (thinbook, thickpad) get whatever the kernel named it.
+		iface=$(iw dev 2>/dev/null | awk '/Interface /{name=$2} /type managed/{print name; exit}')
+		iface=${iface:-wlan0}
 		tier_file="$HOME/.dotfiles/temp/.polybar-network-tier"
 		link=$(iw dev "$iface" link 2>/dev/null)
 
@@ -193,11 +198,36 @@ case "$metric" in
 			render "󰂯" "#de935f" T1
 		fi
 		;;
+	printer)
+		# One glyph, colour carries the state. The usual contextual swap is
+		# skipped here on purpose: the printer glyphs live in the md block at
+		# tier T1 while this one is fa at the default tier, and mixing the two
+		# makes the icon change size as the printer changes state.
+		declare -A p
+		while IFS='=' read -r key value; do
+			p[$key]=$value
+		done < <($HOME/.dotfiles/ubuntu/bin/printer-status)
+
+		# No printer has ever been found from this machine, so render nothing
+		# at all - this module ships in the default list and the machines
+		# without a printer stack should not carry a dead icon for it.
+		[ "${p[state]}" = "none" ] && exit 0
+
+		if [ "${p[state]}" = "offline" ]; then
+			render "" "#373b41"
+		elif [ "${p[state]}" = "stopped" ] || [ "${p[accepting]}" = "false" ]; then
+			render "" "#cc6666"
+		elif [ -n "${p[inklow]}" ]; then
+			render "" "#de935f"
+		else
+			render "" "#b5bd68"
+		fi
+		;;
 	battery)
 		value=$(cat /sys/class/power_supply/BAT0/capacity)
 		status=$(cat /sys/class/power_supply/BAT0/status)
 
-		tier=T2
+		tier=${POLYBAR_GLYPH_FONT:-T2}
 
 		if [ "$status" = "Charging" ]; then
 			icon=""

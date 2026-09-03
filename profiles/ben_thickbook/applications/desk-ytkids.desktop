@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=YouTube Kids
-Icon=desk-ytkids
-Exec=google-chrome --app=https://www.youtubekids.com/
-Terminal=false
-Categories=Desk;

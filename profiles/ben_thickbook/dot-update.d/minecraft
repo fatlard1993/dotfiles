@@ -14,8 +14,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # ~/minecraft-suite as its game dir, and that dir is what clients.txt already
 # ships mods to; Prism joins it for mc-play's straight-to-server launch, with
 # its instance .minecraft linked to the same place rather than a second copy.
-mcVersion=26.3-snapshot-10
-loaderVersion=0.19.3
+mcVersion=26.3-pre-1
+loaderVersion=0.19.5
 gameDir=$HOME/minecraft-suite
 
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
@@ -63,12 +63,39 @@ dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
 }
 
+# The Fabric installer writes into a launcher directory, it does not create
+# one: with no $HOME/.minecraft/launcher_profiles.json it stops at "Launcher
+# directory not found" and installs nothing. That file is written by the
+# Mojang launcher's first run, so on a machine nobody has opened it on yet -
+# which is every fresh install - this step could not succeed. It went
+# unnoticed because the machines this ran on had all had a launcher opened
+# years earlier. Seed the empty shape instead of depending on that; the
+# launcher rewrites the file wholesale anyway, and the block below is what
+# puts the suite's profile back into it.
+mkdir -p $HOME/.minecraft
+[[ -f $HOME/.minecraft/launcher_profiles.json ]] || {
+	echo "Seeding an empty launcher profile list (the launcher has not run here yet)"
+
+	echo '{"profiles":{},"version":3}' > $HOME/.minecraft/launcher_profiles.json
+}
+
 [[ -d $HOME/.minecraft/versions/$fabricVersionId ]] || {
 	echo "Installing Fabric $loaderVersion for Minecraft $mcVersion"
 
 	curl -sf -o /tmp/fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar
 	java -jar /tmp/fabric-installer.jar client -mcversion $mcVersion -loader $loaderVersion
+	# Read before rm, which would otherwise be the status this tests - the
+	# same trap mc-build's own comment records. Everything below assumes a
+	# client that exists, and without this the whole hook ran through a
+	# failed install and still finished green.
+	fabricStatus=$?
 	rm -f /tmp/fabric-installer.jar
+
+	[[ $fabricStatus -eq 0 ]] || {
+		echo "  Fabric install failed (status $fabricStatus) - skipping the client setup below" >&2
+
+		return 1
+	}
 }
 
 mcEnsureClientJar $mcVersion $HOME/.minecraft/versions/$mcVersion/$mcVersion.jar
@@ -139,6 +166,13 @@ fi
 mcEnsureClientJar $mcVersion \
 	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
 
+# No local component patches. Prism publishes this pin at
+# meta.prismlauncher.org, and a patches/ directory left over from a version it
+# did not yet carry shadows the published component permanently: the instance
+# would keep launching the old game against the new pin. Removed every run so a
+# stale set cannot survive a bump.
+rm -rf $instanceDir/patches
+
 # Regenerated every run so the pin keeps tracking the server; instance.cfg is
 # seeded once and then belongs to Prism's settings UI.
 cat > $instanceDir/mmc-pack.json << EOF2
@@ -176,11 +210,11 @@ if (( ! ${#clientPandorical} )); then
 fi
 
 # The colonies server (turkeyday.modded.fun, Minecraft 1.21.1) runs the
-# MineColonies Official Modpack. Prism installs that pack itself from
-# CurseForge, and a few of its mods block third-party download and want a
-# click in the browser, so the import stays a one-time hand step: Add
-# Instance > CurseForge > "MineColonies Official Modpack", named exactly
-# "minecolonies" so mc-play's --launch finds it.
+# MineColonies Official pack ("official-reforged" on CurseForge, NeoForge).
+# Prism's CurseForge browser installs it whole, no manual mod downloads - but
+# only through the GUI, and that is what keeps this a hand step: Add Instance >
+# CurseForge > "MineColonies Official", named exactly "minecolonies" so
+# mc-play's --launch finds it.
 [[ -d $prismRoot/instances/minecolonies ]] || {
 	echo "  No 'minecolonies' Prism instance yet - import the MineColonies Official"
 	echo "  Modpack from CurseForge in Prism and name the instance 'minecolonies'"

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Quick Draw
+Icon=desk-quickdraw
+Exec=google-chrome --app=https://quickdraw.withgoogle.com/
+Terminal=false
+Categories=Desk;

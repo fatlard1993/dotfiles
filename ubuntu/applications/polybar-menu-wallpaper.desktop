@@ -2,7 +2,7 @@
 Type=Application
 Name=Wallpaper Menu
 Comment=Per-desktop wallpaper control
-Exec=/home/chase/.dotfiles/ubuntu/bin/polybar-menu wallpaper
+Exec=polybar-menu wallpaper
 Icon=preferences-desktop-wallpaper
 Terminal=false
 Categories=System;

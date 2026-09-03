@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Motherload
+Icon=desk-motherload
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/motherload.html
+Terminal=false
+Categories=Desk;

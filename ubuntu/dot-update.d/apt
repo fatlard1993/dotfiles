@@ -12,7 +12,10 @@
 
 echo "Installing ubuntu apps"
 
-sudo env DEBIAN_FRONTEND=noninteractive $HOME/.dotfiles/ubuntu/aptfile
+# PATH rides along for the `#!/usr/bin/env aptfile` shebang: on a first run
+# sudo still enforces secure_path (the sudo step that relaxes it sorts after
+# this one), so root can't see ~/.local/bin unless env hands it over.
+sudo env DEBIAN_FRONTEND=noninteractive PATH="$HOME/.local/bin:$PATH" $HOME/.dotfiles/ubuntu/aptfile
 
 echo "Autoinstalling drivers"
 

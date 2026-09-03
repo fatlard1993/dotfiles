@@ -3,17 +3,27 @@
 echo "Installing systemd-logind config"
 
 sudo mkdir -p /etc/systemd
+
 # Copied, not symlinked: systemd-logind.service has ProtectHome=yes, which
 # hides /home from the service's mount namespace - a symlink pointing into
 # $HOME resolves to nothing there, so logind silently falls back to its
 # compiled-in defaults instead of erroring.
-sudo cp $HOME/.dotfiles/ubuntu/systemd/logind.conf /etc/systemd/logind.conf
-
-# Restarting logind under a live graphical session drops that session to a VT
-# (and kills whatever ran dot-update from inside it). The config is read at
-# start, so when a desktop is up it waits for the next boot instead.
-if [[ -n $DISPLAY || -n $WAYLAND_DISPLAY ]]; then
-	echo "  A graphical session is running - logind picks the config up at next boot"
+if cmp -s $HOME/.dotfiles/ubuntu/systemd/logind.conf /etc/systemd/logind.conf; then
+	echo "  Unchanged"
 else
-	sudo systemctl restart systemd-logind
+	sudo cp $HOME/.dotfiles/ubuntu/systemd/logind.conf /etc/systemd/logind.conf
+
+	# Restarting logind revokes the device fds it handed to a live X server. The
+	# session doesn't die then - it dies at the next renegotiation (a TV
+	# power-cycle, a VT switch), when every modeset returns EACCES and the screen
+	# strands on the console. $DISPLAY only says whether *this shell* is
+	# graphical - an SSH run sails past it while X runs on the seat (exactly how
+	# the htpc got stranded) - and loginctl's session Type is no help either:
+	# startx-under-greetd sessions report Type=tty. Probe for a live server.
+	if pgrep -x Xorg >/dev/null || pgrep -x Xwayland >/dev/null \
+		|| find /run/user -mindepth 2 -maxdepth 2 -name "wayland-*" 2>/dev/null | grep -q .; then
+		echo "  A graphical session is running - logind picks the config up at next boot"
+	else
+		sudo systemctl restart systemd-logind
+	fi
 fi

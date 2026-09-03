@@ -10,7 +10,8 @@
 #   ./deploy-client.sh --clients      list the clients and say which are reachable
 #
 # A full run also refreshes any connected drive already carrying a set, so the
-# thumb drive keeps up without being asked.
+# thumb drive keeps up without being asked. A set is the loose jars plus
+# suite-guest.zip, a ready-made Prism instance built from those same jars.
 #
 # Same hazard as the server, same shape of answer: the JVM reads classes out of
 # a mod jar lazily, so replacing one under a running game does not fail at the
@@ -73,23 +74,25 @@ reachable() {
 	ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$1" true 2>/dev/null
 }
 
-# fabric-api is nobody's mod here, so it is absent from client-mods.txt, and the
-# local client's copy is the only one this machine has. It still has to go out
-# with every set: a machine being set up for the first time has no Minecraft on
-# it yet, let alone a fabric-api, and four suite jars without it is a client that
-# will not start. The local client and htpc only got away without it because
-# somebody had already put one there by hand.
+# fabric-api is nobody's mod here, so it is absent from client-mods.txt. It still
+# has to go out with every set: a machine being set up for the first time has no
+# Minecraft on it yet, let alone a fabric-api, and four suite jars without it is a
+# client that will not start.
+#
+# Resolved from the pin rather than from the local client's mods/, which is where
+# it used to come from. That made whatever had been copied in by hand the version
+# every client got, and it sat at 0.158.0 while the pin moved to 0.158.2 - unnoticed
+# only because the manifests asked for "*". They name a floor now, so a stale copy
+# is a client that refuses to start rather than one that crashes later.
 api_jar() {
-	ls "$LOCAL"/mods/fabric-api-*.jar 2>/dev/null | head -1
+	local want
+	want=$(grep -E '^\s*fabric_version' pandorical/gradle.properties 2>/dev/null \
+		| head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	[ -z "$want" ] && return 1
+	find "$HOME/.gradle/caches/modules-2" -name "fabric-api-$want.jar" 2>/dev/null \
+		| grep -v sources | head -1
 }
 
-# The jar this mod currently declares itself to be.
-#
-# Gradle does not clear build/libs, so after a version bump both the old and the
-# new jar sit there and an alphabetical "head -1" picks the older one: the deploy
-# reports success and ships the previous build. Matching the version out of
-# gradle.properties is exact, and also copes with archives_base_name differing
-# from the folder name.
 # The mod a jar belongs to, with the version taken off: "loot-ender-1.1.3.jar"
 # becomes "loot-ender". Anchored on the last hyphen that starts a number, so a
 # version with a word in it still comes apart: "village-castles-0.2.1-alpha.jar"
@@ -99,25 +102,59 @@ stem_of() {
 }
 
 jar_for() {
-	local version
+	# The jar this mod currently declares itself to be: the archive name its build.gradle
+	# takes from gradle.properties (mod_id for most, archives_base_name for the rest),
+	# joined to the version. Read, not globbed. Gradle never clears build/libs, so a
+	# rename leaves the old jar beside the new one at the same version, and a glob
+	# sorted alphabetically shipped "better-companions-1.0.0.jar" over
+	# "better-companions-justfatlard-1.0.0.jar": the server came back running the old
+	# mod id, and two others it had never been told about were simply gone.
+	local version prop name jar
 	version=$(grep -E '^\s*mod_version' "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
 	[ -z "$version" ] && return 1
-	ls "$1"/build/libs/*-"$version".jar 2>/dev/null | grep -v sources | head -1
+	prop=$(sed -n 's/.*archivesName *= *project\.\([A-Za-z_]*\).*/\1/p' "$1/build.gradle" 2>/dev/null | head -1)
+	name=""
+	[ -n "$prop" ] && name=$(grep -E "^\s*$prop\s*=" "$1/gradle.properties" 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]')
+	# No archivesName line means Gradle's default, the project name, which is the folder.
+	[ -z "$name" ] && name=$(basename "$1")
+	jar="$1/build/libs/$name-$version.jar"
+	[ -f "$jar" ] || return 1
+	echo "$jar"
 }
 
 # client_running HOST INSTANCE
 client_running() {
-	# Matching on the instance path alone is not enough: pgrep -f reads whole
-	# command lines, and the ssh wrapper carrying the pattern is itself a command
-	# line containing the pattern. The check matched itself and therefore always
-	# said yes, so --swap refused forever and looked like it was working.
+	# Asked of the filesystem, the way local_running asks. The command-line match
+	# this used to make could not see a Prism launch: Prism runs the game through
+	# its own instance directory and never puts the configured game dir on the
+	# command line, so the guard said "clear" while a game was open, and the swap
+	# went in under it - a snapshot-10 client on the thickpad kept its old jars in
+	# memory all morning while the folder said pre-1. A java process whose working
+	# directory or open files sit under the instance dir is the hazard itself.
 	#
-	# Filtering to processes actually named java is what separates the game from
-	# whoever is asking about it.
+	# POSIX sh on stdin, because the remote shells differ (zsh, bash). No -n on
+	# this ssh: -n is /dev/null on stdin, which is where the script is.
 	#
-	# The pattern is the instance directory this client was configured with, so a
-	# machine running some other Minecraft is not mistaken for this one.
-	ssh -n "$1" "pgrep -lf '$2' 2>/dev/null | awk '\$2 == \"java\"' | grep -q ."
+	# A game run by another user (the kid seat, reached over a different login)
+	# keeps its cwd and fd links unreadable, so the command line is the second
+	# signal: Prism passes --gameDir with the instance path, and either the
+	# configured path or its resolved target may be the one on the line.
+	ssh "$1" sh -s -- "$2" <<'REMOTE'
+inst=$1
+root=$(readlink -f "$inst" 2>/dev/null || echo "$inst")
+for dir in /proc/[0-9]*; do
+	[ "$(cat "$dir/comm" 2>/dev/null)" = java ] || continue
+	target=$(readlink "$dir/cwd" 2>/dev/null)
+	case "$target" in "$root"|"$root"/*) exit 0 ;; esac
+	for fd in "$dir"/fd/*; do
+		target=$(readlink "$fd" 2>/dev/null) || continue
+		case "$target" in "$root"/*) exit 0 ;; esac
+	done
+	line=$(tr '\0' ' ' < "$dir/cmdline" 2>/dev/null)
+	case "$line" in *"$inst"*|*"$root"*) exit 0 ;; esac
+done
+exit 1
+REMOTE
 }
 
 # Set by local_running so the refusal can name the process rather than the guess.
@@ -186,6 +223,21 @@ sync_local() {
 		echo "  local $(basename "$jar")"
 		count=$((count + 1))
 	done < <(mods)
+
+	# Fabric API on the same terms. This copy used to be placed by hand and never
+	# touched again, which is how it ended up older than the pin every client is
+	# built against.
+	local api
+	api=$(api_jar) || true
+	if [ -z "$api" ]; then
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
+	elif [ ! -f "$LOCAL/mods/$(basename "$api")" ]; then
+		rm -f "$LOCAL"/mods/fabric-api-*.jar
+		cp "$api" "$LOCAL/mods/"
+		echo "  local $(basename "$api")"
+		count=$((count + 1))
+	fi
+
 	echo "synced $count jar(s) to the local client"
 }
 
@@ -234,7 +286,7 @@ stage() {
 			count=$((count + 1))
 		fi
 	else
-		echo "  !! no fabric-api in the local client to copy" >&2
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
 	fi
 
 	echo "staged $count jar(s)"
@@ -296,27 +348,160 @@ REMOTE
 # uninvited, and this folder is the only signal that says which is which.
 USB_SET_DIR=village-client-mods
 
+# The drive carries a ready-made Prism instance beside the loose jars, because
+# Prism cannot always resolve the pinned snapshot from its own metadata server.
+# What the instance carries to work around that, and when to stop carrying it,
+# is in the template's patches/README.
+#
+# It is rebuilt out of the folder that was just written rather than from a second
+# resolve of the same mods, so the zip and the jars beside it cannot disagree
+# about what the client set is. That is the whole reason this is here: the zip
+# used to be exported by hand, and a version bump refreshed the loose folder and
+# left the instance sitting on the previous mods with nothing saying so.
+GUEST_TEMPLATE="$DATA/guest-instance"
+GUEST_ZIP=suite-guest.zip
+GUEST_DIR=suite
+
 # A value from the suite's pin file, which is pandorical's by convention.
 pin() {
 	grep -E "^\s*$1" "$SUITE/pandorical/gradle.properties" 2>/dev/null |
 		head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'
 }
 
-# Keep the one line on the drive that can quietly stop being true.
+# The lwjgl the carried component names. It has no pin of its own: it follows the
+# Minecraft version, so the patch the instance ships is the only place that knows
+# it. Empty once the template stops carrying patches, which is the state where
+# nothing local knows it any more.
+lwjgl_version() {
+	local f="$GUEST_TEMPLATE/patches/org.lwjgl3.json"
+	[ -f "$f" ] || return 0
+	sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1
+}
+
+# Keep the lines on the drive that can quietly stop being true.
 #
-# The prose belongs to whoever wrote it; only the version fact is rewritten,
-# from the same pins the jars beside it were built against. It sat there saying
-# snapshot-8 while the suite had moved to snapshot-9, which is worse than no
-# README: it sends a reader to the wrong loader with confidence.
+# The prose belongs to whoever wrote it; only the version facts are rewritten,
+# from the same pins the jars beside it were built against. The Requires: line
+# sat there saying snapshot-8 while the suite had moved to snapshot-9, which is
+# worse than no README: it sends a reader to the wrong loader with confidence.
+#
+# The Prism error the page quotes is four more of the same fact, and it is quoted
+# so a reader can match it against their screen. It named LWJGL 3.4.2 while the
+# instance beside it asked for 3.4.3, so the match came out three lines of four -
+# which is the reading that sends somebody hunting a fault that is not there,
+# exactly what the paragraph under it says not to do.
 usb_readme() {
-	local readme="$1/README.txt" mc loader
+	local readme="$1/README.txt" mc loader lwjgl
 	[ -f "$readme" ] || return 0
 
 	mc=$(pin minecraft_version)
 	loader=$(pin loader_version)
 	[ -n "$mc" ] && [ -n "$loader" ] || return 0
 
-	sed -i "s|^Requires: Fabric Loader .*|Requires: Fabric Loader $loader for Minecraft $mc.|" "$readme"
+	# The quoted lines are indented; the capture holds whatever that indent is
+	# rather than this script having an opinion about someone else's layout.
+	sed -i \
+		-e "s|^Requires: Fabric Loader .*|Requires: Fabric Loader $loader for Minecraft $mc.|" \
+		-e "s|^\( *\)Could not download metadata for Minecraft .*|\1Could not download metadata for Minecraft $mc|" \
+		-e "s|^\( *\)Could not download metadata for Intermediary Mappings .*|\1Could not download metadata for Intermediary Mappings $mc|" \
+		-e "s|^\( *\)Could not download metadata for Fabric Loader .*|\1Could not download metadata for Fabric Loader $loader|" \
+		"$readme"
+
+	lwjgl=$(lwjgl_version)
+	[ -n "$lwjgl" ] || return 0
+	sed -i "s|^\( *\)Could not download metadata for LWJGL 3 .*|\1Could not download metadata for LWJGL 3 $lwjgl|" "$readme"
+}
+
+# The component list Prism reads, written from the same pins the jars were built
+# against rather than kept as a file somebody has to remember to edit.
+#
+# org.lwjgl3 is named only while patches/ carries it: snapshot-10 wants 3.4.3
+# where the published component still says 3.4.2, and once Prism publishes the
+# version the patch goes and lwjgl resolves from net.minecraft's own requires.
+mmc_pack() {
+	local inst="$1" mc="$2" loader="$3" lwjgl
+	lwjgl=$(lwjgl_version)
+
+	echo '{'
+	echo '    "components": ['
+	if [ -n "$lwjgl" ]; then
+		printf '        {\n            "uid": "org.lwjgl3",\n            "version": "%s"\n        },\n' "$lwjgl"
+	fi
+	printf '        {\n            "important": true,\n            "uid": "net.minecraft",\n            "version": "%s"\n        },\n' "$mc"
+	printf '        {\n            "uid": "net.fabricmc.intermediary",\n            "version": "%s"\n        },\n' "$mc"
+	printf '        {\n            "uid": "net.fabricmc.fabric-loader",\n            "version": "%s"\n        }\n' "$loader"
+	echo '    ],'
+	echo '    "formatVersion": 1'
+	echo '}'
+}
+
+# guest_zip SET_DIR - rebuild the instance zip beside the folder it is given.
+guest_zip() {
+	local set_dir="$1" zip_path staging inst mc loader jar jars=0
+
+	# No template, no instance. A drive seeded before this existed keeps the zip
+	# it already has rather than losing it to an empty rebuild.
+	[ -d "$GUEST_TEMPLATE" ] || return 0
+
+	mc=$(pin minecraft_version)
+	loader=$(pin loader_version)
+	if [ -z "$mc" ] || [ -z "$loader" ]; then
+		echo "  !! no version pins in pandorical/gradle.properties: guest instance left alone" >&2
+		return 1
+	fi
+
+	staging=$(mktemp -d) || return 1
+	inst="$staging/$GUEST_DIR"
+	mkdir -p "$inst/.minecraft/mods"
+	cp "$GUEST_TEMPLATE/instance.cfg" "$inst/"
+	if [ -d "$GUEST_TEMPLATE/patches" ]; then
+		cp -r "$GUEST_TEMPLATE/patches" "$inst/"
+	fi
+
+	for jar in "$set_dir"/*.jar; do
+		[ -e "$jar" ] || continue
+		cp "$jar" "$inst/.minecraft/mods/"
+		jars=$((jars + 1))
+	done
+	if [ "$jars" = 0 ]; then
+		echo "  !! no jars in $set_dir: guest instance left alone" >&2
+		rm -rf "$staging"
+		return 1
+	fi
+
+	mmc_pack "$inst" "$mc" "$loader" > "$inst/mmc-pack.json"
+
+	# Built whole in a temp dir and copied over, so a rebuild that dies halfway
+	# leaves the drive's working zip where it is rather than a truncated one.
+	zip_path="$(dirname "$set_dir")/$GUEST_ZIP"
+	if ( cd "$staging" && zip -qr "$GUEST_ZIP" "$GUEST_DIR" ) && cp "$staging/$GUEST_ZIP" "$zip_path"; then
+		echo "  rebuilt $GUEST_ZIP ($jars jars, Minecraft $mc, loader $loader)"
+	else
+		echo "  !! could not write $zip_path" >&2
+		rm -rf "$staging"
+		return 1
+	fi
+
+	rm -rf "$staging"
+}
+
+# The loose copy of the same component metadata, for a guest who has an instance
+# already and needs only the patches. Refreshed when the drive carries it, and
+# taken away when the template stops carrying patches at all - a folder of
+# metadata for a version Prism now publishes is worse than none, because it
+# shadows the published component permanently.
+usb_metadata() {
+	local dir="$1/prism-metadata"
+	[ -d "$dir" ] || return 0
+
+	if [ -d "$GUEST_TEMPLATE/patches" ]; then
+		rm -f "$dir"/*.json "$dir"/README
+		cp "$GUEST_TEMPLATE/patches"/* "$dir/"
+		echo "  refreshed prism-metadata"
+	else
+		rm -rf "$dir"
+		echo "  dropped prism-metadata: the template no longer carries patches"
+	fi
 }
 
 usb_write() {
@@ -345,10 +530,14 @@ usb_write() {
 		echo "  copied $(basename "$api")"
 		count=$((count + 1))
 	else
-		echo "  !! no fabric-api in the local client to copy" >&2
+		echo "  !! no fabric-api jar matching the pin in the gradle cache: run mc-build first" >&2
 	fi
 
 	usb_readme "$dest"
+	# One failed rebuild is not a reason to abandon the drive, or the next one:
+	# usb_auto walks every drive that carries a set.
+	usb_metadata "$dest" || true
+	guest_zip "$dest" || true
 	sync -f "$dest" 2>/dev/null || true
 	echo "client set written to $dest ($count jars)"
 }

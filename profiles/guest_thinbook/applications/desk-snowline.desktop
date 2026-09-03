@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Snow Line
+Icon=desk-snowline
+Exec=google-chrome --app=file://$HOME/.dotfiles/profiles/guest_thinbook/desk-web/snowline.html
+Terminal=false
+Categories=Desk;
