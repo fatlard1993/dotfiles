@@ -76,6 +76,7 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 - `push.default = current` / `pull.rebase = false`
 - `git summary` / `git effort` / `git changelog` (git-extras: repo overview, per-author churn, tag history)
 - `difft` (difftastic): structural diff: `GIT_EXTERNAL_DIFF=difft git diff`
+- `git-survey [-f] [-s] [-t] [-a] [-d N] [path]`: every repo under a folder: ahead/behind per branch and worktree, dirty worktrees, stashes; `-f` fetches first, `-s` also fast-forwards whatever is only behind (never merges, rebases, or pushes), `-t` proposes an editable cleanup list (branches fully pushed or squash/rebase-merged, their clean worktrees, old stashes) and asks before deleting
 
 **Data tools:**
 - `jq` / `yq` / `dasel`: JSON / YAML / any format

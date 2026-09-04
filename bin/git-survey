@@ -1,0 +1,426 @@
+#!/bin/zsh
+# git-survey: what needs pulling, pushing, or committing across every repo under a folder
+# usage: git-survey [-f|--fetch] [-s|--sync] [-t|--trim] [-a|--all] [-d N|--depth N] [path]
+#   -f  fetch every repo first (parallel, prunes gone remote branches), so behind counts are real
+#   -s  fetch, then fast-forward every branch that is only behind; never merges, rebases, or pushes,
+#       and leaves a checked-out branch alone if its worktree has modified files
+#   -t  fetch, then propose a cleanup list: branches whose upstream is gone or unset and whose work
+#       is already on a remote (every commit pushed, or squash/rebase-merged into main/master/develop),
+#       clean worktrees on such branches, and stashes (those older than --stash-age days,
+#       default 30, pre-selected). Opens the list in the git editor, then asks y/N.
+#   -a  list clean repos too
+#   -d  only look N folder levels down (default: unlimited)
+
+set -uo pipefail
+
+fetch=0 sync=0 trim=0 all=0 root='' depth=0 stash_age=30
+while (($#)); do
+	case "$1" in
+	-f | --fetch) fetch=1 ;;
+	-s | --sync) fetch=1 sync=1 ;;
+	-t | --trim) fetch=1 trim=1 ;;
+	--stash-age) stash_age="$2"; shift ;;
+	-a | --all) all=1 ;;
+	-d | --depth) depth=$(($2 + 1)); shift ;;
+	-h | --help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+	*) root="$1" ;;
+	esac
+	shift
+done
+root="$(cd "${root:-.}" && pwd -P)" || exit 1
+
+if [[ -t 1 ]]; then
+	dim=$'\e[2m' red=$'\e[31m' grn=$'\e[32m' ylw=$'\e[33m' mag=$'\e[35m' cyn=$'\e[36m' bold=$'\e[1m' off=$'\e[0m'
+else
+	dim='' red='' grn='' ylw='' mag='' cyn='' bold='' off=''
+fi
+
+rel() {
+	local p="$1"
+	[[ "$p" == "$root" ]] && { echo .; return; }
+	[[ "$p" == "$root"/* ]] && { echo "${p#"$root"/}"; return; }
+	[[ "$p" == "$HOME"/* ]] && { echo "~${p#"$HOME"}"; return; }
+	echo "$p"
+}
+
+find_gitdirs() {
+	local -a limit
+	if command -v fd >/dev/null; then
+		((depth)) && limit=(--max-depth "$depth")
+		fd -HI --prune -E node_modules "${limit[@]}" '^\.git$' "$root"
+	else
+		((depth)) && limit=(-maxdepth "$depth")
+		find "$root" "${limit[@]}" -name node_modules -prune -o -name .git -print -prune
+	fi 2>/dev/null | sed 's:/$::' | sort
+}
+
+typeset -A seen
+mains=()
+while IFS= read -r gitpath; do
+	dir="${gitpath%/.git}"
+	common="$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
+	common="$(cd "$common" 2>/dev/null && pwd -P)" || continue
+	[[ -n "${seen[$common]:-}" ]] && continue
+	seen[$common]=1
+	gitdir="$(cd "$(git -C "$dir" rev-parse --path-format=absolute --git-dir)" && pwd -P)"
+	if [[ "$gitdir" == "$common" ]]; then
+		mains+=("$(git -C "$dir" rev-parse --path-format=absolute --show-toplevel)")
+	else
+		mains+=("$(git -C "$dir" worktree list --porcelain | sed -n '1s/^worktree //p')")
+	fi
+done < <(find_gitdirs)
+
+if ((fetch)) && ((${#mains[@]})); then
+	printf '%s\0' "${mains[@]}" | xargs -0 -P 8 -I{} git -C {} fetch --all --prune --quiet
+fi
+
+sync_bits() {
+	local dir="$1" ref="$2" counts ahead behind base
+	local -a bits
+	if counts="$(git -C "$dir" rev-list --left-right --count "$ref...$ref@{u}" 2>/dev/null)"; then
+		read -r ahead behind <<<"$counts"
+		((ahead)) && bits+=("${grn}↑$ahead${off}")
+		((behind)) && bits+=("${ylw}↓$behind${off}")
+	else
+		ahead="$(git -C "$dir" rev-list --count "$ref" --not --remotes 2>/dev/null || echo 0)"
+		if [[ -n "$(git -C "$dir" for-each-ref --format='%(upstream)' "refs/heads/$ref" 2>/dev/null)" ]]; then
+			bits+=("${red}upstream gone${off}")
+		elif ((ahead)) && [[ "$ref" != HEAD ]]; then
+			bits+=("${red}no upstream${off}")
+		fi
+		((ahead)) && bits+=("${grn}↑$ahead${off}")
+		if ((ahead)) && [[ "$ref" != HEAD ]]; then
+			squashed_into "$dir" "$ref"; base="$squash_found"
+			[[ -n "$base" ]] && bits+=("${dim}merged into $base${off}")
+		fi
+	fi
+	printf '%s' "${bits[*]:-}"
+}
+
+dirty_bits() {
+	local dir="$1" changed=0 untracked=0 line
+	local -a bits
+	while IFS= read -r line; do
+		if [[ "$line" == '??'* ]]; then ((untracked += 1)); else ((changed += 1)); fi
+	done < <(git -C "$dir" status --porcelain=v1 -unormal 2>/dev/null)
+	((changed)) && bits+=("${red}$changed changed${off}")
+	((untracked)) && bits+=("${red}$untracked untracked${off}")
+	printf '%s' "${bits[*]:-}"
+}
+
+join() {
+	local out='' part
+	for part in "$@"; do
+		[[ -z "$part" ]] && continue
+		out+="${out:+ ${dim}·${off} }$part"
+	done
+	printf '%s' "$out"
+}
+
+sync_repo() {
+	local main="$1" branch wtpath upstream track behind where
+	while IFS=$'\x1f' read -r branch wtpath upstream track; do
+		[[ -z "$upstream" || "$track" == gone || "$track" == *ahead* || "$track" != *behind* ]] && continue
+		behind="${track##*behind }" where="$branch"
+		if [[ -z "$wtpath" ]]; then
+			if git -C "$main" fetch --quiet . "${upstream}:refs/heads/${branch}" 2>/dev/null; then
+				lines+=("  ${grn}⇣${off} $where  ${ylw}↓$behind${off} fast-forwarded")
+			else
+				lines+=("  ${red}⇣${off} $where  ${ylw}↓$behind${off} fast-forward refused")
+			fi
+		else
+			[[ "$wtpath" != "$main" ]] && where="$(rel "$wtpath") ${dim}($branch)${off}"
+			if [[ -n "$(git -C "$wtpath" status --porcelain=v1 -uno 2>/dev/null)" ]]; then
+				lines+=("  ${red}⇣${off} $where  ${ylw}↓$behind${off} skipped, worktree has modified files")
+			elif git -C "$wtpath" merge --ff-only --quiet "@{u}" >/dev/null 2>&1; then
+				lines+=("  ${grn}⇣${off} $where  ${ylw}↓$behind${off} fast-forwarded")
+			else
+				lines+=("  ${red}⇣${off} $where  ${ylw}↓$behind${off} fast-forward refused, untracked files in the way")
+			fi
+		fi
+	done < <(git -C "$main" for-each-ref --format='%(refname:short)%1f%(worktreepath)%1f%(upstream)%1f%(upstream:track,nobracket)' refs/heads)
+}
+
+US=$'\x1f'
+
+typeset -gA squash_memo squash_pid
+typeset -ga squash_bases
+squash_ready=0
+
+squash_table() {
+	local dir="$1" base since pid sha stamp upstream track
+	for base in "$(git -C "$dir" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)" origin/main origin/master origin/develop; do
+		[[ -n "$base" ]] || continue
+		((${squash_bases[(Ie)$base]})) && continue
+		git -C "$dir" rev-parse -q --verify "${base}^{commit}" >/dev/null 2>&1 && squash_bases+=("$base")
+	done
+	since=''
+	while IFS=$'\x1f' read -r stamp upstream track; do
+		[[ -z "$upstream" || "$track" == gone ]] || continue
+		[[ -z "$since" || stamp -lt since ]] && since="$stamp"
+	done < <(git -C "$dir" for-each-ref --format='%(committerdate:unix)%1f%(upstream)%1f%(upstream:track,nobracket)' refs/heads)
+	squash_ready=1
+	[[ -z "$since" ]] && return
+	for base in "${squash_bases[@]}"; do
+		while read -r pid sha; do
+			[[ -n "${squash_pid[$pid]:-}" ]] || squash_pid[$pid]="${base#origin/}"
+		done < <(git -C "$dir" log -p --format=%H --since="@$((since - 86400))" --max-count=5000 "$base" 2>/dev/null | git patch-id --stable)
+	done
+}
+
+squashed_into() {
+	local dir="$1" branch="$2" base mb pid found='' all
+	local -a mbs pids
+	squash_found="${squash_memo[$branch]:-}"
+	((${+squash_memo[$branch]})) && return
+	((squash_ready)) || squash_table "$dir"
+	for base in "${squash_bases[@]}"; do
+		mb="$(git -C "$dir" merge-base "$base" "$branch" 2>/dev/null)" || continue
+		((${mbs[(Ie)$mb]})) || mbs+=("$mb")
+	done
+	if ((${#mbs[@]})); then
+		mbs=("${(f)$(git -C "$dir" merge-base --independent "${mbs[@]}")}")
+		for mb in "${mbs[@]}"; do
+			(($(git -C "$dir" rev-list --count "$mb..$branch") > 500)) && continue
+			pid="$(git -C "$dir" diff "$mb" "$branch" | git patch-id --stable | cut -d' ' -f1)"
+			[[ -n "$pid" && -n "${squash_pid[$pid]:-}" ]] && { found="${squash_pid[$pid]}"; break; }
+			pids=("${(f)$(git -C "$dir" log -p --format=%H "$mb..$branch" | git patch-id --stable | cut -d' ' -f1)}")
+			((${#pids[@]})) || continue
+			all="${squash_pid[${pids[1]}]:-}"
+			for pid in "${pids[@]}"; do [[ -n "$all" && -n "${squash_pid[$pid]:-}" ]] || all=''; done
+			[[ -n "$all" ]] && { found="$all"; break; }
+		done
+	fi
+	squash_memo[$branch]="$found" squash_found="$found"
+}
+
+trim_candidates() {
+	local main="$1" plan="$2"
+	local -A safe_wt
+	local line wt_path='' wt_branch='' wt_head='' wt_prunable=0 first=1 ref
+	local branch wtpath upstream track ahead base note sha stamp msg age now
+	now="$(date +%s)"
+
+	while IFS= read -r line; do
+		case "$line" in
+		worktree\ *) wt_path="${line#worktree }" wt_branch='' wt_head='' wt_prunable=0 ;;
+		HEAD\ *) wt_head="${line#HEAD }" ;;
+		branch\ *) wt_branch="${line#branch refs/heads/}" ;;
+		prunable*) wt_prunable=1 ;;
+		'')
+			[[ -z "$wt_path" ]] && continue
+			if ((first)); then first=0 wt_path=''; continue; fi
+			if ((wt_prunable)); then
+				printf '%s\n' "prune${US}${main}${US}${wt_path}${US}$(rel "$wt_path")${US}directory is gone${US}1" >>"$plan"
+			elif [[ -z "$(git -C "$wt_path" status --porcelain=v1 -unormal 2>/dev/null)" ]]; then
+				if [[ -n "$wt_branch" ]]; then
+					upstream="$(git -C "$main" for-each-ref --format='%(upstream)%1f%(upstream:track,nobracket)' "refs/heads/$wt_branch")"
+					track="${upstream#*$US}" upstream="${upstream%%$US*}"
+					if [[ -z "$upstream" || "$track" == gone ]]; then
+						ahead="$(git -C "$main" rev-list --count "$wt_branch" --not --remotes 2>/dev/null || echo 1)"
+						base=''
+						((ahead)) && { squashed_into "$main" "$wt_branch"; base="$squash_found"; }
+						if ((ahead == 0)) || [[ -n "$base" ]]; then
+							safe_wt[$wt_branch]=1
+							note="fully on remote"; [[ -n "$base" ]] && note="merged into $base"
+							printf '%s\n' "worktree${US}${main}${US}${wt_path}${US}$(rel "$wt_path") ($wt_branch)${US}clean, branch ${note}${US}1" >>"$plan"
+						fi
+					fi
+				elif ((0 == $(git -C "$wt_path" rev-list --count HEAD --not --remotes 2>/dev/null || echo 1))); then
+					printf '%s\n' "worktree${US}${main}${US}${wt_path}${US}$(rel "$wt_path") (detached ${wt_head:0:7})${US}clean, commit is on a remote${US}1" >>"$plan"
+				fi
+			fi
+			wt_path=''
+			;;
+		esac
+	done < <(git -C "$main" worktree list --porcelain; echo)
+
+	while IFS=$'\x1f' read -r branch wtpath upstream track; do
+		[[ -n "$wtpath" && -z "${safe_wt[$branch]:-}" ]] && continue
+		[[ -n "$upstream" && "$track" != gone ]] && continue
+		ahead="$(git -C "$main" rev-list --count "$branch" --not --remotes 2>/dev/null || echo 1)"
+		base=''
+		((ahead)) && { squashed_into "$main" "$branch"; base="$squash_found"; }
+		((ahead)) && [[ -z "$base" ]] && continue
+		note="every commit is on a remote"; [[ -n "$base" ]] && note="merged into $base"
+		printf '%s\n' "branch${US}${main}${US}${branch}${US}${branch}${US}${upstream:+upstream gone, }${note}${US}1" >>"$plan"
+	done < <(git -C "$main" for-each-ref --format='%(refname:short)%1f%(worktreepath)%1f%(upstream)%1f%(upstream:track,nobracket)' refs/heads)
+
+	while IFS=$'\x1f' read -r ref stamp msg; do
+		age=$(((now - stamp) / 86400))
+		printf '%s\n' "stash${US}${main}${US}${ref}${US}${ref}${US}${age}d ago: ${msg}${US}$((age >= stash_age))" >>"$plan"
+	done < <(git -C "$main" stash list --format='%gd%x1f%ct%x1f%s' 2>/dev/null)
+}
+
+report_repo() {
+	local main="$1" out="$2"
+	local -a lines
+	local head_label='' head_state='' wt_path='' wt_branch='' wt_head='' wt_prunable=0 first=1
+	local line label sbits dirty state branch wtpath upstream track ahead base stashes
+
+	((sync)) && sync_repo "$main"
+	squash_table "$main"
+	((trim)) && trim_candidates "$main" "$out.trim"
+
+	while IFS= read -r line; do
+		case "$line" in
+		worktree\ *) wt_path="${line#worktree }" wt_branch='' wt_head='' wt_prunable=0 ;;
+		HEAD\ *) wt_head="${line#HEAD }" ;;
+		branch\ *) wt_branch="${line#branch refs/heads/}" ;;
+		prunable*) wt_prunable=1 ;;
+		'')
+			[[ -z "$wt_path" ]] && continue
+			((first)) && wt_path="$main"
+			label="${wt_branch:-${dim}detached ${wt_head:0:7}${off}}"
+			if ((wt_prunable)); then
+				sbits="${red}directory gone${off}" dirty=''
+			else
+				sbits="$(sync_bits "$wt_path" "${wt_branch:-HEAD}")"
+				dirty="$(dirty_bits "$wt_path")"
+			fi
+			if ((first)); then
+				head_label="$label" head_state="$(join "$sbits" "$dirty")" first=0
+			else
+				state="$(join "$sbits" "$dirty")"
+				lines+=("  ${cyn}⌂${off} $(rel "$wt_path") ${dim}($label)${off}  ${state:-${dim}clean${off}}")
+			fi
+			wt_path=''
+			;;
+		esac
+	done < <(git -C "$main" worktree list --porcelain; echo)
+
+	while IFS=$'\x1f' read -r branch wtpath upstream track; do
+		[[ -n "$wtpath" ]] && continue
+		sbits=''
+		if [[ -z "$upstream" || "$track" == gone ]]; then
+			ahead="$(git -C "$main" rev-list --count "$branch" --not --remotes 2>/dev/null || echo 0)"
+			[[ -n "$upstream" ]] && sbits="${red}upstream gone${off}"
+			if ((ahead)); then
+				[[ -z "$upstream" ]] && sbits="${red}no upstream${off}"
+				sbits+=" ${grn}↑$ahead${off}"
+				squashed_into "$main" "$branch"; base="$squash_found"
+				[[ -n "$base" ]] && sbits+=" ${dim}merged into $base${off}"
+			fi
+		else
+			[[ "$track" == *ahead* ]] && sbits="${grn}↑${${track##*ahead }%%,*}${off}"
+			[[ "$track" == *behind* ]] && sbits="${sbits:+$sbits }${ylw}↓${track##*behind }${off}"
+		fi
+		[[ -n "$sbits" ]] && lines+=("  ${cyn}⎇${off} $branch  $sbits")
+	done < <(git -C "$main" for-each-ref --format='%(refname:short)%1f%(worktreepath)%1f%(upstream)%1f%(upstream:track,nobracket)' refs/heads)
+
+	stashes="$(git -C "$main" stash list 2>/dev/null | wc -l | tr -d ' ')"
+	((stashes)) && head_state="$(join "$head_state" "${mag}$stashes stashed${off}")"
+
+	if [[ -z "$head_state" && ${#lines[@]} -eq 0 ]]; then
+		((all)) && printf '%s%s%s %s(%s)%s  %s✓%s\n' "$bold" "$(rel "$main")" "$off" "$dim" "$head_label" "$off" "$grn" "$off" >"$out"
+		return
+	fi
+	{
+		printf '%s%s%s %s(%s)%s  %s\n' "$bold" "$(rel "$main")" "$off" "$dim" "$head_label" "$off" "${head_state:-${dim}clean${off}}"
+		((${#lines[@]})) && printf '%s\n' "${lines[@]}"
+	} >"$out"
+	touch "$out.flag"
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+i=0
+for main in "${mains[@]}"; do
+	((i += 1))
+	report_repo "$main" "$tmp/$i" &
+	((i % 8 == 0)) && wait
+done
+wait
+
+for ((n = 1; n <= i; n++)); do
+	[[ -s "$tmp/$n" ]] && cat "$tmp/$n"
+done
+
+flags=("$tmp"/*.flag(N))
+flagged=${#flags[@]}
+printf '%s%d repos, %d need attention%s\n' "$dim" "$i" "$flagged" "$off" >&2
+
+((trim)) || exit 0
+
+kinds=() repos=() targets=() shown=() notes=() picked=()
+for ((n = 1; n <= i; n++)); do
+	[[ -s "$tmp/$n.trim" ]] || continue
+	while IFS=$'\x1f' read -r kind repo target show note pre; do
+		kinds+=("$kind") repos+=("$repo") targets+=("$target") shown+=("$show") notes+=("$note") picked+=("$pre")
+	done <"$tmp/$n.trim"
+done
+
+if ((${#kinds[@]} == 0)); then
+	echo "${dim}nothing to trim${off}" >&2
+	exit 0
+fi
+
+plan="$tmp/plan"
+{
+	echo "# git-survey trim: every uncommented line below will be deleted."
+	echo "# Comment out or delete a line to keep it. Uncomment a stash to drop it. Save an empty file to cancel."
+	echo "# Deleted branches and stashes print their sha so they can be restored."
+	echo
+	last=''
+	for ((n = 1; n <= ${#kinds[@]}; n++)); do
+		if [[ "${repos[n]}" != "$last" ]]; then
+			last="${repos[n]}"
+			echo "# ── $(rel "$last")"
+		fi
+		printf '%s%-4d %-9s %s  # %s\n' "$([[ "${picked[n]}" == 1 ]] || printf '# ')" "$n" "${kinds[n]}" "${shown[n]}" "${notes[n]}"
+	done
+} >"$plan"
+
+if [[ ! -t 0 || ! -t 1 ]]; then
+	echo >&2
+	sed 's/^/  /' "$plan"
+	echo "${ylw}no terminal: proposal shown, nothing done. Rerun interactively to trim.${off}" >&2
+	exit 0
+fi
+
+editor="$(git var GIT_EDITOR)"
+${=editor} "$plan" </dev/tty >/dev/tty || { echo "${ylw}editor exited non-zero, cancelled${off}" >&2; exit 1; }
+
+chosen=()
+while IFS= read -r line; do
+	line="${line%%#*}"
+	[[ "$line" == *[![:space:]]* ]] || continue
+	n="${${(z)line}[1]}"
+	[[ "$n" == <1-> && -n "${kinds[n]:-}" ]] && chosen+=("$n")
+done <"$plan"
+
+if ((${#chosen[@]} == 0)); then
+	echo "${dim}nothing selected, cancelled${off}" >&2
+	exit 0
+fi
+
+echo
+for n in "${chosen[@]}"; do
+	printf '  %s%-9s%s %s %s\n' "$red" "${kinds[n]}" "$off" "$(rel "${repos[n]}")" "${shown[n]}"
+done
+printf '\n%sDelete these %d? [y/N] %s' "$bold" "${#chosen[@]}" "$off"
+read -r -k 1 answer </dev/tty
+echo
+[[ "$answer" == [yY] ]] || { echo "${dim}cancelled${off}" >&2; exit 0; }
+
+order=(worktree prune branch stash)
+for kind in "${order[@]}"; do
+	selected=()
+	for n in "${chosen[@]}"; do [[ "${kinds[n]}" == "$kind" ]] && selected+=("$n"); done
+	[[ "$kind" == stash ]] && selected=("${(@On)selected}")
+	for n in "${selected[@]}"; do
+		repo="${repos[n]}" target="${targets[n]}"
+		case "$kind" in
+		worktree) result="$(git -C "$repo" worktree remove "$target" 2>&1)" && result="removed"; ok=$? ;;
+		prune) result="$(git -C "$repo" worktree prune 2>&1)" && result="pruned"; ok=$? ;;
+		branch) result="$(git -C "$repo" branch -D "$target" 2>&1)"; ok=$? ;;
+		stash) result="$(git -C "$repo" stash drop "$target" 2>&1)"; ok=$? ;;
+		esac
+		if ((ok == 0)); then
+			printf '  %s✓%s %s %s  %s%s%s\n' "$grn" "$off" "$(rel "$repo")" "${shown[n]}" "$dim" "${result//$'\n'/ }" "$off"
+		else
+			printf '  %s✗%s %s %s  %s%s%s\n' "$red" "$off" "$(rel "$repo")" "${shown[n]}" "$red" "${result//$'\n'/ }" "$off"
+		fi
+	done
+done
