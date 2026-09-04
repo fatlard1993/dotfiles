@@ -32,7 +32,11 @@ echo "Asserting dnsmasq config"
 
 getent group dnsmasq > /dev/null || sudo groupadd -r dnsmasq
 
-sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
+# A profile may have promoted this resolver to LAN-facing (profiles/htpc/
+# dot-update.d/dnsmasq-lan). Relinking the shared config here takes the
+# house's DNS down until that step relinks it, after every install between.
+[[ $(readlink /etc/dnsmasq.conf) == $HOME/.dotfiles/profiles/* ]] \
+	|| sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
 sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 sudo ln -sf $HOME/.dotfiles/ubuntu/dnsmasq/dhclient.conf /etc/dhcp/dhclient.conf
 
