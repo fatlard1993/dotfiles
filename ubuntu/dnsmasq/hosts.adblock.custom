@@ -3,3 +3,12 @@
 #   0.0.0.0 example.com
 # Merged into ubuntu/dnsmasq/hosts.adblock (gitignored, regenerated) by
 # ubuntu/bin/dnsmasq-update-blocklist.
+
+# NitroPay: the ad server behind curseforge.com (StevenBlack only carries
+# tracker.nitropay.com), plus the id-sync and analytics hosts its units call
+0.0.0.0 s.nitropay.com
+0.0.0.0 nitropay.com
+0.0.0.0 t.nit.ro
+0.0.0.0 srv.scalibur.io
+0.0.0.0 lexicon.33across.com
+0.0.0.0 ids4.ad.gt
