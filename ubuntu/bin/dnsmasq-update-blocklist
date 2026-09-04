@@ -18,6 +18,11 @@ fi
 
 grep -E '^0\.0\.0\.0 ' "$custom" >> "$tmp"
 
+# A name pinned to 0.0.0.0 alone only blocks the A lookup: dnsmasq forwards
+# the AAAA upstream, and on an IPv6-capable link Chrome takes that answer
+# and loads the ad anyway. Pin both families.
+awk '{ print; print "::", $2 }' "$tmp" > "$tmp.6" && mv "$tmp.6" "$tmp"
+
 mv "$tmp" "$target"
 
 # mktemp creates mode 600 and mv/cp carry it forward - but dnsmasq reads
@@ -27,7 +32,7 @@ mv "$tmp" "$target"
 # shipped). install -m instead of cp for the live copy, same reason.
 chmod 644 "$target"
 
-echo "Wrote $(wc -l < "$target") blocked domains to $target"
+echo "Wrote $(grep -c '^0\.0\.0\.0 ' "$target") blocked domains to $target"
 
 if [[ -f /etc/hosts.adblock ]]; then
 	sudo install -m 644 "$target" /etc/hosts.adblock
