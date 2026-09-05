@@ -1,0 +1,34 @@
+#!/bin/zsh
+
+# Switches the pad's X pointer device (xorg/60-controller-pointer.conf) off
+# while Steam runs and back on when it exits. Steam Input owns the pad
+# while Steam is up - it reads without an exclusive grab, so the X driver
+# would fire on the same presses - and the pad is a plain joystick to X
+# the moment Steam is gone.
+#
+# Polled, not event-driven: nothing announces Steam's exit (Big Picture
+# quits from its own menu, no window to watch, no pid file cleanup), and
+# X re-adds the device enabled on every replug, so a one-shot toggle would
+# also miss those. One pgrep a second is nothing.
+#
+# The pad's own HID interfaces enumerate as "... Controller Keyboard" and
+# "... Controller Mouse"; the joystick driver's devices are the bare name
+# and its "(keys)" sibling. The anchor on the end of the name keeps the
+# match to the driver's two.
+
+[ -n "$DISPLAY" ] || export DISPLAY=:0
+
+# Applied on change only: a Steam start/exit, or the device set changing
+# (X re-adds a replugged pad enabled, which would otherwise stick).
+last=
+while true; do
+	ids=$(xinput list | grep -E '8BitDo .*Controller( \(keys\))?\s+id=' | grep -oP 'id=\K\d+')
+	if pgrep -x steam > /dev/null; then want=0; else want=1; fi
+
+	state="$want:$ids"
+	if [[ $state != $last ]]; then
+		for id in ${=ids}; xinput set-prop $id 'Device Enabled' $want 2>/dev/null
+		last=$state
+	fi
+	sleep 1
+done

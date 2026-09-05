@@ -17,6 +17,11 @@ package "mpv"
 # Input can't remap or emulate them
 package "steam-devices"
 
+# X driver that puts a joystick on the pointer. Only the 8BitDo pad, and
+# only while Steam is closed - profiles/htpc/xorg/60-controller-pointer.conf
+# and bin/controller-pointer-gate
+package "xserver-xorg-input-joystick"
+
 # Minecraft client for the couch (dot-update.d/minecraft generates the
 # instance). Chosen over Mojang's launcher for its CLI: --launch plus
 # --server go straight into the house server, so the Steam shortcut skips

@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+# Pad drives the pointer only while Steam is closed (see bin/
+# controller-pointer-gate). Anchored pgrep, same reasoning as the laptops'
+# startup.d/input-watchdog: a bare -f match would see this launcher too.
+pgrep -f "^/bin/zsh $HOME/.dotfiles/profiles/htpc/bin/controller-pointer-gate" > /dev/null \
+	|| $HOME/.dotfiles/profiles/htpc/bin/controller-pointer-gate &
