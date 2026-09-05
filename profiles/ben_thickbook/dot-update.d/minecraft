@@ -14,7 +14,7 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # ~/minecraft-suite as its game dir, and that dir is what clients.txt already
 # ships mods to; Prism joins it for mc-play's straight-to-server launch, with
 # its instance .minecraft linked to the same place rather than a second copy.
-mcVersion=26.3-pre-1
+mcVersion=26.3-pre-2
 loaderVersion=0.19.5
 gameDir=$HOME/minecraft-suite
 

@@ -9,7 +9,7 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # minecraft - a client on a different pin than the house server cannot join it.
 # Mod jars are not managed here either: they arrive over ssh from the dev
 # machine (mc-deploy-client, registered in priv-config/minecraft/clients.txt).
-mcVersion=26.3-pre-1
+mcVersion=26.3-pre-2
 loaderVersion=0.19.5
 
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"

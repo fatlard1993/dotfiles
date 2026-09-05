@@ -21,7 +21,7 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # separate Prism roots, separate saves and separate accounts. The libraries
 # are the bulk of it (~700M per seat) - worth checking df before assuming a
 # third seat would fit.
-mcVersion=26.3-pre-1
+mcVersion=26.3-pre-2
 loaderVersion=0.19.5
 
 manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
