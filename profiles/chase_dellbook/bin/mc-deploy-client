@@ -19,7 +19,10 @@
 # Staging elsewhere and swapping while the game is closed removes the window.
 #
 # Which mods count as client-side is in the suite's client-mods.txt, and which
-# machines get them is in clients.txt beside it.
+# machines get them is in clients.txt beside it. A suite mod that is no longer on
+# that list is taken back off every client on the next swap: its jar is known by
+# the stem the suite builds it under, so a jar that is not the suite's is never
+# touched.
 set -euo pipefail
 # On PATH now rather than sitting in the suite, so the suite is named
 # instead of inferred from $0. MINECRAFT_SUITE overrides it.
@@ -99,6 +102,23 @@ api_jar() {
 # defeated the simpler rule and left that mod out of every dedupe.
 stem_of() {
 	echo "$1" | sed 's/\(.*\)-[0-9].*\.jar$/\1/'
+}
+
+# The stems of every suite jar that is NOT a client mod: what a client should not be
+# carrying. A mod that came off the list, or one that was never on it and got there by
+# hand. Read from the suite's own builds so the names are the ones the jars really
+# have, and so a jar from elsewhere in mods/ is never mistaken for ours.
+retired_stems() {
+	local dir jar stem keep
+	keep=" $(mods | tr '\n' ' ') "
+	for dir in */; do
+		dir=${dir%/}
+		[ -f "$dir/gradle.properties" ] || continue
+		case "$keep" in *" $dir "*) continue ;; esac
+		jar=$(jar_for "$dir") || continue
+		stem=$(stem_of "$(basename "$jar")")
+		echo "$stem"
+	done
 }
 
 jar_for() {
@@ -238,6 +258,16 @@ sync_local() {
 		count=$((count + 1))
 	fi
 
+	# And what should not be here any more.
+	local stem old
+	for stem in $(retired_stems); do
+		for old in "$LOCAL/mods/$stem"-*.jar; do
+			[ -e "$old" ] || continue
+			rm -f "$old"
+			echo "  dropped $(basename "$old") (not a client mod)"
+		done
+	done
+
 	echo "synced $count jar(s) to the local client"
 }
 
@@ -309,10 +339,23 @@ swap() {
 	# Paths are passed as arguments, so they are the only thing here that varies.
 	# clients.txt is whitespace-separated, so a path with a space in it could not
 	# have been written down in the first place.
-	ssh "$host" sh -s -- "$mods_dir" "$stage_dir" <<'REMOTE'
+	ssh "$host" sh -s -- "$mods_dir" "$stage_dir" "$(retired_stems | tr '\n' ' ')" <<'REMOTE'
 set -e
 mods_dir=$1
 stage_dir=$2
+retired=$3
+
+# Jars the list no longer carries go first, staged or not: a client that is closed
+# is the one moment they can go.
+dropped=0
+for stem in $retired; do
+	for old in "$mods_dir/$stem"-*.jar; do
+		[ -e "$old" ] || continue
+		rm -f "$old"
+		echo "  dropped $(basename "$old") (not a client mod)"
+		dropped=$((dropped + 1))
+	done
+done
 
 # POSIX has no way to ask whether a glob matched, so the -e test inside the loop
 # is what stands in for it: an unmatched glob comes through as its own pattern.
@@ -321,7 +364,10 @@ for jar in "$stage_dir"/*.jar; do
 	[ -e "$jar" ] || continue
 	count=$((count + 1))
 done
-if [ "$count" -eq 0 ]; then echo "  nothing staged"; exit 0; fi
+if [ "$count" -eq 0 ]; then
+	[ "$dropped" -eq 0 ] && echo "  nothing staged"
+	exit 0
+fi
 
 # A version bump renames the jar, so a plain move leaves both side by side and
 # the client will not launch with two copies of one mod.
