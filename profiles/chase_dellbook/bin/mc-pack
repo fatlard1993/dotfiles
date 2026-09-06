@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Cut the client pack, in both shapes launchers take.
+"""Cut the suite's packs, in the shapes launchers and servers take.
 
-    mc-pack [--version V] [--name N] [--id MOD=PROJECT:FILE ...] [--out DIR]
+    mc-pack [--kind client|server|single|all] [--version V] [--id MOD=PROJECT:FILE ...] [--out DIR]
 
-Two files from one run, built from what the suite is pinned to and what is on the
-client list, never typed in:
+Three packs, each drawn from what the mods declare about themselves and from the pin,
+never from a typed list of jars:
 
-  <name>-<version>.zip      CurseForge modpack: manifest.json of project and file ids,
-                            resolved from the CurseForge mirror by the jar's own name,
-                            and overrides/ for any mod the mirror cannot place
-  <name>-<version>.mrpack   Modrinth pack for Prism, the Modrinth app and ATLauncher:
-                            none of the suite is on Modrinth, so every jar rides as an
-                            override and the index pins only the game and loader
+  client  <name>-client-<version>.zip and .mrpack: the client-mods.txt set plus Fabric API,
+          for a player joining a suite server
+  server  <name>-server-<version>.zip: every mod whose manifest is not client-only, in a
+          mods/ folder with a start script that fetches the pinned Fabric launcher; unzip
+          it, accept the eula, run it
+  single  <name>-<version>.zip and .mrpack: every mod whose manifest is not server-only,
+          for a singleplayer world with the whole suite in it
+
+The CurseForge zips carry a manifest.json of project and file ids, resolved from the
+CurseForge mirror by the jar's own name, and overrides/ for any mod the mirror cannot
+place (an unpublished one, or one uploaded within the hour). The mrpacks carry every jar
+as an override: none of the suite is on Modrinth, so the index pins only game and loader.
 
 The pin is pandorical's gradle.properties, the mods are client-mods.txt, the slugs are
 curseforge-slugs.txt, all in priv-config. A mod the mirror has not indexed yet can be
@@ -91,6 +97,25 @@ def resolve(slug, jar_name, version):
     return None
 
 
+def environment(mod):
+    """What the mod's own manifest says it is for: "*", "client" or "server"."""
+    for sub in ("src/main/resources", "src/client/resources"):
+        path = os.path.join(SUITE, mod, sub, "fabric.mod.json")
+        if os.path.exists(path):
+            return json.load(open(path)).get("environment", "*")
+    return None
+
+
+def suite_mods():
+    """Every directory that is a suite mod, with its declared environment."""
+    out = {}
+    for mod in sorted(os.listdir(SUITE)):
+        env = environment(mod)
+        if env is not None and os.path.exists(os.path.join(SUITE, mod, "gradle.properties")):
+            out[mod] = env
+    return out
+
+
 def fabric_api_jar(version):
     root = os.path.expanduser("~/.gradle/caches/modules-2/files-2.1/net.fabricmc.fabric-api/fabric-api")
     for dirpath, _, files in os.walk(root):
@@ -100,35 +125,16 @@ def fabric_api_jar(version):
     return None
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--version", default=datetime.date.today().strftime("%Y.%m.%d"))
-    ap.add_argument("--name", default="justfatvanilla-client")
-    ap.add_argument("--id", action="append", default=[], metavar="MOD=PROJECT:FILE")
-    ap.add_argument("--out", default=os.path.join(SUITE, "dist"))
-    args = ap.parse_args()
-
-    pin = os.path.join(SUITE, "pandorical", "gradle.properties")
-    mc, loader, api = prop(pin, "minecraft_version"), prop(pin, "loader_version"), prop(pin, "fabric_version")
-    by_hand = {}
-    for spec in args.id:
-        mod, ids = spec.split("=", 1)
-        p, f = ids.split(":")
-        by_hand[mod] = (int(p), int(f))
-    slug_of = slugs()
-
+def place(mods, api_jar, api, slug_of, by_hand):
+    """For each mod (and Fabric API): a CurseForge reference, or the jar as an override."""
     files, overrides, lines = [], [], []
-    api_jar = fabric_api_jar(api)
-    if not api_jar:
-        sys.exit(f"no fabric-api-{api}.jar in the gradle cache: run mc-build first")
     hit = resolve("fabric-api", os.path.basename(api_jar), api)
     if hit:
         files.append({"projectID": hit[0], "fileID": hit[1], "required": True})
         lines.append(f"fabric-api {api}: project {hit[0]} file {hit[1]}")
     else:
         overrides.append(api_jar); lines.append(f"fabric-api {api}: as an override (mirror has no such file)")
-
-    for mod in listed(os.path.join(DATA, "client-mods.txt")):
+    for mod in mods:
         jar = jar_for(mod)
         if not jar:
             sys.exit(f"no jar built for {mod}: run mc-build {mod}")
@@ -143,39 +149,125 @@ def main():
             overrides.append(jar)
             why = "no slug on file" if mod not in slug_of and mod not in by_hand else "mirror has no such file yet"
             lines.append(f"{mod} {version}: as an override ({why})")
+    return files, overrides, lines
 
-    os.makedirs(args.out, exist_ok=True)
-    stem = f"{args.name}-{args.version}"
 
+def write_cf(path, name, version, mc, loader, files, overrides, lines):
     manifest = {
         "minecraft": {"version": mc, "modLoaders": [{"id": f"fabric-{loader}", "primary": True}]},
         "manifestType": "minecraftModpack", "manifestVersion": 1,
-        "name": args.name, "version": args.version, "author": "justfatlard",
+        "name": name, "version": version, "author": "justfatlard",
         "files": files, "overrides": "overrides",
     }
-    cf = os.path.join(args.out, stem + ".zip")
-    with zipfile.ZipFile(cf, "w", zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
         z.writestr("modlist.html", "<ul>" + "".join(f"<li>{l}</li>" for l in lines) + "</ul>")
         z.writestr("overrides/.keep", "")
         for jar in overrides:
             z.write(jar, "overrides/mods/" + os.path.basename(jar))
 
-    index = {"formatVersion": 1, "game": "minecraft", "versionId": args.version, "name": args.name,
-             "summary": "The client half of the justfatlard mod suite",
-             "dependencies": {"minecraft": mc, "fabric-loader": loader}, "files": []}
-    mr = os.path.join(args.out, stem + ".mrpack")
-    with zipfile.ZipFile(mr, "w", zipfile.ZIP_DEFLATED) as z:
+
+def write_mrpack(path, name, version, mc, loader, summary, jars):
+    index = {"formatVersion": 1, "game": "minecraft", "versionId": version, "name": name,
+             "summary": summary, "dependencies": {"minecraft": mc, "fabric-loader": loader}, "files": []}
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("modrinth.index.json", json.dumps(index, indent=2))
-        z.write(api_jar, "overrides/mods/" + os.path.basename(api_jar))
-        for mod in listed(os.path.join(DATA, "client-mods.txt")):
-            jar = jar_for(mod)
+        for jar in jars:
             z.write(jar, "overrides/mods/" + os.path.basename(jar))
 
+
+def write_server(path, name, version, mc, loader, api_jar, mods):
+    """A server folder: mods/ and a start script. The Fabric launcher is fetched by the
+    script rather than shipped, so the zip is the suite and nothing else's."""
+    url = f"https://meta.fabricmc.net/v2/versions/loader/{mc}/{loader}/1.1.2/server/jar"
+    readme = f"""{name} server {version} - Minecraft {mc}, Fabric Loader {loader}
+
+1. Java 25 or newer on the machine.
+2. Unzip this somewhere; everything runs from this folder.
+3. Run start.sh (Linux, macOS) or start.bat (Windows). The first run fetches the
+   Fabric server launcher for {mc}, then stops at the EULA: read eula.txt, set
+   eula=true, run it again.
+4. Players connect with the client pack ({name}-client), or with a stock client
+   (they will see less).
+
+The suite's server-side mods are in mods/. Spawn Lock is among them: set a password
+with /spawnlock set <word> as an operator, or the door stays open and says so in the log.
+"""
+    start_sh = f"""#!/bin/sh
+# Fetch the pinned Fabric launcher once, then run the server.
+set -e
+cd "$(dirname "$0")"
+[ -f fabric-server.jar ] || curl -fL -o fabric-server.jar "{url}"
+exec java -Xms2G -Xmx6G -jar fabric-server.jar nogui
+"""
+    start_bat = f"""@echo off
+cd /d %~dp0
+if not exist fabric-server.jar curl -fL -o fabric-server.jar "{url}"
+java -Xms2G -Xmx6G -jar fabric-server.jar nogui
+pause
+"""
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt", readme)
+        info = zipfile.ZipInfo("start.sh"); info.external_attr = 0o755 << 16
+        z.writestr(info, start_sh)
+        z.writestr("start.bat", start_bat)
+        z.write(api_jar, "mods/" + os.path.basename(api_jar))
+        for mod in mods:
+            jar = jar_for(mod)
+            if not jar:
+                sys.exit(f"no jar built for {mod}: run mc-build {mod}")
+            z.write(jar, "mods/" + os.path.basename(jar))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--kind", default="all", choices=["client", "server", "single", "all"])
+    ap.add_argument("--version", default=datetime.date.today().strftime("%Y.%m.%d"))
+    ap.add_argument("--name", default="justfatvanilla")
+    ap.add_argument("--id", action="append", default=[], metavar="MOD=PROJECT:FILE")
+    ap.add_argument("--out", default=os.path.join(SUITE, "dist"))
+    args = ap.parse_args()
+
+    pin = os.path.join(SUITE, "pandorical", "gradle.properties")
+    mc, loader, api = prop(pin, "minecraft_version"), prop(pin, "loader_version"), prop(pin, "fabric_version")
+    by_hand = {}
+    for spec in args.id:
+        mod, ids = spec.split("=", 1)
+        p, f = ids.split(":")
+        by_hand[mod] = (int(p), int(f))
+    slug_of = slugs()
+    api_jar = fabric_api_jar(api)
+    if not api_jar:
+        sys.exit(f"no fabric-api-{api}.jar in the gradle cache: run mc-build first")
+    os.makedirs(args.out, exist_ok=True)
+    envs = suite_mods()
+    kinds = ["client", "server", "single"] if args.kind == "all" else [args.kind]
     print(f"{args.name} {args.version} for {mc} / fabric {loader}")
-    for l in lines:
-        print("  " + l)
-    print(f"wrote {cf}\nwrote {mr}")
+
+    if "client" in kinds:
+        mods = listed(os.path.join(DATA, "client-mods.txt"))
+        files, overrides, lines = place(mods, api_jar, api, slug_of, by_hand)
+        stem = os.path.join(args.out, f"{args.name}-client-{args.version}")
+        write_cf(stem + ".zip", f"{args.name}-client", args.version, mc, loader, files, overrides, lines)
+        write_mrpack(stem + ".mrpack", f"{args.name}-client", args.version, mc, loader,
+                     "The client half of the justfatlard mod suite", [api_jar] + [jar_for(m) for m in mods])
+        print("client:"); [print("  " + l) for l in lines]; print(f"  wrote {stem}.zip and .mrpack")
+
+    if "server" in kinds:
+        mods = [m for m, env in envs.items() if env != "client"]
+        stem = os.path.join(args.out, f"{args.name}-server-{args.version}")
+        write_server(stem + ".zip", args.name, args.version, mc, loader, api_jar, mods)
+        print(f"server: {len(mods)} mods + fabric-api\n  wrote {stem}.zip")
+
+    if "single" in kinds:
+        mods = [m for m, env in envs.items() if env != "server"]
+        files, overrides, lines = place(mods, api_jar, api, slug_of, by_hand)
+        stem = os.path.join(args.out, f"{args.name}-{args.version}")
+        write_cf(stem + ".zip", args.name, args.version, mc, loader, files, overrides, lines)
+        write_mrpack(stem + ".mrpack", args.name, args.version, mc, loader,
+                     "The whole justfatlard mod suite, for a singleplayer world", [api_jar] + [jar_for(m) for m in mods])
+        refs = sum(1 for l in lines if "project" in l); ovr = len(lines) - refs
+        print(f"single: {refs} by reference, {ovr} as overrides\n  wrote {stem}.zip and .mrpack")
 
 
 if __name__ == "__main__":
