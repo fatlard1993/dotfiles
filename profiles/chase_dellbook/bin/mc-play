@@ -14,7 +14,10 @@
 # unquoted expansion the way sh does, so that form hands Prism a single argument
 # reading "server htpc.home" and it exits on an unknown option. An empty array
 # disappears from the command line instead, which is what --menu wants.
-joinServer=(--server htpc.home)
+# The suite server's address, kept in priv-config so one edit moves every machine; the
+# house name is the fallback for a box that has no priv-config yet.
+suiteServer=$(cat "$HOME/.priv-config/minecraft/server-address.txt" 2>/dev/null || echo htpc.home)
+joinServer=(--server "$suiteServer")
 
 [[ $1 == --menu ]] && joinServer=()
 

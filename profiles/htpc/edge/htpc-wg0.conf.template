@@ -1,0 +1,14 @@
+# /etc/wireguard/wg0.conf on the htpc: the house end of the tunnel to the front door.
+# The htpc dials the VPS and keeps the hole in CGNAT open with a keepalive; nothing
+# listens here. Only VPN traffic goes through the tunnel, so the household LAN and
+# the htpc's own internet are untouched.
+[Interface]
+Address = 10.77.0.2/24
+PrivateKey = <contents of /etc/wireguard/htpc.key>
+
+[Peer]
+# vps front door - from the bootstrap script's output
+PublicKey = <vps public key>
+Endpoint = <vps public ip>:51820
+AllowedIPs = 10.77.0.1/32
+PersistentKeepalive = 25

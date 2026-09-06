@@ -19,8 +19,9 @@ SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
 [ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
 cd "$SUITE" || exit 2
 
-HOST=htpc
-REMOTE=/home/home/minecraft-server
+# The rented box is the server now; MC_HOST=htpc MC_REMOTE=/home/home/minecraft-server reaches the old one
+HOST=${MC_HOST:-vps}
+REMOTE=${MC_REMOTE:-/home/ubuntu/minecraft-server}
 STAGE="$REMOTE/mods-staged"
 
 mode="${1:-full}"
@@ -195,7 +196,9 @@ swap() {
 	# Held in a variable rather than piped through tee: the swap's exit status is
 	# what says whether the server came back, and a pipeline hands back the last
 	# stage's status instead of ssh's.
-	result=$(ssh "$HOST" "$remote") || rc=$?
+	# Handed to zsh by name rather than to whatever the login shell is: the htpc's is
+	# zsh, the rented box's is bash, and the script above is zsh.
+	result=$(printf '%s\n' "$remote" | ssh "$HOST" zsh -s) || rc=$?
 	if [ -n "$result" ]; then echo "$result"; fi
 	if [ "$rc" -ne 0 ]; then return "$rc"; fi
 

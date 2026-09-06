@@ -74,7 +74,12 @@ systemctl --user daemon-reload
 # the server shouldn't die because the couch session logged out
 ensureLinger
 
-if systemctl --user is-active --quiet minecraft-server.service; then
+# Retired: the suite server moved to the rented box (see edge/ and the vps ssh host), and
+# this one stays stopped as a fallback with its world in place. The marker is the switch,
+# so bringing it back is deleting a file rather than editing this script.
+if [[ -e $mcDir/.retired ]]; then
+	echo "Minecraft server retired here (\$mcDir/.retired); not starting it"
+elif systemctl --user is-active --quiet minecraft-server.service; then
 	if [[ $target != $current ]]; then
 		echo "Restarting minecraft server for $target"
 

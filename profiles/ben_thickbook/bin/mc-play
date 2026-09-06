@@ -7,7 +7,7 @@
 # the title screen instead.
 
 case ${1:-home} in
-	home)        instance=suite;        server=htpc.home ;;
+	home)        instance=suite;        server=$(cat "$HOME/.priv-config/minecraft/server-address.txt" 2>/dev/null || echo htpc.home) ;;
 	minecolonies) instance=minecolonies; server=turkeyday.modded.fun ;;
 	*) echo "usage: mc-play <home|minecolonies> [--menu]" >&2; exit 2 ;;
 esac

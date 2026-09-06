@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Point a Prism instance's server list at the suite server.
+
+    mc-servers <servers.dat> <name> <address> [<name> <address> ...]
+
+Rewrites servers.dat, the game's own NBT list of saved servers, so that an entry named
+<name> exists with <address>, replacing the address of an entry that already carries the
+name and adding one otherwise. Every other entry is kept as it was. The game reads this file
+at the multiplayer screen and rewrites it itself, so the shape here is exactly its own.
+
+Plain NBT, uncompressed, written by hand: the structure is a compound holding a list of
+compounds with two strings and a byte, and a library for that is one more thing to install on
+every client box. Only the tag types the file uses are handled; anything else is an error
+rather than a guess.
+"""
+import struct
+import sys
+
+# Tag ids
+END, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, BYTE_ARRAY, STRING, LIST, COMPOUND, INT_ARRAY, LONG_ARRAY = range(13)
+
+
+class Reader:
+    def __init__(self, data):
+        self.data = data
+        self.at = 0
+
+    def take(self, fmt):
+        size = struct.calcsize(fmt)
+        value = struct.unpack(">" + fmt, self.data[self.at:self.at + size])
+        self.at += size
+        return value[0] if len(value) == 1 else value
+
+    def string(self):
+        length = self.take("H")
+        value = self.data[self.at:self.at + length].decode("utf-8", errors="surrogatepass")
+        self.at += length
+        return value
+
+    def payload(self, kind):
+        if kind == BYTE: return self.take("b")
+        if kind == SHORT: return self.take("h")
+        if kind == INT: return self.take("i")
+        if kind == LONG: return self.take("q")
+        if kind == FLOAT: return self.take("f")
+        if kind == DOUBLE: return self.take("d")
+        if kind == BYTE_ARRAY:
+            n = self.take("i"); v = self.data[self.at:self.at + n]; self.at += n; return ("bytes", v)
+        if kind == STRING: return self.string()
+        if kind == LIST:
+            inner = self.take("b"); n = self.take("i")
+            return ("list", inner, [self.payload(inner) for _ in range(n)])
+        if kind == COMPOUND:
+            out = {}
+            while True:
+                t = self.take("b")
+                if t == END: return out
+                name = self.string()
+                out[name] = (t, self.payload(t))
+        if kind == INT_ARRAY:
+            n = self.take("i"); return ("ints", [self.take("i") for _ in range(n)])
+        if kind == LONG_ARRAY:
+            n = self.take("i"); return ("longs", [self.take("q") for _ in range(n)])
+        raise ValueError("unhandled tag %d" % kind)
+
+
+class Writer:
+    def __init__(self):
+        self.out = bytearray()
+
+    def put(self, fmt, *values):
+        self.out += struct.pack(">" + fmt, *values)
+
+    def string(self, value):
+        raw = value.encode("utf-8", errors="surrogatepass")
+        self.put("H", len(raw)); self.out += raw
+
+    def payload(self, kind, value):
+        if kind == BYTE: self.put("b", value)
+        elif kind == SHORT: self.put("h", value)
+        elif kind == INT: self.put("i", value)
+        elif kind == LONG: self.put("q", value)
+        elif kind == FLOAT: self.put("f", value)
+        elif kind == DOUBLE: self.put("d", value)
+        elif kind == BYTE_ARRAY: self.put("i", len(value[1])); self.out += value[1]
+        elif kind == STRING: self.string(value)
+        elif kind == LIST:
+            _, inner, items = value
+            self.put("b", inner); self.put("i", len(items))
+            for item in items: self.payload(inner, item)
+        elif kind == COMPOUND:
+            for name, (t, v) in value.items():
+                self.put("b", t); self.string(name); self.payload(t, v)
+            self.put("b", END)
+        elif kind == INT_ARRAY: self.put("i", len(value[1])); [self.put("i", v) for v in value[1]]
+        elif kind == LONG_ARRAY: self.put("i", len(value[1])); [self.put("q", v) for v in value[1]]
+        else: raise ValueError("unhandled tag %d" % kind)
+
+
+def main(path, pairs):
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        r = Reader(data)
+        assert r.take("b") == COMPOUND
+        root_name = r.string()
+        root = r.payload(COMPOUND)
+    except FileNotFoundError:
+        root_name, root = "", {}
+    kind, servers = root.get("servers", (LIST, ("list", COMPOUND, [])))
+    _, inner, entries = servers
+    for name, address in pairs:
+        for entry in entries:
+            if entry.get("name", (STRING, ""))[1] == name:
+                entry["ip"] = (STRING, address)
+                break
+        else:
+            entries.append({"name": (STRING, name), "ip": (STRING, address), "hidden": (BYTE, 0)})
+    root["servers"] = (LIST, ("list", COMPOUND, entries))
+    w = Writer()
+    w.put("b", COMPOUND); w.string(root_name); w.payload(COMPOUND, root)
+    with open(path, "wb") as f:
+        f.write(w.out)
+    for entry in entries:
+        print("  %s -> %s" % (entry.get("name", (STRING, "?"))[1], entry.get("ip", (STRING, "?"))[1]))
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 4 or len(sys.argv) % 2 != 0:
+        print(__doc__); sys.exit(2)
+    main(sys.argv[1], list(zip(sys.argv[2::2], sys.argv[3::2])))
