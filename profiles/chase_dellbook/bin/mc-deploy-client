@@ -7,6 +7,7 @@
 #   ./deploy-client.sh --swap         swap what is staged (skips a client that is running)
 #   ./deploy-client.sh --client NAME  restrict any of the above to one client
 #   ./deploy-client.sh --usb DIR      write the whole client set to DIR
+#   ./deploy-client.sh --prefetch     pull the pinned game jar onto every client, now
 #   ./deploy-client.sh --clients      list the clients and say which are reachable
 #
 # A full run also refreshes any connected drive already carrying a set, so the
@@ -17,6 +18,14 @@
 # a mod jar lazily, so replacing one under a running game does not fail at the
 # copy, it fails much later when a class nobody had needed yet comes up missing.
 # Staging elsewhere and swapping while the game is closed removes the window.
+#
+# --prefetch is the one mode that is safe with a game open, and it exists because a
+# version bump is mostly one 40MB download per machine. The jar lands at a path named
+# for the version it is, so nothing a running game has open is touched and no pin
+# moves; the switch afterwards is metadata and a file rename. Run it the day before,
+# while everyone is playing on the old version, and the bump costs them a relaunch
+# rather than a wait. It follows the suite's pin, so it fetches whatever was just
+# bumped to.
 #
 # Which mods count as client-side is in the suite's client-mods.txt, and which
 # machines get them is in clients.txt beside it. A suite mod that is no longer on
@@ -644,6 +653,64 @@ usb_auto() {
 
 # Runs VERB "host" "instance" for each listed client, skipping any that is not
 # answering. One machine being shut is not a reason for the others to miss out.
+# The game jar for the pinned version, fetched into every launcher root a machine has.
+#
+# Asked of the machine rather than worked out from clients.txt: that file names the
+# game directory, and where a launcher keeps its jars is a different question with a
+# different answer per launcher. A box with both launchers gets both, a box with one
+# gets one, and a box with neither says so instead of guessing.
+#
+# mcEnsureClientJar is the dotfiles' own, so this is the same fetch dot-update does at
+# the pin it already has - checksum-verified, written beside the target and moved into
+# place, and a no-op when the jar is already right.
+#
+# One program, run through zsh either way. This script is bash and that library is zsh
+# - it globs with (N) and expands with (P) - so sourcing it here rather than handing it
+# to a zsh reads as a pile of syntax errors from a file that is not broken.
+prefetch_program() {
+	cat <<'REMOTE'
+version=$1
+[[ -r $HOME/.dotfiles/bin/lib/minecraft ]] || {
+	echo "  no dotfiles here, so no fetcher to run"
+	exit 0
+}
+source $HOME/.dotfiles/bin/lib/minecraft
+
+roots=()
+[[ -d $HOME/.local/share/PrismLauncher ]] &&
+	roots+=($HOME/.local/share/PrismLauncher/libraries/com/mojang/minecraft/$version/minecraft-$version-client.jar)
+[[ -d $HOME/.minecraft/versions ]] &&
+	roots+=($HOME/.minecraft/versions/$version/$version.jar)
+
+(( ${#roots} )) || { echo "  no launcher here to fetch for"; exit 0 }
+
+for dest in $roots; do
+	[[ $dest == *PrismLauncher* ]] && which=Prism || which="the mojang launcher"
+	had=0
+	[[ -f $dest ]] && had=1
+	mcEnsureClientJar $version $dest
+	if [[ ! -f $dest ]]; then
+		echo "  $which: $version could not be fetched"
+	elif (( had )); then
+		echo "  $which: $version already here"
+	else
+		echo "  $which: $version fetched"
+	fi
+done
+REMOTE
+}
+
+prefetch() {
+	prefetch_program | ssh "$1" zsh -s -- "$(pin minecraft_version)"
+}
+
+# The local client has no ssh in front of it, the same exception sync_local makes.
+prefetch_local() {
+	echo "local:"
+	prefetch_program | zsh -s -- "$(pin minecraft_version)"
+	return 0
+}
+
 for_each_client() {
 	local verb="$1" name host instance matched=0 rc=0
 	# Read the whole list first rather than looping over a pipe. Anything in the
@@ -699,10 +766,11 @@ list_clients() {
 
 case "$mode" in
 	--local)      sync_local ;;
+	--prefetch)   prefetch_local || true; for_each_client prefetch ;;
 	--stage-only) for_each_client stage ;;
 	--swap)       for_each_client swap ;;
 	--usb)        usb "${args[1]:?usage: $0 --usb DIR}" ;;
 	--clients)    list_clients ;;
 	full)         sync_local || true; usb_auto || true; for_each_client deploy_client || true ;;
-	*) echo "usage: $0 [--local|--stage-only|--swap|--usb DIR|--clients] [--client NAME]" >&2; exit 2 ;;
+	*) echo "usage: $0 [--local|--stage-only|--swap|--prefetch|--usb DIR|--clients] [--client NAME]" >&2; exit 2 ;;
 esac
