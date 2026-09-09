@@ -202,6 +202,12 @@ name=suite
 iconKey=default
 EOF2
 
+# The server list, pointed at the house server and cleared of the addresses the
+# house has stopped running. A retired address does not remove itself: it stays
+# in the list under the name it always had, and a player clicking it gets a
+# connection refused with nothing to say the server moved.
+mcEnsureServerList $gameDir
+
 clientPandorical=($gameDir/mods/pandorical-*.jar(N:t))
 
 if (( ! ${#clientPandorical} )); then

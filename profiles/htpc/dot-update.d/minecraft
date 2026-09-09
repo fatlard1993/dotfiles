@@ -192,6 +192,7 @@ EOF
 # The real coupling is Pandorical's own version, on both sides. A skew there
 # does not fail informatively - the client simply refuses to connect.
 serverPandorical=($mcDir/mods/pandorical-*.jar(N:t))
+
 clientPandorical=($instanceDir/.minecraft/mods/pandorical-*.jar(N:t))
 
 if (( ! ${#clientPandorical} )); then
@@ -274,3 +275,9 @@ dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 	sudo env DEBIAN_FRONTEND=noninteractive apt install -y /tmp/Minecraft-fixed.deb
 	rm -rf /tmp/Minecraft.deb /tmp/Minecraft.deb.d /tmp/Minecraft-fixed.deb
 }
+
+# The server list, pointed at the house server and cleared of the addresses the
+# house has stopped running. A retired address does not remove itself: it stays
+# in the list under the name it always had, and a player clicking it gets a
+# connection refused with nothing to say the server moved.
+mcEnsureServerList $instanceDir/.minecraft

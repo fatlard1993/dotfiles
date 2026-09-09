@@ -6,13 +6,21 @@
 # by dot-update.d/minecraft) plus the server it belongs to; --menu lands on
 # the title screen instead.
 
+# The house server's address comes from priv-config, with no fallback. It used to
+# fall back to htpc.home, the machine the server ran on before it moved to the
+# rented box, and a fallback to a host that is not serving is worse than none:
+# the launch goes past the title screen, fails to connect, and says nothing
+# about why. Without an address this stops at the title screen instead.
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
 case ${1:-home} in
-	home)        instance=suite;        server=$(cat "$HOME/.priv-config/minecraft/server-address.txt" 2>/dev/null || echo htpc.home) ;;
+	home)         instance=suite;        server=$(mcServerAddress) ;;
 	minecolonies) instance=minecolonies; server=turkeyday.modded.fun ;;
 	*) echo "usage: mc-play <home|minecolonies> [--menu]" >&2; exit 2 ;;
 esac
 
-joinServer=(--server $server)
+joinServer=()
+[[ -n $server ]] && joinServer=(--server $server)
 [[ $2 == --menu ]] && joinServer=()
 
 command -v prismlauncher > /dev/null 2>&1 || {

@@ -24,11 +24,20 @@
 # array simply disappears from the command line, which is exactly what
 # --menu wants.
 #
-# The server is this same box, so talk to the loopback rather than
-# htpc.home: no DNS round trip, and the client still comes up if dnsmasq
-# or the LAN is having a day. The server binds *:25565 (server-ip is empty
-# in server.properties), so loopback reaches it.
-joinServer=(--server localhost)
+# The suite server lives on the rented box now (dot-update.d/minecraft keeps
+# the one on this machine retired), so the couch joins it the way every other
+# player does: by its address. Loopback was right while the server was this
+# box, and goes back in the day it comes home.
+#
+# Read from priv-config rather than written here, because this repository is
+# public. No priv-config, no address, and the launch stops at the title screen
+# with the server list one click away.
+source $HOME/.dotfiles/bin/lib/minecraft
+
+server=$(mcServerAddress)
+joinServer=()
+
+[[ -n $server ]] && joinServer=(--server $server)
 
 # Stop at the title screen instead of joining - for singleplayer, or for
 # any settings run where a mouse is already in hand.

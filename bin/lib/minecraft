@@ -97,3 +97,90 @@ mcEnsureClientJar() {
 
 	mv "$dest.part" "$dest"
 }
+
+# The house server's address, or nothing when this machine has no priv-config.
+#
+# Read from priv-config rather than written here: this repository is public, and
+# where the house server lives is the one thing in the minecraft setup that is
+# nobody else's business. A machine without priv-config still gets its game and
+# its mods; it just does not get told where to point them.
+mcServerAddress() {
+	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/server-address.txt
+
+	[[ -r $file ]] || return 1
+
+	local address=$(grep -vE '^\s*(#|$)' $file | head -1 | tr -d '[:space:]')
+
+	[[ -n $address ]] && echo $address
+}
+
+# Hosts the house used to play on and does not any more. An address that dies
+# does not leave the server list; it sits there under the name it always had,
+# and a connection refused is the only sign it is gone. Everyone who tried to
+# join after the world moved to the rented box clicked one of these first.
+mcRetiredServers=(htpc.home 192.168.1.151)
+
+# Whether a game is open on this directory.
+#
+# Asked of /proc rather than of the command line, the same way mc-deploy-client
+# asks it and for the same reason: Prism runs the game through its own instance
+# directory and never puts the configured game dir on the line, so a command-line
+# match says "clear" with a game open in front of it. A java process whose working
+# directory or open files sit under the directory is the thing itself.
+mcGameRunning() {
+	local root=$(readlink -f $1 2>/dev/null || echo $1)
+	local dir target fd
+
+	for dir in /proc/[0-9]*; do
+		[[ $(cat $dir/comm 2>/dev/null) == java ]] || continue
+
+		target=$(readlink $dir/cwd 2>/dev/null)
+
+		[[ $target == $root || $target == $root/* ]] && return 0
+
+		for fd in $dir/fd/*(N); do
+			target=$(readlink $fd 2>/dev/null) || continue
+
+			[[ $target == $root/* ]] && return 0
+		done
+	done
+
+	return 1
+}
+
+# Point a game directory's server list at the house server and drop the retired
+# entries. Skipped while the game is open: it rewrites servers.dat on exit from
+# what it read at startup, so an edit underneath it is an edit thrown away.
+mcEnsureServerList() {
+	local gameDir=$1
+	local address
+
+	# The callers name a directory a branch above them may not have set.
+	[[ -n $gameDir ]] || return
+
+	address=$(mcServerAddress) || {
+		echo "  No server address in priv-config, so the server list is left as it is"
+
+		return
+	}
+
+	if mcGameRunning $gameDir; then
+		echo "  The game is open, so the server list is left as it is - it would be"
+		echo "  overwritten from memory when the game closes. Run this again after."
+
+		return
+	fi
+
+	mkdir -p $gameDir
+
+	# Built as pairs rather than by prefixing each host: a prefixed element is one
+	# word, and "--retire htpc.home" arriving as a single argument is not a flag.
+	local -a retire
+	local host
+
+	for host in $mcRetiredServers; do
+		retire+=(--retire $host)
+	done
+
+	python3 $HOME/.dotfiles/bin/mc-servers $gameDir/servers.dat $retire home $address
+}

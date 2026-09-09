@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Point a Prism instance's server list at the suite server.
 
-    mc-servers <servers.dat> <name> <address> [<name> <address> ...]
+    mc-servers <servers.dat> [--retire HOST]... <name> <address> [<name> <address> ...]
 
 Rewrites servers.dat, the game's own NBT list of saved servers, so that an entry named
 <name> exists with <address>, replacing the address of an entry that already carries the
 name and adding one otherwise. Every other entry is kept as it was. The game reads this file
 at the multiplayer screen and rewrites it itself, so the shape here is exactly its own.
+
+--retire drops every entry pointing at a host the house no longer runs, whatever the entry
+is called. A server that moves leaves its old address behind in everybody's list, and the
+old address is the one people keep clicking: the entry is still there, still named what it
+was always named, and the only sign it is dead is a connection refused. Removing it is the
+difference between a list that describes the house and a list that describes its history.
 
 Plain NBT, uncompressed, written by hand: the structure is a compound holding a list of
 compounds with two strings and a byte, and a library for that is one more thing to install on
@@ -97,7 +103,12 @@ class Writer:
         else: raise ValueError("unhandled tag %d" % kind)
 
 
-def main(path, pairs):
+def host_of(address):
+    """The host in an address, without its port; a bare host is its own host."""
+    return address.rsplit(":", 1)[0] if ":" in address else address
+
+
+def main(path, pairs, retire):
     try:
         with open(path, "rb") as f:
             data = f.read()
@@ -109,6 +120,15 @@ def main(path, pairs):
         root_name, root = "", {}
     kind, servers = root.get("servers", (LIST, ("list", COMPOUND, [])))
     _, inner, entries = servers
+    dead = {host_of(host).lower() for host in retire}
+    kept = []
+    for entry in entries:
+        address = entry.get("ip", (STRING, ""))[1]
+        if host_of(address).lower() in dead:
+            print("  retired %s -> %s" % (entry.get("name", (STRING, "?"))[1], address))
+            continue
+        kept.append(entry)
+    entries = kept
     for name, address in pairs:
         for entry in entries:
             if entry.get("name", (STRING, ""))[1] == name:
@@ -126,6 +146,20 @@ def main(path, pairs):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4 or len(sys.argv) % 2 != 0:
+    argv = sys.argv[1:]
+    if not argv:
         print(__doc__); sys.exit(2)
-    main(sys.argv[1], list(zip(sys.argv[2::2], sys.argv[3::2])))
+    path = argv.pop(0)
+    retire = []
+    rest = []
+    while argv:
+        item = argv.pop(0)
+        if item == "--retire":
+            if not argv:
+                print(__doc__); sys.exit(2)
+            retire.append(argv.pop(0))
+        else:
+            rest.append(item)
+    if len(rest) % 2 != 0:
+        print(__doc__); sys.exit(2)
+    main(path, list(zip(rest[0::2], rest[1::2])), retire)
