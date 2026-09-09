@@ -85,15 +85,24 @@ def widget(slug):
         return None
 
 
+# What CurseForge lists beside a file's game versions that is not one: which side it
+# runs on, and which loader it is for. Everything else in that list is a game version.
+NOT_A_GAME_VERSION = {"Client", "Server", "Fabric", "Forge", "Quilt", "NeoForge", "Rift", "LiteLoader"}
+
+
+def game_versions(f):
+    return {v for v in f.get("versions", []) if v not in NOT_A_GAME_VERSION}
+
+
 def resolve(slug, jar_name, version):
-    """(projectID, fileID) for the file whose display is this jar, or None."""
+    """(projectID, fileID, game versions) for the file whose display is this jar, or None."""
     data = widget(slug)
     if not data:
         return None
     for f in data.get("files", []):
         display = f.get("display", "")
         if display == jar_name or version in display:
-            return data["id"], f["id"]
+            return data["id"], f["id"], game_versions(f)
     return None
 
 
@@ -126,14 +135,26 @@ def fabric_api_jar(version):
 
 
 def place(mods, api_jar, api, slug_of, by_hand):
-    """For each mod (and Fabric API): a CurseForge reference, or the jar as an override."""
-    files, overrides, lines = [], [], []
+    """For each mod (and Fabric API): a CurseForge reference, or the jar as an override.
+
+    Also the game version the pack should declare. CurseForge checks every file a pack
+    references against the version the pack says it is for, and a file that does not carry
+    that version is refused - "FileId N is invalid for modpack M with mod loader Fabric",
+    which names the loader and so reads like a loader problem. It is not. Fabric API tags
+    its snapshot builds under one bucket for the whole cycle while this suite's own mods
+    are tagged per snapshot, so the two had no version in common and the pack declared a
+    third thing again: the Mojang version id, which is what Modrinth wants and CurseForge
+    has never heard of.
+
+    So the version is read off the files rather than off the pin, and anything that does
+    not carry it ships as an override instead of a reference.
+    """
+    found = []
     hit = resolve("fabric-api", os.path.basename(api_jar), api)
     if hit:
-        files.append({"projectID": hit[0], "fileID": hit[1], "required": True})
-        lines.append(f"fabric-api {api}: project {hit[0]} file {hit[1]}")
+        found.append(("fabric-api " + api, api_jar, hit))
     else:
-        overrides.append(api_jar); lines.append(f"fabric-api {api}: as an override (mirror has no such file)")
+        found.append(("fabric-api " + api, api_jar, None))
     for mod in mods:
         jar = jar_for(mod)
         if not jar:
@@ -142,17 +163,37 @@ def place(mods, api_jar, api, slug_of, by_hand):
         hit = by_hand.get(mod)
         if not hit and mod in slug_of:
             hit = resolve(slug_of[mod], os.path.basename(jar), version)
-        if hit:
+        if hit and len(hit) == 2:
+            # by_hand pairs carry no version list; they are trusted as given.
+            hit = (hit[0], hit[1], None)
+        found.append((f"{mod} {version}", jar, hit))
+
+    # The version the most files agree on. Not the one the most files have in common:
+    # a single oddly tagged file would empty that and send the whole pack to overrides.
+    tally = {}
+    for _, _, hit in found:
+        if hit and hit[2]:
+            for v in hit[2]:
+                tally[v] = tally.get(v, 0) + 1
+    declared = max(tally, key=lambda v: (tally[v], v)) if tally else None
+
+    files, overrides, lines = [], [], []
+    for label, jar, hit in found:
+        if hit and (hit[2] is None or declared in hit[2]):
             files.append({"projectID": hit[0], "fileID": hit[1], "required": True})
-            lines.append(f"{mod} {version}: project {hit[0]} file {hit[1]}")
+            lines.append(f"{label}: project {hit[0]} file {hit[1]}")
+            continue
+        overrides.append(jar)
+        if not hit:
+            why = "mirror has no such file"
         else:
-            overrides.append(jar)
-            why = "no slug on file" if mod not in slug_of and mod not in by_hand else "mirror has no such file yet"
-            lines.append(f"{mod} {version}: as an override ({why})")
-    return files, overrides, lines
+            why = f"published for {', '.join(sorted(hit[2])) or 'nothing'}, not {declared}"
+        lines.append(f"{label}: as an override ({why})")
+    return files, overrides, lines, declared
 
 
 def write_cf(path, name, version, mc, loader, files, overrides, lines):
+    """`mc` here is CurseForge's own game version tag, not the Mojang version id."""
     manifest = {
         "minecraft": {"version": mc, "modLoaders": [{"id": f"fabric-{loader}", "primary": True}]},
         "manifestType": "minecraftModpack", "manifestVersion": 1,
@@ -246,9 +287,9 @@ def main():
 
     if "client" in kinds:
         mods = listed(os.path.join(DATA, "client-mods.txt"))
-        files, overrides, lines = place(mods, api_jar, api, slug_of, by_hand)
+        files, overrides, lines, declared = place(mods, api_jar, api, slug_of, by_hand)
         stem = os.path.join(args.out, f"{args.name}-client-{args.version}")
-        write_cf(stem + ".zip", f"{args.name}-client", args.version, mc, loader, files, overrides, lines)
+        write_cf(stem + ".zip", f"{args.name}-client", args.version, declared or mc, loader, files, overrides, lines)
         write_mrpack(stem + ".mrpack", f"{args.name}-client", args.version, mc, loader,
                      "The client half of the justfatlard mod suite", [api_jar] + [jar_for(m) for m in mods])
         print("client:"); [print("  " + l) for l in lines]; print(f"  wrote {stem}.zip and .mrpack")
@@ -261,9 +302,9 @@ def main():
 
     if "single" in kinds:
         mods = [m for m, env in envs.items() if env != "server"]
-        files, overrides, lines = place(mods, api_jar, api, slug_of, by_hand)
+        files, overrides, lines, declared = place(mods, api_jar, api, slug_of, by_hand)
         stem = os.path.join(args.out, f"{args.name}-{args.version}")
-        write_cf(stem + ".zip", args.name, args.version, mc, loader, files, overrides, lines)
+        write_cf(stem + ".zip", args.name, args.version, declared or mc, loader, files, overrides, lines)
         write_mrpack(stem + ".mrpack", args.name, args.version, mc, loader,
                      "The whole justfatlard mod suite, for a singleplayer world", [api_jar] + [jar_for(m) for m in mods])
         refs = sum(1 for l in lines if "project" in l); ovr = len(lines) - refs
