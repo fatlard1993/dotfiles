@@ -55,6 +55,15 @@ mod_jar() {
 	echo "$jar"
 }
 
+# A value from the suite's pin file, which is pandorical's by convention.
+pin() {
+	grep -E "^\s*$1" pandorical/gradle.properties 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'
+}
+
+# The server launcher waiting in staging. Not a .jar, so the swap's jar glob
+# cannot carry it into mods/.
+LAUNCHER=fabric-server.jar.next
+
 # The Fabric API jar the suite is pinned to. Nothing shipped this to the server:
 # it was put in mods/ by hand once and then sat there while the pin moved on, and
 # nothing noticed because every manifest asked for "*". Now that they name a
@@ -126,6 +135,29 @@ stage() {
 		fi
 	fi
 
+	# The launcher last. It is the one file that says which game the server runs,
+	# and mods built for a new version swapped in under the old launcher boot
+	# against the wrong game and refuse to start. Staged here so the version moves
+	# in the same swap as the mods built for it. Fabric's meta serves the same
+	# bytes for the same version, so a straight compare says whether it moved.
+	local launcher_url launcher_state
+	launcher_url=$(mc-meta server "$(pin minecraft_version)" "$(pin loader_version)" 2>/dev/null) || true
+	if [ -z "$launcher_url" ]; then
+		echo "  !! could not resolve the server launcher for the pin: game version left as it is" >&2
+	else
+		launcher_state=$(ssh -n "$HOST" "cd '$REMOTE' && curl -sfL -o '$STAGE/launcher.part' '$launcher_url' &&
+			if cmp -s '$STAGE/launcher.part' fabric-server.jar; then
+				rm -f '$STAGE/launcher.part' '$STAGE/$LAUNCHER'; echo current
+			else
+				mv '$STAGE/launcher.part' '$STAGE/$LAUNCHER'; echo staged
+			fi") || true
+		case "$launcher_state" in
+			staged)  echo "  staged the server launcher for $(pin minecraft_version)" ;;
+			current) ;;
+			*)       echo "  !! could not fetch the server launcher on $HOST: game version left as it is" >&2 ;;
+		esac
+	fi
+
 	echo "staged $count jar(s)"
 }
 
@@ -161,7 +193,9 @@ swap() {
 		# failure.
 		staged=('$STAGE'/*.jar(N))
 		count=\${#staged}
-		if [ \"\$count\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
+		launcher=0
+		[ -f '$STAGE/$LAUNCHER' ] && launcher=1
+		if [ \"\$count\" -eq 0 ] && [ \"\$launcher\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
 
 		systemctl --user stop minecraft-server
 
@@ -177,7 +211,7 @@ swap() {
 		# having already stopped the server but not yet moved the jars or started it
 		# again. Every deploy before the first new mod updated something already on
 		# the server, so this glob had always matched.
-		for jar in '$STAGE'/*.jar; do
+		for jar in '$STAGE'/*.jar(N); do
 			base=\$(basename \"\$jar\")
 			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
 			for old in '$REMOTE/mods/'\$stem-*.jar(N); do
@@ -188,7 +222,11 @@ swap() {
 			done
 		done
 
-		mv '$STAGE'/*.jar '$REMOTE/mods/'
+		[ \"\$count\" -gt 0 ] && mv '$STAGE'/*.jar '$REMOTE/mods/'
+		if [ \"\$launcher\" -eq 1 ]; then
+			mv '$STAGE/$LAUNCHER' '$REMOTE/fabric-server.jar'
+			echo '  swapped the server launcher: new game version'
+		fi
 		systemctl --user start minecraft-server
 		echo \"swapped \$count jar(s), server restarting\"
 	"
@@ -212,10 +250,10 @@ swap() {
 	# down and did not come back. That is the case most worth reporting, and an
 	# unbounded wait is the one response that never reports it.
 	ssh "$HOST" 'for _ in $(seq 60); do
-			journalctl --user -u minecraft-server --since "-3min" --no-pager | rg -q "Done \(" && break
+			journalctl --user -u minecraft-server --since "-3min" --no-pager | grep -q "Done (" && break
 			sleep 3
 		done
-		journalctl --user -u minecraft-server --since "-3min" --no-pager | rg "Done \(|ERROR|MixinApply" | tail -5
+		journalctl --user -u minecraft-server --since "-3min" --no-pager | grep -E "Done \(|ERROR|MixinApply" | tail -5
 		systemctl --user is-active --quiet minecraft-server || echo "!! server is not running after the swap"'
 }
 
