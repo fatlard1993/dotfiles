@@ -184,3 +184,22 @@ mcEnsureServerList() {
 
 	python3 $HOME/.dotfiles/bin/mc-servers $gameDir/servers.dat $retire home $address
 }
+
+# Prism components for the pin, when Prism's own metadata has not caught up.
+#
+# Their ingest lags a fresh pre-release by days, and until it lands Prism cannot resolve
+# the pin at all: it dies in a crash dialog while the official launcher, reading Mojang's
+# manifest, plays the same version fine. mc-play notices and falls back to that launcher,
+# which works but loses the one thing Prism is installed here for - joining the house
+# server without touching a menu.
+#
+# Written for the pin every run and taken away the moment Prism publishes the version, so
+# the failure that retired the last attempt cannot happen: a patches/ directory describing
+# a version nobody is on, shadowing the published component for good.
+mcEnsurePrismPatches() {
+	local version=$1 instanceDir=$2
+
+	[[ -n $version && -n $instanceDir ]] || return 0
+
+	python3 $HOME/.dotfiles/bin/mc-prism-patch $version $instanceDir
+}

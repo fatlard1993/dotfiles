@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Local Prism components for a version Prism's own metadata does not carry yet.
+
+    mc-prism-patch <version> <instance-dir>
+
+Writes <instance-dir>/patches/net.minecraft.json and net.fabricmc.intermediary.json so
+Prism can resolve the pin without asking meta.prismlauncher.org, and prints one line
+saying what it did.
+
+Why this exists: PrismMeta ingests a fresh pre-release days late, and until it does,
+Prism cannot resolve the pin at all - it dies in a crash dialog while the official
+launcher, reading Mojang's own manifest, plays the same version fine. The house has hit
+this at every snapshot.
+
+Why it is safe this time. Hand-written patches were tried before and taken out again,
+because a patches/ directory outlives the version it was written for and shadows the
+published component permanently: the instance keeps launching the old game against a
+new pin. Both halves of that are fixed here. The patch is generated for the pin rather
+than kept in the repo, so it cannot describe a version nobody is on any more; and when
+PrismMeta does publish the version, the patch is removed instead of written, so the
+published component always wins the moment it exists.
+
+The Minecraft component is not invented. It is the newest component Prism itself
+publishes, with the version-specific fields replaced from Mojang's manifest: what a
+version is made of is Mojang's to say, and how Prism wants it said is Prism's.
+"""
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+MOJANG = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+PRISM = "https://meta.prismlauncher.org/v1"
+AGENT = {"User-Agent": "mc-prism-patch (justfatlard dotfiles)"}
+
+
+def fetch(url):
+    req = urllib.request.Request(url, headers=AGENT)
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.load(r)
+
+
+def published(version):
+    """Prism's own component for a version, or None when it does not carry it."""
+    try:
+        return fetch(f"{PRISM}/net.minecraft/{version}.json")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def template():
+    """The newest Minecraft component Prism does publish, to take its Prism-isms from."""
+    index = fetch(f"{PRISM}/net.minecraft/index.json")
+    for entry in index.get("versions", []):
+        got = published(entry["version"])
+        if got:
+            return got
+    raise SystemExit("prism publishes no Minecraft component to model on")
+
+
+def mojang(version):
+    for entry in fetch(MOJANG).get("versions", []):
+        if entry["id"] == version:
+            return fetch(entry["url"])
+    raise SystemExit(f"mojang's manifest has no {version}")
+
+
+def minecraft_component(version, model, game):
+    """Prism's shape, Mojang's facts."""
+    out = dict(model)
+    out["version"] = version
+    out["releaseTime"] = game.get("releaseTime", model.get("releaseTime"))
+    out["type"] = game.get("type", "snapshot")
+    out["assetIndex"] = game["assetIndex"]
+    out["libraries"] = game["libraries"]
+    out["mainClass"] = game.get("mainClass", model.get("mainClass"))
+
+    client = game["downloads"]["client"]
+    out["mainJar"] = {
+        "downloads": {"artifact": {
+            "sha1": client["sha1"], "size": client["size"], "url": client["url"]}},
+        "name": f"com.mojang:minecraft:{version}:client",
+    }
+
+    java = game.get("javaVersion") or {}
+    if java.get("majorVersion"):
+        out["compatibleJavaMajors"] = [java["majorVersion"]]
+    if java.get("component"):
+        out["compatibleJavaName"] = java["component"]
+
+    logging = (game.get("logging") or {}).get("client")
+    if logging:
+        out["logging"] = logging
+    else:
+        out.pop("logging", None)
+    return out
+
+
+def intermediary_component(version, release_time):
+    """Fabric's mappings for the version, which is a name and a maven and nothing else."""
+    return {
+        "formatVersion": 1,
+        "libraries": [{"name": f"net.fabricmc:intermediary:{version}",
+                       "url": "https://maven.fabricmc.net"}],
+        "name": "Intermediary Mappings",
+        "order": 11,
+        "releaseTime": release_time,
+        "requires": [{"equals": version, "uid": "net.minecraft"}],
+        "type": "release",
+        "uid": "net.fabricmc.intermediary",
+        "version": version,
+        "volatile": True,
+    }
+
+
+def write(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
+def clear(patches):
+    removed = 0
+    for name in ("net.minecraft.json", "net.fabricmc.intermediary.json"):
+        path = os.path.join(patches, name)
+        if os.path.exists(path):
+            os.remove(path)
+            removed += 1
+    if os.path.isdir(patches) and not os.listdir(patches):
+        os.rmdir(patches)
+    return removed
+
+
+def main(version, instance):
+    patches = os.path.join(instance, "patches")
+
+    try:
+        already = published(version)
+    except Exception as e:
+        # Offline, or the mirror is having a day. Whatever is already there is the best
+        # answer available, so it is left exactly as it is rather than guessed at.
+        print(f"  couldn't ask prism about {version} ({e}); patches left as they are")
+        return 0
+
+    if already:
+        gone = clear(patches)
+        print(f"  prism publishes {version}"
+              + (f"; removed {gone} local patch(es) so the published one wins" if gone else ""))
+        return 0
+
+    game = mojang(version)
+    model = template()
+    write(os.path.join(patches, "net.minecraft.json"),
+          minecraft_component(version, model, game))
+    write(os.path.join(patches, "net.fabricmc.intermediary.json"),
+          intermediary_component(version, game.get("releaseTime", "")))
+    print(f"  prism does not carry {version} yet; wrote local components"
+          f" (modelled on {model.get('version')})")
+    return 0
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print(__doc__)
+        sys.exit(2)
+    sys.exit(main(sys.argv[1], sys.argv[2]))
