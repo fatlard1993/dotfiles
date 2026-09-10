@@ -41,29 +41,24 @@ instanceDir=$HOME/.local/share/PrismLauncher/instances/$instance
 	exit 1
 }
 
-# PrismMeta ingests a new snapshot with a lag, and until it does Prism's
-# resolve of a fresh pin dies in a crash dialog while the official
-# launcher (reading Mojang's own meta) plays it fine. Only a real 404
-# falls back - offline or flaky just proceeds and lets Prism use its
-# cache. Direct join is lost for the day; the game is not (the server
-# is in servers.dat, one Multiplayer click away).
-# A patches/ dir means the pin is locally resolvable (dot-update.d/minecraft
-# installs the overrides) and PrismMeta's opinion is irrelevant
+# PrismMeta ingests a new snapshot with a lag, and until it does Prism cannot
+# resolve a fresh pin at all - it dies in a crash dialog. This used to answer that
+# by launching the official launcher instead, which plays the game and loses the
+# only reason Prism is installed here: joining the house server without touching a
+# menu. Going somewhere else was never the answer. Making the pin resolvable is.
+#
+# dot-update writes the components whenever it runs; this is the same call for the
+# gap between a pin moving and dot-update next running. It is cheap when there is
+# nothing to do, and it takes the components away again the day Prism publishes the
+# version, so nothing local outlives its usefulness.
 if [[ ! -f $instanceDir/patches/net.minecraft.json ]]; then
+	mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
+		$instanceDir/mmc-pack.json 2>/dev/null)
 
-mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
-	$instanceDir/mmc-pack.json 2>/dev/null)
-
-if [[ -n $mcVersion ]]; then
-	metaStatus=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
-		"https://meta.prismlauncher.org/v1/net.minecraft/$mcVersion.json")
-
-	if [[ $metaStatus == 404 ]]; then
-		notify-send "Minecraft" "Direct join is resting today - hit Multiplayer, ${server} is saved"
-		exec minecraft-launcher
+	if [[ -n $mcVersion && -r $HOME/.dotfiles/bin/lib/minecraft ]]; then
+		source $HOME/.dotfiles/bin/lib/minecraft
+		mcEnsurePrismPatches $mcVersion $instanceDir
 	fi
-fi
-
 fi
 
 exec prismlauncher --launch $instance $joinServer
