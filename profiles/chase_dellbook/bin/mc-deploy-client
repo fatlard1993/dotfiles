@@ -509,9 +509,6 @@ guest_zip() {
 	inst="$staging/$GUEST_DIR"
 	mkdir -p "$inst/.minecraft/mods"
 	cp "$GUEST_TEMPLATE/instance.cfg" "$inst/"
-	if [ -d "$GUEST_TEMPLATE/patches" ]; then
-		cp -r "$GUEST_TEMPLATE/patches" "$inst/"
-	fi
 
 	for jar in "$set_dir"/*.jar; do
 		[ -e "$jar" ] || continue
@@ -525,6 +522,15 @@ guest_zip() {
 	fi
 
 	mmc_pack "$inst" "$mc" "$loader" > "$inst/mmc-pack.json"
+
+	# The components Prism's own metadata does not carry yet, so a guest can import
+	# this and launch today rather than when the mirror catches up - which is the whole
+	# reason the guest instance exists. Generated from the pin rather than kept in the
+	# template beside instance.cfg: a folder of metadata for a version Prism has since
+	# published shadows the published component permanently, so it used to come with an
+	# instruction to delete it by hand on a day nobody was watching for. Written after
+	# mmc-pack.json because the generator reads the pin out of it.
+	guest_patches "$inst"
 
 	# Built whole in a temp dir and copied over, so a rebuild that dies halfway
 	# leaves the drive's working zip where it is rather than a truncated one.
@@ -540,23 +546,43 @@ guest_zip() {
 	rm -rf "$staging"
 }
 
+# Prism components for the pin, into an instance directory that already has an
+# mmc-pack.json for the generator to read the version out of. Writes nothing when
+# Prism publishes the version, which is the answer that keeps this safe to run
+# every time rather than remembered on the day it matters.
+guest_patches() {
+	local inst="$1"
+	[ -x "$HOME/.dotfiles/bin/mc-prism-patch" ] || return 0
+
+	python3 "$HOME/.dotfiles/bin/mc-prism-patch" "$(pin minecraft_version)" "$inst" |
+		sed 's/^ */  /'
+}
+
 # The loose copy of the same component metadata, for a guest who has an instance
-# already and needs only the patches. Refreshed when the drive carries it, and
-# taken away when the template stops carrying patches at all - a folder of
-# metadata for a version Prism now publishes is worse than none, because it
-# shadows the published component permanently.
+# already and needs only the patches. Built the same way the zip's are, and taken
+# away when Prism publishes the version: a folder of metadata for a version Prism
+# now carries is worse than none, because it shadows the published component
+# permanently.
 usb_metadata() {
-	local dir="$1/prism-metadata"
+	local dir="$1/prism-metadata" scratch mc
 	[ -d "$dir" ] || return 0
 
-	if [ -d "$GUEST_TEMPLATE/patches" ]; then
-		rm -f "$dir"/*.json "$dir"/README
-		cp "$GUEST_TEMPLATE/patches"/* "$dir/"
-		echo "  refreshed prism-metadata"
+	mc=$(pin minecraft_version)
+	[ -n "$mc" ] || return 0
+
+	scratch=$(mktemp -d) || return 1
+	mmc_pack "$scratch" "$mc" "$(pin loader_version)" > "$scratch/mmc-pack.json"
+	guest_patches "$scratch" > /dev/null
+
+	rm -f "$dir"/*.json
+	if [ -d "$scratch/patches" ] && [ -n "$(ls -A "$scratch/patches" 2>/dev/null)" ]; then
+		cp "$scratch/patches"/*.json "$dir/"
+		echo "  refreshed prism-metadata for $mc"
 	else
-		rm -rf "$dir"
-		echo "  dropped prism-metadata: the template no longer carries patches"
+		rmdir "$dir" 2>/dev/null && echo "  dropped prism-metadata: prism publishes $mc now" ||
+			echo "  prism publishes $mc now; prism-metadata emptied"
 	fi
+	rm -rf "$scratch"
 }
 
 usb_write() {
