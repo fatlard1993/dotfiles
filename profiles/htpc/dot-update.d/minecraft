@@ -181,30 +181,16 @@ MaxMemAlloc=4096
 EOF
 
 # Jar deployment stays manual (see the top of this file), but a client that
-# cannot join the server it sits beside is worth catching here.
-#
-# Not by comparing mod lists. Pandorical serves every server-side mod to an
-# otherwise-vanilla client over its own content sync, so all but one of the
-# jars in mods/ have no business on the client, and a containment test reports
-# three dozen healthy absences as faults on every single run. Copying them
-# across to satisfy it is not harmless excess either: it is what crashed this
-# client once, every mod running twice, locally against its own registries and
-# again through the server.
-#
-# The real coupling is Pandorical's own version, on both sides. A skew there
-# does not fail informatively - the client simply refuses to connect.
-serverPandorical=($mcDir/mods/pandorical-*.jar(N:t))
-
+# cannot join at all is worth catching here. Pandorical is the one mod the
+# client must carry: it serves every server-side mod to an otherwise-vanilla
+# client. Which version the server runs is not knowable from this box any more,
+# since the server moved off it; mc-deploy-client keeps the two in step.
 clientPandorical=($instanceDir/.minecraft/mods/pandorical-*.jar(N:t))
 
 if (( ! ${#clientPandorical} )); then
-	echo "  The couch client has no Pandorical, so it cannot join this server:"
+	echo "  The couch client has no Pandorical, so it cannot join the server:"
 	echo "  it is what serves the server-side mods to a vanilla client."
-	echo "    ./deploy-client.sh, from the suite workspace on the dev machine"
-elif [[ ${serverPandorical[1]} != ${clientPandorical[1]} ]]; then
-	echo "  Pandorical differs between the two, so the client will refuse to"
-	echo "  connect: server has ${serverPandorical[1]}, client has ${clientPandorical[1]}"
-	echo "    ./deploy-client.sh, from the suite workspace on the dev machine"
+	echo "    mc-deploy-client, from the suite workspace on the dev machine"
 fi
 
 # Prism needs exactly one interactive run before --launch works at all, for
