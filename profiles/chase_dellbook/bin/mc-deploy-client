@@ -417,6 +417,13 @@ GUEST_TEMPLATE="$DATA/guest-instance"
 GUEST_ZIP=suite-guest.zip
 GUEST_DIR=suite
 
+# Client mods the guest instance carries switched off. Prism lists a jar ending in
+# .disabled in the instance's Mods tab with its box unticked, so it is one click
+# away for whoever wants it and out of the way for everyone else. Couch-controls
+# takes over a connected controller, which is the whole point on the couch and a
+# surprise on somebody's desk.
+GUEST_OFF=(couch-controls)
+
 # A value from the suite's pin file, which is pandorical's by convention.
 pin() {
 	grep -E "^\s*$1" "$SUITE/pandorical/gradle.properties" 2>/dev/null |
@@ -512,7 +519,12 @@ guest_zip() {
 
 	for jar in "$set_dir"/*.jar; do
 		[ -e "$jar" ] || continue
-		cp "$jar" "$inst/.minecraft/mods/"
+		local name off=""
+		name=$(basename "$jar")
+		for stem in "${GUEST_OFF[@]}"; do
+			[ "$(stem_of "$name")" = "$stem" ] && off=.disabled
+		done
+		cp "$jar" "$inst/.minecraft/mods/$name$off"
 		jars=$((jars + 1))
 	done
 	if [ "$jars" = 0 ]; then
@@ -531,6 +543,14 @@ guest_zip() {
 	# instruction to delete it by hand on a day nobody was watching for. Written after
 	# mmc-pack.json because the generator reads the pin out of it.
 	guest_patches "$inst"
+
+	# The house server already in the multiplayer list, so the first thing a guest
+	# does after importing is click it rather than go and ask for an address.
+	local address
+	address=$(grep -vE '^\s*(#|$)' "$DATA/server-address.txt" 2>/dev/null | head -1 | tr -d '[:space:]')
+	if [ -n "$address" ]; then
+		python3 "$HOME/.dotfiles/bin/mc-servers" "$inst/.minecraft/servers.dat" home "$address" > /dev/null
+	fi
 
 	# Built whole in a temp dir and copied over, so a rebuild that dies halfway
 	# leaves the drive's working zip where it is rather than a truncated one.
