@@ -1,0 +1,17 @@
+#!/bin/zsh
+
+# Wi-Fi power saving off. With it on, the card dozes between packets, and on
+# this laptop that put a ping to the router in the house at 300ms with
+# second-long spikes: fine for a web page, a stutter in anything live. The
+# htpc beside it on the same network answered in 3ms. 2 is NetworkManager's
+# "disable"; it applies to every Wi-Fi connection as it comes up.
+
+echo "Turning Wi-Fi power saving off"
+
+printf '[connection]\nwifi.powersave = 2\n' | sudo tee /etc/NetworkManager/conf.d/wifi-powersave-off.conf > /dev/null
+
+# NetworkManager only reads the setting when a connection comes up, so the one
+# already up is told directly.
+for dev in $(iw dev 2>/dev/null | awk '$1 == "Interface" {print $2}'); do
+	sudo iw dev $dev set power_save off 2>/dev/null
+done
