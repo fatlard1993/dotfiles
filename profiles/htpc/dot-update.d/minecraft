@@ -268,6 +268,11 @@ dpkg -s minecraft-launcher > /dev/null 2>&1 || {
 # house has stopped running. A retired address does not remove itself: it stays
 # in the list under the name it always had, and a player clicking it gets a
 # connection refused with nothing to say the server moved.
+#
+# Loopback too, here and only here: the server used to run on this box, so its
+# "localhost" entry was the house server. On a dev machine it is somebody's test
+# server and stays.
+mcRetiredServers+=(localhost 127.0.0.1)
 mcEnsureServerList $instanceDir/.minecraft
 
 # Fullscreen from the game's own options as well as from the window manager's
