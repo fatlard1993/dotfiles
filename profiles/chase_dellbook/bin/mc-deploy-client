@@ -415,6 +415,15 @@ USB_SET_DIR=village-client-mods
 # left the instance sitting on the previous mods with nothing saying so.
 GUEST_TEMPLATE="$DATA/guest-instance"
 GUEST_ZIP=suite-guest.zip
+
+# MC_GUEST_DIAGNOSTIC=1 builds the same instance with Pandorical's diagnostic mode on, as
+# suite-guest-diagnostic.zip: the jar is renamed to carry "diagnostic", which is all that
+# switches it on (logs/pandorical-trace.log and logs/pandorical-jvm.log in the instance). For a
+# guest whose game dies natively with nothing else to go on - and, so far, one whose game does
+# not die while the diagnostics are running. Its own name, so it imports beside a plain one
+# rather than being mistaken for it; the bundled Java's path follows the name.
+GUEST_DIAGNOSTIC="${MC_GUEST_DIAGNOSTIC:-}"
+[ -n "$GUEST_DIAGNOSTIC" ] && GUEST_ZIP=suite-guest-diagnostic.zip
 GUEST_DIR=suite
 
 # Client mods the guest instance carries switched off. Prism lists a jar ending in
@@ -596,6 +605,9 @@ guest_zip() {
 		for stem in "${GUEST_OFF[@]}"; do
 			[ "$(stem_of "$name")" = "$stem" ] && off=.disabled
 		done
+		if [ -n "$GUEST_DIAGNOSTIC" ] && [ "$(stem_of "$name")" = pandorical ]; then
+			name="${name%.jar}-diagnostic.jar"
+		fi
 		cp "$jar" "$inst/.minecraft/mods/$name$off"
 		jars=$((jars + 1))
 	done
