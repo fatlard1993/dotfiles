@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+# Shadows ubuntu/startup.d/status-bar only to reshape the bar for this
+# machine before delegating to the shared launcher: the default list minus
+# printer. The thinbook runs no printer stack (appliance-trim in
+# profiles/guest_thinbook disables cups and avahi), so the button could
+# only ever answer "No IPP printer found". Keep this list in step with the
+# default in ubuntu/polybar/config.ini when modules change there.
+export POLYBAR_MODULES_RIGHT="terminal wallpaper brightness clipboard disk volume cpu temp ram battery network bluetooth caffeine power"
+
+. $HOME/.dotfiles/ubuntu/startup.d/status-bar
