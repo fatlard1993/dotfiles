@@ -424,6 +424,22 @@ GUEST_DIR=suite
 # surprise on somebody's desk.
 GUEST_OFF=(couch-controls)
 
+# The Java a guest on Windows runs, carried inside the instance. Prism otherwise
+# hands a Minecraft 26.x instance Mojang's own runtime, which is 25.0.1, and 25.0.1
+# has a JIT compiler bug (JDK-8358751, fixed in 25.0.2) that crashed a guest's game
+# inside the JVM at a different moment every launch. Pinned by checksum rather than
+# fetched as "latest", so the zip on a drive is the one that was tested.
+#
+# It sits in the instance as jre/ and the instance's Java path names it relative to
+# Prism's own folder, which is the only anchor Prism resolves a relative path from.
+# That path holds only while the instance keeps the folder name an import gives it
+# by default - the zip's name - so AutomaticJava stays on: a path that does not
+# resolve, on a renamed instance or a Mac or a Linux box, is Prism's cue to fall
+# back to choosing a Java itself, which is no worse off than before this was here.
+GUEST_JRE_URL=https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_x64_windows_hotspot_25.0.4.1_1.zip
+GUEST_JRE_SHA256=4c95451cea98556def2c54f7782933f52a26d4a36bd85e1d59f0364464828b07
+GUEST_JRE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/mc-guest-jre"
+
 # A value from the suite's pin file, which is pandorical's by convention.
 pin() {
 	grep -E "^\s*$1" "$SUITE/pandorical/gradle.properties" 2>/dev/null |
@@ -497,6 +513,53 @@ mmc_pack() {
 	echo '}'
 }
 
+# guest_jre - the unpacked Windows JRE the guest instance carries, downloaded once
+# and kept by its checksum. Prints the folder; prints nothing, and says why, when it
+# cannot be had, so the zip is still built and only goes without it.
+guest_jre() {
+	local dir="$GUEST_JRE_CACHE/$GUEST_JRE_SHA256" archive home
+	home=$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
+	if [ -n "$home" ] && [ -f "$home/bin/javaw.exe" ]; then
+		echo "$home"
+		return 0
+	fi
+
+	mkdir -p "$GUEST_JRE_CACHE" || return 1
+	archive="$GUEST_JRE_CACHE/jre.zip.part"
+	if ! curl -fsSL -o "$archive" "$GUEST_JRE_URL"; then
+		echo "  !! could not download the guest JRE: the zip goes without it" >&2
+		rm -f "$archive"
+		return 1
+	fi
+	if [ "$(sha256sum "$archive" | cut -d' ' -f1)" != "$GUEST_JRE_SHA256" ]; then
+		echo "  !! the guest JRE download does not match its checksum: the zip goes without it" >&2
+		rm -f "$archive"
+		return 1
+	fi
+	rm -rf "$dir"
+	if ! { mkdir -p "$dir" && unzip -q "$archive" -d "$dir"; }; then
+		echo "  !! could not unpack the guest JRE: the zip goes without it" >&2
+		rm -rf "$dir" "$archive"
+		return 1
+	fi
+	rm -f "$archive"
+	home=$(find "$dir" -mindepth 1 -maxdepth 1 -type d | head -1)
+	if [ ! -f "$home/bin/javaw.exe" ]; then
+		echo "  !! the guest JRE has no bin/javaw.exe: the zip goes without it" >&2
+		return 1
+	fi
+	echo "$home"
+}
+
+# cfg_set FILE KEY VALUE - one line of an instance.cfg, replaced or added.
+cfg_set() {
+	if grep -q "^$2=" "$1"; then
+		sed -i "s|^$2=.*|$2=$3|" "$1"
+	else
+		echo "$2=$3" >> "$1"
+	fi
+}
+
 # guest_zip SET_DIR - rebuild the instance zip beside the folder it is given.
 guest_zip() {
 	local set_dir="$1" zip_path staging inst mc loader jar jars=0
@@ -516,6 +579,15 @@ guest_zip() {
 	inst="$staging/$GUEST_DIR"
 	mkdir -p "$inst/.minecraft/mods"
 	cp "$GUEST_TEMPLATE/instance.cfg" "$inst/"
+
+	# See GUEST_JRE_URL. An import names the instance's folder after the zip.
+	local jre
+	if jre=$(guest_jre) && [ -n "$jre" ]; then
+		cp -r "$jre" "$inst/jre"
+		cfg_set "$inst/instance.cfg" OverrideJavaLocation true
+		cfg_set "$inst/instance.cfg" JavaPath "instances/${GUEST_ZIP%.zip}/jre/bin/javaw.exe"
+		cfg_set "$inst/instance.cfg" AutomaticJava true
+	fi
 
 	for jar in "$set_dir"/*.jar; do
 		[ -e "$jar" ] || continue
