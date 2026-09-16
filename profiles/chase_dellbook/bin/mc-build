@@ -27,7 +27,10 @@ if [[ -n "${1:-}" ]]; then
 	dependents=("$target")
 	for r in "${repos[@]}"; do
 		[[ "$r" == "$target" ]] && continue
-		if rg -q "\"$target\"" "$r"/src/main/resources/fabric.mod.json 2>/dev/null; then
+		# src/*/resources, not src/main: a client-only mod keeps its manifest under
+		# src/client, and matching only src/main silently dropped every one of them from
+		# the sweep - so an API change broke them while this printed green.
+		if rg -q "\"$target\"" "$r"/src/*/resources/fabric.mod.json 2>/dev/null; then
 			dependents+=("$r")
 		fi
 	done

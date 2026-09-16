@@ -11,6 +11,10 @@
 # The rule:
 #   environment "client"        -> client only, the server neither needs nor
 #                                  benefits from it
+#   on client-mods.txt, and not  -> BOTH sides: a client mod with a server half,
+#     environment "client"          which is the one shape the manifest alone
+#                                   cannot express - "*" means "loads on either",
+#                                   not "belongs on both"
 #   depends on pandorical       -> server only; connecting players need
 #                                  Pandorical and nothing else, because the
 #                                  framework serves the mod's content to them
@@ -21,6 +25,16 @@ set -uo pipefail
 SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
 [ -d "$SUITE" ] || { print -u2 "no mod suite at $SUITE"; exit 2 }
 cd "$SUITE" || exit 2
+
+# The list mc-deploy-client actually ships from. Read here so this tool answers
+# with what the deploy scripts do rather than with a rule of its own that happens
+# to agree - they disagreed the moment one mod grew a server half, and this said
+# "no client-side anything" about a jar every client needs.
+CLIENT_LIST="${MINECRAFT_PRIV:-$HOME/.priv-config/minecraft}/client-mods.txt"
+shipped_to_clients() {
+	[ -f "$CLIENT_LIST" ] || return 1
+	grep -qxF "$1" "$CLIENT_LIST" 2>/dev/null
+}
 
 classify() {
 	local mod=$1 manifest env pandorical
@@ -36,6 +50,7 @@ classify() {
 	# do need.
 	if [[ $mod == pandorical ]]; then print framework
 	elif [[ $env == client ]]; then print client
+	elif shipped_to_clients "$mod"; then print both
 	elif [[ $pandorical == true ]]; then print server-pandorical
 	else print server-vanilla
 	fi
@@ -48,11 +63,12 @@ if (( $# )); then
 	exit 0
 fi
 
-typeset -a client serverPan serverVanilla
+typeset -a client serverPan serverVanilla both
 for dir in */; do
 	mod=${dir%/}
 	case $(classify $mod) in
 		client)            client+=($mod) ;;
+		both)              both+=($mod) ;;
 		server-pandorical) serverPan+=($mod) ;;
 		server-vanilla)    serverVanilla+=($mod) ;;
 	esac
@@ -67,6 +83,10 @@ print "  ${serverVanilla}"
 print
 print "Client-side (${#client}). The server neither needs nor benefits from these."
 print "  ${client}"
+print
+print "Both sides (${#both}). A client mod with a server half: the client is the whole"
+print "point, and the server carries the half that feeds it."
+print "  ${both}"
 print
 print "pandorical is the exception: it belongs on the server AND on every client that"
 print "wants to see the first group. couch-controls is the other - a client mod that"
