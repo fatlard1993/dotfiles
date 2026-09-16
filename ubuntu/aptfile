@@ -63,6 +63,9 @@ package "librsvg2-bin"
 package "python3-pil"
 package "tesseract-ocr"
 package "libcanberra-gtk3-module"
+# Discord's first launch bootstraps the client behind a zenity progress
+# dialog whenever stdout is not a tty - which is every launch from rofi
+package "zenity"
 package "ffmpeg"
 package "kitty"
 package "rofi"

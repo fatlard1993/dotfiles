@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The deb is a 2MB bootstrap, not the client: first launch downloads the
+# client into ~/.config/discord and it updates itself there from then on,
+# per user. The bootstrap has no apt repo behind it, so it is refreshed here
+# instead, whenever the download's version differs from the installed one.
+# The endpoint redirects to a versioned filename, and that is where the
+# version is read from - no download to ask the deb what it is.
+latestUrl=$(curl -sI 'https://discord.com/api/download?platform=linux&format=deb' | sed -n 's/^location: *//Ip' | tr -d '\r')
+latest=${${${latestUrl:t}#discord-}%.deb}
+
+if [[ -z $latest ]]; then
+	echo "Discord: could not resolve the current download (offline?) - leaving the installed client alone"
+	return
+fi
+
+installed=$(dpkg-query -W -f='${Version}' discord 2>/dev/null)
+
+[[ $installed == $latest ]] && return
+
+echo "Installing Discord $latest${installed:+ (replacing $installed)}"
+
+deb=$(mktemp --suffix=.deb)
+# apt reads the deb as its own _apt user; mktemp's 600 makes it fall back
+# to an unsandboxed download, with a warning, every time
+chmod 644 $deb
+
+curl -sfL -o $deb $latestUrl \
+	&& sudo env DEBIAN_FRONTEND=noninteractive apt install -y $deb
+
+rm -f $deb

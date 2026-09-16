@@ -2,6 +2,6 @@
 Type=Application
 Name=Discord
 Icon=desk-discord
-Exec=google-chrome --app=https://discord.com/channels/@me
+Exec=discord
 Terminal=false
 Categories=Desk;
