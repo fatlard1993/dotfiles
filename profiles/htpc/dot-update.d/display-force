@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Pins the couch display to 1080p with no EDID to read - see the config
+# itself for why. X only parses xorg.conf.d at server start, so this lands
+# at the next login.
+echo "Linking HDMI force config"
+
+sudo mkdir -p /etc/X11/xorg.conf.d
+sudo ln -sf $profilePath/xorg/10-hdmi-force.conf /etc/X11/xorg.conf.d/10-hdmi-force.conf
