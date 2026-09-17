@@ -2,27 +2,41 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# Appliance boot: power on -> couch UI, no keyboard involved. greetd's
-# [initial_session] logs in exactly once at boot; logging out still lands on
-# tuigreet as usual. The command mirrors what tuigreet itself wraps X
-# sessions in (its default --xsession-wrapper is `startx /usr/bin/env`),
-# since greetd runs an initial_session directly without tuigreet in the loop.
+# Appliance login: power on -> couch UI, no keyboard involved. This box has
+# no keyboard at the couch, so any path that lands on tuigreet is a lockout -
+# it happened for real when the session died at boot (receiver on the wrong
+# input, no monitor, bspwm exits immediately) and the fallback greeter sat
+# there asking for a password nobody could type.
 #
-# Appended rather than shipped as a whole-file copy so the base config stays
-# owned by ubuntu/greetd/config.toml (theme and all) with no drifting
-# duplicate here. The shared greetd hook (run just before this via 0_ubuntu)
-# re-copies that base file every dot-update, wiping this section - so this
-# append runs after it every time; the grep guard makes the no-change case
-# idempotent.
+# So the *greeter slot itself* is the bspwm session: greetd starts it at
+# boot and restarts it on every session exit, and there is no prompt in any
+# path. greetd's [initial_session] is deliberately not used - it fires once
+# per boot (guarded by /run/greetd.run) and falls through to the greeter
+# afterwards, which is exactly the lockout above.
+#
+# The command mirrors what tuigreet itself wraps X sessions in (its default
+# --xsession-wrapper is `startx /usr/bin/env`), since greetd runs this
+# command directly with no tuigreet in the loop.
+#
+# Rewritten in place rather than shipped as a whole-file copy so the base
+# config stays owned by ubuntu/greetd/config.toml (theme and all) with no
+# drifting duplicate here. The shared greetd hook (run just before this via
+# 0_ubuntu) re-copies that base file every dot-update, restoring tuigreet -
+# so this rewrite runs after it every time; the grep guard makes the
+# no-change case idempotent.
 greetdConfig=/etc/greetd/config.toml
+autologinCommand="startx /usr/bin/env bspwm"
 
-if ! sudo grep -q "^\[initial_session\]" $greetdConfig; then
-	echo "Enabling greetd autologin (initial_session -> bspwm)"
+if ! sudo grep -q "^command = \"$autologinCommand\"$" $greetdConfig; then
+	echo "Pointing greetd's session at bspwm (autologin, no greeter)"
 
-	sudo tee -a $greetdConfig > /dev/null <<-EOF
+	sudo sed -i \
+		-e "s|^command = \"tuigreet .*|command = \"$autologinCommand\"|" \
+		-e "s|^user = \"_greetd\"$|user = \"$USER\"|" \
+		$greetdConfig
 
-	[initial_session]
-	command = "startx /usr/bin/env bspwm"
-	user = "$USER"
-	EOF
+	# A [initial_session] from the previous shape of this hook only survives
+	# on a config the shared hook did not re-copy; drop it either way so the
+	# session slot above is the only one.
+	sudo sed -i -E '/^\[initial_session\]$/,$d' $greetdConfig
 fi
