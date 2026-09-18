@@ -45,3 +45,9 @@ package "jq"
 # software fallback (gstreamer1.0-libav) is already a hard Depends of the
 # uxplay package itself; this one isn't pulled in by anything.
 package "gstreamer1.0-vaapi"
+
+# pactl, for startup.d/audio. PipeWire serves the PulseAudio API here
+# (pipewire-pulse), but ships none of the client tools - and this was
+# missing for long enough that startup.d/audio silently did nothing at
+# every login, since the whole block was redirected to /dev/null.
+package "pulseaudio-utils"

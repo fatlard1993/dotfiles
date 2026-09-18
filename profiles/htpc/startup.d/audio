@@ -6,16 +6,44 @@
 # --user; re-asserted every login since dual-output is how this machine
 # is meant to run.
 #
+# pactl comes from pulseaudio-utils, which is in this profile's aptfile for
+# this script alone - PipeWire serves the PulseAudio API here but ships none
+# of its client tools. The package was missing for a long time and the whole
+# block was redirected to /dev/null, so every line failed silently at every
+# login and the default sink was never actually set. stdout is still dropped
+# (nothing reads a startup script's chatter) but stderr is left alone now,
+# so the next missing tool says so instead of hiding.
+#
+# The zone card needs its profile asserted because ALSA cannot sense the
+# amp: the codec reports NO_PRESENCE on those jack pins, so wireplumber
+# reads every analog profile as unavailable and parks the card at `off`.
+# Only when it is at `off` though - a profile chosen deliberately, here or
+# by hand, is never overridden.
+#
+# The HDMI card is deliberately left alone. Wireplumber picks its profile
+# from ELD whenever the Denon is handshaking, and when it isn't there is no
+# ELD, the codec reports no monitor on any pin, and no profile will carry
+# audio anyway - so there is no case where asserting one helps.
+#
 # First-boot, hardware-specific: for real surround, the HDMI card profile
 # must be a surround one - `pactl list cards` to check, `pactl
 # set-card-profile <card> output:hdmi-surround-extra1` to set (wireplumber
-# remembers it). Volume keys move both outputs together; per-zone level
-# lives on the amps themselves.
+# remembers it, and the guard above leaves it alone once set). Volume keys
+# move both outputs together; per-zone level lives on the amps themselves.
+zoneCard=alsa_card.pci-0000_30_00.6
+
 {
 	for _ in {1..20}; do
 		pactl info > /dev/null 2>&1 && break
 		sleep 0.5
 	done
 
+	zoneProfile=$(pactl list cards | awk -v name=$zoneCard '
+		$1 == "Name:" { card = $2 }
+		card == name && $1 == "Active" && $2 == "Profile:" { print $3; exit }
+	')
+
+	[[ $zoneProfile == off ]] && pactl set-card-profile $zoneCard output:analog-stereo
+
 	pactl set-default-sink combine_sink
-} > /dev/null 2>&1 &
+} > /dev/null &
