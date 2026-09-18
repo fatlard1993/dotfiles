@@ -1,0 +1,27 @@
+#!/bin/zsh
+
+# Blind-boot mode fallback. When the Denon isn't handshaking there is no
+# EDID (see xorg/10-hdmi-force.conf), the driver offers only its two
+# built-in modes, and X takes the smaller one - a 640x480 desktop on a 4K
+# TV. autorandr can't cover this: its htpc-tv profile is keyed on the EDID
+# fingerprint, so with no EDID nothing matches and nothing is applied.
+#
+# 640x480 is the tell. It is not a mode this machine lands on any other
+# way, so every healthy boot falls straight through here untouched and the
+# EDID's own choice stands - which matters, because this TV is 4K and
+# pinning 1080p unconditionally would be a downgrade.
+#
+# 1080p rather than 4K because 4K60 needs SCDC negotiation over the same
+# dead DDC line. Blind, 1080p is the most this link will carry.
+#
+# Runs after the shared startup.d/autorandr (profile scripts all run after
+# the shared set) and sorts before startup.d/steam-bigpicture, so Big
+# Picture starts against the corrected mode instead of sizing itself for
+# 640x480 and keeping that scale for the session.
+currentMode=$(xrandr --query | awk '/\*/ { print $1; exit }')
+
+if [[ $currentMode == 640x480 ]]; then
+	output=$(xrandr --query | awk '/ connected/ { print $1; exit }')
+
+	xrandr --output $output --mode 1920x1080 --rate 60
+fi
