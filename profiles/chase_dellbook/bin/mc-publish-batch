@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Work a day's worth of the Modrinth queue, then fill in what was made.
+#
+#   mc-publish-batch            create the day's ten, then upload, describe and illustrate them
+#   mc-publish-batch --dry-run  say what it would do
+#
+# Modrinth allows ten new projects per UTC day and answers the eleventh with a 400 saying so.
+# That is a day boundary rather than a rolling window, so on UTC-7 the quota turns over at
+# 17:00 local and a batch run in the evening is competing with the previous evening's. Hence
+# the timer at 17:05: the first minutes of a fresh allowance.
+#
+# Creating is the only step with a limit. Uploading a jar, setting a description, an icon or a
+# gallery are not rationed, so every mod in the queue gets those on every run - the ones made
+# today because they need it, and the rest because it is how a correction to a README reaches
+# the page it is already on.
+set -uo pipefail
+
+DATA="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}"
+QUEUE="$DATA/modrinth-queue.txt"
+
+[ -r "$QUEUE" ] || { echo "no queue at $QUEUE" >&2; exit 2; }
+
+# Comments and blank lines out; order kept, because the queue is written in the order things
+# should go up.
+mapfile -t MODS < <(grep -v '^[[:space:]]*#' "$QUEUE" | grep -v '^[[:space:]]*$' | tr -d '\r')
+[ "${#MODS[@]}" -gt 0 ] || { echo "queue is empty"; exit 0; }
+
+DRY=""
+[ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
+
+echo "== $(date '+%Y-%m-%d %H:%M %Z') — ${#MODS[@]} in the queue"
+
+# Create first: everything after it wants the project to exist. mc-publish stops itself when
+# the day's ten are spent and says which are left, so this does not need to count.
+mc-publish --create $DRY "${MODS[@]}"
+
+# Then the parts with no daily limit. Each is asked of the whole queue: a mod that is not up
+# yet answers "no project yet" and costs one request, which is cheaper than tracking which
+# ones today's run happened to make.
+for step in --upload --sync --icon --gallery; do
+	echo "-- ${step#--}"
+	mc-publish "$step" $DRY "${MODS[@]}"
+done
+
+echo "== done $(date '+%H:%M')"

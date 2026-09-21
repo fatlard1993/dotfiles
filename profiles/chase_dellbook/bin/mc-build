@@ -38,6 +38,69 @@ if [[ -n "${1:-}" ]]; then
 	echo "Building $target and its ${#repos[@]} dependent(s): ${repos[*]}"
 fi
 
+# --- Build order ---------------------------------------------------------
+#
+# Alphabetical order is wrong, and was wrong quietly. Half the suite compiles against a sibling's
+# built jar - better-companions against village-quests, nearly everything against block-tip - and
+# those siblings sort late: beets-bears needs better-companions and block-tip, and comes before
+# both. It only ever worked because a previous run had left the jars lying about.
+#
+# So any run that did not finish - a Ctrl-C, a failure, a `| head` closing the pipe - could leave a
+# provider deleted and unbuilt, and the next run then failed on mods that were perfectly fine, with
+# "package justfatlard.village_quests.api does not exist". The build was reporting a real error
+# about an imaginary problem, which is the worst kind to chase.
+#
+# Providers are read from each build.gradle, where a compile-only sibling is named as
+# ../<mod>/gradle.properties, so this cannot drift from what the builds actually do.
+providers_of() {
+	grep -oE '\.\./[a-z0-9-]+/gradle\.properties' "$1/build.gradle" 2>/dev/null |
+		sed -E 's|\.\./([a-z0-9-]+)/.*|\1|' | sort -u
+}
+
+declare -A in_build=()
+for r in "${repos[@]}"; do in_build["$r"]=1; done
+
+# A provider whose jar is missing is pulled in even when it was not asked for: without it every
+# dependent fails, and building it is the whole fix. One pass is enough for this suite's depth.
+for r in "${repos[@]}"; do
+	while read -r p; do
+		[[ -z "$p" ]] && continue
+		[[ -n "${in_build[$p]:-}" ]] && continue
+		[[ -x "$p/gradlew" ]] || continue
+		if ! compgen -G "$p/build/libs/*.jar" > /dev/null; then
+			echo "Also building $p: $r needs its jar and there is none"
+			repos+=("$p")
+			in_build["$p"]=1
+		fi
+	done < <(providers_of "$r")
+done
+
+# Depth-first, so a provider is always built before anything that compiles against it. Alphabetical
+# within that, so the output stays readable.
+declare -A visiting=()
+declare -A done_mark=()
+ordered=()
+visit() {
+	local r="$1"
+	[[ -n "${done_mark[$r]:-}" ]] && return 0
+	# A cycle cannot be ordered; leaving it to fall in after its partner is no worse than the
+	# alphabetical order this replaces, and saying so beats looping forever.
+	if [[ -n "${visiting[$r]:-}" ]]; then
+		echo "warning: $r is part of a build-order cycle" >&2
+		return 0
+	fi
+	visiting["$r"]=1
+	while read -r p; do
+		[[ -z "$p" ]] && continue
+		[[ -n "${in_build[$p]:-}" ]] && visit "$p"
+	done < <(providers_of "$r")
+	unset 'visiting[$r]'
+	done_mark["$r"]=1
+	ordered+=("$r")
+}
+for r in "${repos[@]}"; do visit "$r"; done
+repos=("${ordered[@]}")
+
 pass=0
 fail=0
 failed_repos=()

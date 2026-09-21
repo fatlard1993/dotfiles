@@ -1,0 +1,648 @@
+#!/usr/bin/env python3
+"""Put this suite's mods on Modrinth, and keep them there.
+
+    mc-publish                 what would happen, and nothing else
+    mc-publish --create MOD    register MOD as a draft, from what its own files already say
+    mc-publish --upload MOD    upload MOD's built jar as a version
+    mc-publish --upload --all  every mod whose built version is not published yet
+    mc-publish --sync --all    put each README's readable half on its page, links and all
+    mc-publish --gallery MOD   upload the pictures MOD's README shows
+
+Written because the CurseForge half of a release is hand work that cannot be automated: their
+API has no project creation at all, and reading what is published there means going through
+cfwidget, since CurseForge answers a script with 403. Modrinth puts both halves behind a token -
+see mc-published for the other side of that comparison.
+
+Nothing here is guessed. Title, description, licence and links come out of each mod's own
+fabric.mod.json, the version out of gradle.properties, and which sides it belongs on out of
+mc-where, so a mod that changes any of those does not also need changing here.
+
+Modrinth allows ten new projects a day, which is not in its documentation and arrives as a 400
+saying so. Creating stops there rather than spending the rest of the run collecting the same
+refusal; what is left is still listed, and tomorrow it carries on.
+
+The token is a secret and this file is in a public repository, so it lives in priv-config beside
+the CurseForge slugs and the server address. Modrinth asks for a User-Agent that identifies who
+is calling and how to reach them, and blocks generic ones, so it names this tool and its author.
+"""
+
+import json
+import mimetypes
+import re
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+from pathlib import Path
+
+SUITE = Path(os.environ.get("MINECRAFT_SUITE", Path.home() / "Projects/minecraft"))
+DATA = Path(os.environ.get("MINECRAFT_DATA", Path.home() / ".priv-config/minecraft"))
+TOKEN_FILE = DATA / "modrinth-token"
+CATEGORIES_FILE = DATA / "modrinth-categories.txt"
+SLUGS_FILE = DATA / "modrinth-slugs.txt"
+SKIP_FILE = DATA / "modrinth-skip.txt"
+API = os.environ.get("MODRINTH_API", "https://api.modrinth.com/v2")
+AGENT = "justfatlard/mc-publish/1.0 (justfatlard@gmail.com)"
+
+# What mc-where calls each group, against what Modrinth calls it. Its answer is derived from each
+# mod's own fabric.mod.json, which is the whole reason it is asked rather than a list kept here:
+# a list would drift, and the one it replaced already had.
+ENVIRONMENTS = {
+    "client": "client_only",
+    "server-pandorical": "server_only",
+    "server-vanilla": "server_only",
+    # mc-where's "both" is a client mod that happens to carry a server half; the client is the
+    # whole point and the half is plumbing. Saying client_and_server on a listing reads as "you
+    # need this on your server too", which is not what somebody installing it needs to know.
+    # Pandorical itself is the one that genuinely belongs on both.
+    "both": "client_only",
+    "framework": "client_and_server",
+}
+
+# The same answer again in the older pair of fields. The v2 API documents client_side and
+# server_side as deprecated in favour of environment, and then refuses a project that leaves them
+# out: "missing field `client_side`". So both are sent, saying the same thing twice.
+SIDES = {
+    "client_only": ("required", "unsupported"),
+    "server_only": ("unsupported", "required"),
+    "client_and_server": ("required", "required"),
+}
+
+
+def skipped():
+    """Mods decided against rather than merely unpublished.
+
+    A --all run touches everything it can, which is right until one of them is somewhere on
+    purpose. Kept as a file with the reason beside each, so the decision outlives whoever made it.
+    """
+    out = {}
+    if SKIP_FILE.exists():
+        for line in SKIP_FILE.read_text().splitlines():
+            if line.lstrip().startswith("#") or not line.split():
+                continue
+            name, _, why = line.partition(" ")
+            out[name.strip()] = why.strip()
+    return out
+
+
+def slug_for(mod):
+    """What this mod publishes under, which is not reliably its folder name.
+
+    Eight of these carry a -fabric suffix because the plain name was already somebody else's, and
+    one is published under a name that says whose it is. The same reason curseforge-slugs.txt
+    exists, and the same answer: a file beside it rather than a rule that would be wrong.
+    """
+    if SLUGS_FILE.exists():
+        for line in SLUGS_FILE.read_text().splitlines():
+            if line.lstrip().startswith("#") or not line.split():
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == mod:
+                return parts[1]
+    return mod
+
+
+def categories_for(mod):
+    """Modrinth's own category words, kept in a file because nothing in the repo says them.
+
+    A mod's manifest describes what it does in prose, and there is no honest way to turn that
+    into one of nineteen fixed words. So they are written down once, and a mod with no line gets
+    utility, which is the least wrong default.
+    """
+    if CATEGORIES_FILE.exists():
+        for line in CATEGORIES_FILE.read_text().splitlines():
+            if line.lstrip().startswith("#") or not line.split():
+                continue
+            parts = line.split()
+            if parts[0] == mod:
+                return parts[1:] or ["utility"]
+    return ["utility"]
+
+
+def token():
+    if not TOKEN_FILE.exists():
+        sys.exit(f"no Modrinth token at {TOKEN_FILE}")
+    return TOKEN_FILE.read_text().strip()
+
+
+def properties(path):
+    out = {}
+    for line in path.read_text().splitlines():
+        if "=" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        out[key.strip()] = value.strip()
+    return out
+
+
+def fabric_mod_json(mod):
+    """The mod's own manifest: main for most, client for the ones with no server half.
+
+    Never src/gametest, which has a manifest of its own describing the test harness - reading
+    that would publish every client mod as "Loads the mod, joins a world, and fails if anything
+    on the way threw."
+    """
+    found = [p for p in ((SUITE / mod / "src/main/resources/fabric.mod.json"),
+                         (SUITE / mod / "src/client/resources/fabric.mod.json")) if p.exists()]
+    if not found:
+        return None
+    # ${version} and friends are Gradle's, expanded at build time; this reads the template, so a
+    # value that is still a placeholder has to be taken from gradle.properties instead.
+    return json.loads(found[0].read_text())
+
+
+def where(mod):
+    """Which sides this mod belongs on, asked of the tool that already decides that."""
+    try:
+        line = subprocess.run(["mc-where", mod], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return "client_and_server"
+    for group, environment in ENVIRONMENTS.items():
+        if group in line:
+            return environment
+    return "client_and_server"
+
+
+def call(method, path, data=None, files=None, tok=None, raw=None):
+    """One request: multipart where there are files, raw bytes for a gallery image, else JSON."""
+    url = f"{API}{path}"
+    headers = {"User-Agent": AGENT}
+    if tok:
+        headers["Authorization"] = tok
+    body = None
+
+    if raw is not None:
+        body = raw
+        headers["Content-Type"] = "application/octet-stream"
+    elif files is not None:
+        boundary = uuid.uuid4().hex
+        parts = []
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="data"\r\n'
+                     f"Content-Type: application/json\r\n\r\n{json.dumps(data)}\r\n".encode())
+        for name, filepath in files.items():
+            filepath = Path(filepath)
+            kind = mimetypes.guess_type(filepath.name)[0] or "application/octet-stream"
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; '
+                         f'filename="{filepath.name}"\r\nContent-Type: {kind}\r\n\r\n'.encode())
+            parts.append(filepath.read_bytes())
+            parts.append(b"\r\n")
+        parts.append(f"--{boundary}--\r\n".encode())
+        body = b"".join(parts)
+        headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+    elif data is not None:
+        body = json.dumps(data).encode()
+        headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as answer:
+            raw = answer.read()
+            return answer.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw)
+        except ValueError:
+            return e.code, {"error": raw.decode("utf-8", "replace")[:400]}
+
+
+_mine = None
+
+
+def mine(tok):
+    """Every project this token's account owns, by slug.
+
+    Asked of the account rather than of the slug, because a slug that answers is not a slug that
+    is yours: bamboo-spikes is a real project on Modrinth belonging to somebody else entirely.
+    A bare lookup would have called that "published" and then tried to upload our jar into a
+    stranger's project. Fetched once and kept, since it is the same answer for every mod.
+    """
+    global _mine
+    if _mine is None:
+        status, me = call("GET", "/user", tok=tok)
+        if status != 200:
+            sys.exit(f"Modrinth refused the token ({status})")
+        status, projects = call("GET", f"/user/{me['id']}/projects", tok=tok)
+        _mine = {p["slug"]: p for p in projects} if status == 200 else {}
+    return _mine
+
+
+def project(slug, tok):
+    """The project as Modrinth has it, and only if it is ours."""
+    return mine(tok).get(slug)
+
+
+def taken(slug):
+    """Whether somebody else visibly holds this slug.
+
+    Only ever a lower bound: a slug can be held by a project that is private or still a draft,
+    which answers 404 to anybody but its owner. chest-utils surveyed as free and then refused
+    with "Slug is already taken!". So a clear answer here means taken, and an unclear one means
+    unclaimed as far as anyone outside can see - which is not the same as available.
+    """
+    status, _ = call("GET", f"/project/{slug}")
+    return status == 200
+
+
+def jar_for(mod, version):
+    """The built jar, named by the version it declares and never by glob order.
+
+    Gradle never clears build/libs, so after a version bump the old jar and the new one sit side
+    by side and the alphabetical first is the older one. That mistake has shipped from three
+    separate scripts in this suite; it is not going to ship from a fourth.
+    """
+    libs = SUITE / mod / "build/libs"
+    for candidate in libs.glob("*.jar"):
+        name = candidate.name
+        if name.endswith("-sources.jar") or name.endswith("-testsupport.jar"):
+            continue
+        if f"-{version}.jar" == name[-len(version) - 5:]:
+            return candidate
+    return None
+
+
+# Sections a README carries for whoever is working on the mod, not for whoever is installing it.
+# License is a field on the project page already, Development is a link to a file in the repo, and
+# Screenshots becomes the gallery rather than a row of broken images.
+SKIP_SECTIONS = {"license", "development", "screenshots", "building", "installation"}
+
+LINK = re.compile(r"\[([^\]]+)\]\((?!https://modrinth\.com)[^)]+\)")
+IMAGE = re.compile(r"^\s*!\[[^\]]*\]\([^)]+\)\s*$")
+BARE_LINK = re.compile(r"\[(?:https?://)?(?:www\.)?[\w.-]+\.[a-z]{2,}[^\]]*\]\([^)]+\)")
+
+
+def clean_body(mod, readme):
+    """The README as a player should read it.
+
+    A README opens by naming the mod, which the page already does above the body; it links to
+    GitHub and to files beside it, which lead off the page or nowhere; and it embeds screenshots
+    by relative path, which resolve to nothing at all once the text is somewhere else. What is
+    left - what the mod does, how it is used, what it wants installed - is the part worth showing.
+    """
+    out = []
+    skipping = False
+    for line in readme.splitlines():
+        heading = line.startswith("## ")
+        if heading:
+            skipping = line[3:].strip().lower() in SKIP_SECTIONS
+        if skipping:
+            continue
+        # The title line, and only at the top: a "# " deeper in is a real heading.
+        if line.startswith("# ") and not out:
+            continue
+        if IMAGE.match(line):
+            continue
+        # A link out is left as the words it was written as. Pointing a reader at a repository, or
+        # at a file that is not there, is worse than plain text saying the same thing.
+        # Where the words of a link are themselves an address, stripping the URL leaves the
+        # address behind as text - "github.com/fatlard1993" reads as a link even unlinked. Those
+        # lose the words too.
+        line = BARE_LINK.sub("", line)
+        out.append(LINK.sub(r"\1", line))
+
+    text = "\n".join(out)
+    while "\n\n\n" in text:
+        text = text.replace("\n\n\n", "\n\n")
+    return text.strip()
+
+
+def screenshots(mod, readme):
+    """The pictures a README embeds, as (file, caption) — the alt text is already a caption."""
+    found = []
+    for alt, path in re.findall(r"!\[([^\]]*)\]\(([^)]+)\)", readme):
+        if path.startswith("http"):
+            continue
+        file = SUITE / mod / path
+        if file.exists() and file.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+            found.append((file, alt.strip()))
+    return found
+
+
+def icon_for(mod):
+    """The mod's icon, from wherever that mod keeps its assets.
+
+    A client-only mod has no src/main at all - couch-controls and crosshair-corsair both keep
+    everything under src/client - so looking only in main found nothing and they went up without
+    an icon. The same blind spot the manifest lookup had.
+    """
+    for where in ("src/main/resources/assets", "src/client/resources/assets"):
+        found = next(iter((SUITE / mod / where).glob("*/icon.png")), None)
+        if found:
+            return found
+    return None
+
+
+def link(value):
+    """A link, or nothing at all.
+
+    fabric.mod.json carries {@code "sources": ""} in at least one mod, and an empty string is not
+    a URL: Modrinth answers "field link_urls failed validation with error: invalid URL" and
+    refuses the whole update over it. Absent is a thing it understands; blank is not.
+    """
+    value = (value or "").strip()
+    return value if value.startswith("http") else None
+
+
+def changelog_for(mod, version):
+    """What this version says for itself, out of the changelog the mod already ships.
+
+    Every mod carries pandorical.changelog.json so the game can show a player what changed;
+    Modrinth asks the same question of an upload and was being handed nothing. One file, both
+    audiences, and no second place to keep in step.
+    """
+    file = SUITE / mod / "src/main/resources/pandorical.changelog.json"
+    if not file.exists():
+        return ""
+    try:
+        notes = json.loads(file.read_text()).get("versions", {}).get(version)
+    except ValueError:
+        return ""
+    if not notes:
+        return ""
+    return "\n".join(f"- {line}" for line in notes)
+
+
+def describe(mod):
+    """Everything about a mod that Modrinth wants, out of the files that already say it."""
+    props = properties(SUITE / mod / "gradle.properties")
+    meta = fabric_mod_json(mod) or {}
+    contact = meta.get("contact", {})
+    readme = SUITE / mod / "README.md"
+    return {
+        "mod": mod,
+        "slug": slug_for(mod),
+        "version": props.get("mod_version", ""),
+        "game_version": props.get("minecraft_version", ""),
+        "title": meta.get("name", mod),
+        "description": (meta.get("description") or mod)[:255],
+        "body": clean_body(mod, readme.read_text()) if readme.exists()
+            else meta.get("description", ""),
+        "shots": screenshots(mod, readme.read_text()) if readme.exists() else [],
+        "license": meta.get("license", "MIT"),
+        "source_url": link(contact.get("sources")),
+        "issues_url": link(contact.get("issues")),
+        "icon": icon_for(mod),
+        "environment": where(mod),
+    }
+
+
+class DailyLimit(Exception):
+    """Ten a day, and the eleventh says so. Not a failure of this mod, just of today."""
+
+
+def create(mod, dry):
+    about = describe(mod)
+    if project(about["slug"], token()):
+        print(f"  {mod}: already yours on Modrinth")
+        return 0
+    if taken(about["slug"]):
+        print(f"  {mod}: slug '{about['slug']}' belongs to somebody else — needs a different one")
+        return 1
+    data = {
+        "slug": about["slug"],
+        "title": about["title"],
+        "description": about["description"],
+        "body": about["body"],
+        "project_type": "mod",
+        "categories": categories_for(mod),
+        "license_id": about["license"],
+        "client_side": SIDES[about["environment"]][0],
+        "server_side": SIDES[about["environment"]][1],
+        "is_draft": True,
+        # Also documented as deprecated - "upload versions separately after creation" - and also
+        # refused when absent. Empty is what that instruction means in practice.
+        "initial_versions": [],
+    }
+    if dry:
+        print(f"  {mod}: would create as draft ({about['environment']}, {about['license']})")
+        return 0
+    files = {"icon": about["icon"]} if about["icon"] else {}
+    status, answer = call("POST", "/project", data=data, files=files, tok=token())
+    if status == 200:
+        print(f"  {mod}: created as draft — submit for review at modrinth.com/mod/{about['slug']}")
+        return 0
+    why = answer.get("description") or answer.get("error", "")
+    if "daily project creation limit" in why:
+        raise DailyLimit(mod)
+    print(f"  {mod}: refused ({status}) {why}")
+    return 1
+
+
+def upload(mod, dry):
+    about = describe(mod)
+    existing = project(about["slug"], token())
+    if not existing:
+        print(f"  {mod}: no project yet — mc-publish --create {mod}")
+        return 1
+
+    # Asked with the token. Without it a draft project's versions come back as nothing at all,
+    # which reads exactly like "nothing published yet" - and the answer to that is to upload,
+    # which is how this uploaded a second copy of a version that was already there.
+    status, versions = call("GET", f"/project/{about['slug']}/version", tok=token())
+    if status != 200:
+        print(f"  {mod}: could not read published versions ({status}) — not uploading blind")
+        return 1
+    if any(v.get("version_number") == about["version"] for v in versions):
+        print(f"  {mod}: {about['version']} already published")
+        return 0
+
+    jar = jar_for(mod, about["version"])
+    if not jar:
+        print(f"  {mod}: no built jar for {about['version']} — mc-build {mod} first")
+        return 1
+
+    data = {
+        "project_id": existing["id"],
+        "name": about["version"],
+        "version_number": about["version"],
+        "version_type": "release",
+        "changelog": changelog_for(mod, about["version"]),
+        "game_versions": [about["game_version"]],
+        "loaders": ["fabric"],
+        "environment": about["environment"],
+        "dependencies": [],
+        "featured": False,
+        "file_parts": ["jar"],
+        "primary_file": "jar",
+    }
+    if dry:
+        print(f"  {mod}: would upload {jar.name} for {about['game_version']}")
+        return 0
+    status, answer = call("POST", "/version", data=data, files={"jar": jar}, tok=token())
+    if status == 200:
+        print(f"  {mod}: uploaded {about['version']}")
+        return 0
+    print(f"  {mod}: refused ({status}) {answer.get('description') or answer.get('error', '')}")
+    return 1
+
+
+def sync(mod, dry):
+    """Put the cleaned-up text and links on a project that already exists."""
+    about = describe(mod)
+    existing = project(about["slug"], token())
+    if not existing:
+        print(f"  {mod}: no project yet")
+        return 1
+    data = {
+        "title": about["title"],
+        "description": about["description"],
+        "body": about["body"],
+        "categories": categories_for(mod),
+        "license_id": about["license"],
+    }
+    # Added only when there is one. A blank is not a URL, and Modrinth refuses the whole update
+    # over it rather than ignoring the field.
+    for key, value in (("source_url", about["source_url"]), ("issues_url", about["issues_url"])):
+        if value:
+            data[key] = value
+
+    same = all(existing.get(k) == v for k, v in data.items() if k != "license_id")
+    if same:
+        print(f"  {mod}: already up to date")
+        return 0
+    if dry:
+        print(f"  {mod}: would update body ({len(about['body'])} chars) and links")
+        return 0
+    status, answer = call("PATCH", f"/project/{about['slug']}", data=data, tok=token())
+    if status in (200, 204):
+        print(f"  {mod}: updated ({len(about['body'])} chars)")
+        return 0
+    print(f"  {mod}: refused ({status}) {answer.get('description') or answer.get('error', '')}")
+    return 1
+
+
+def gallery(mod, dry):
+    """Upload the pictures the README shows, captioned with the words it describes them by."""
+    about = describe(mod)
+    existing = project(about["slug"], token())
+    if not existing:
+        print(f"  {mod}: no project yet")
+        return 1
+    if not about["shots"]:
+        print(f"  {mod}: no screenshots")
+        return 0
+
+    # Titles already up there, so a second run adds nothing and a third does not either.
+    already = {item.get("title") for item in existing.get("gallery") or []}
+    bad = 0
+    for order, (file, caption) in enumerate(about["shots"]):
+        title = caption[:64] if caption else file.stem
+        if title in already:
+            print(f"  {mod}: {file.name} already in the gallery")
+            continue
+        if dry:
+            print(f"  {mod}: would upload {file.name} — {title}")
+            continue
+        query = urllib.parse.urlencode({
+            "ext": file.suffix.lstrip(".").lower(),
+            "featured": "true" if order == 0 else "false",
+            "title": title,
+            "description": caption,
+            "ordering": order,
+        })
+        status, answer = call("POST", f"/project/{about['slug']}/gallery?{query}",
+                              raw=file.read_bytes(), tok=token())
+        why = answer.get("description") or answer.get("error", "")
+        if status in (200, 201, 204):
+            print(f"  {mod}: uploaded {file.name}")
+        elif "duplicate" in why.lower():
+            # Modrinth compares the image itself, not what it is called. A picture already up
+            # there under a different title is still that picture, and not a failure.
+            print(f"  {mod}: {file.name} already up (same image)")
+        else:
+            print(f"  {mod}: {file.name} refused ({status}) {why}")
+            bad += 1
+    return bad
+
+
+def icon(mod, dry):
+    """Put the mod's own icon on its page."""
+    about = describe(mod)
+    existing = project(about["slug"], token())
+    if not existing:
+        print(f"  {mod}: no project yet")
+        return 1
+    if not about["icon"]:
+        print(f"  {mod}: no icon.png in its assets")
+        return 1
+    if existing.get("icon_url"):
+        print(f"  {mod}: already has an icon")
+        return 0
+    if dry:
+        print(f"  {mod}: would upload {about['icon'].name}")
+        return 0
+    status, answer = call("PATCH", f"/project/{about['slug']}/icon?ext=png",
+                          raw=about["icon"].read_bytes(), tok=token())
+    if status in (200, 201, 204):
+        print(f"  {mod}: icon set")
+        return 0
+    print(f"  {mod}: refused ({status}) {answer.get('description') or answer.get('error', '')}")
+    return 1
+
+
+def publishable():
+    """Every mod in the suite: a directory with a gradle.properties and a mod version in it."""
+    found = []
+    for path in sorted(SUITE.iterdir()):
+        if (path / "gradle.properties").exists() and properties(path / "gradle.properties").get("mod_version"):
+            found.append(path.name)
+    return found
+
+
+def main():
+    args = [a for a in sys.argv[1:]]
+    doing = "show"
+    if "--create" in args:
+        doing, args = "create", [a for a in args if a != "--create"]
+    if "--upload" in args:
+        doing, args = "upload", [a for a in args if a != "--upload"]
+    if "--sync" in args:
+        doing, args = "sync", [a for a in args if a != "--sync"]
+    if "--gallery" in args:
+        doing, args = "gallery", [a for a in args if a != "--gallery"]
+    if "--icon" in args:
+        doing, args = "icon", [a for a in args if a != "--icon"]
+    dry = "--dry-run" in args or doing == "show"
+    args = [a for a in args if a != "--dry-run"]
+    mods = publishable() if ("--all" in args or not args) else [a for a in args if a != "--all"]
+
+    if not TOKEN_FILE.exists() and not dry:
+        sys.exit(f"no Modrinth token at {TOKEN_FILE}")
+
+    avoid = skipped()
+    for mod in [m for m in mods if m in avoid]:
+        print(f"  {mod}: not on Modrinth on purpose — {avoid[mod]}")
+    mods = [m for m in mods if m not in avoid]
+
+    print(f"{doing}{' (dry run)' if dry and doing != 'show' else ''}: {len(mods)} mod(s)")
+    bad = 0
+    for mod in mods:
+        if doing == "show":
+            about = describe(mod)
+            on = project(about["slug"], token()) if TOKEN_FILE.exists() else None
+            state = "yours" if on else ("SLUG TAKEN" if taken(about["slug"]) else "unclaimed?")
+            print(f"  {mod:28} {about['version']:10} {about['environment']:18} {state}")
+        elif doing == "create":
+            try:
+                bad += create(mod, dry)
+            except DailyLimit as stopped:
+                left = mods[mods.index(str(stopped)):]
+                print(f"  Modrinth's ten-a-day is spent. {len(left)} left for tomorrow:")
+                print(f"    mc-publish --create {' '.join(left)}")
+                break
+        elif doing == "sync":
+            bad += sync(mod, dry)
+        elif doing == "gallery":
+            bad += gallery(mod, dry)
+        elif doing == "icon":
+            bad += icon(mod, dry)
+        else:
+            bad += upload(mod, dry)
+    return bad
+
+
+if __name__ == "__main__":
+    sys.exit(main())

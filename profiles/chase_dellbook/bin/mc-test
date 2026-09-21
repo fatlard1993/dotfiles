@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Run each mod's client gametest and report a pass/fail tally.
+#
+#   mc-test                    smoke every mod
+#   mc-test --full             the thorough run, everywhere
+#   mc-test particle-emote     one mod
+#   mc-test -j 3               three at a time, if you know what you are doing (see below)
+#
+# Exit status is the number of failed mods (0 = all green).
+#
+# A gametest launches a whole Minecraft client, and almost all of the minute it takes is that
+# launch rather than the mod's own checks. Sixty-nine of them is over an hour.
+#
+# It runs one at a time anyway, because they cannot safely share. Every mod here includes Pandorical
+# as a Gradle subproject pointed at the same directory, so two mods testing at once are two Gradle
+# builds writing one pandorical/build: the second client reads a jar the first is halfway through
+# writing and dies on "ZipFile invalid LOC header", which looks like a broken mod and is not one.
+# Building everything serially first does not help - the run tasks rewrite it again - and excluding
+# Pandorical's tasks breaks the run outright. Both were tried.
+#
+# Real parallelism needs one Gradle build that knows about all of them, which is a composite build
+# and a bigger change than this script. -j is left here for the day that exists.
+set -uo pipefail
+
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+cd "$SUITE" || exit 2
+
+level=smoke
+jobs=1
+targets=()
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--full) level=full; shift ;;
+		-j) jobs="$2"; shift 2 ;;
+		-*) echo "unknown option $1" >&2; exit 2 ;;
+		*) targets+=("$1"); shift ;;
+	esac
+done
+
+# A mod is testable when it has a gametest source set; the rest have nothing to run.
+if [[ ${#targets[@]} -eq 0 ]]; then
+	mapfile -t targets < <(for d in */; do
+		[[ -x "${d}gradlew" && -d "${d}src/gametest" ]] && echo "${d%/}"
+	done | sort)
+fi
+
+logs=$(mktemp -d)
+trap 'rm -rf "$logs"' EXIT
+
+if [[ "$jobs" -gt 1 ]]; then
+	echo "warning: -j above 1 can fail on mods that share the Pandorical subproject" >&2
+fi
+echo "Testing ${#targets[@]} mod(s) at level $level, $jobs at a time"
+
+# Built one at a time before any client starts. Nearly every mod here has Pandorical as a
+# subproject, so parallel builds all write pandorical/build at once and tear each other's output in
+# half: the first parallel run died on "Failed to load class file for ... IMutableSlot", which is a
+# half-written class and not a bug in anything. Once everything is up to date the parallel runs
+# only read.
+echo "Building ${#targets[@]} mod(s) first, one at a time"
+for mod in "${targets[@]}"; do
+	# build, not gametestClasses: the run needs every mod on its classpath as a remapped jar, and
+	# Pandorical's jar is the one nearly all of these share. Compiling classes alone left the jars
+	# to be built by whichever parallel client got there first, which is the same collision one
+	# step later.
+	if ! (cd "$mod" && ./gradlew build -q --console=plain > "$logs/$mod.build" 2>&1); then
+		echo "FAIL  $mod (did not compile)"
+		tail -5 "$logs/$mod.build" | sed 's/^/      /'
+		exit 1
+	fi
+done
+
+one() {
+	local mod="$1" level="$2" logs="$3"
+	# :runClientGameTest, not the bare name: Pandorical is a subproject of most of these, and the
+	# bare name matches the task in every project in the build.
+	if (cd "$mod" && timeout 900 ./gradlew :runClientGameTest -Ptest.level="$level" \
+			--console=plain > "$logs/$mod.log" 2>&1); then
+		echo "PASS  $mod"
+	else
+		echo "FAIL  $mod"
+	fi
+}
+export -f one
+
+# xvfb per job, so several clients can hold a window at once without fighting over one display.
+printf '%s\n' "${targets[@]}" |
+	xargs -P "$jobs" -I{} bash -c 'one "$@"' _ {} "$level" "$logs" |
+	tee "$logs/.tally"
+
+# grep -c prints its count and still exits non-zero when that count is nought, so a `|| echo 0`
+# here appends a second nought and every sum after it is a syntax error.
+pass=$(grep -c '^PASS' "$logs/.tally" 2>/dev/null); pass=${pass:-0}
+fail=$(grep -c '^FAIL' "$logs/.tally" 2>/dev/null); fail=${fail:-0}
+
+echo "─────────────────────────────────────"
+printf 'green %d/%d\n' "$pass" "$((pass + fail))"
+if ((fail > 0)); then
+	echo "failed:"
+	while read -r line; do
+		mod="${line#FAIL  }"
+		echo "  $mod"
+		# The assertion or the exception, which is the only part of a 700-line client log anybody
+		# wants to see first.
+		grep -m 3 -E "AssertionError|Exception|Client gametests failed" "$logs/$mod.log" |
+			sed 's/^/      /'
+	done < <(grep '^FAIL' "$logs/.tally")
+fi
+exit "$fail"
