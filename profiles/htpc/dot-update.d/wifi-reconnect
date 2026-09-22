@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# This box is the house resolver (see dnsmasq-lan) and reaches the LAN over
+# wifi only - nothing is cabled to the ethernet port. One radio is therefore
+# the single point of failure for every name in the house.
+#
+# NetworkManager gives up after four autoconnect attempts by default. A single
+# inactivity disconnect whose rescan happens to miss the SSID is enough to
+# exhaust them, and wlan0 then sits in `disconnected` while the box stays
+# otherwise healthy: reachable by nobody, resolving for nobody, and waiting on
+# someone to walk over and power cycle it. That is not a recovery path.
+#
+# 0 means retry forever. Applied to every saved wifi profile, since whichever
+# one it lands on carries the same risk.
+
+echo "Pinning infinite wifi autoconnect retries"
+
+nmcli -t -f NAME,TYPE connection show | awk -F: '$2 ~ /wireless/ {print $1}' | while IFS= read -r name; do
+	sudo nmcli connection modify "$name" connection.autoconnect-retries 0
+done
