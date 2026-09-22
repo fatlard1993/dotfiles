@@ -46,6 +46,13 @@ package "jq"
 # uxplay package itself; this one isn't pulled in by anything.
 package "gstreamer1.0-vaapi"
 
+# uxplay's mirror pipeline needs the videoparsersbad element, and nothing in
+# the uxplay package's own dependencies pulls it in. Without it uxplay prints
+# "Required gstreamer plugin 'videoparsersbad' not found" and exits at once -
+# straight into startup.d/airplay's /dev/null, so the box just never appeared
+# in the AirPlay picker. Same silent shape as the pactl gap below.
+package "gstreamer1.0-plugins-bad"
+
 # pactl, for startup.d/audio. PipeWire serves the PulseAudio API here
 # (pipewire-pulse), but ships none of the client tools - and this was
 # missing for long enough that startup.d/audio silently did nothing at
