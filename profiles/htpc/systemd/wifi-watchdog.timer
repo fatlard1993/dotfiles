@@ -1,0 +1,14 @@
+# Every two minutes, which puts the gentle reconnect about four minutes into
+# an outage and the NetworkManager restart about eight - against the five
+# hours the box sat disconnected before anyone noticed. The first check waits
+# three minutes so a cold boot gets a clean shot at associating before
+# anything counts against it.
+[Unit]
+Description=Periodic wifi link check
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

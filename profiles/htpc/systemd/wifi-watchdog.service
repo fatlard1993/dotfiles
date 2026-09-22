@@ -1,0 +1,13 @@
+# Installed into /etc/systemd/system by dot-update.d/wifi-watchdog and fired
+# every couple of minutes by wifi-watchdog.timer. A system unit, not a user
+# one like blocklist-update: bringing a device back up and restarting
+# NetworkManager are both root work, and the one thing on this box whose job
+# is to work when the couch session does not should not be hanging off that
+# session's user manager.
+[Unit]
+Description=Recover the wifi link when NetworkManager has given up
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wifi-watchdog

@@ -1,0 +1,73 @@
+#!/bin/zsh
+
+# Recovers the LAN link when NetworkManager is no longer going to.
+#
+# This box is the house resolver (see dot-update.d/dnsmasq-lan) on a single
+# radio with no cable run to the ethernet port, so a dead wifi link is a
+# house-wide DNS outage. dot-update.d/wifi-reconnect removes the common cause
+# by letting NM retry forever, but infinite retries only help once NM has
+# decided to give up. They do nothing for the states where NM still believes
+# it is connected: a wedged supplicant, an association that outlives the path
+# underneath it. Those end the same way - the box healthy, serving nobody,
+# until someone walks over and power cycles it.
+#
+# Escalates instead of reaching straight for the hammer, because restarting
+# NetworkManager drops every connection on the box, including the ssh session
+# whoever is debugging it arrived on. A miscounted transient should cost
+# nothing, so the first two checks only watch.
+#
+# The counter lives in /run, which means a reboot starts it clean.
+
+gateway=192.168.1.1
+stateFile=/run/wifi-watchdog.failures
+
+# Nothing here reads an interface name as a given (see the reasoning in
+# ubuntu/dot-update.d/network-ifnames) - ask NM which device is the radio.
+# Matching "wifi" exactly keeps p2p-dev-wlan0, type wifi-p2p, out of it.
+wifiDev=$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" {print $1; exit}')
+
+if [[ -z $wifiDev ]]; then
+	logger -t wifi-watchdog "no wifi device present, nothing to watch"
+	exit 0
+fi
+
+# Both halves have to hold. An active profile alone proves only that NM thinks
+# it is connected, which is exactly the state this exists to catch.
+linkIsUp() {
+	local active
+	active=$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2 ~ /wireless/ {print $1; exit}')
+
+	[[ -n $active ]] || return 1
+
+	ping -c 3 -W 2 -I $wifiDev $gateway > /dev/null 2>&1
+}
+
+fails=$(cat $stateFile 2> /dev/null)
+[[ $fails == <-> ]] || fails=0
+
+if linkIsUp; then
+	(( fails > 0 )) && logger -t wifi-watchdog "link back up after $fails failed checks"
+	echo 0 > $stateFile
+	exit 0
+fi
+
+fails=$(( fails + 1 ))
+echo $fails > $stateFile
+
+case $fails in
+	1|2)
+		logger -t wifi-watchdog "$gateway unreachable via $wifiDev ($fails), leaving it to NetworkManager"
+		;;
+	3)
+		logger -t wifi-watchdog "$gateway unreachable via $wifiDev ($fails), reconnecting $wifiDev"
+		nmcli device connect $wifiDev > /dev/null 2>&1
+		;;
+	4)
+		logger -t wifi-watchdog "$gateway unreachable via $wifiDev ($fails), giving the reconnect a cycle to land"
+		;;
+	*)
+		logger -t wifi-watchdog "$gateway unreachable via $wifiDev ($fails), restarting NetworkManager"
+		systemctl restart NetworkManager
+		echo 0 > $stateFile
+		;;
+esac

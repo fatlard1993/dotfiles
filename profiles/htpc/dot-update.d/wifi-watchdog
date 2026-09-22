@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Copied into /usr/local/bin and /etc/systemd/system rather than symlinked out
+# of the repo, for the same reason gpu-stay-awake copies its udev rule: this
+# runs as root and its whole point is to work when the rest of the box is not
+# cooperating, so it should not depend on anything under /home being mounted
+# or on a session being logged in. The cost is real - editing the script means
+# re-running dot-update before the change is live.
+
+echo "Installing wifi watchdog"
+
+sudo install -m 755 $profilePath/bin/wifi-watchdog /usr/local/bin/wifi-watchdog
+sudo install -m 644 $profilePath/systemd/wifi-watchdog.service /etc/systemd/system/
+sudo install -m 644 $profilePath/systemd/wifi-watchdog.timer /etc/systemd/system/
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now wifi-watchdog.timer
