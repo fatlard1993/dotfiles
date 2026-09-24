@@ -1,0 +1,101 @@
+#!/bin/bash
+# Keeps nautilus' spacebar quick-preview (gnome-sushi, which owns the
+# org.gnome.NautilusPreviewer bus name) centered on its monitor.
+#
+# Sushi sets WM_TRANSIENT_FOR, so bspwm floats it without needing a rule -
+# but it maps at a small placeholder size, lets GTK center *that* on the
+# parent, and only then resizes to fit the file. bspwm honors a floating
+# client's resize from the corner it was placed at, so the window grows
+# right and down out of a point already past the middle of the screen:
+# every preview sits in the bottom-right quadrant, and a large one runs
+# off the edge and loses part of the file it was opened to show. Mutter
+# papers over this by re-centering transients on every resize; bspwm has
+# no equivalent, so this supplies it.
+#
+# Arrowing through a folder reuses the same window and resizes it per
+# file, so the correction has to follow the window for its whole life,
+# not just fire once at placement.
+
+# Remembered from node_add rather than re-read per geometry event:
+# node_geometry fires for every window in the session on any tiling
+# change, and an xprop fork on each of those to answer "is this the
+# previewer" would be the daemon's whole cost. Cleared on node_remove so
+# a recycled X id can never inherit the match.
+previewer=
+
+center() {
+	local node=$1 monitor=$2
+	local rect state w h x y
+	local mx my mw mh pt pr pb pl border
+	local x0 y0 uw uh tx ty
+
+	rect=$(bspc query -T -n "$node" 2>/dev/null | jq -r '.client |
+		[.state, (.floatingRectangle | .width, .height, .x, .y)] | join(" ")') || return
+
+	read -r state w h x y <<< "$rect"
+	[ -z "$y" ] && return
+
+	# Only ever floating in practice (nautilus hands sushi its window
+	# handle, sushi sets WM_TRANSIENT_FOR, bspwm floats it). The guard is
+	# for the case where it isn't: -v on a tiled node rearranges the
+	# tiling, so arrowing through a folder would reshuffle the desktop.
+	[ "$state" = floating ] || return
+
+	read -r mx my mw mh < <(bspc query -T -m "$monitor" 2>/dev/null |
+		jq -r '.rectangle | "\(.x) \(.y) \(.width) \(.height)"')
+	[ -z "$mh" ] && return
+
+	# The monitor rectangle is the raw output, unpadded - polybar's
+	# reservation lives in bspwm's per-monitor padding (set by
+	# startup.d/status-bar), so a preview centered on the raw rectangle
+	# would sit half a bar height too high.
+	pt=$(bspc config -m "$monitor" top_padding)
+	pb=$(bspc config -m "$monitor" bottom_padding)
+	pl=$(bspc config -m "$monitor" left_padding)
+	pr=$(bspc config -m "$monitor" right_padding)
+
+	# Same trap terminal-smart hits: the border is drawn outside the
+	# rectangle, so the space a window really occupies is its size plus
+	# two borders.
+	border=$(bspc config border_width)
+
+	x0=$(( mx + pl ))
+	y0=$(( my + pt ))
+	uw=$(( mw - pl - pr ))
+	uh=$(( mh - pt - pb ))
+
+	tx=$(( x0 + (uw - w - border * 2) / 2 ))
+	ty=$(( y0 + (uh - h - border * 2) / 2 ))
+
+	# A preview taller or wider than the usable area would otherwise
+	# center to a negative offset and lose its top-left corner - the one
+	# part (title, first page, top of the image) worth keeping on screen.
+	(( tx < x0 )) && tx=$x0
+	(( ty < y0 )) && ty=$y0
+
+	# Our own move emits another node_geometry; without this the second
+	# pass would be a no-op move that emits a third, and so on forever.
+	(( tx == x && ty == y )) && return
+
+	bspc node "$node" -v $(( tx - x )) $(( ty - y ))
+}
+
+bspc subscribe node_add node_remove node_geometry | while read -r event monitor _ third fourth; do
+	case $event in
+		# node_add <monitor> <desktop> <ip> <node>
+		node_add)
+			[[ $(xprop -id "$fourth" WM_CLASS 2>/dev/null) == *NautilusPreviewer* ]] || continue
+
+			previewer=$fourth
+			center "$previewer" "$monitor"
+			;;
+		# node_remove <monitor> <desktop> <node>
+		node_remove)
+			[ "$third" = "$previewer" ] && previewer=
+			;;
+		# node_geometry <monitor> <desktop> <node> <WxH+X+Y>
+		node_geometry)
+			[ "$third" = "$previewer" ] && center "$previewer" "$monitor"
+			;;
+	esac
+done

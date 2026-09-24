@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# Re-centers nautilus' spacebar preview window after sushi resizes it -
+# see bin/preview-center for why bspwm needs the help.
+pgrep -f "preview-center" > /dev/null || $HOME/.dotfiles/ubuntu/bin/preview-center &

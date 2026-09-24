@@ -42,6 +42,18 @@ package "xserver-xorg"
 package "pasystray"
 package "default-jre"
 package "nautilus"
+# Quick Look for nautilus: select a file, hit space. Nothing launches it -
+# it's DBus-activated as org.gnome.NautilusPreviewer when nautilus asks
+# for a preview, which means the .bspwmrc's
+# dbus-update-activation-environment is what gives it a DISPLAY to open
+# on. bspwm floats it on its own (sushi sets WM_TRANSIENT_FOR) but places
+# it badly; bin/preview-center corrects that.
+package "gnome-sushi"
+# Sushi previews video through gstreamer, and h264 - every phone clip and
+# screen recording - decodes in libav. gnome-sushi only Suggests it, and
+# it currently arrives as a Recommends of webkit: the same "someone
+# else's dependency" footing that left python3-pil missing above.
+package "gstreamer1.0-libav"
 package "libinput-tools"
 package "pavucontrol"
 package "xclip"
