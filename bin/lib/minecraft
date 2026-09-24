@@ -278,20 +278,70 @@ mcClientMods() {
 	print -r -- $found
 }
 
+# The name this machine already plays under, from the launcher it is being migrated off.
+#
+# An offline identity is nothing but its name: the server derives the player's UUID from
+# it, so a machine that starts playing as its unix user instead of the name it spent a
+# year using arrives at the house server as a stranger - new UUID, empty inventory, spawn
+# point gone. htpc is the case in point. The couch had a Microsoft account signed into
+# Prism as "megwhitfi3ld"; the unix user on that box is "home".
+#
+# Prism's active account first, since that is the record of who was playing. The game's
+# own logs second, for a machine whose accounts file has been cleaned out already.
+mcPreviousPlayerName() {
+	local gameDir=$1
+	local accounts=$HOME/.local/share/PrismLauncher/accounts.json
+	local name file
+
+	if [[ -r $accounts ]]; then
+		name=$(python3 -c '
+import json, sys
+
+try:
+	data = json.load(open(sys.argv[1]))
+except Exception:
+	sys.exit(1)
+
+for account in data.get("accounts", []):
+	if account.get("active"):
+		print((account.get("profile") or {}).get("name", ""))
+		break
+' $accounts 2>/dev/null)
+
+		[[ -n $name ]] && { echo $name; return 0 }
+	fi
+
+	# Newest log first, and the last sign in within it: a log holds every session it
+	# saw, and the question is who played most recently.
+	if [[ -n $gameDir && -d $gameDir/logs ]]; then
+		for file in $gameDir/logs/*(Nom); do
+			name=$(zgrep -ohE 'Setting user: [A-Za-z0-9_]{1,16}' $file 2>/dev/null | tail -1 | awk '{ print $3 }')
+
+			[[ -n $name ]] && { echo $name; return 0 }
+		done
+	fi
+
+	return 1
+}
+
 # An offline identity to play as, when nobody has signed one in on this machine.
 #
-# The house server runs offline-mode, so this is all it asks for. Named after the unix
-# user because that is what the machine already calls its person; ender takes 3 to 16
-# word characters, which every account name here happens to satisfy, and refuses rather
-# than mangles anything that does not.
+# The house server runs offline-mode, so this is all it asks for. Named after whoever
+# this machine already played as, and only failing that after the unix user; ender takes
+# 3 to 16 word characters and refuses rather than mangles anything that does not.
 mcEnsureOfflineAccount() {
-	local name=${1:-$USER}
+	local gameDir=$2
 
 	# Asked for bare names rather than read off the human listing. Matching that by
 	# shape - a marker, a space, a word - also matches the indented help printed under
 	# "No accounts yet.", so every machine without an account read as already having
 	# one and silently went without.
 	[[ -n $(ender account --names 2>/dev/null) ]] && return 0
+
+	# Looked up only once it is needed: this reads a file and scans logs.
+	local name=${1:-$(mcPreviousPlayerName $gameDir)}
+
+	name=${name:-$USER}
 
 	echo "Adding an offline account for $name"
 
@@ -329,7 +379,7 @@ mcEnsurePlayerClient() {
 		return 1
 	}
 
-	mcEnsureOfflineAccount
+	mcEnsureOfflineAccount "" $gameDir
 
 	# Optional, and stays that way: with a client id this machine can also sign in to a
 	# Microsoft account, which the house server does not need but another server might.
