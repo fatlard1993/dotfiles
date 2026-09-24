@@ -1,0 +1,136 @@
+#!/bin/bash
+# Usage: thermal-health [--load] [seconds]
+#
+# Answers the one question raw temperature can't: is this machine hot
+# because it's working, or because the heat isn't getting out?
+#
+# The polybar temp module already shows °C, but °C alone is ambiguous - 75°C
+# under a compile is healthy, 75°C at idle is a clogged heatsink, and the
+# number reads identically. What separates them is °C of rise per watt the
+# package burns, which is a property of the heat path (paste, fins, airflow)
+# rather than of the workload.
+#
+# That ratio is only meaningful at thermal steady state. Die temperature
+# lags power by roughly a minute of heatsink thermal mass, so against a
+# bursty desktop load the arithmetic divides this second's temperature by
+# this second's watts and grades the mismatch - measured on one unchanged
+# machine, that read anywhere from 2.1 to 3.5 C/W within minutes. Worse, the
+# error has a direction: a fixed idle rise sits on top of the load-driven
+# one, so the quieter the machine the worse the heat path looks.
+#
+# Hence --load: saturate every core, hold it until the rise settles, and
+# measure there. That number is comparable run to run and is the one worth
+# recording before a vent clean and after it. Without the flag this only
+# reports, and refuses to grade.
+#
+# Reading power needs root: energy_uj went root-only as the fix for the RAPL
+# power side-channel (CVE-2020-8694), so the sudo prompt is not incidental.
+
+warmupSeconds=45
+loadMode=false
+
+for arg in "$@"; do
+	case "$arg" in
+		--load) loadMode=true ;;
+		*[!0-9]*) echo "usage: thermal-health [--load] [seconds]"; exit 1 ;;
+		*) measureSeconds=$arg ;;
+	esac
+done
+
+measureSeconds=${measureSeconds:-10}
+
+energyFile=/sys/class/powercap/intel-rapl:0/energy_uj
+
+# -e, not -r: the file is mode 400 root:root by design (see the CVE note
+# above), so a readability test fails on exactly the machines that support it.
+[ -e "$energyFile" ] || { echo "no Intel RAPL package domain here - nothing to measure"; exit 1; }
+
+zoneTemp() {
+	local zone
+	zone=$(grep -l "^$1\$" /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
+	[ -n "$zone" ] && cat "${zone%type}temp"
+}
+
+loadPids=()
+
+stopLoad() {
+	[ ${#loadPids[@]} -eq 0 ] && return
+	kill "${loadPids[@]}" 2>/dev/null
+	loadPids=()
+}
+
+# Covers the Ctrl-C midway through a 45s warmup, which would otherwise leave
+# a busy loop per core running forever on a machine already too hot.
+trap 'stopLoad; exit 130' INT TERM
+
+if [ "$loadMode" = true ]; then
+	echo "  saturating $(nproc) cores for ${warmupSeconds}s to reach steady state..."
+
+	for _ in $(seq "$(nproc)"); do
+		while :; do :; done &
+		loadPids+=($!)
+	done
+
+	sleep "$warmupSeconds"
+fi
+
+before=$(sudo cat "$energyFile")
+
+packageSum=0 ambientSum=0 samples=0
+
+while [ "$samples" -lt $(( measureSeconds * 2 )) ]; do
+	sleep 0.5
+
+	packageSum=$(( packageSum + $(zoneTemp x86_pkg_temp) ))
+	ambientRaw=$(zoneTemp TAMB)
+	[ -n "$ambientRaw" ] && ambientSum=$(( ambientSum + ambientRaw ))
+
+	samples=$(( samples + 1 ))
+done
+
+after=$(sudo cat "$energyFile")
+
+stopLoad
+
+microjoules=$(( after - before ))
+
+# energy_uj wraps at max_energy_range_uj, and a wrap mid-sample reads as a
+# large negative delta - ask for a rerun rather than print the noise.
+if [ "$microjoules" -lt 0 ]; then
+	echo "RAPL counter wrapped during the sample - run it again"
+	exit 1
+fi
+
+watts=$(awk -v uj="$microjoules" -v s="$measureSeconds" 'BEGIN { printf "%.1f", uj / 1000000 / s }')
+package=$(( packageSum / samples / 1000 ))
+pl1=$(awk -v uw="$(cat /sys/class/powercap/intel-rapl-mmio:0/constraint_0_power_limit_uw 2>/dev/null || echo 0)" 'BEGIN { printf "%.1f", uw / 1000000 }')
+
+printf '\n  package power     %s W  (sustained cap %s W)\n' "$watts" "$pl1"
+printf '  package temp      %s C\n' "$package"
+
+sensors dell_smm-isa-00de 2>/dev/null | awk '/^fan[12]:/ { printf "  %-17s %s rpm\n", ($1 == "fan1:" ? "cpu fan" : "video fan"), $2 }'
+
+if [ "$ambientSum" -gt 0 ]; then
+	ambient=$(( ambientSum / samples / 1000 ))
+
+	printf '  chassis ambient   %s C\n' "$ambient"
+
+	if [ "$loadMode" = true ]; then
+		awk -v p="$package" -v a="$ambient" -v w="$watts" 'BEGIN {
+			r = (p - a) / w
+			printf "\n  heat path         %.1f C/W\n", r
+		}'
+	else
+		printf '\n  heat path         not graded - rerun with --load\n'
+	fi
+fi
+
+throttled=/sys/devices/system/cpu/cpu0/thermal_throttle
+
+if [ -r "$throttled/package_throttle_count" ]; then
+	printf '\n  throttle events   %s since boot (%s s total)\n' \
+		"$(cat $throttled/package_throttle_count)" \
+		"$(( $(cat $throttled/package_throttle_total_time_ms) / 1000 ))"
+fi
+
+echo
