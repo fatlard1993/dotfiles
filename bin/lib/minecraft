@@ -287,7 +287,11 @@ mcClientMods() {
 mcEnsureOfflineAccount() {
 	local name=${1:-$USER}
 
-	ender account 2>/dev/null | grep -qE '^[* ] [A-Za-z0-9_]' && return 0
+	# Asked for bare names rather than read off the human listing. Matching that by
+	# shape - a marker, a space, a word - also matches the indented help printed under
+	# "No accounts yet.", so every machine without an account read as already having
+	# one and silently went without.
+	[[ -n $(ender account --names 2>/dev/null) ]] && return 0
 
 	echo "Adding an offline account for $name"
 
