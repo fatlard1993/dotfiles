@@ -6,25 +6,15 @@
 #
 # The instance is built by dot-update.d/minecraft and pinned to the same game and
 # loader the household server runs.
-#
-# This used to shell out to Prism, which was installed on every machine in the fleet
-# for one reason: the Mojang launcher can select a version but cannot be told to join
-# a server, so playing meant clicking through a launcher, a title screen and a server
-# list every time. ender takes --server directly, so there is no second launcher left
-# to keep in step with the first.
 
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# An array rather than ${server:+--server $server}: zsh does not word-split an
-# unquoted expansion the way sh does, so that form hands a single argument reading
-# "server <address>" to something that wants two. An empty array disappears from the
-# command line instead, which is what --menu wants.
+# An array, not ${server:+--server $server}: zsh does not word-split an unquoted
+# expansion, so that form hands over one argument reading "server <address>". An empty
+# array disappears from the line instead, which is what --menu wants.
 #
-# No fallback. It used to fall back to htpc.home, the machine the server ran on before
-# it moved to the rented box, and a fallback to a host that is not serving is worse
-# than none: the launch goes past the title screen, fails to connect, and says nothing
-# about why. Without an address this stops at the title screen with the server list one
-# click away.
+# No fallback: an address that is not serving is worse than none, because the launch goes
+# past the title screen and fails to connect without saying why.
 suiteServer=$(mcServerAddress)
 joinServer=()
 
@@ -32,9 +22,8 @@ joinServer=()
 
 [[ $1 == --menu ]] && joinServer=()
 
-# This runs from a desktop button, where a command that exits quietly is indistinguishable
-# from one that did nothing - so both failures get a notification as well as a log line.
-# notify-send's own failure is ignored: a seat with no notification daemon still gets stderr.
+# This runs from a desktop button, where a quiet exit is indistinguishable from doing
+# nothing. notify-send's own failure is ignored: stderr still reaches the journal.
 command -v ender > /dev/null 2>&1 || {
 	notify-send "Minecraft" "ender is not set up on this machine yet. Run dot-update." 2>/dev/null
 	echo "ender is not installed - dot-update.d/minecraft clones and links it" >&2

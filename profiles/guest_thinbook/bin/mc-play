@@ -2,15 +2,8 @@
 
 # mc-play <home|minecolonies> [--menu]
 #
-# One click onto a server. Each target is an instance built or checked by
-# dot-update.d/minecraft plus the server it belongs to; --menu lands on the title screen
-# instead of connecting.
-#
-# This used to run Prism, which was installed for one reason: a launcher that could be
-# told to join a server. Everything else it did here - resolving the pin, holding the
-# instance, patching around its own metadata lagging a fresh snapshot - was work it made
-# for itself. ender takes --server directly and reads Mojang and the loaders itself, so
-# the lag it patched around cannot happen and the patch went with it.
+# One click onto a server. Each target is an instance built by dot-update.d/minecraft plus
+# the server it belongs to; --menu lands on the title screen instead of connecting.
 
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
@@ -20,9 +13,8 @@ case $1 in
 	*) echo "usage: mc-play <home|minecolonies> [--menu]" >&2; exit 2 ;;
 esac
 
-# An array rather than ${server:+--server $server}: zsh does not word-split an unquoted
-# expansion the way sh does, so that form hands over a single argument reading
-# "server <address>". An empty array disappears from the line instead, which is --menu.
+# An array, not ${server:+--server $server}: zsh does not word-split an unquoted
+# expansion, so that form hands over one argument reading "server <address>".
 joinServer=()
 
 [[ -n $server ]] && joinServer=(--server $server)
@@ -35,9 +27,8 @@ command -v ender > /dev/null 2>&1 || {
 	exit 1
 }
 
-# A missing instance is worth a notification rather than only a log line: this runs from
-# a desktop button, where a command that exits quietly is indistinguishable from one that
-# did nothing. minecolonies is the hand-imported one, so it is the one that is missing.
+# A desktop button that exits quietly is indistinguishable from one that did nothing, so a
+# missing instance is worth a notification. minecolonies is the hand-imported one.
 ender ls --names 2>/dev/null | grep -qxF $instance || {
 	notify-send "Minecraft" "The $instance instance is not set up on this machine yet, so this button cannot join ${server:-it}"
 	echo "no '$instance' instance - see dot-update.d/minecraft" >&2
