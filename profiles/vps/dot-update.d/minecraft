@@ -48,6 +48,12 @@ ender server offline suite-server > /dev/null || echo "  suite-server would not 
 # running one implies accepting it.
 [[ -f $mcDir/eula.txt ]] || echo "eula=true" > $mcDir/eula.txt
 
+# Captured before the units are relinked. After a daemon-reload systemctl reports the new
+# unit's ExecStart, not what the running process was started with, so asking afterwards
+# cannot tell a pre-cutover server from a post-cutover one - which is how the run that was
+# supposed to leave a working server alone restarted it instead.
+runningExecStart=$(systemctl --user show minecraft-server.service -p ExecStart --value 2>/dev/null)
+
 echo "Linking minecraft server and backup units"
 
 mkdir -p $HOME/.config/systemd/user
@@ -68,18 +74,39 @@ systemctl --user enable --now minecraft-backup.timer > /dev/null 2>&1 \
 # The unit on disk now starts the server through ender; a server already running was started
 # by the jar name in the unit this replaced, and a daemon-reload does not restart anything.
 # Said rather than done, because the restart disconnects whoever is playing.
+# Confirmed, not assumed: a unit that starts and dies leaves systemd retrying in the
+# background and this script exiting 0, which is how a start that could not find its
+# interpreter read as a successful update.
+mcReportServerState() {
+	local waited=0
+
+	while (( waited < 30 )); do
+		systemctl --user is-active --quiet minecraft-server.service && return 0
+
+		sleep 2
+		waited=$((waited + 2))
+	done
+
+	echo "  The minecraft server is not running after $waited seconds:" >&2
+	journalctl --user -u minecraft-server.service -n 5 --no-pager 2>/dev/null | sed 's/^/    /' >&2
+
+	return 1
+}
+
 if systemctl --user is-active --quiet minecraft-server.service; then
-	if [[ $(systemctl --user show minecraft-server.service -p ExecStart --value) != *ender* ]]; then
-		echo "  The running server is still the one this unit replaced. It keeps playing until"
-		echo "  you restart it, which disconnects anyone on:"
+	if [[ $runningExecStart != *ender* ]]; then
+		echo "  The running server predates this unit. It keeps playing until you restart it,"
+		echo "  which disconnects anyone on:"
 		echo "    systemctl --user restart minecraft-server.service"
 	elif (( serverPinMoved )); then
 		echo "Restarting minecraft server for $mcSuiteVersion"
 
 		systemctl --user restart minecraft-server.service
+		mcReportServerState
 	fi
 else
 	echo "Starting minecraft server"
 
 	systemctl --user enable --now minecraft-server.service
+	mcReportServerState
 fi
