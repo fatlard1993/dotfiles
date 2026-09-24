@@ -15,6 +15,18 @@
 # the page it is already on.
 set -uo pipefail
 
+# mc-publish is found by where this script is, not by PATH. A systemd timer starts with a minimal
+# environment, and a login bash reads ~/.profile, which adds ~/bin and ~/.local/bin and nothing
+# else - the dotfiles bin is put on PATH by the zsh config, which bash never reads. So the first
+# scheduled run died with "mc-publish-batch: command not found" before it did anything, and had it
+# got past that it would have died again on its own sibling.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case ":$PATH:" in
+	*":$HERE:"*) ;;
+	*) PATH="$HERE:$PATH" ;;
+esac
+export PATH
+
 DATA="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}"
 QUEUE="$DATA/modrinth-queue.txt"
 
