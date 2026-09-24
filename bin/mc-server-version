@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""What Minecraft version a server actually reports, over Server List Ping.
+
+The fleet's pin lives in bin/lib/minecraft and is enforced on every client. The server it
+has to match is a hand-run jar on a box with no configuration management, so nothing tied
+the two together - and they drifted. This asks the server itself, the same way the
+multiplayer menu does: no credentials, no ssh, nothing to install on the far end.
+
+    mc-server-version [host[:port]]      default: the address in priv-config
+"""
+
+import json
+import os
+import socket
+import struct
+import sys
+
+
+def varint(value):
+    out = b""
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        out += struct.pack("B", byte | (0x80 if value else 0))
+        if not value:
+            return out
+
+
+def read_varint(sock):
+    result = shift = 0
+    for _ in range(5):
+        byte = sock.recv(1)
+        if not byte:
+            raise ConnectionError("server closed the connection mid-varint")
+        result |= (byte[0] & 0x7F) << shift
+        if not byte[0] & 0x80:
+            return result
+        shift += 7
+    raise ValueError("varint too long")
+
+
+def status(host, port, timeout=5):
+    with socket.create_connection((host, port), timeout) as sock:
+        # Protocol version -1 means "I am only asking"; every server answers it regardless
+        # of how far its own protocol has moved, which is what makes this safe across a pin.
+        handshake = (
+            b"\x00" + varint(-1 & 0xFFFFFFFF) + varint(len(host)) + host.encode() + struct.pack(">H", port) + varint(1)
+        )
+        sock.sendall(varint(len(handshake)) + handshake)
+        sock.sendall(varint(1) + b"\x00")
+
+        read_varint(sock)  # packet length
+        if read_varint(sock) != 0:
+            raise ValueError("unexpected packet id in status response")
+
+        length = read_varint(sock)
+        payload = b""
+
+        while len(payload) < length:
+            chunk = sock.recv(length - len(payload))
+            if not chunk:
+                raise ConnectionError("server closed the connection mid-payload")
+            payload += chunk
+
+    return json.loads(payload.decode("utf-8"))
+
+
+def configured_address():
+    data = os.environ.get("MINECRAFT_DATA", os.path.expanduser("~/.priv-config/minecraft"))
+    try:
+        with open(os.path.join(data, "server-address.txt")) as handle:
+            for line in handle:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line
+    except OSError:
+        return None
+    return None
+
+
+def main():
+    target = sys.argv[1] if len(sys.argv) > 1 else configured_address()
+
+    if not target:
+        print("no address given and none in priv-config", file=sys.stderr)
+        return 2
+
+    host, _, port = target.partition(":")
+
+    try:
+        reported = status(host, int(port) if port else 25565)
+    except Exception as error:
+        print(f"{target} did not answer: {error}", file=sys.stderr)
+        return 1
+
+    print(reported.get("version", {}).get("name", "unknown"))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

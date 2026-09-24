@@ -22,7 +22,9 @@ mcServerAddress() {
 
 # The game and loader versions the whole house runs. Bump with pandorical's
 # gradle.properties in the same breath: a client on a different pin cannot join the server,
-# and these two drifted apart once already.
+# and these drifted apart once already - five profiles sat on 26.3-rc-1 while both the suite
+# and the server had moved to 26.3. `mc-server-version` asks the server what it is actually
+# running, which is the only authority; the jar's filename is not one.
 mcSuiteVersion=26.3
 mcSuiteLoaderVersion=0.19.5
 

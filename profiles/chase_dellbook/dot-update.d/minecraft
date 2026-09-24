@@ -102,6 +102,20 @@ if [[ -f $suiteProps ]]; then
 		echo "  Bump mcSuiteVersion in bin/lib/minecraft, or the house cannot join what you build." >&2
 	fi
 
+	# And against the server itself, which is the pin that actually decides whether anyone
+	# can join. It runs on the rented box with no configuration management, so asking it is
+	# the only way to know - reading the jar's filename says 26.3-rc-1 for a server that has
+	# been on 26.3 since it was fetched. Advisory: a server that is down is not a failure of
+	# this run.
+	if command -v mc-server-version > /dev/null; then
+		serverVersion=$(mc-server-version 2>/dev/null)
+
+		if [[ -n $serverVersion && $serverVersion != $mcSuiteVersion ]]; then
+			echo "  The house server reports $serverVersion but the fleet pin is $mcSuiteVersion," >&2
+			echo "  so a client on this pin cannot join it." >&2
+		fi
+	fi
+
 	# A compiler is not a runtime: default-jre ships no javac, and gradle turns that down
 	# with "does not provide the required capabilities: [JAVA_COMPILER]".
 	if ! command -v javac > /dev/null 2>&1; then
