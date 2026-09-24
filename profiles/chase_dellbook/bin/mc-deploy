@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ship built jars to the htpc server without pulling the rug out from under it.
+# Ship built jars to the server (the rented box) without pulling the rug out from under it.
 #
 #   ./deploy.sh                 stage every changed jar, then stop/swap/start
 #   ./deploy.sh --stage-only    stage only; swap on the next ./deploy.sh --swap
