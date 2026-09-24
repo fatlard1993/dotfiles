@@ -25,7 +25,10 @@ mcEnsureEnder || return 1
 # learn which JRE the pin wanted, an apt install of it, and a loader jar fetched by hand
 # behind a .version marker. ender reads the pin itself, fetches the runtime the version
 # asks for, and provisions the loader's own server launcher.
-mcEnsureInstance suite-server $mcVersion fabric $mcDir server || {
+mcEnsureInstance suite-server $mcVersion fabric $mcDir server
+serverPinMoved=$?
+
+(( serverPinMoved == 1 )) && {
 	echo "  The server instance could not be set up" >&2
 
 	return 1
@@ -58,8 +61,8 @@ ensureLinger
 if [[ -e $mcDir/.retired ]]; then
 	echo "Minecraft server retired here (\$mcDir/.retired); not starting it"
 elif systemctl --user is-active --quiet minecraft-server.service; then
-	if [[ $target != $current ]]; then
-		echo "Restarting minecraft server for $target"
+	if (( serverPinMoved == 2 )); then
+		echo "Restarting minecraft server for $mcVersion"
 
 		systemctl --user restart minecraft-server.service
 	fi
