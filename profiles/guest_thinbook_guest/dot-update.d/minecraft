@@ -3,127 +3,25 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# The guest seat on the shared thinkpad. The kid seat beside it
-# (profiles/guest_thinbook) carries both launchers because Ben started on the
-# official one and its game dir is what clients.txt already ships mods to;
-# nothing here has that history, so this seat is Prism only and the instance's
-# own .minecraft is the game directory - the same layout megan_dellbook and
-# htpc use.
+# The guest seat on the shared thinkpad, beside the kid seat.
 #
-# Client only, and a player's machine rather than a developer's: there is no
-# suite workspace here to read the pin from, so like htpc this file pins the
-# game and loader itself. Bump the three together with htpc/dot-update.d/
-# minecraft - a client on a different pin than the house server cannot join it.
-# Mod jars are not managed here either: they arrive over ssh from the dev
-# machine (mc-deploy-client, registered in priv-config/minecraft/clients.txt).
+# No aptfile on this profile: what it needs is a system package the kid seat's profile
+# already installs, and two user accounts on one machine do not each get their own copy.
+# ender is per-user though - it links into ~/.bun/bin - so this seat clones and links
+# its own, which costs a checkout and nothing else.
 #
-# Two seats on one laptop means two copies of the game: separate users, so
-# separate Prism roots, separate saves and separate accounts. The libraries
-# are the bulk of it (~700M per seat) - worth checking df before assuming a
-# third seat would fit.
+# A player's machine: a client on the house pin, nothing built here.
+#
+# Bump these two together with every other profile's - a client on a different pin than
+# the house server cannot join it. The dev machine reads its pin from pandorical's
+# gradle.properties instead, which is the pin these are copies of.
 mcVersion=26.3-rc-1
 loaderVersion=0.19.5
 
-manifestUrl="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
-manifest=$(curl -sf $manifestUrl)
+# Mod jars arrive over ssh from the dev machine (mc-deploy-client, registered in
+# priv-config/minecraft/clients.txt) rather than being built or fetched here.
+# The client used to live inside Prism's instance folder, which is where the worlds and
+# the options are, so it is moved out once before anything else looks for it.
+mcAdoptPrismGameDir suite $HOME/minecraft-suite
 
-if [[ -z $manifest ]]; then
-	echo "Couldn't reach the Mojang version manifest - skipping minecraft"
-
-	return
-fi
-
-versionJson=$(curl -sf $(echo $manifest | jq -r ".versions[] | select(.id == \"$mcVersion\") | .url"))
-
-if [[ -z $versionJson ]]; then
-	echo "Pinned version $mcVersion not in Mojang's manifest - skipping minecraft"
-
-	return
-fi
-
-# The full runtime, not -headless: LWJGL wants libawt_xawt and friends.
-javaMajor=$(echo $versionJson | jq -r '.javaVersion.majorVersion')
-
-dpkg -s openjdk-$javaMajor-jre > /dev/null 2>&1 || {
-	echo "Installing Java $javaMajor (required by Minecraft $mcVersion)"
-
-	sudo env DEBIAN_FRONTEND=noninteractive apt install -y openjdk-$javaMajor-jre
-}
-
-# No aptfile on this profile: prismlauncher is a system package the kid seat's
-# aptfile already installs on this machine. If that ever stops being true this
-# guard is what says so, rather than a half-built instance.
-command -v prismlauncher > /dev/null 2>&1 || {
-	echo "prismlauncher is not installed - skipping the suite instance"
-	echo "  (it comes from profiles/guest_thinbook/aptfile, the kid seat)"
-
-	return
-}
-
-prismRoot=$HOME/.local/share/PrismLauncher
-instanceDir=$prismRoot/instances/suite
-
-# Creating .minecraft first is what settles Prism on that name over "minecraft".
-mkdir -p $instanceDir/.minecraft/mods
-
-mcEnsureClientJar $mcVersion \
-	$prismRoot/libraries/com/mojang/minecraft/$mcVersion/minecraft-$mcVersion-client.jar
-
-# Local components only while Prism's metadata has not caught up. Their ingest
-# lags a fresh pre-release by days, and until it lands Prism cannot resolve the
-# pin at all - mc-play falls back to the official launcher, which plays fine and
-# loses the join-straight-in that Prism is installed here for. The helper writes
-# them for this pin and takes them away the moment Prism publishes the version,
-# so a patches/ directory describing a version nobody is on - the thing that
-# retired the last attempt - has nowhere to survive.
-mcEnsurePrismPatches $mcVersion $instanceDir
-
-# Regenerated every run so the pin keeps tracking the server; instance.cfg is
-# seeded once and then belongs to Prism's settings UI.
-cat > $instanceDir/mmc-pack.json << EOF2
-{
-	"components": [
-		{
-			"important": true,
-			"uid": "net.minecraft",
-			"version": "$mcVersion"
-		},
-		{
-			"uid": "net.fabricmc.intermediary",
-			"version": "$mcVersion"
-		},
-		{
-			"uid": "net.fabricmc.fabric-loader",
-			"version": "$loaderVersion"
-		}
-	],
-	"formatVersion": 1
-}
-EOF2
-
-[[ -f $instanceDir/instance.cfg ]] || cat > $instanceDir/instance.cfg << EOF2
-InstanceType=OneSix
-name=suite
-iconKey=default
-EOF2
-
-# The server list, pointed at the house server and cleared of the addresses the
-# house has stopped running. A retired address does not remove itself: it stays
-# in the list under the name it always had, and a player clicking it gets a
-# connection refused with nothing to say the server moved.
-mcEnsureServerList $instanceDir/.minecraft
-
-clientPandorical=($instanceDir/.minecraft/mods/pandorical-*.jar(N:t))
-
-if (( ! ${#clientPandorical} )); then
-	echo "  No Pandorical in the suite instance yet, so it cannot join the house"
-	echo "  server. From the dev machine: mc-deploy-client --client thinbook_guest"
-fi
-
-[[ -f $prismRoot/accounts.json ]] || {
-	echo "  Prism has no account yet - open it once, finish its setup wizard and"
-	echo "  add this seat's own Microsoft account. That flow is OAuth, so there is"
-	echo "  no headless path; one sitting, and mc-play works from then on. It has"
-	echo "  to be a different account than the kid seat's: one Minecraft account"
-	echo "  cannot be on the server from two clients at once."
-}
+mcEnsurePlayerClient $mcVersion fabric $HOME/minecraft-suite

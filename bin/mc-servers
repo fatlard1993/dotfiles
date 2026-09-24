@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Point a Prism instance's server list at the suite server.
+"""Point a game directory's server list at the suite server.
 
     mc-servers <servers.dat> [--retire HOST]... <name> <address> [<name> <address> ...]
 

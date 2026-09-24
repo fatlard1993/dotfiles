@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# Kept for the guest package, not for this household.
+#
+# Every machine here runs ender now, which reads Mojang and the loaders directly and so
+# has no mirror to lag. A guest does not: suite-guest.zip is a ready-made Prism instance
+# for someone else's laptop, and Prism there still cannot resolve a snapshot its metadata
+# has not ingested. mc-deploy-client builds that zip and calls this.
+
 """Local Prism components for a version Prism's own metadata does not carry yet.
 
     mc-prism-patch <version> <instance-dir>

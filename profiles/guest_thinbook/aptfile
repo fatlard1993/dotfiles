@@ -12,13 +12,9 @@ package "libimlib2-dev"
 
 package "vlc"
 package "mpv"
-# guarded: a package the archive doesn't carry (prismlauncher predates
 # jammy) FAILs, and a FAIL aborts the whole aptfile - on the thickpad that
 # starved every package below this line. dot-update.d/minecraft already
-# falls back to the official launcher when prism is absent.
-apt-cache show prismlauncher > /dev/null 2>&1 \
-	&& package "prismlauncher" \
-	|| echo "no prismlauncher in this archive - skipping (minecraft step falls back)"
+# the launcher is cloned and linked by dot-update.d/minecraft, not packaged here.
 package "frozen-bubble"
 package "neverball"
 # neverputt has its own package (and desk tile) even though it ships from

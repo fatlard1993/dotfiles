@@ -1,14 +1,13 @@
 [Desktop Entry]
 Type=Application
 Name=Minecraft (house server)
-Comment=Join htpc.home with the mod suite, straight past the launcher
+Comment=Join htpc.home with the mod suite, straight past the menus
 Exec=/home/megan/.dotfiles/profiles/megan_dellbook/bin/mc-play
-Icon=org.prismlauncher.PrismLauncher
+Icon=applications-games
 Terminal=false
 Categories=Game;
-Keywords=minecraft;mc;suite;prism;fabric;server;
+Keywords=minecraft;mc;suite;fabric;server;
 StartupNotify=true
-StartupWMClass=PrismLauncher
 Actions=menu;
 
 [Desktop Action menu]

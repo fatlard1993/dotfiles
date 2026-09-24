@@ -2,63 +2,47 @@
 
 # mc-play <home|minecolonies> [--menu]
 #
-# One click onto a server. Each target is a Prism instance (built or checked
-# by dot-update.d/minecraft) plus the server it belongs to; --menu lands on
-# the title screen instead.
+# One click onto a server. Each target is an instance built or checked by
+# dot-update.d/minecraft plus the server it belongs to; --menu lands on the title screen
+# instead of connecting.
+#
+# This used to run Prism, which was installed for one reason: a launcher that could be
+# told to join a server. Everything else it did here - resolving the pin, holding the
+# instance, patching around its own metadata lagging a fresh snapshot - was work it made
+# for itself. ender takes --server directly and reads Mojang and the loaders itself, so
+# the lag it patched around cannot happen and the patch went with it.
 
-# The house server's address comes from priv-config, with no fallback. It used to
-# fall back to htpc.home, the machine the server ran on before it moved to the
-# rented box, and a fallback to a host that is not serving is worse than none:
-# the launch goes past the title screen, fails to connect, and says nothing
-# about why. Without an address this stops at the title screen instead.
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-case ${1:-home} in
-	home)         instance=suite;        server=$(mcServerAddress) ;;
+case $1 in
+	home|'') instance=suite; server=$(mcServerAddress) ;;
 	minecolonies) instance=minecolonies; server=turkeyday.modded.fun ;;
 	*) echo "usage: mc-play <home|minecolonies> [--menu]" >&2; exit 2 ;;
 esac
 
+# An array rather than ${server:+--server $server}: zsh does not word-split an unquoted
+# expansion the way sh does, so that form hands over a single argument reading
+# "server <address>". An empty array disappears from the line instead, which is --menu.
 joinServer=()
+
 [[ -n $server ]] && joinServer=(--server $server)
+
 [[ $2 == --menu ]] && joinServer=()
 
-command -v prismlauncher > /dev/null 2>&1 || {
-	echo "prismlauncher is not installed - it comes from this profile's aptfile" >&2
+command -v ender > /dev/null 2>&1 || {
+	echo "ender is not installed - dot-update.d/minecraft clones and links it" >&2
+
 	exit 1
 }
 
-instanceDir=$HOME/.local/share/PrismLauncher/instances/$instance
+# A missing instance is worth a notification rather than only a log line: this runs from
+# a desktop button, where a command that exits quietly is indistinguishable from one that
+# did nothing. minecolonies is the hand-imported one, so it is the one that is missing.
+ender ls 2>/dev/null | grep -qE "^[* ] $instance " || {
+	notify-send "Minecraft" "The $instance instance is not set up on this machine yet, so this button cannot join ${server:-it}"
+	echo "no '$instance' instance - see dot-update.d/minecraft" >&2
 
-# An unknown --launch instance ID is not an error Prism shows anywhere a
-# launcher button can carry: it drops the flag and opens its main window, which
-# from the desk is indistinguishable from clicking Prism itself. The
-# minecolonies instance is the hand-imported one (dot-update.d/minecraft says
-# how), so it is the one that is missing when this fires.
-[[ -d $instanceDir ]] || {
-	notify-send "Minecraft" "The $instance instance is not set up on this machine yet, so this button cannot join $server"
-	echo "no Prism instance '$instance' - see dot-update.d/minecraft" >&2
 	exit 1
 }
 
-# PrismMeta ingests a new snapshot with a lag, and until it does Prism cannot
-# resolve a fresh pin at all - it dies in a crash dialog. This used to answer that
-# by launching the official launcher instead, which plays the game and loses the
-# only reason Prism is installed here: joining the house server without touching a
-# menu. Going somewhere else was never the answer. Making the pin resolvable is.
-#
-# dot-update writes the components whenever it runs; this is the same call for the
-# gap between a pin moving and dot-update next running. It is cheap when there is
-# nothing to do, and it takes the components away again the day Prism publishes the
-# version, so nothing local outlives its usefulness.
-if [[ ! -f $instanceDir/patches/net.minecraft.json ]]; then
-	mcVersion=$(jq -r '.components[] | select(.uid=="net.minecraft").version' \
-		$instanceDir/mmc-pack.json 2>/dev/null)
-
-	if [[ -n $mcVersion && -r $HOME/.dotfiles/bin/lib/minecraft ]]; then
-		source $HOME/.dotfiles/bin/lib/minecraft
-		mcEnsurePrismPatches $mcVersion $instanceDir
-	fi
-fi
-
-exec prismlauncher --launch $instance $joinServer
+exec ender launch $instance $joinServer

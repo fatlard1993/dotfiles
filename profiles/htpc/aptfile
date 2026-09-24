@@ -26,7 +26,6 @@ package "xserver-xorg-input-joystick"
 # instance). Chosen over Mojang's launcher for its CLI: --launch plus
 # --server go straight into the house server, so the Steam shortcut skips
 # every mouse-only screen in front of the game.
-package "prismlauncher"
 
 # AirPlay receiver (mirroring/video/audio from Apple devices) + DLNA/UPnP
 # renderer as the cast target for everything else - the actual Google Cast

@@ -43,11 +43,11 @@ joinServer=()
 # any settings run where a mouse is already in hand.
 [[ $1 == --menu ]] && joinServer=()
 
-# Absolute paths for both: prismlauncher is /usr/bin, but gamemoderun is
+# Absolute paths for both: ender lives in ~/.bun/bin, but gamemoderun is
 # /usr/games, which is missing from plenty of launching contexts - the same
 # trap startup.d/steam-bigpicture hit with the steam binary.
 #
 # exec, and no backgrounding: Steam counts the game as running for exactly
 # as long as its launched process lives, and Prism stays in the foreground
 # for the whole session.
-exec /usr/games/gamemoderun /usr/bin/prismlauncher --launch suite $joinServer
+exec /usr/games/gamemoderun $HOME/.bun/bin/ender launch couch $joinServer

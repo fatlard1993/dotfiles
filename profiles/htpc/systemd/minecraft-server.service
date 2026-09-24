@@ -7,12 +7,14 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=%h/minecraft-server
-# /usr/bin/java is update-alternatives' pick, i.e. the newest installed
-# JDK - dot-update.d/minecraft installs whichever major version the pinned
-# Minecraft version declares it needs, so this stays correct across
-# updates. Heap: the modded suite (37 mods + worldgen) earns more than
-# vanilla did; tune it if worlds grow or Steam needs the RAM back.
-ExecStart=/usr/bin/java -Xms2G -Xmx6G -jar fabric-server.jar nogui
+# ender picks the runtime the pinned version asks for and fetches it if this machine
+# has no matching major, which is what the apt install of a hand-chosen openjdk used to
+# do from dot-update. An absolute path because a user unit gets systemd's PATH, not a
+# login shell's, and ~/.bun/bin is not on it.
+# Heap is set on the instance itself by dot-update.d/minecraft, not here: it is a
+# property of the server rather than of how systemd happens to start it, and ender reads
+# it from the instance either way.
+ExecStart=%h/.bun/bin/ender server start suite-server
 # The server saves and exits cleanly on SIGTERM (systemd's default stop
 # signal); java reports that as 143 (128+15), which is still a clean stop.
 # Restart=always because a hard crash can exit 0 (the JVM dies after the
