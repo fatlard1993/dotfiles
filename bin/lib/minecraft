@@ -136,8 +136,43 @@ mcEnsureEnder() {
 		}
 	fi
 
-	(cd $dir && bun install --silent > /dev/null 2>&1 && bun link > /dev/null 2>&1) || {
-		echo "  ender-launcher is cloned but would not link" >&2
+	# Whether the lockfile was the repository's before this run touched it. A bun older
+	# than the one that wrote bun.lock cannot read its version, fails the install, and
+	# on the retry writes its own back - which leaves the clone permanently modified,
+	# so every later --ff-only pull refuses and the launcher silently stops updating.
+	# Restored below only when this run is what dirtied it: the dev machine's clone is
+	# a working tree, and a lockfile change in progress there is work, not mess.
+	local lockWasClean=1
+	git -C $dir diff --quiet -- bun.lock 2>/dev/null || lockWasClean=0
+
+	local installLog
+	installLog=$(cd $dir && bun install 2>&1)
+	local installStatus=$?
+
+	# The one install failure worth answering rather than reporting. bun comes from the
+	# Brewfile, but a machine that got it from bun's own installer first has that copy
+	# earlier on PATH and nothing has updated it since - htpc sat on a bun eight months
+	# behind the one this lockfile was written by.
+	if (( installStatus )) && [[ $installLog == *"Unknown lockfile version"* ]]; then
+		echo "  bun $(bun --version) is older than ender-launcher's lockfile, so it is being upgraded"
+
+		bun upgrade > /dev/null 2>&1
+
+		installLog=$(cd $dir && bun install 2>&1)
+		installStatus=$?
+	fi
+
+	(( lockWasClean )) && git -C $dir checkout -q -- bun.lock 2>/dev/null
+
+	if (( installStatus )); then
+		echo "  ender-launcher would not install:" >&2
+		print -r -- $installLog | tail -5 | sed 's/^/    /' >&2
+
+		return 1
+	fi
+
+	(cd $dir && bun link > /dev/null 2>&1) || {
+		echo "  ender-launcher is installed but would not link" >&2
 
 		return 1
 	}
