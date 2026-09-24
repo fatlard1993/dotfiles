@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Cut the suite's packs, in the shapes launchers and servers take.
 
-    mc-pack [--kind client|server|single|all] [--version V] [--id MOD=PROJECT:FILE ...] [--out DIR]
+    mc-pack [--kind client|server|single|all] [--version V] [--name N] [--client-name N] [--id MOD=PROJECT:FILE ...] [--out DIR]
 
 Three packs, each drawn from what the mods declare about themselves and from the pin,
 never from a typed list of jars:
 
-  client  <name>-client-<version>.zip and .mrpack: the client-mods.txt set plus Fabric API,
+  client  <client-name>-<version>.zip and .mrpack: the client-mods.txt set plus Fabric API,
           for a player joining a suite server
   server  <name>-server-<version>.zip: every mod whose manifest is not client-only, in a
           mods/ folder with a start script that fetches the pinned Fabric launcher; unzip
@@ -20,7 +20,9 @@ place (an unpublished one, or one uploaded within the hour). The mrpacks carry e
 as an override: none of the suite is on Modrinth, so the index pins only game and loader.
 
 The pin is pandorical's gradle.properties, the mods are client-mods.txt, the slugs are
-curseforge-slugs.txt, all in priv-config. A mod the mirror has not indexed yet can be
+curseforge-slugs.txt, all in priv-config. The mirror can index a project under its id
+and still 404 its slug, so a project id in that file's optional third column is asked
+for when the slug comes back empty. A mod the mirror has not indexed at all can be
 given by hand with --id (the numbers are on its CurseForge project page and file page).
 The mirror lags a fresh upload by an hour or so; a pack cut before it catches up simply
 carries that jar as an override, and says so.
@@ -52,11 +54,12 @@ def listed(path):
 
 
 def slugs():
+    """mod -> (slug, project id or None)."""
     out = {}
     for line in listed(os.path.join(DATA, "curseforge-slugs.txt")):
         parts = line.split()
         if len(parts) >= 2:
-            out[parts[0]] = parts[1]
+            out[parts[0]] = (parts[1], int(parts[2]) if len(parts) >= 3 else None)
     return out
 
 
@@ -73,16 +76,23 @@ def jar_for(mod):
     return jar if os.path.exists(jar) else None
 
 
-def widget(slug):
+def widget_at(path):
     try:
         # A named agent: the mirror answers an anonymous Python client with nothing.
-        req = urllib.request.Request(f"https://api.cfwidget.com/minecraft/mc-mods/{slug}",
+        req = urllib.request.Request(f"https://api.cfwidget.com/{path}",
                                      headers={"User-Agent": "mc-pack (justfatlard suite)"})
         with urllib.request.urlopen(req, timeout=20) as r:
             data = json.load(r)
         return data if isinstance(data, dict) and "id" in data else None
     except Exception:
         return None
+
+
+def widget(slug, project_id=None):
+    data = widget_at(f"minecraft/mc-mods/{slug}")
+    if data is None and project_id is not None:
+        data = widget_at(str(project_id))
+    return data
 
 
 # What CurseForge lists beside a file's game versions that is not one: which side it
@@ -94,9 +104,10 @@ def game_versions(f):
     return {v for v in f.get("versions", []) if v not in NOT_A_GAME_VERSION}
 
 
-def resolve(slug, jar_name, version):
-    """(projectID, fileID, game versions) for the file whose display is this jar, or None."""
-    data = widget(slug)
+def resolve(ref, jar_name, version):
+    """(projectID, fileID, game versions) for the file whose display is this jar, or None.
+    ref is (slug, project id or None)."""
+    data = widget(*ref)
     if not data:
         return None
     for f in data.get("files", []):
@@ -150,7 +161,7 @@ def place(mods, api_jar, api, slug_of, by_hand):
     not carry it ships as an override instead of a reference.
     """
     found = []
-    hit = resolve("fabric-api", os.path.basename(api_jar), api)
+    hit = resolve(("fabric-api", FABRIC_API_PROJECT), os.path.basename(api_jar), api)
     if hit:
         found.append(("fabric-api " + api, api_jar, hit))
     else:
@@ -217,7 +228,7 @@ def write_mrpack(path, name, version, mc, loader, summary, jars):
             z.write(jar, "overrides/mods/" + os.path.basename(jar))
 
 
-def write_server(path, name, version, mc, loader, api_jar, mods):
+def write_server(path, name, client_name, version, mc, loader, api_jar, mods):
     """A server folder: mods/ and a start script. The Fabric launcher is fetched by the
     script rather than shipped, so the zip is the suite and nothing else's."""
     url = f"https://meta.fabricmc.net/v2/versions/loader/{mc}/{loader}/1.1.2/server/jar"
@@ -228,7 +239,7 @@ def write_server(path, name, version, mc, loader, api_jar, mods):
 3. Run start.sh (Linux, macOS) or start.bat (Windows). The first run fetches the
    Fabric server launcher for {mc}, then stops at the EULA: read eula.txt, set
    eula=true, run it again.
-4. Players connect with the client pack ({name}-client), or with a stock client
+4. Players connect with the client pack ({client_name}), or with a stock client
    (they will see less).
 
 The suite's server-side mods are in mods/. Spawn Lock is among them: set a password
@@ -265,6 +276,7 @@ def main():
     ap.add_argument("--kind", default="all", choices=["client", "server", "single", "all"])
     ap.add_argument("--version", default=datetime.date.today().strftime("%Y.%m.%d"))
     ap.add_argument("--name", default="justfatvanilla")
+    ap.add_argument("--client-name", default="justfatpack-lite")
     ap.add_argument("--id", action="append", default=[], metavar="MOD=PROJECT:FILE")
     ap.add_argument("--out", default=os.path.join(SUITE, "dist"))
     args = ap.parse_args()
@@ -288,16 +300,16 @@ def main():
     if "client" in kinds:
         mods = listed(os.path.join(DATA, "client-mods.txt"))
         files, overrides, lines, declared = place(mods, api_jar, api, slug_of, by_hand)
-        stem = os.path.join(args.out, f"{args.name}-client-{args.version}")
-        write_cf(stem + ".zip", f"{args.name}-client", args.version, declared or mc, loader, files, overrides, lines)
-        write_mrpack(stem + ".mrpack", f"{args.name}-client", args.version, mc, loader,
+        stem = os.path.join(args.out, f"{args.client_name}-{args.version}")
+        write_cf(stem + ".zip", args.client_name, args.version, declared or mc, loader, files, overrides, lines)
+        write_mrpack(stem + ".mrpack", args.client_name, args.version, mc, loader,
                      "The client half of the justfatlard mod suite", [api_jar] + [jar_for(m) for m in mods])
         print("client:"); [print("  " + l) for l in lines]; print(f"  wrote {stem}.zip and .mrpack")
 
     if "server" in kinds:
         mods = [m for m, env in envs.items() if env != "client"]
         stem = os.path.join(args.out, f"{args.name}-server-{args.version}")
-        write_server(stem + ".zip", args.name, args.version, mc, loader, api_jar, mods)
+        write_server(stem + ".zip", args.name, args.client_name, args.version, mc, loader, api_jar, mods)
         print(f"server: {len(mods)} mods + fabric-api\n  wrote {stem}.zip")
 
     if "single" in kinds:
