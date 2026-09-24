@@ -10,7 +10,11 @@ StartLimitBurst=10
 
 [Service]
 WorkingDirectory=%h/minecraft-server
-# An absolute path because a user unit gets systemd's PATH, not a login shell's. ender picks
+# ender is a bun script: its shebang is `#!/usr/bin/env bun`, so an absolute path to ender
+# is not enough - the interpreter still has to be found, and a user unit gets systemd's
+# PATH, which has no ~/.bun/bin. Without this the unit exits 127 on env: 'bun' not found.
+Environment=PATH=%h/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# ender picks
 # the runtime the pinned version asks for, provisions the loader's server launcher, and
 # reads the heap from the instance - so this start does network work, which is why the
 # restarts are bounded rather than endless.
