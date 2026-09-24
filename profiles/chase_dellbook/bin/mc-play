@@ -32,8 +32,19 @@ joinServer=()
 
 [[ $1 == --menu ]] && joinServer=()
 
+# This runs from a desktop button, where a command that exits quietly is indistinguishable
+# from one that did nothing - so both failures get a notification as well as a log line.
+# notify-send's own failure is ignored: a seat with no notification daemon still gets stderr.
 command -v ender > /dev/null 2>&1 || {
+	notify-send "Minecraft" "ender is not set up on this machine yet. Run dot-update." 2>/dev/null
 	echo "ender is not installed - dot-update.d/minecraft clones and links it" >&2
+
+	exit 1
+}
+
+ender ls --names 2>/dev/null | grep -qxF suite || {
+	notify-send "Minecraft" "The suite instance is not set up on this machine yet. Run dot-update." 2>/dev/null
+	echo "no 'suite' instance - see dot-update.d/minecraft" >&2
 
 	exit 1
 }

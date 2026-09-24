@@ -3,27 +3,15 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# Two servers from one machine, on two different pins, so two instances.
-#
-# Bump these with every other profile's - a client on a different pin than the house
-# server cannot join it. The dev machine reads its pin from pandorical's
-# gradle.properties instead, which is the pin these are copies of.
-mcVersion=26.3-rc-1
-loaderVersion=0.19.5
+# A player's machine on two servers. Mod jars arrive over ssh from the dev machine
+# (mc-deploy-client), not from this file.
+mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1
 
-# Mod jars arrive over ssh from the dev machine (mc-deploy-client, registered in
-# priv-config/minecraft/clients.txt) rather than being built or fetched here.
-mcEnsurePlayerClient $mcVersion fabric $HOME/minecraft-suite
-
-# The colonies server runs the MineColonies Official pack on its own version and its own
-# loader, which is why it is a separate instance rather than a second address.
+# The colonies server runs the MineColonies Official pack on its own version and loader,
+# which is why it is a separate instance rather than a second address. It is very likely
+# online-mode where the house server is not, so it wants a real Microsoft account - one
+# sign in, once:
 #
-# It is very likely online-mode, unlike the house server, so this instance wants a real
-# Microsoft account where the house one is happy offline. That is one sign in, once:
-#
-#     ender account add                       sign in
+#     ender account add
 #     ender account assign <name> -i minecolonies
-#
-# The house instance keeps the offline identity, so the two do not tread on each other.
-mcEnsurePackInstance minecolonies 1.21.1 neoforge $HOME/minecolonies \
-	"CurseForge, \"MineColonies Official\"" || true
+mcReportMissingPackInstance minecolonies "CurseForge, \"MineColonies Official\""

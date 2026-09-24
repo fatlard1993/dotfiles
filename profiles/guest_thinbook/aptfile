@@ -12,9 +12,6 @@ package "libimlib2-dev"
 
 package "vlc"
 package "mpv"
-# jammy) FAILs, and a FAIL aborts the whole aptfile - on the thickpad that
-# starved every package below this line. dot-update.d/minecraft already
-# the launcher is cloned and linked by dot-update.d/minecraft, not packaged here.
 package "frozen-bubble"
 package "neverball"
 # neverputt has its own package (and desk tile) even though it ships from

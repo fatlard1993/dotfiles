@@ -1,24 +1,26 @@
-# Linked into ~/.config/systemd/user by dot-update.d/minecraft, which also
-# owns version updates and enables lingering so this runs from boot and
-# survives logout, no login session required.
+# Linked into ~/.config/systemd/user by dot-update.d/minecraft, which also owns version
+# updates and enables lingering so this runs from boot and survives logout.
+#
+# No After=network-online.target: that target does not exist in the user manager, so the
+# directive resolved to nothing. The bounded restart below is what actually covers a boot
+# that starts before the link is up.
 [Unit]
 Description=Fabric Minecraft server (mod suite, managed by dot-update.d/minecraft)
-After=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=10
 
 [Service]
 WorkingDirectory=%h/minecraft-server
-# ender picks the runtime the pinned version asks for and fetches it if this machine
-# has no matching major, which is what the apt install of a hand-chosen openjdk used to
-# do from dot-update. An absolute path because a user unit gets systemd's PATH, not a
-# login shell's, and ~/.bun/bin is not on it.
-# Heap is set on the instance itself by dot-update.d/minecraft, not here: it is a
-# property of the server rather than of how systemd happens to start it, and ender reads
-# it from the instance either way.
+# An absolute path because a user unit gets systemd's PATH, not a login shell's, and
+# ~/.bun/bin is not on it. ender picks the runtime the pinned version asks for and fetches
+# it if this machine has no matching major, and reads the heap from the instance - so this
+# start does network work, which is why the restarts are bounded rather than endless.
 ExecStart=%h/.bun/bin/ender server start suite-server
-# The server saves and exits cleanly on SIGTERM (systemd's default stop
-# signal); java reports that as 143 (128+15), which is still a clean stop.
-# Restart=always because a hard crash can exit 0 (the JVM dies after the
-# crash report writes cleanly); use systemctl stop for a deliberate stop.
+# The server saves and exits cleanly on SIGTERM (systemd's default stop signal), which
+# surfaces as 143 (128+15). ender installs no signal handler of its own; systemd's default
+# KillMode=control-group signals the whole cgroup, so the JVM gets the TERM and saves.
+# Restart=always because a hard crash can exit 0 - the JVM dies after its crash report
+# writes cleanly - so use systemctl stop for a deliberate stop.
 SuccessExitStatus=0 143
 Restart=always
 RestartSec=10

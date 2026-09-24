@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Minecraft (house server)
-Comment=Join htpc.home with the mod suite, straight past the menus
+Comment=Join the house server with the mod suite, straight past the menus
 Exec=/home/chase/.dotfiles/profiles/chase_dellbook/bin/mc-play
 Icon=applications-games
 Terminal=false

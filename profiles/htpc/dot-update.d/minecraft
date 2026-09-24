@@ -3,49 +3,34 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# The house Fabric server AND the couch client, both running the mod suite
-# (~/Projects/minecraft on the dev laptop). Game + loader versions are
-# pinned to what the suite builds against - bump them here in the same
-# breath as the suite's gradle.properties, never independently: the world
-# and every mod jar move with the suite, not with Mojang's release channel.
-# The two halves read the same two variables, so a client that can't join
-# this box's server is not a state this file can produce. The required Java
-# still comes from Mojang's manifest for the pinned version. Mod jars are
-# NOT managed here - they deploy from the suite workspace (build-all.sh,
-# then scp) so nothing ever runs a jar that didn't come out of a green
-# suite build.
-mcVersion=26.3-rc-1
-loaderVersion=0.19.5
-installerVersion=1.1.2
-
+# The house Fabric server and the couch client, both on the suite pin from
+# bin/lib/minecraft. Mod jars are not managed here: they arrive from the dev machine, so
+# nothing runs a jar that did not come out of a green suite build.
 mcDir=$HOME/minecraft-server
+
 mcEnsureEnder || return 1
 
-# The server, described rather than assembled. What stood here was a manifest fetch to
-# learn which JRE the pin wanted, an apt install of it, and a loader jar fetched by hand
-# behind a .version marker. ender reads the pin itself, fetches the runtime the version
-# asks for, and provisions the loader's own server launcher.
-mcEnsureInstance suite-server $mcVersion fabric $mcDir server || {
-	echo "  The server instance could not be set up" >&2
+mcEnsureInstance suite-server $mcSuiteVersion fabric $mcDir server $mcSuiteLoaderVersion || {
+	echo "  The suite-server instance could not be set up" >&2
 
 	return 1
 }
 
-# Captured now rather than read later: mcEnsurePlayerClient sets the same variable for
-# the couch client further down, and by the time the restart branch runs it would be
-# answering for the wrong instance.
+# Captured now rather than read later: mcEnsurePlayerClient sets the same variable for the
+# couch client below, and the restart branch would then answer for the wrong instance.
 serverPinMoved=$mcInstanceChanged
 
-ender server provision suite-server > /dev/null || echo "  The server could not be provisioned"
+ender server provision suite-server > /dev/null || echo "  suite-server could not be provisioned" >&2
 
-# The modded suite (37 mods plus worldgen) earns more heap than vanilla did. Set on the
-# instance rather than in the unit: it belongs to the server, not to how systemd starts
-# it. Tune it if worlds grow or Steam needs the RAM back.
-ender set memory.min 2048 --instance suite-server > /dev/null
-ender set memory.max 6144 --instance suite-server > /dev/null
+# The modded suite earns more heap than vanilla did. Set on the instance rather than in the
+# unit: it belongs to the server, not to how systemd starts it.
+for setting in memory.min=2048 memory.max=6144; do
+	ender set ${setting%%=*} ${setting##*=} --instance suite-server > /dev/null \
+		|| echo "  suite-server kept its old ${setting%%=*}, so it may run short of heap" >&2
+done
 
-# The server refuses to start until Mojang's EULA (aka.ms/MinecraftEULA)
-# is accepted; setting up an auto-running server implies accepting it.
+# The server refuses to start until Mojang's EULA (aka.ms/MinecraftEULA) is accepted;
+# setting up an auto-running server implies accepting it.
 [[ -f $mcDir/eula.txt ]] || echo "eula=true" > $mcDir/eula.txt
 
 echo "Linking minecraft server service"
@@ -57,14 +42,14 @@ systemctl --user daemon-reload
 # the server shouldn't die because the couch session logged out
 ensureLinger
 
-# Retired: the suite server moved to the rented box (see edge/ and the vps ssh host), and
-# this one stays stopped as a fallback with its world in place. The marker is the switch,
-# so bringing it back is deleting a file rather than editing this script.
+# Retired: the suite server runs on the rented box now (the vps ssh host), and this one
+# stays stopped as a fallback with its world in place. The marker is the switch, so
+# bringing it back is deleting a file rather than editing this script.
 if [[ -e $mcDir/.retired ]]; then
 	echo "Minecraft server retired here (\$mcDir/.retired); not starting it"
 elif systemctl --user is-active --quiet minecraft-server.service; then
 	if (( serverPinMoved )); then
-		echo "Restarting minecraft server for $mcVersion"
+		echo "Restarting minecraft server for $mcSuiteVersion"
 
 		systemctl --user restart minecraft-server.service
 	fi
@@ -74,28 +59,18 @@ else
 	systemctl --user enable --now minecraft-server.service
 fi
 
-# The couch client.
-#
-# This box is played from a controller, and every launcher is a mouse-only wall in front
-# of the game: a launcher GUI, a title screen and a server list, three screens a gamepad
-# navigates badly. Prism was installed here for one thing, --launch with --server, which
-# skipped all three. ender takes --server directly, so the wall is gone and the second
-# launcher with it. The launch line lives in this profile's minecraft-couch, which is
-# what Steam points at.
-#
-# The client used to live inside Prism's instance folder, which is where the worlds and
-# the options are, so it is moved out once before anything else looks for it.
+# The couch client. This box is played from a controller, and a launcher GUI is a
+# mouse-only wall in front of the game; ender takes --server directly, so the launch line
+# in this profile's minecraft-couch is all Steam needs.
 clientDir=$HOME/minecraft-client
 
 mcAdoptPrismGameDir suite $clientDir || return 1
 
-mcEnsurePlayerClient $mcVersion fabric $clientDir couch
+mcEnsurePlayerClient $mcSuiteVersion fabric $clientDir couch $mcSuiteLoaderVersion || return 1
 
-# Fullscreen from the game's own options as well as from the window manager's
-# rule. Under 26.3-rc-1 the game applies its saved "fullscreen:false" after the
-# window is up, which undoes the rule's fullscreen and leaves the game tiled
-# under the status bar. Left alone while the game is open: it writes this file
-# from memory and would put its own value back.
+# Under 26.3-rc-1 the game applies its saved "fullscreen:false" after the window is up,
+# which undoes the window manager's rule and leaves the game tiled under the status bar.
+# Left alone while the game is open: it rewrites this file from memory on exit.
 mcOptions=$clientDir/options.txt
 if mcGameRunning $clientDir; then
 	echo "  The game is open, so fullscreen is left as it is. Run this again after."

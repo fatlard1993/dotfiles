@@ -38,7 +38,7 @@ command -v ender > /dev/null 2>&1 || {
 # A missing instance is worth a notification rather than only a log line: this runs from
 # a desktop button, where a command that exits quietly is indistinguishable from one that
 # did nothing. minecolonies is the hand-imported one, so it is the one that is missing.
-ender ls 2>/dev/null | grep -qE "^[* ] $instance " || {
+ender ls --names 2>/dev/null | grep -qxF $instance || {
 	notify-send "Minecraft" "The $instance instance is not set up on this machine yet, so this button cannot join ${server:-it}"
 	echo "no '$instance' instance - see dot-update.d/minecraft" >&2
 

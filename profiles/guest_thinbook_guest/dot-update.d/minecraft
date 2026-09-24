@@ -3,25 +3,10 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# The guest seat on the shared thinkpad, beside the kid seat.
-#
-# No aptfile on this profile: what it needs is a system package the kid seat's profile
-# already installs, and two user accounts on one machine do not each get their own copy.
-# ender is per-user though - it links into ~/.bun/bin - so this seat clones and links
-# its own, which costs a checkout and nothing else.
-#
-# A player's machine: a client on the house pin, nothing built here.
-#
-# Bump these two together with every other profile's - a client on a different pin than
-# the house server cannot join it. The dev machine reads its pin from pandorical's
-# gradle.properties instead, which is the pin these are copies of.
-mcVersion=26.3-rc-1
-loaderVersion=0.19.5
-
-# Mod jars arrive over ssh from the dev machine (mc-deploy-client, registered in
-# priv-config/minecraft/clients.txt) rather than being built or fetched here.
-# The client used to live inside Prism's instance folder, which is where the worlds and
-# the options are, so it is moved out once before anything else looks for it.
+# The guest seat on the shared thinkpad. No aptfile on this profile: the kid seat's
+# profile installs the system packages, and two user accounts on one machine do not each
+# need a copy. ender is per-user though - it links into ~/.bun/bin - so this seat clones
+# and links its own.
 mcAdoptPrismGameDir suite $HOME/minecraft-suite || return 1
 
-mcEnsurePlayerClient $mcVersion fabric $HOME/minecraft-suite
+mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1

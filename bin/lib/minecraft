@@ -1,48 +1,41 @@
 #!/bin/zsh
 
-# Shared by every profile's dot-update.d/minecraft and by mc-play.
-#
-# This used to carry the launcher's job: fetching Mojang's version manifest, checking
-# the game jar by digest, writing Prism components for a pin Prism's metadata had not
-# ingested yet. ender-launcher does all of that as its own work - it reads Mojang and
-# the loaders directly, so the mirror lag that mc-prism-patch existed for cannot
-# happen - and what is left here is the part no launcher knows about: where the house
-# server lives, and whether the game is open right now.
+# Shared by every profile's dot-update.d/minecraft and by mc-play. ender-launcher does the
+# launcher's work; what is left here is what no launcher knows: where the house server
+# lives, and whether the game is open right now.
 
-# The house server's address, or nothing when this machine has no priv-config.
-#
-# Read from priv-config rather than written here: this repository is public, and
-# where the house server lives is the one thing in the minecraft setup that is
-# nobody else's business. A machine without priv-config still gets its game and
-# its mods; it just does not get told where to point them.
-mcServerAddress() {
-	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/server-address.txt
+# The first meaningful line of a priv-config file, or nothing. These live in priv-config
+# rather than here because this repository is public.
+mcPrivLine() {
+	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/$1
 
 	[[ -r $file ]] || return 1
 
-	local address=$(grep -vE '^\s*(#|$)' $file | head -1 | tr -d '[:space:]')
+	local value=$(grep -vE '^\s*(#|$)' $file | head -1 | tr -d '[:space:]')
 
-	[[ -n $address ]] && echo $address
+	[[ -n $value ]] && echo $value
 }
 
-# Hosts the house used to play on and does not any more. An address that dies
-# does not leave the server list; it sits there under the name it always had,
-# and a connection refused is the only sign it is gone. Everyone who tried to
-# join after the world moved to the rented box clicked one of these first.
+mcServerAddress() {
+	mcPrivLine server-address.txt
+}
+
+# The game and loader versions the whole house runs. Bump with pandorical's
+# gradle.properties in the same breath: a client on a different pin cannot join the server,
+# and these two drifted apart once already.
+mcSuiteVersion=26.3
+mcSuiteLoaderVersion=0.19.5
+
+# Hosts the house has stopped running. A dead address does not leave servers.dat on its
+# own; it stays under the name it always had and answers with a connection refused.
 mcRetiredServers=(htpc.home 192.168.1.151)
 
-# Whether a game is open on this directory.
-#
-# Asked of /proc rather than of the command line, the same way mc-deploy-client
-# asks it and for the same reason: Prism runs the game through its own instance
-# directory and never puts the configured game dir on the line, so a command-line
-# match says "clear" with a game open in front of it. A java process whose working
-# directory or open files sit under the directory is the thing itself.
+# Whether a game is open on this directory. Asked of /proc, not of the command line: Prism
+# runs the game through its own instance directory and never puts the configured game dir
+# on the line, so a command-line match reports "clear" with a game open in front of it.
 mcGameRunning() {
-	# Refused rather than guessed at. An unset caller variable arriving here leaves
-	# root empty, and "$target == $root/*" is then the pattern "/*", which every
-	# absolute path matches - so a missing argument reported every machine as having
-	# the game open, and every caller skipped its work.
+	# Refused rather than guessed at: an empty root turns the test below into the pattern
+	# "/*", which every absolute path matches.
 	[[ -n $1 ]] || return 1
 
 	local root=$(readlink -f $1 2>/dev/null || echo $1)
@@ -65,14 +58,13 @@ mcGameRunning() {
 	return 1
 }
 
-# Point a game directory's server list at the house server and drop the retired
-# entries. Skipped while the game is open: it rewrites servers.dat on exit from
-# what it read at startup, so an edit underneath it is an edit thrown away.
+# Point a game directory's server list at the house server and drop the retired entries.
+# Skipped while the game is open: Minecraft rewrites servers.dat on exit from what it read
+# at startup, so an edit underneath it is thrown away.
 mcEnsureServerList() {
 	local gameDir=$1
 	local address
 
-	# The callers name a directory a branch above them may not have set.
 	[[ -n $gameDir ]] || return
 
 	address=$(mcServerAddress) || {
@@ -90,8 +82,8 @@ mcEnsureServerList() {
 
 	mkdir -p $gameDir
 
-	# Built as pairs rather than by prefixing each host: a prefixed element is one
-	# word, and "--retire htpc.home" arriving as a single argument is not a flag.
+	# Pairs, not prefixed strings: zsh does not word-split an unquoted expansion, so
+	# "--retire host" would arrive as one argument and not as a flag.
 	local -a retire
 	local host
 
@@ -99,19 +91,12 @@ mcEnsureServerList() {
 		retire+=(--retire $host)
 	done
 
-	python3 $HOME/.dotfiles/bin/mc-servers $gameDir/servers.dat $retire home $address
+	python3 $HOME/.dotfiles/bin/mc-servers $gameDir/servers.dat $retire home $address \
+		|| echo "  The server list could not be written, so the retired entries are still in it" >&2
 }
 
-# The launcher itself, cloned and linked the way the mod suite is.
-#
-# Not packaged: it is a bun program that lives in this household rather than in a
-# repository anyone publishes, and a checkout is the form that lets a machine both run
-# it and be the place it gets fixed. bun link puts `ender` on PATH from wherever the
-# clone landed.
-#
-# Missing clone only. An existing one is pulled rather than reset: it is a working tree
-# like the mod repos are, and an update step that threw away local work would be one
-# nobody could trust running.
+# The launcher, cloned and linked. Pulled rather than reset: on the dev machine this is a
+# working tree, so an update step must not throw away local work.
 mcEnsureEnder() {
 	local dir=$HOME/Projects/ender-launcher
 
@@ -127,8 +112,7 @@ mcEnsureEnder() {
 		echo "Cloning ender-launcher"
 
 		mkdir -p $(dirname $dir)
-		# https, for the same reason the suite clone uses it: a cold machine has no key
-		# on GitHub yet.
+		# https: a cold machine has no key on GitHub yet.
 		git clone -q https://github.com/fatlard1993/ender-launcher $dir || {
 			echo "  Could not clone ender-launcher" >&2
 
@@ -136,23 +120,18 @@ mcEnsureEnder() {
 		}
 	fi
 
-	# Whether the lockfile was the repository's before this run touched it. A bun older
-	# than the one that wrote bun.lock cannot read its version, fails the install, and
-	# on the retry writes its own back - which leaves the clone permanently modified,
-	# so every later --ff-only pull refuses and the launcher silently stops updating.
-	# Restored below only when this run is what dirtied it: the dev machine's clone is
-	# a working tree, and a lockfile change in progress there is work, not mess.
-	local lockWasClean=1
-	git -C $dir diff --quiet -- bun.lock 2>/dev/null || lockWasClean=0
+	# A bun too old to read bun.lock writes its own back, which leaves the clone modified so
+	# every later --ff-only pull refuses. Restored below, but only when this run is what
+	# dirtied it: a lockfile change already in progress on the dev machine is real work.
+	local lockDirtiedByThisRun=0
+	git -C $dir diff --quiet -- bun.lock 2>/dev/null && lockDirtiedByThisRun=1
 
 	local installLog
 	installLog=$(cd $dir && bun install 2>&1)
 	local installStatus=$?
 
-	# The one install failure worth answering rather than reporting. bun comes from the
-	# Brewfile, but a machine that got it from bun's own installer first has that copy
-	# earlier on PATH and nothing has updated it since - htpc sat on a bun eight months
-	# behind the one this lockfile was written by.
+	# The one install failure worth answering rather than reporting: dot-update.d/1_bun
+	# keeps bun above a floor, but a clone can still outrun it.
 	if (( installStatus )) && [[ $installLog == *"Unknown lockfile version"* ]]; then
 		echo "  bun $(bun --version) is older than ender-launcher's lockfile, so it is being upgraded"
 
@@ -162,7 +141,7 @@ mcEnsureEnder() {
 		installStatus=$?
 	fi
 
-	(( lockWasClean )) && git -C $dir checkout -q -- bun.lock 2>/dev/null
+	(( lockDirtiedByThisRun )) && git -C $dir checkout -q -- bun.lock 2>/dev/null
 
 	if (( installStatus )); then
 		echo "  ender-launcher would not install:" >&2
@@ -182,39 +161,30 @@ mcEnsureEnder() {
 
 		return 1
 	}
+
+	# This file reads `ender ls --names`. An ender too old for it answers "Unknown flag",
+	# which reads as "no instances", and the next step then creates one that already exists.
+	# The pull above is deliberately non-fatal, so that stale clone is a reachable state.
+	ender ls --names > /dev/null 2>&1 || {
+		echo "  This ender is too old for 'ls --names', so the clone did not update" >&2
+
+		return 1
+	}
 }
 
-# The client id ender signs in with, or nothing when this machine has no priv-config.
-#
-# Read from priv-config rather than written here for the same reason the server address
-# is: this repository is public. A machine without it still gets a launcher and a game;
-# it just plays offline, which is all the house server asks for anyway.
+# The client id ender signs in with. Without one a machine still plays offline, which is
+# all the house server asks for.
 mcClientId() {
-	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/ender-client-id
-
-	[[ -r $file ]] || return 1
-
-	local id=$(grep -vE '^\s*(#|$)' $file | head -1 | tr -d '[:space:]')
-
-	[[ -n $id ]] && echo $id
+	mcPrivLine ender-client-id
 }
 
-# An instance matching the pin, created if it is missing and corrected if it has drifted.
+# An instance matching the pin, created if missing and bumped if it has drifted.
 #
-# Both halves matter. Creating is the cold-machine case; correcting is the bump case, and
-# the bump is the one that used to be hand work - every profile regenerated an mmc-pack
-# every run precisely because nothing else kept the pin tracking the server.
-#
-# Sets mcInstanceChanged to 1 when it created or moved one, because a caller running a
-# server needs to know: a pin that moved under a process already started on the old one
-# is a restart, and the marker file that used to answer that question is gone.
-#
-# A variable rather than the exit status. This said 2 for "changed" briefly, which reads
-# as failure to every caller that writes `|| return` - five of the six did, so the first
-# cold machine created its instance, was told the instance could not be set up, and
-# skipped the account, the client id and the server list behind it.
+# Sets mcInstanceChanged rather than returning it: a caller running a server needs to know
+# that a pin moved under an already-started process, and a non-zero return would read as
+# failure to every caller that writes `|| return`.
 mcEnsureInstance() {
-	local name=$1 version=$2 loader=$3 gameDir=$4 kind=$5
+	local name=$1 version=$2 loader=$3 gameDir=$4 kind=$5 loaderVersion=$6
 	local -a asServer
 
 	mcInstanceChanged=0
@@ -223,7 +193,7 @@ mcEnsureInstance() {
 
 	[[ -n $name && -n $version && -n $gameDir ]] || return 1
 
-	if ender ls 2>/dev/null | grep -qE "^[* ] $name "; then
+	if ender ls --names 2>/dev/null | grep -qxF $name; then
 		local current=$(ender info $name 2>/dev/null | awk '$1 == "minecraft" { print $2 }')
 
 		if [[ $current != $version ]]; then
@@ -236,30 +206,27 @@ mcEnsureInstance() {
 	else
 		echo "Creating the $name instance ($version, ${loader:-fabric})"
 
-		# Client or server is fixed at creation: it decides what gets provisioned, and an
-		# instance that changed kind underneath its game directory would be a different
-		# thing wearing the same name.
+		# Client or server is fixed at creation: it decides what gets provisioned.
 		ender new $name --minecraft $version --loader ${loader:-fabric} --game-dir $gameDir $asServer > /dev/null || return 1
 
 		mcInstanceChanged=1
 	fi
 
-	# Said every run rather than at creation: the pin moving is what changes it, and a
-	# loader version left behind is the failure that looks like a mod problem.
-	[[ -n $loaderVersion ]] && ender set loaderVersion $loaderVersion --instance $name > /dev/null 2>&1
+	# Every run, not at creation: the pin moving is what changes it, and a loader version
+	# left behind is the failure that looks like a mod problem. Empty means unpinned.
+	if [[ -n $loaderVersion ]]; then
+		ender set loaderVersion $loaderVersion --instance $name > /dev/null 2>&1 \
+			|| echo "  $name kept its old loader version, which will look like a mod problem" >&2
+	fi
 
 	return 0
 }
 
 # The suite mods that belong in a client, as project directories.
 #
-# The list is curated in priv-config and deliberately not derived: most of the suite
-# declares environment "*" because it is loadable anywhere, but a client that carries
-# the server-side half gains nothing and has crashed for it. Deriving this from what
-# is on disk is the mistake the list was written to stop.
-#
-# Nothing without priv-config, rather than everything: a machine that cannot read the
-# list has no business guessing at it.
+# Curated in priv-config and deliberately not derived: most of the suite declares
+# environment "*" because it is loadable anywhere, and a client carrying the server-side
+# half has crashed for it.
 mcClientMods() {
 	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/client-mods.txt
 	local root=$HOME/Projects/minecraft
@@ -275,7 +242,8 @@ mcClientMods() {
 
 	(( ${#found} )) || return 1
 
-	print -r -- $found
+	# One per line: the caller splits on newlines, so a path with a space survives.
+	print -rl -- $found
 }
 
 # 3 to 16 word characters, which is what ender accepts. Refused rather than trimmed: a
@@ -284,18 +252,16 @@ mcValidPlayerName() {
 	[[ $1 =~ '^[A-Za-z0-9_]{3,16}$' ]]
 }
 
-# The name this machine already plays under, from the launcher it is migrating off.
-#
-# An offline identity is only its name - the server derives the player's UUID from it - so
-# adopting the wrong one arrives at the house server as a stranger with an empty inventory.
+# The name this machine already plays under, from the launcher it is migrating off. An
+# offline identity is only its name - the server derives the UUID from it - so adopting the
+# wrong one arrives as a stranger with an empty inventory.
 mcPreviousPlayerName() {
 	local gameDir=$1
 	local accounts=$HOME/.local/share/PrismLauncher/accounts.json
 	local name file
 
 	if [[ -r $accounts ]]; then
-		# Said rather than skipped: falling through to the unix user is the wrong-identity
-		# outcome this function exists to prevent.
+		# Said, not skipped: falling through to the unix user is the wrong identity.
 		command -v python3 > /dev/null 2>&1 || {
 			echo "  No python3, so Prism's account cannot be read" >&2
 
@@ -334,48 +300,33 @@ for account in data.get("accounts", []):
 	return 1
 }
 
-# An offline identity to play as, when nobody has signed one in on this machine.
-#
-# The house server runs offline-mode, so this is all it asks for. Named after whoever
-# this machine already played as, and only failing that after the unix user; ender takes
-# 3 to 16 word characters and refuses rather than mangles anything that does not.
+# An offline identity to play as, when nobody has signed one in. The house server runs
+# offline-mode, so this is all it asks for.
 mcEnsureOfflineAccount() {
-	local gameDir=$2
+	local gameDir=$1 name=$2
 
-	# Asked for bare names rather than read off the human listing. Matching that by
-	# shape - a marker, a space, a word - also matches the indented help printed under
-	# "No accounts yet.", so every machine without an account read as already having
-	# one and silently went without.
+	# Bare names, not the human listing: matching that by shape also matched the indented
+	# help printed under "No accounts yet.", so a machine with no account read as having one.
 	[[ -n $(ender account --names 2>/dev/null) ]] && return 0
 
-	# Looked up only once it is needed: this reads a file and scans logs.
-	local name=${1:-$(mcPreviousPlayerName $gameDir)}
-
+	# Looked up only when needed: this reads a file and scans logs.
+	name=${name:-$(mcPreviousPlayerName $gameDir)}
 	name=${name:-$USER}
 
 	echo "Adding an offline account for $name"
 
 	ender account add --offline $name > /dev/null 2>&1 || {
-		echo "  \"$name\" is not a usable Minecraft name - add one with ender account add --offline <name>"
+		echo "  \"$name\" is not a usable Minecraft name - add one with ender account add --offline <name>" >&2
 
 		return 1
 	}
 }
 
-# A player's machine: an instance on the pin, an identity, and the server list.
-#
-# What this replaces per profile was the Mojang launcher's deb repacked around a dead
-# dependency, the Fabric installer, launcher_profiles.json rewritten in python, a Prism
-# instance with its mmc-pack regenerated every run, Prism components hand-written while
-# its metadata lagged, and a JRE chosen by reading the version manifest to find out which
-# one. ender resolves the pin, fetches the runtime the version asks for, and joins a
-# server from the command line, so all of it collapses to this.
-#
-# Mods are not managed here. On a player's machine they arrive over ssh from the dev box
-# (mc-deploy-client), land in the mods folder as jars, and ender leaves what it did not
-# install exactly where it found it.
+# A player's machine: an instance on the pin, an identity, and the server list. Mods are not
+# managed here - they arrive over ssh from the dev box and ender leaves what it did not
+# install where it found it.
 mcEnsurePlayerClient() {
-	local version=$1 loader=${2:-fabric} gameDir=$3 name=${4:-suite}
+	local version=$1 loader=${2:-fabric} gameDir=$3 name=${4:-suite} loaderVersion=$5
 
 	[[ -n $version && -n $gameDir ]] || return 1
 
@@ -383,25 +334,24 @@ mcEnsurePlayerClient() {
 
 	mkdir -p $gameDir/mods
 
-	mcEnsureInstance $name $version $loader $gameDir || {
+	mcEnsureInstance $name $version $loader $gameDir '' $loaderVersion || {
 		echo "  The $name instance could not be set up" >&2
 
 		return 1
 	}
 
-	mcEnsureOfflineAccount "" $gameDir
+	mcEnsureOfflineAccount $gameDir || echo "  This machine has no identity to play as" >&2
 
-	# Optional, and stays that way: with a client id this machine can also sign in to a
-	# Microsoft account, which the house server does not need but another server might.
+	# Optional: with a client id this machine can also sign in to a Microsoft account, which
+	# the house server does not need but another server might.
 	local clientId
-	clientId=$(mcClientId) && ender config clientId $clientId > /dev/null
+	clientId=$(mcClientId) && { ender config clientId $clientId > /dev/null || echo "  The client id would not apply" >&2 }
 
 	mcEnsureServerList $gameDir
 
-	# Pandorical is the platform every server-side screen and HUD in the suite is drawn
-	# by, so a client without it connects and then cannot see half of what it joined.
-	# Its absence is the one thing about a player's machine worth saying out loud, since
-	# nothing here can fix it: the jars come from the dev box.
+	# Pandorical draws every server-side screen and HUD in the suite, so a client without it
+	# connects and cannot see half of what it joined. Nothing here can fix that - the jars
+	# come from the dev box - so it is worth saying out loud.
 	local -a carried
 	carried=($gameDir/mods/pandorical-*.jar(N:t))
 
@@ -411,34 +361,22 @@ mcEnsurePlayerClient() {
 	fi
 }
 
-# A second instance for a server that is not the house one, on its own pin and loader.
-#
-# The modpack itself is still fetched by hand: ender imports a pack file but has no way
-# to pull one from CurseForge by name, so the zip has to be downloaded first. That is
-# still less hand work than this was - it used to be a GUI-only import through Prism's
-# CurseForge browser, with the instance name typed exactly right or mc-play would not
-# find it.
-mcEnsurePackInstance() {
-	local name=$1 version=$2 loader=$3 gameDir=$4 where=$5
+# Say that a non-house server's pack instance is missing, and how to get it. A report, not
+# a check: ender imports a pack file but cannot fetch one from CurseForge by name.
+mcReportMissingPackInstance() {
+	local name=$1 where=$2
 
-	ender ls 2>/dev/null | grep -qE "^[* ] $name " && return 0
+	ender ls --names 2>/dev/null | grep -qxF $name && return 0
 
 	echo "  No '$name' instance yet. Download its pack from $where, then:"
 	echo "    ender import <the pack zip> --name $name"
-
-	return 1
 }
 
-# Move a game directory out of Prism's instance folder, once.
+# Move a game directory out of Prism's instance folder, once. Some seats never had one of
+# their own: worlds, options, screenshots and the server list all lived at
+# <prism>/instances/<name>/.minecraft.
 #
-# Some profiles never had a game directory of their own: the client lived at
-# <prism>/instances/<name>/.minecraft, which was fine while Prism was the launcher and
-# is a directory about to have nothing pointing at it. Worlds, options, screenshots and
-# the server list are all in there.
-#
-# A rename on one filesystem, so it is atomic and keeps every inode. Only when the
-# destination does not exist yet: a machine that has already been through this has a
-# real directory at the destination, and a second run must not touch either.
+# A rename, so on one filesystem it is atomic and keeps every inode.
 mcAdoptPrismGameDir() {
 	local instance=$1 dest=$2
 	local old=$HOME/.local/share/PrismLauncher/instances/$instance/.minecraft
@@ -446,9 +384,8 @@ mcAdoptPrismGameDir() {
 	[[ -n $instance && -n $dest ]] || return 1
 
 	# Both present means an earlier move was refused and something else created the
-	# destination - mkdir -p $gameDir/mods did, on the next step of the same run. The
-	# worlds are still in Prism's folder and the existence guard below would call that
-	# done, every run, forever. Said out loud instead, because nothing else will.
+	# destination. The worlds are still in Prism's folder, and the existence guard below
+	# would call that done forever.
 	if [[ -e $dest && -d $old && ! -L $old ]]; then
 		echo "  The worlds are still in Prism's folder, and $dest already exists:" >&2
 		echo "    $old" >&2

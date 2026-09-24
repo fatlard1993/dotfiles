@@ -50,4 +50,22 @@ joinServer=()
 # exec, and no backgrounding: Steam counts the game as running for exactly
 # as long as its launched process lives, and ender waits on the game it
 # started rather than handing off, so it is there for the whole session.
+# Checked before the exec, because this is the least diagnosable seat in the house: Steam
+# discards ender's output, so a missing launcher or instance is a tile that flashes and
+# returns to the library with nothing said. notify-send may not surface in a Big Picture
+# session, so the journal gets it too.
+if [[ ! -x $HOME/.bun/bin/ender ]]; then
+	notify-send "Minecraft" "ender is not set up on this machine yet. Run dot-update." 2>/dev/null
+	logger -t minecraft-couch "ender is not installed - dot-update.d/minecraft clones and links it"
+
+	exit 1
+fi
+
+if ! $HOME/.bun/bin/ender ls --names 2>/dev/null | grep -qxF couch; then
+	notify-send "Minecraft" "The couch instance is not set up yet. Run dot-update." 2>/dev/null
+	logger -t minecraft-couch "no 'couch' instance - see dot-update.d/minecraft"
+
+	exit 1
+fi
+
 exec /usr/games/gamemoderun $HOME/.bun/bin/ender launch couch $joinServer

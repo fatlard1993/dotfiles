@@ -89,30 +89,29 @@ fi
 if [[ -f $suiteProps ]]; then
 	mcVersion=$(grep -oP '(?<=^minecraft_version = ).*' $suiteProps)
 	loaderVersion=$(grep -oP '(?<=^loader_version = ).*' $suiteProps)
-	fabricVersionId="fabric-loader-$loaderVersion-$mcVersion"
 	clientDir="$HOME/Projects/minecraft-client"
 	serverDir="$HOME/Projects/minecraft-server"
 
-	# The suite is compiled on this machine, and a compiler is not the same
-	# thing as a runtime: default-jre (ubuntu/aptfile, there for the Minecraft
-	# launcher) ships no javac, and gradle turns that down with "does not
-	# provide the required capabilities: [JAVA_COMPILER]". The JDK is in this
-	# profile's aptfile now, so what is left here is the check and the daemon.
+	# The suite's pin and the fleet's must agree. bin/lib/minecraft declares what every
+	# other machine builds an instance for; this file reads what the suite is actually
+	# compiled against. They drifted once - pandorical moved to 26.3 while five profiles
+	# stayed on 26.3-rc-1 under a comment saying they were copies of it - and nothing said
+	# so, so the next bump is a check rather than six hand edits.
+	if [[ $mcVersion != $mcSuiteVersion ]]; then
+		echo "  The suite builds against $mcVersion but the fleet pin is $mcSuiteVersion." >&2
+		echo "  Bump mcSuiteVersion in bin/lib/minecraft, or the house cannot join what you build." >&2
+	fi
+
+	# A compiler is not a runtime: default-jre ships no javac, and gradle turns that down
+	# with "does not provide the required capabilities: [JAVA_COMPILER]".
 	if ! command -v javac > /dev/null 2>&1; then
 		echo "  No javac, so the suite cannot be built here (openjdk-25-jdk, this profile's aptfile)"
 	elif pgrep -f GradleDaemon > /dev/null 2>&1; then
-		# A gradle daemon scans for toolchains once and caches the answer for
-		# its whole lifetime. 1_apt runs before this file, so the run that
-		# installs the JDK leaves any daemon started earlier still convinced
-		# there is no compiler - and it says so with the *same* message the
-		# genuinely-missing JDK gives, naming a path that by then does contain
-		# javac. Two full 42-repo builds went into seeing that.
-		#
-		# Skipped while a build is running rather than reasoned about: gradle
-		# does not document what --stop does to a busy daemon, and a dot-update
-		# that can interrupt a forty-repo build to save a warm-up is a bad
-		# trade in the only case where it matters. -Dorg.gradle.appname is the
-		# wrapper launcher, which exists only for the length of a build.
+		# A gradle daemon caches its toolchain scan for its whole lifetime, so a daemon
+		# started before 1_apt installed the JDK still reports no compiler - with the same
+		# message a genuinely missing JDK gives. Left alone mid-build: gradle does not
+		# document what --stop does to a busy daemon. -Dorg.gradle.appname is the wrapper,
+		# which exists only for the length of a build.
 		if pgrep -f "org.gradle.appname" > /dev/null 2>&1; then
 			echo "  Gradle is mid-build, so its daemons are left alone (rerun after it finishes"
 			echo "  if a build then reports no JAVA_COMPILER)"
@@ -125,24 +124,15 @@ if [[ -f $suiteProps ]]; then
 
 	mcEnsureEnder || return 1
 
-	# One instance, described rather than assembled. What stood here before was the
-	# Fabric installer, a launcher_profiles.json rewritten in python, an mmc-pack
-	# regenerated every run, a game jar fetched by hand and a patches/ directory
-	# written and withdrawn as Prism's metadata caught up. ender resolves the pin from
-	# Mojang and Fabric directly, so none of that has anywhere left to go wrong.
-	mcEnsureInstance suite $mcVersion fabric $clientDir || {
+	mcEnsureInstance suite $mcVersion fabric $clientDir '' $loaderVersion || {
 		echo "  The suite instance could not be set up" >&2
 
 		return 1
 	}
 
-	# The client half of the suite, from the working trees it is built in rather than
-	# from jars copied somewhere. Versions come from each project's gradle.properties at
-	# every sync, so a rebuild lands without anything here being edited.
-	#
-	# The curated list, not every project on disk: most of the suite is loadable in a
-	# client and belongs only in a server, and shipping all of it has crashed one before.
-	clientMods=(${(z)"$(mcClientMods)"})
+	# The curated list, not every project on disk: most of the suite is loadable in a client
+	# but belongs only in a server, and shipping all of it has crashed one before.
+	clientMods=(${(f)"$(mcClientMods)"})
 
 	if (( ${#clientMods} )); then
 		echo "Deploying ${#clientMods} client mod(s)"
@@ -152,35 +142,33 @@ if [[ -f $suiteProps ]]; then
 		echo "  No client mod list (priv-config/minecraft/client-mods.txt), so none were deployed"
 	fi
 
-	# Signing in is optional and stays that way: the house server runs offline-mode, so a
-	# machine with no client id still plays. With one, this is the account the game uses.
-	clientId=$(mcClientId) && ender config clientId $clientId > /dev/null
+	# Optional: the house server runs offline-mode, so a machine with no client id still
+	# plays. With one, this is the account the game uses.
+	clientId=$(mcClientId) && { ender config clientId $clientId > /dev/null || echo "  The client id would not apply" >&2 }
 
-	# A local server to test against without taking the household one down. Maintained
-	# here for the same reason the client is: the last one was set up by hand, nothing
-	# kept it current, and it sat three snapshots stale until it was deleted.
-	#
-	# provision is what fetches the loader's server launcher and seeds server.properties
-	# with online-mode=false, so the client on this same machine can reach it.
-	if mcEnsureInstance suite-server $mcVersion fabric $serverDir server; then
-		ender server provision suite-server > /dev/null || echo "  The local server could not be provisioned"
+	# A local server to test against without taking the household one down.
+	if mcEnsureInstance suite-server $mcVersion fabric $serverDir server $loaderVersion; then
+		ender server provision suite-server > /dev/null || echo "  The local server could not be provisioned" >&2
+
+		# Said every run, not left to provision: provision seeds online-mode=false only when
+		# there is no server.properties yet, and this one already had it set true - so the
+		# offline client on this same machine could not reach the server it is here to test
+		# against, under a comment claiming the opposite.
+		ender server offline suite-server > /dev/null || echo "  The local server would not go offline-mode" >&2
 	else
-		echo "  The local server instance could not be set up"
+		echo "  The local server instance could not be set up" >&2
 	fi
 
-	# Advisory only. Exits nonzero when the pin is behind, which is not a
-	# failure of this run - dot-update should not care, so the status is
-	# swallowed deliberately.
+	# Advisory only: exits nonzero when the pin is behind, which is not a failure of this run.
 	if command -v mc-meta > /dev/null; then
 		echo "Mod suite target:"
 		mc-meta check $suiteProps || true
 	fi
+
+	# Inside this block, because clientDir is assigned inside it: outside, a machine with no
+	# pandorical called this with an empty argument and it returned silently, so the retired
+	# addresses stayed in the list with nothing saying why.
+	mcEnsureServerList $clientDir
 else
 	echo "~/Projects/minecraft/pandorical not found - skipping the suite client and server"
 fi
-
-# The server list, pointed at the house server and cleared of the addresses the
-# house has stopped running. A retired address does not remove itself: it stays
-# in the list under the name it always had, and a player clicking it gets a
-# connection refused with nothing to say the server moved.
-mcEnsureServerList $clientDir

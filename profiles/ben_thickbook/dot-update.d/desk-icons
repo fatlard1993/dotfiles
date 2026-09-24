@@ -4,8 +4,8 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 # Site tiles need an icon a pre-reader recognises: the site's own logo, at a
 # size the desk grid can show. Fetched once per site into the user icon theme
-# under the desk-<id> name the .desktop entries reference. The Minecraft
-# tiles borrow Prism's icon, which every tile already depends on.
+# under the desk-<id> name the .desktop entries reference. The Minecraft tiles
+# resolve theirs further down.
 iconDir=$HOME/.local/share/icons/hicolor/256x256/apps
 mkdir -p $iconDir
 
@@ -50,17 +50,20 @@ done < $profilePath/desk-icons/sites.txt
 for tile in home minecolonies; do
 	[[ -s $iconDir/desk-$tile.png ]] && continue
 
-	# The creeper first: an abstract cube says nothing to a kid scanning for minecraft
-	# (the thinbook's Home tile got walked past). Both launchers that used to supply one
-	# are gone now - ender is a command and ships no icon - so the game directory's own
-	# is tried first, then whatever is still installed, then a generic tile. A tile with
-	# the wrong picture is worse than a plain one only if it looks like something else.
+	# The creeper first: an abstract cube says nothing to a kid scanning for minecraft (the
+	# thinbook's Home tile got walked past). ender is a command and ships no icon, so the
+	# game directory's own is tried first, then a launcher icon if one is still installed -
+	# apt does not remove prismlauncher just because nothing uses it any more.
 	for candidate in $HOME/minecraft-suite/icon.png \
 		/usr/share/icons/hicolor/symbolic/apps/minecraft-launcher.svg \
 		/usr/share/icons/hicolor/*/apps/org.prismlauncher.PrismLauncher.png(N) \
 		/usr/share/icons/hicolor/*/apps/applications-games.png(N); do
 		[[ -s $candidate ]] && { ln -sf $candidate $iconDir/desk-$tile.png; break }
 	done
+
+	# Said rather than left blank: none of the candidates exist on a cold machine, and a
+	# nameless tile on a kid's desk is the kind of thing nobody reports.
+	[[ -s $iconDir/desk-$tile.png ]] || echo "  No icon found for the $tile tile, so it will show as a blank"
 done
 
 gtk-update-icon-cache -q $HOME/.local/share/icons/hicolor 2>/dev/null || true
