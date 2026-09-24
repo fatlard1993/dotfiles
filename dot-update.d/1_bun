@@ -21,6 +21,28 @@ autoload -Uz is-at-least
 bunInstall() {
 	local script=$(mktemp)
 
+	# bun's installer unpacks a zip and refuses without unzip. Ensured here rather than
+	# declared in a profile's aptfile, because those run from 3_profile - after this hook -
+	# so a machine that needed it would fail before the declaration was ever read. A minimal
+	# server is where this bites: the desktop profiles have had unzip for years.
+	if ! command -v unzip > /dev/null 2>&1; then
+		echo "  Installing unzip, which bun's installer needs"
+
+		if command -v apt-get > /dev/null 2>&1; then
+			sudo apt-get install -y -qq unzip > /dev/null 2>&1 || true
+		elif command -v brew > /dev/null 2>&1; then
+			brew install --quiet unzip > /dev/null 2>&1 || true
+		fi
+
+		command -v unzip > /dev/null 2>&1 || {
+			echo "  unzip is still missing, so bun cannot be installed" >&2
+
+			command rm -f $script
+
+			return 1
+		}
+	fi
+
 	# Downloaded, then run: zsh takes a pipeline's status from its last command and pipefail
 	# is not set here, so `curl ... | bash || echo` reported success with curl failing and
 	# nothing installed. That was the only error path this file had.
