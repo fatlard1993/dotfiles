@@ -2,6 +2,11 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
+# Skipped where kitty is not installed, the way dot-update.d/vscode skips its settings:
+# these are config files for a terminal emulator, and the vps profile is a headless box
+# that would collect them and never open one.
+command -v kitty > /dev/null || return 0
+
 echo "Linking dotfiles to kitty config"
 
 mkdir -p $HOME/.config/kitty/kitty.conf.d/

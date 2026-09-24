@@ -1,0 +1,28 @@
+# Linked into ~/.config/systemd/user by dot-update.d/minecraft, which also owns the pin.
+#
+# No After=network-online.target: that target does not exist in the user manager, so the
+# directive this file used to carry resolved to nothing. The bounded restart below is what
+# actually covers a boot that comes up before the link does.
+[Unit]
+Description=Fabric Minecraft server (mod suite, managed by dot-update.d/minecraft)
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+WorkingDirectory=%h/minecraft-server
+# An absolute path because a user unit gets systemd's PATH, not a login shell's. ender picks
+# the runtime the pinned version asks for, provisions the loader's server launcher, and
+# reads the heap from the instance - so this start does network work, which is why the
+# restarts are bounded rather than endless.
+ExecStart=%h/.bun/bin/ender server start suite-server
+# The server saves and exits cleanly on SIGTERM (systemd's default stop signal), which
+# surfaces as 143. ender installs no signal handler of its own; systemd's default
+# KillMode=control-group signals the whole cgroup, so the JVM gets the TERM and saves.
+# Restart=always because a hard crash can exit 0 - the JVM dies after its crash report
+# writes cleanly - so use systemctl stop for a deliberate stop.
+SuccessExitStatus=0 143
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,31 @@
+#!/bin/zsh
+# Nightly tarball of the world, keeping a week. Run from the minecraft-backup timer.
+#
+# The save is required only when the server is actually running. The one-liner this
+# replaced ran `rcon.py save-all; tar ...` with a semicolon, so a failed save still
+# archived a world mid-write - and making it `&&` instead would have been worse, because a
+# stopped server also fails the rcon call, and a world nobody is writing to is the safest
+# thing there is to archive. So: flush a live server or abort, and trust a stopped one.
+
+set -e
+
+serverDir=$HOME/minecraft-server
+backupDir=$HOME/backups
+keep=7
+
+cd $serverDir
+
+if systemctl --user is-active --quiet minecraft-server.service; then
+	python3 rcon.py save-all > /dev/null || {
+		echo "save-all failed on a running server, so the world was not archived mid-write" >&2
+
+		exit 1
+	}
+fi
+
+mkdir -p $backupDir
+
+tar -czf $backupDir/world-$(date +%Y%m%d).tar.gz world
+
+# Newest first, so tail drops everything past the keep count.
+ls -t $backupDir/world-*.tar.gz | tail -n +$((keep + 1)) | xargs -r rm --

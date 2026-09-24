@@ -1,0 +1,85 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
+# The house server. It runs here rather than on the htpc, which keeps a retired copy as a
+# fallback with its world in place.
+#
+# This box was the one machine in the house with no configuration management: three
+# hand-written user units and a jar started by name, while seven clients were pinned to the
+# version in bin/lib/minecraft with nothing tying the two together. They drifted.
+#
+# Mod jars are not managed here - they arrive from the dev machine and ender leaves what it
+# did not install where it found it.
+# Bootstrapping this box into the fleet, once:
+#
+#     git clone https://github.com/fatlard1993/dotfiles ~/.dotfiles
+#     echo vps > ~/.dotfilesProfile
+#     ~/.dotfiles/dot-update
+#
+mcDir=$HOME/minecraft-server
+
+mcEnsureEnder || return 1
+
+mcEnsureInstance suite-server $mcSuiteVersion fabric $mcDir server $mcSuiteLoaderVersion || {
+	echo "  The suite-server instance could not be set up" >&2
+
+	return 1
+}
+
+serverPinMoved=$mcInstanceChanged
+
+ender server provision suite-server > /dev/null || echo "  suite-server could not be provisioned" >&2
+
+# Matching the heap the hand-written unit used. On the instance rather than in the unit: it
+# belongs to the server, not to how systemd starts it.
+for setting in memory.min=2048 memory.max=5120; do
+	ender set ${setting%%=*} ${setting##*=} --instance suite-server > /dev/null \
+		|| echo "  suite-server kept its old ${setting%%=*}, so it may run short of heap" >&2
+done
+
+# Every client this house builds is an offline one, so the server has to accept them. Said
+# every run rather than left to provision, which only seeds a server.properties that does
+# not exist yet.
+ender server offline suite-server > /dev/null || echo "  suite-server would not go offline-mode" >&2
+
+# The server refuses to start until Mojang's EULA (aka.ms/MinecraftEULA) is accepted;
+# running one implies accepting it.
+[[ -f $mcDir/eula.txt ]] || echo "eula=true" > $mcDir/eula.txt
+
+echo "Linking minecraft server and backup units"
+
+mkdir -p $HOME/.config/systemd/user
+
+for unit in minecraft-server.service minecraft-backup.service minecraft-backup.timer; do
+	ln -sf $profilePath/systemd/$unit $HOME/.config/systemd/user/
+done
+
+systemctl --user daemon-reload
+
+# A headless box with nobody logged in: without lingering the units stop at logout and
+# never come back at boot.
+ensureLinger
+
+systemctl --user enable --now minecraft-backup.timer > /dev/null 2>&1 \
+	|| echo "  The nightly world backup timer would not enable" >&2
+
+# The unit on disk now starts the server through ender; a server already running was started
+# by the jar name in the unit this replaced, and a daemon-reload does not restart anything.
+# Said rather than done, because the restart disconnects whoever is playing.
+if systemctl --user is-active --quiet minecraft-server.service; then
+	if [[ $(systemctl --user show minecraft-server.service -p ExecStart --value) != *ender* ]]; then
+		echo "  The running server is still the one this unit replaced. It keeps playing until"
+		echo "  you restart it, which disconnects anyone on:"
+		echo "    systemctl --user restart minecraft-server.service"
+	elif (( serverPinMoved )); then
+		echo "Restarting minecraft server for $mcSuiteVersion"
+
+		systemctl --user restart minecraft-server.service
+	fi
+else
+	echo "Starting minecraft server"
+
+	systemctl --user enable --now minecraft-server.service
+fi

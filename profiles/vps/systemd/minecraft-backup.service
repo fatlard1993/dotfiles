@@ -1,0 +1,6 @@
+[Unit]
+Description=Nightly tarball of the Minecraft world, keeping a week
+
+[Service]
+Type=oneshot
+ExecStart=%h/.dotfiles/profiles/vps/bin/mc-world-backup
