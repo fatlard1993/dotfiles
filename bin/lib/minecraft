@@ -205,13 +205,19 @@ mcClientId() {
 # the bump is the one that used to be hand work - every profile regenerated an mmc-pack
 # every run precisely because nothing else kept the pin tracking the server.
 #
-# Returns 0 when nothing changed and 2 when it created or moved one, because a caller
-# running a server needs to know: a pin that moved under a process already started on the
-# old one is a restart, and the marker file that used to answer that question is gone.
+# Sets mcInstanceChanged to 1 when it created or moved one, because a caller running a
+# server needs to know: a pin that moved under a process already started on the old one
+# is a restart, and the marker file that used to answer that question is gone.
+#
+# A variable rather than the exit status. This said 2 for "changed" briefly, which reads
+# as failure to every caller that writes `|| return` - five of the six did, so the first
+# cold machine created its instance, was told the instance could not be set up, and
+# skipped the account, the client id and the server list behind it.
 mcEnsureInstance() {
 	local name=$1 version=$2 loader=$3 gameDir=$4 kind=$5
-	local changed=0
 	local -a asServer
+
+	mcInstanceChanged=0
 
 	[[ $kind == server ]] && asServer=(--server)
 
@@ -225,7 +231,7 @@ mcEnsureInstance() {
 
 			ender bump $version --instance $name > /dev/null || return 1
 
-			changed=1
+			mcInstanceChanged=1
 		fi
 	else
 		echo "Creating the $name instance ($version, ${loader:-fabric})"
@@ -235,14 +241,12 @@ mcEnsureInstance() {
 		# thing wearing the same name.
 		ender new $name --minecraft $version --loader ${loader:-fabric} --game-dir $gameDir $asServer > /dev/null || return 1
 
-		changed=1
+		mcInstanceChanged=1
 	fi
 
 	# Said every run rather than at creation: the pin moving is what changes it, and a
 	# loader version left behind is the failure that looks like a mod problem.
 	[[ -n $loaderVersion ]] && ender set loaderVersion $loaderVersion --instance $name > /dev/null 2>&1
-
-	(( changed )) && return 2
 
 	return 0
 }
