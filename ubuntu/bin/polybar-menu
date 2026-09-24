@@ -62,13 +62,51 @@ temp)
 	value=$($HOME/.dotfiles/ubuntu/bin/cpu-temp)
 	[ "$value" = "0" ] && value="n/a"
 
-	settings_line=" Open Power Settings"
+	# The ACPI platform profile is the firmware's own thermal policy, and not
+	# power-profiles-daemon's balanced/power-saver despite the shared word. PPD owns
+	# the same node and rewrites it on every transition of its own, so what this says
+	# is whether the cool assertion is currently holding - which nothing else showed:
+	# ubuntu/bin/platform-profile-cool replays it at login, on AC plug and from
+	# battery-click, and until now the only way to know the answer was to cat sysfs.
+	profileNode=$(echo /sys/class/platform-profile/*/profile)
+	subtitle="CPU package: ${value}°C"
+	platformProfile=""
 
-	choice=$(printf '%s' "$settings_line" | rofi_menu "Temperature" "CPU package: ${value}°C")
+	if [ -r "$profileNode" ]; then
+		platformProfile=$(cat "$profileNode")
+		subtitle="$subtitle    platform profile: $platformProfile"
+	fi
+
+	menu_lines=()
+
+	# Switching is offered only where the node is writable. dot-update.d/
+	# platform-profile-permissions hands the video group write access on the machine
+	# that has this firmware; elsewhere the node is root-only, and an entry that
+	# silently failed would be worse than no entry.
+	if [ -n "$platformProfile" ] && [ -w "$profileNode" ]; then
+		for available in $(tr ' ' '\n' < "${profileNode%profile}choices" 2>/dev/null); do
+			[ "$available" = "$platformProfile" ] && continue
+			menu_lines+=(" Set platform profile to $available")
+		done
+	fi
+
+	settings_line=" Open Power Settings"
+	menu_lines+=("$settings_line")
+
+	choice=$(printf '%s\n' "${menu_lines[@]}" | rofi_menu "Temperature" "$subtitle")
 
 	case "$choice" in
 	"$settings_line")
 		XDG_CURRENT_DESKTOP=GNOME gnome-control-center power &
+		;;
+	" Set platform profile to "*)
+		chosen=${choice##* }
+
+		if echo "$chosen" > "$profileNode" 2>/dev/null; then
+			notify-send "Platform profile" "$chosen"
+		else
+			notify-send "Platform profile" "Could not set $chosen"
+		fi
 		;;
 	esac
 	;;
