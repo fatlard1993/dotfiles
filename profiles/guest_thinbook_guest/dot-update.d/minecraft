@@ -22,6 +22,6 @@ loaderVersion=0.19.5
 # priv-config/minecraft/clients.txt) rather than being built or fetched here.
 # The client used to live inside Prism's instance folder, which is where the worlds and
 # the options are, so it is moved out once before anything else looks for it.
-mcAdoptPrismGameDir suite $HOME/minecraft-suite
+mcAdoptPrismGameDir suite $HOME/minecraft-suite || return 1
 
 mcEnsurePlayerClient $mcVersion fabric $HOME/minecraft-suite

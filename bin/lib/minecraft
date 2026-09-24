@@ -278,22 +278,30 @@ mcClientMods() {
 	print -r -- $found
 }
 
-# The name this machine already plays under, from the launcher it is being migrated off.
+# 3 to 16 word characters, which is what ender accepts. Refused rather than trimmed: a
+# shortened name derives a different UUID, so it is a different player, not a near miss.
+mcValidPlayerName() {
+	[[ $1 =~ '^[A-Za-z0-9_]{3,16}$' ]]
+}
+
+# The name this machine already plays under, from the launcher it is migrating off.
 #
-# An offline identity is nothing but its name: the server derives the player's UUID from
-# it, so a machine that starts playing as its unix user instead of the name it spent a
-# year using arrives at the house server as a stranger - new UUID, empty inventory, spawn
-# point gone. htpc is the case in point. The couch had a Microsoft account signed into
-# Prism as "megwhitfi3ld"; the unix user on that box is "home".
-#
-# Prism's active account first, since that is the record of who was playing. The game's
-# own logs second, for a machine whose accounts file has been cleaned out already.
+# An offline identity is only its name - the server derives the player's UUID from it - so
+# adopting the wrong one arrives at the house server as a stranger with an empty inventory.
 mcPreviousPlayerName() {
 	local gameDir=$1
 	local accounts=$HOME/.local/share/PrismLauncher/accounts.json
 	local name file
 
 	if [[ -r $accounts ]]; then
+		# Said rather than skipped: falling through to the unix user is the wrong-identity
+		# outcome this function exists to prevent.
+		command -v python3 > /dev/null 2>&1 || {
+			echo "  No python3, so Prism's account cannot be read" >&2
+
+			return 1
+		}
+
 		name=$(python3 -c '
 import json, sys
 
@@ -308,16 +316,18 @@ for account in data.get("accounts", []):
 		break
 ' $accounts 2>/dev/null)
 
-		[[ -n $name ]] && { echo $name; return 0 }
+		mcValidPlayerName $name && { echo $name; return 0 }
 	fi
 
-	# Newest log first, and the last sign in within it: a log holds every session it
-	# saw, and the question is who played most recently.
+	# The whole startup line or nothing. A client logs chat to this same file, so a bare
+	# search for "Setting user:" also matches a stranger typing it in chat - and taking the
+	# last match preferred that line, because chat always follows startup. The thread tag
+	# is what separates them: chat renders on Render thread.
 	if [[ -n $gameDir && -d $gameDir/logs ]]; then
 		for file in $gameDir/logs/*(Nom); do
-			name=$(zgrep -ohE 'Setting user: [A-Za-z0-9_]{1,16}' $file 2>/dev/null | tail -1 | awk '{ print $3 }')
+			name=$(zgrep -ohE '^\[[0-9:]+\] \[(main|Client thread)/INFO\]: Setting user: [A-Za-z0-9_]{3,16}$' $file 2>/dev/null | head -1 | awk '{ print $NF }')
 
-			[[ -n $name ]] && { echo $name; return 0 }
+			mcValidPlayerName $name && { echo $name; return 0 }
 		done
 	fi
 
@@ -434,6 +444,19 @@ mcAdoptPrismGameDir() {
 	local old=$HOME/.local/share/PrismLauncher/instances/$instance/.minecraft
 
 	[[ -n $instance && -n $dest ]] || return 1
+
+	# Both present means an earlier move was refused and something else created the
+	# destination - mkdir -p $gameDir/mods did, on the next step of the same run. The
+	# worlds are still in Prism's folder and the existence guard below would call that
+	# done, every run, forever. Said out loud instead, because nothing else will.
+	if [[ -e $dest && -d $old && ! -L $old ]]; then
+		echo "  The worlds are still in Prism's folder, and $dest already exists:" >&2
+		echo "    $old" >&2
+		echo "  Nothing here can safely merge them. Move them by hand, then rerun." >&2
+
+		return 1
+	fi
+
 	[[ -e $dest ]] && return 0
 	[[ -d $old && ! -L $old ]] || return 0
 

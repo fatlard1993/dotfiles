@@ -87,7 +87,7 @@ fi
 # the options are, so it is moved out once before anything else looks for it.
 clientDir=$HOME/minecraft-client
 
-mcAdoptPrismGameDir suite $clientDir
+mcAdoptPrismGameDir suite $clientDir || return 1
 
 mcEnsurePlayerClient $mcVersion fabric $clientDir couch
 
