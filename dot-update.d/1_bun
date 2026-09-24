@@ -1,0 +1,26 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# bun, which ender-launcher and the home page's favicon fetcher are written against.
+#
+# From bun's own installer rather than the Brewfile, for two reasons. Homebrew now
+# refuses a third-party tap until it is trusted, so `brew "oven-sh/bun/bun"` printed
+# "Refusing to load formula ... from untrusted tap" and installed nothing - a cold
+# machine reached dot-update.d/minecraft with no bun and was told to look at a Brewfile
+# line that could not work. And .zshrc.d/bun puts $HOME/.bun/bin first on PATH, so
+# brew's copy would have been shadowed even where the tap was trusted.
+#
+# Kept current rather than just present. A bun older than the one the dev machine writes
+# lockfiles with cannot read them: it fails the install, then writes its own lockfile
+# back, which leaves every clone permanently modified and every later --ff-only pull
+# refusing. htpc sat eight months behind and hit exactly that.
+if command -v bun > /dev/null 2>&1; then
+	bun upgrade > /dev/null 2>&1 || echo "  bun would not upgrade, so it stays at $(bun --version)"
+else
+	echo "Installing bun"
+
+	curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1 || echo "  bun would not install - ender-launcher needs it"
+
+	source "$dotfilesPath/.zshrc.d/bun"
+fi

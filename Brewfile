@@ -7,8 +7,6 @@ brew "fd"
 brew "bat"
 brew "jq"
 brew "yq"
-# ender-launcher is a bun program, cloned and linked by dot-update.d/minecraft.
-brew "oven-sh/bun/bun"
 brew "gh"
 brew "git-lfs"
 brew "zoxide"

@@ -116,7 +116,7 @@ mcEnsureEnder() {
 	local dir=$HOME/Projects/ender-launcher
 
 	command -v bun > /dev/null 2>&1 || {
-		echo "  No bun, so the launcher cannot be installed (Brewfile)"
+		echo "  No bun, so the launcher cannot be installed (dot-update.d/1_bun)"
 
 		return 1
 	}
