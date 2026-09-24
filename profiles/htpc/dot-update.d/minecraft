@@ -89,15 +89,13 @@ mcAdoptPrismGameDir suite $clientDir
 
 mcEnsurePlayerClient $mcVersion fabric $clientDir couch
 
-mcEnsureServerList $instanceDir/.minecraft
-
 # Fullscreen from the game's own options as well as from the window manager's
 # rule. Under 26.3-rc-1 the game applies its saved "fullscreen:false" after the
 # window is up, which undoes the rule's fullscreen and leaves the game tiled
 # under the status bar. Left alone while the game is open: it writes this file
 # from memory and would put its own value back.
-mcOptions=$instanceDir/.minecraft/options.txt
-if mcGameRunning; then
+mcOptions=$clientDir/options.txt
+if mcGameRunning $clientDir; then
 	echo "  The game is open, so fullscreen is left as it is. Run this again after."
 elif [[ -f $mcOptions ]]; then
 	grep -q '^fullscreen:' $mcOptions \

@@ -39,6 +39,12 @@ mcRetiredServers=(htpc.home 192.168.1.151)
 # match says "clear" with a game open in front of it. A java process whose working
 # directory or open files sit under the directory is the thing itself.
 mcGameRunning() {
+	# Refused rather than guessed at. An unset caller variable arriving here leaves
+	# root empty, and "$target == $root/*" is then the pattern "/*", which every
+	# absolute path matches - so a missing argument reported every machine as having
+	# the game open, and every caller skipped its work.
+	[[ -n $1 ]] || return 1
+
 	local root=$(readlink -f $1 2>/dev/null || echo $1)
 	local dir target fd
 
