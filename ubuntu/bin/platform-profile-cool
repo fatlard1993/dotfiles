@@ -1,0 +1,35 @@
+#!/bin/bash
+# Asserts the ACPI platform profile to "cool" where the firmware offers it.
+#
+# This is NOT power-profiles-daemon's profile - two different knobs that
+# share a word. PPD's balanced/power-saver sets the CPU governor and EPP;
+# the ACPI platform profile is the firmware's own thermal policy. On the
+# dellbook, "cool" drops the sustained package cap (PL1 13.5W -> 10W) and
+# both fans by ~800 rpm, measured.
+#
+# PPD owns the same node and rewrites it on every profile transition,
+# mapping its own balanced -> "balanced", so "cool" survives only until the
+# next PPD change and has to be re-asserted after one. Every path that
+# transitions PPD calls this: startup.d/power-profile (login),
+# dot-update.d/power-profile-ac's udev rule (AC plug), and battery-click
+# (the polybar shift+click toggle). A PPD *no-op* set doesn't rewrite the
+# node, which is why "set balanced" against an already-balanced daemon
+# leaves cool alone.
+#
+# Writes the /sys/class node rather than /sys/firmware/acpi/platform_profile:
+# they are the same knob, but only the class node is a udev device, so only
+# it can be made group-writable (see dot-update.d/platform-profile-permissions).
+# The firmware path stays root-only and would need a sudo prompt per call.
+#
+# Exits silently where the firmware lists no "cool" - this lives in
+# ubuntu/bin and is called from the shared battery-click, so it runs on the
+# non-Dell profiles too.
+
+profileNode=$(echo /sys/class/platform-profile/*/profile)
+
+[ -w "$profileNode" ] || exit 0
+grep -qw cool "${profileNode%profile}choices" 2>/dev/null || exit 0
+
+[ "$(cat "$profileNode")" = cool ] && exit 0
+
+echo cool > "$profileNode"

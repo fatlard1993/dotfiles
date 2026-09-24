@@ -25,6 +25,11 @@ if ((mask & shift_mask)); then
 	if [ "$current" = "power-saver" ]; then
 		powerprofilesctl set balanced
 		notify-send "Power profile" "balanced"
+
+		# Leaving power-saver is a PPD transition, and those reset the
+		# firmware thermal policy to "balanced" - replay the cool assertion
+		# behind it once PPD's own write has landed. No-op off the Dell.
+		(sleep 2; "$HOME/.dotfiles/ubuntu/bin/platform-profile-cool") &
 	else
 		powerprofilesctl set power-saver
 		notify-send "Power profile" "power-saver"

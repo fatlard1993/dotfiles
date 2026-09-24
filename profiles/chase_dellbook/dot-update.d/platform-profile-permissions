@@ -1,0 +1,34 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The ACPI platform profile node is root:root by default, so the login and
+# polybar-toggle callers of ubuntu/bin/platform-profile-cool would each need
+# a sudo prompt. Same fix, and same reasoning, as backlight-permissions
+# beside this file: hand the video group write access via udev.
+#
+# Matched on the platform-profile subsystem rather than the legacy
+# /sys/firmware/acpi/platform_profile alias, which is a firmware attribute
+# with no udev device behind it and therefore cannot be chmod'd this way.
+udevRulesFile=/etc/udev/rules.d/90-platform-profile.rules
+
+read -r -d '' udevRule <<-'EOF'
+SUBSYSTEM=="platform-profile", ACTION=="add", RUN+="/bin/chgrp video $sys$devpath/profile", RUN+="/bin/chmod g+w $sys$devpath/profile"
+EOF
+
+if [[ $udevRule != "$(cat $udevRulesFile 2> /dev/null)" ]]; then
+	echo "Granting video group write access to the platform profile"
+
+	sudo tee $udevRulesFile > /dev/null <<< $udevRule
+
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --subsystem-match=platform-profile
+fi
+
+# backlight-permissions already adds $USER to video; assert rather than
+# assume, since either hook may be the one that runs first on a new machine.
+groups $USER | grep -qw video || {
+	echo "Adding $USER to the video group (needs a new login session to take effect)"
+
+	sudo usermod -aG video $USER
+}

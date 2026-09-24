@@ -9,14 +9,46 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # snap back to balanced whenever mains power appears - power-saver can then
 # only linger while actually on battery. Matched on type rather than
 # KERNEL=="AC" since this machine also charges over USB-C.
+#
+# That reset is a PPD transition, and every PPD transition rewrites the
+# firmware thermal policy to "balanced", so the cool assertion has to be
+# replayed behind it - hence the helper rather than a bare powerprofilesctl
+# in the rule. It runs under systemd-run because the replay has to wait for
+# PPD's own write to land, and a sleeping RUN+= would block the udev worker.
 udevRulesFile=/etc/udev/rules.d/85-power-profile-ac.rules
+acHelper=/usr/local/bin/power-profile-ac
 
-if [[ ! -f $udevRulesFile ]]; then
+read -r -d '' udevRule <<-EOF
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemd-run --no-block $acHelper"
+EOF
+
+read -r -d '' acHelperBody <<-EOF
+#!/bin/sh
+# Installed by dot-update (profiles/chase_dellbook/dot-update.d/power-profile-ac).
+# Edit it there, not here.
+/usr/bin/powerprofilesctl set balanced
+sleep 2
+/usr/local/bin/platform-profile-cool
+EOF
+
+# Root/udev has no \$HOME, so platform-profile-cool needs a reachable
+# absolute path; the repo's own copy stays the only source.
+sudo ln -sf $dotfilesPath/ubuntu/bin/platform-profile-cool /usr/local/bin/platform-profile-cool
+
+if [[ $acHelperBody != "$(cat $acHelper 2> /dev/null)" ]]; then
+	echo "Installing AC power-profile helper"
+
+	sudo tee $acHelper > /dev/null <<< $acHelperBody
+	sudo chmod +x $acHelper
+fi
+
+# Compared rather than merely tested for existence: this rule has already
+# shipped in an earlier form, and an -f guard would leave every machine
+# carrying it pinned to whatever it was first installed with.
+if [[ $udevRule != "$(cat $udevRulesFile 2> /dev/null)" ]]; then
 	echo "Installing AC power-profile reset udev rule"
 
-	sudo tee $udevRulesFile > /dev/null <<-'EOF'
-	SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/powerprofilesctl set balanced"
-	EOF
+	sudo tee $udevRulesFile > /dev/null <<< $udevRule
 
 	sudo udevadm control --reload-rules
 fi

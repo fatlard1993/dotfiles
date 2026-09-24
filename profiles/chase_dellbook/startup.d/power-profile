@@ -6,4 +6,14 @@
 # into the session. Catch that case here.
 if [[ $(cat /sys/class/power_supply/AC/online 2>/dev/null) == 1 && $(powerprofilesctl get) == power-saver ]]; then
 	powerprofilesctl set balanced
+
+	# powerprofilesctl returns before the daemon has finished writing the
+	# platform profile it maps to, and that write would clobber the cool
+	# assertion below. Let it land first.
+	sleep 2
 fi
+
+# PPD resets the firmware thermal policy to "balanced" on every transition,
+# including the one above, so cool is re-asserted at each login rather than
+# set once - see ubuntu/bin/platform-profile-cool.
+$HOME/.dotfiles/ubuntu/bin/platform-profile-cool
