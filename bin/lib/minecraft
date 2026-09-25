@@ -289,11 +289,15 @@ for account in data.get("accounts", []):
 
 	# The whole startup line or nothing. A client logs chat to this same file, so a bare
 	# search for "Setting user:" also matches a stranger typing it in chat - and taking the
-	# last match preferred that line, because chat always follows startup. The thread tag
-	# is what separates them: chat renders on Render thread.
+	# last match preferred that line, because chat always follows startup.
+	#
+	# What separates them is that the text follows the thread tag immediately and the name
+	# ends the line: a chat line carries "[System] [CHAT] <who> " in between. Not the thread
+	# name, which is Render thread for both - an earlier version of this anchored on
+	# main/Client thread and so matched none of the 147 real lines on the two machines here.
 	if [[ -n $gameDir && -d $gameDir/logs ]]; then
 		for file in $gameDir/logs/*(Nom); do
-			name=$(zgrep -ohE '^\[[0-9:]+\] \[(main|Client thread)/INFO\]: Setting user: [A-Za-z0-9_]{3,16}$' $file 2>/dev/null | head -1 | awk '{ print $NF }')
+			name=$(zgrep -ohE '^\[[0-9:]+\] \[[^]]+/INFO\]: Setting user: [A-Za-z0-9_]{3,16}$' $file 2>/dev/null | head -1 | awk '{ print $NF }')
 
 			mcValidPlayerName $name && { echo $name; return 0 }
 		done
