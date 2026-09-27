@@ -92,7 +92,10 @@ done
 # Held here rather than left to taste, and kept even though sodium now replaces the renderer:
 # the pixels the card does not draw are cheaper than the ones it draws quickly. A mode the
 # display does not offer is ignored and the game falls back to the desktop one, so a wrong
-# value cannot make the screen unusable.
+# value cannot make the screen unusable - which is how the first attempt at this was found:
+# 26.3 parses this option as JSON through a Codec, not as the old WIDTHxHEIGHT@RATE:DEPTH
+# string, so "1920x1080@60:24" logged "Failed to parse video mode" and quietly stayed at 4K.
+# The six fields below are the whole record the codec requires; 24-bit is 8 bits a channel.
 #
 # Left alone while the game is open, because it rewrites this file from memory on exit -
 # an edit made underneath a running game is an edit thrown away.
@@ -103,7 +106,7 @@ else
 	mkdir -p ${mcOptions:h}
 	touch $mcOptions
 
-	for option in fullscreen:true fullscreenResolution:1920x1080@60:24; do
+	for option in fullscreen:true fullscreenResolution:'{"width":1920,"height":1080,"red_bits":8,"green_bits":8,"blue_bits":8,"refresh_rate":60.0}'; do
 		if grep -q "^${option%%:*}:" $mcOptions; then
 			sed -i "s|^${option%%:*}:.*|$option|" $mcOptions
 		else
