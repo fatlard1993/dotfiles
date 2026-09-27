@@ -28,6 +28,16 @@ mcServerAddress() {
 mcSuiteVersion=26.3
 mcSuiteLoaderVersion=0.19.5
 
+# Third-party client mods every player's machine gets, on top of the suite's own.
+#
+# Not priv-config's client-mods.txt: that names suite project directories built on the dev
+# machine, and these come from Modrinth by name. No versions here - ender resolves the
+# newest build compatible with the instance's pin.
+#
+# sodium replaces the world renderer. The htpc measured its GPU at 100% on the peaks driving
+# a 4K projector, and the laptops have a good deal less card than that.
+mcStandardClientMods=(sodium)
+
 # Hosts the house has stopped running. A dead address does not leave servers.dat on its
 # own; it stays under the name it always had and answers with a connection refused.
 mcRetiredServers=(htpc.home 192.168.1.151)
@@ -345,6 +355,13 @@ mcEnsurePlayerClient() {
 
 		return 1
 	}
+
+	# Non-fatal: a machine that cannot reach Modrinth still has a playable client, just an
+	# unaccelerated one, and saying so beats failing the whole update over it.
+	if (( ${#mcStandardClientMods} )); then
+		ender add $mcStandardClientMods --instance $name > /dev/null 2>&1 \
+			|| echo "  Could not add ${mcStandardClientMods}; ender sync -i $name says why" >&2
+	fi
 
 	mcEnsureOfflineAccount $gameDir || echo "  This machine has no identity to play as" >&2
 

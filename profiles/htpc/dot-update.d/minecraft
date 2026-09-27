@@ -83,16 +83,16 @@ done
 # window is up, which undoes the window manager's rule and leaves the game tiled under the
 # status bar.
 #
-# Not fullscreenResolution, on purpose. The projector is 3840x2160 and the GPU is a Polaris
-# RX 580, so fullscreen with no resolution named asks the card for 8.3 megapixels a frame -
-# measured at 100% busy on its peaks. Naming 1920x1080@60:24 here is a quarter of the pixels
-# and the projector scales it back, which at throw distance nobody can see.
+# fullscreenResolution, because the projector reports 3840x2160 and the GPU is a Polaris
+# RX 580. Fullscreen with no resolution named takes the desktop mode, so the card was being
+# asked for 8.3 megapixels a frame and measured 100% busy on its peaks. 1080p is a quarter of
+# that and the projector scales it back, which at throw distance nobody can see - the 4K is
+# what the panel happens to be, not something anyone asked to render.
 #
-# Sodium is the better answer to the same bottleneck, since it replaces the renderer rather
-# than giving up resolution, and it has a 26.3 release now. So the pixels stay until that is
-# measured. If 4K still stutters with Sodium loaded, add fullscreenResolution:1920x1080@60:24
-# to the loop below - a mode the display does not offer is ignored and the game falls back to
-# the desktop one, so a wrong value cannot make the screen unusable.
+# Held here rather than left to taste, and kept even though sodium now replaces the renderer:
+# the pixels the card does not draw are cheaper than the ones it draws quickly. A mode the
+# display does not offer is ignored and the game falls back to the desktop one, so a wrong
+# value cannot make the screen unusable.
 #
 # Left alone while the game is open, because it rewrites this file from memory on exit -
 # an edit made underneath a running game is an edit thrown away.
@@ -103,7 +103,7 @@ else
 	mkdir -p ${mcOptions:h}
 	touch $mcOptions
 
-	for option in fullscreen:true; do
+	for option in fullscreen:true fullscreenResolution:1920x1080@60:24; do
 		if grep -q "^${option%%:*}:" $mcOptions; then
 			sed -i "s|^${option%%:*}:.*|$option|" $mcOptions
 		else

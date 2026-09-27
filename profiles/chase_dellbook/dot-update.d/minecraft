@@ -156,6 +156,13 @@ if [[ -f $suiteProps ]]; then
 		echo "  No client mod list (priv-config/minecraft/client-mods.txt), so none were deployed"
 	fi
 
+	# The same third-party client mods every other machine gets. Declared in the library so
+	# the dev box and the players cannot drift on what a client is.
+	if (( ${#mcStandardClientMods} )); then
+		ender add $mcStandardClientMods --instance suite > /dev/null 2>&1 \
+			|| echo "  Could not add ${mcStandardClientMods}; ender sync -i suite says why" >&2
+	fi
+
 	# Optional: the house server runs offline-mode, so a machine with no client id still
 	# plays. With one, this is the account the game uses.
 	clientId=$(mcClientId) && { ender config clientId $clientId > /dev/null || echo "  The client id would not apply" >&2 }
