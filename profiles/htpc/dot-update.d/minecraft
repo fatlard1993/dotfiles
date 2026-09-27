@@ -68,17 +68,42 @@ mcAdoptPrismGameDir suite $clientDir || return 1
 
 mcEnsurePlayerClient $mcSuiteVersion fabric $clientDir couch $mcSuiteLoaderVersion || return 1
 
-# Under 26.3-rc-1 the game applies its saved "fullscreen:false" after the window is up,
-# which undoes the window manager's rule and leaves the game tiled under the status bar.
-# Left alone while the game is open: it rewrites this file from memory on exit.
+# The couch client gets a real heap, and one that does not grow into it. ender's default is
+# -Xms512M -Xmx4096M, and a 53-mod client measured 2.87G resident against that ceiling -
+# so it spent the whole way up doing full collections it did not need to. Equal min and max
+# removes the resizing entirely. This box has 15G and nothing else competing for it.
+for setting in memory.min=6144 memory.max=6144; do
+	ender set ${setting%%=*} ${setting##*=} --instance couch > /dev/null \
+		|| echo "  couch kept its old ${setting%%=*}, so it may stutter collecting" >&2
+done
+
+# Two options the hardware decides rather than the player.
+#
+# fullscreen, because under 26.3 the game applies its saved "fullscreen:false" after the
+# window is up, which undoes the window manager's rule and leaves the game tiled under the
+# status bar.
+#
+# fullscreenResolution, because the projector is 3840x2160 and the GPU is a Polaris RX 580:
+# fullscreen with no resolution named takes the desktop mode, so the card was asked for 8.3
+# megapixels a frame and measured 100% busy at peak. 1080p is a quarter of the pixels and
+# the projector scales it back up, which at throw distance is not a difference you can see.
+# A value naming a mode the display does not offer is ignored and the game falls back to the
+# desktop one, so this cannot make the screen unusable.
+#
+# Left alone while the game is open, because it rewrites this file from memory on exit -
+# an edit made underneath a running game is an edit thrown away.
 mcOptions=$clientDir/options.txt
 if mcGameRunning $clientDir; then
-	echo "  The game is open, so fullscreen is left as it is. Run this again after."
-elif [[ -f $mcOptions ]]; then
-	grep -q '^fullscreen:' $mcOptions \
-		&& sed -i 's/^fullscreen:.*/fullscreen:true/' $mcOptions \
-		|| echo 'fullscreen:true' >> $mcOptions
+	echo "  The game is open, so its options are left as they are. Run this again after."
 else
 	mkdir -p ${mcOptions:h}
-	echo 'fullscreen:true' > $mcOptions
+	touch $mcOptions
+
+	for option in fullscreen:true fullscreenResolution:1920x1080@60:24; do
+		if grep -q "^${option%%:*}:" $mcOptions; then
+			sed -i "s|^${option%%:*}:.*|$option|" $mcOptions
+		else
+			echo $option >> $mcOptions
+		fi
+	done
 fi
