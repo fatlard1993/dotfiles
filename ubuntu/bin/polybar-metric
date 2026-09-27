@@ -183,6 +183,15 @@ case "$metric" in
 		render "" "$color"
 		;;
 	bluetooth)
+		# Killed before off. A radio blocked by rfkill has no controller for bluetoothctl
+		# to report, so "powered" comes back empty and the off branch below claimed it -
+		# which made a soft block indistinguishable from a switch someone flipped on
+		# purpose, and a machine whose Fn key had been brushed looked like dead hardware.
+		if rfkill list bluetooth 2>/dev/null | grep -q 'Soft blocked: yes'; then
+			render "󰂲" "#cc6666" T1
+			exit 0
+		fi
+
 		powered=$(bluetoothctl show 2>/dev/null | awk -F': ' '/Powered:/ {print $2}')
 
 		if [ "$powered" != "yes" ]; then

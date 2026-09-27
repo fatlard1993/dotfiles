@@ -380,7 +380,8 @@ mcEnsurePlayerClient() {
 
 	if (( ! ${#carried} )); then
 		echo "  No Pandorical in $gameDir/mods, so this machine cannot properly join the"
-		echo "  house server. From the dev machine: mc-deploy-client --client ${DOTFILES_PROFILE:-$(cat $HOME/.dotfilesProfile 2>/dev/null)}"
+		echo "  house server. From the dev machine: mc-deploy-client"
+		echo "  (that ships to every client; mc-deploy-client --clients names them one by one)"
 	fi
 }
 
