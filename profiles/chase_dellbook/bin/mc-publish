@@ -3,7 +3,8 @@
 
     mc-publish                 what would happen, and nothing else
     mc-publish --create MOD    register MOD as a draft, from what its own files already say
-    mc-publish --upload MOD    upload MOD's built jar as a version
+    mc-publish --upload MOD    upload MOD's built jar as a version, or say so if what is
+                               published under that number is not this build
     mc-publish --upload --all  every mod whose built version is not published yet
     mc-publish --sync --all    put each README's readable half on its page, links and all
     mc-publish --gallery MOD   upload the pictures MOD's README shows
@@ -26,6 +27,7 @@ the CurseForge slugs and the server address. Modrinth asks for a User-Agent that
 is calling and how to reach them, and blocks generic ones, so it names this tool and its author.
 """
 
+import hashlib
 import json
 import mimetypes
 import re
@@ -431,6 +433,34 @@ def create(mod, dry):
     return 1
 
 
+def already(mod, version, published, jar):
+    """What to say about a version number that is already up there.
+
+    Matching the number is not matching the build: a jar carries its changelog and its manifest,
+    so an edit to either changes what is published without changing what it is called. Modrinth
+    hands back each file's sha512 in the version listing, so checking costs nothing.
+
+    Reports rather than acts, and never fails the run. Replacing a published file means deleting
+    it first, which is a decision about something other people may have downloaded; and a drift
+    of nothing but changelog prose is not worth a red daily timer. The line prints either way.
+    """
+    if jar is None:
+        print(f"  {mod}: {version} already published (nothing built locally to check it against)")
+        return 0
+    remote = next((f for f in published.get("files", []) if f.get("primary")),
+                  (published.get("files") or [None])[0])
+    digest = (remote or {}).get("hashes", {}).get("sha512")
+    if not digest:
+        print(f"  {mod}: {version} already published (no hash to check it against)")
+        return 0
+    if hashlib.sha512(jar.read_bytes()).hexdigest() == digest:
+        print(f"  {mod}: {version} already published")
+        return 0
+    print(f"  {mod}: {version} is published but IS NOT THIS BUILD — "
+          f"delete version {published['id']} and re-upload, or bump")
+    return 0
+
+
 def upload(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
@@ -445,9 +475,9 @@ def upload(mod, dry):
     if status != 200:
         print(f"  {mod}: could not read published versions ({status}) — not uploading blind")
         return 1
-    if any(v.get("version_number") == about["version"] for v in versions):
-        print(f"  {mod}: {about['version']} already published")
-        return 0
+    published = next((v for v in versions if v.get("version_number") == about["version"]), None)
+    if published:
+        return already(mod, about["version"], published, jar_for(mod, about["version"]))
 
     jar = jar_for(mod, about["version"])
     if not jar:
