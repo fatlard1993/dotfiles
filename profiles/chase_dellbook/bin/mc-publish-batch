@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Work a day's worth of the Modrinth queue, then fill in what was made.
+# Keep every mod in the suite current on Modrinth: create what has no project, then upload,
+# describe and illustrate the lot.
 #
-#   mc-publish-batch            create the day's ten, then upload, describe and illustrate them
+#   mc-publish-batch            the day's run
 #   mc-publish-batch --dry-run  say what it would do
 #
 # Modrinth allows ten new projects per UTC day and answers the eleventh with a 400 saying so.
@@ -27,31 +28,26 @@ case ":$PATH:" in
 esac
 export PATH
 
-DATA="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}"
-QUEUE="$DATA/modrinth-queue.txt"
-
-[ -r "$QUEUE" ] || { echo "no queue at $QUEUE" >&2; exit 2; }
-
-# Comments and blank lines out; order kept, because the queue is written in the order things
-# should go up.
-mapfile -t MODS < <(grep -v '^[[:space:]]*#' "$QUEUE" | grep -v '^[[:space:]]*$' | tr -d '\r')
-[ "${#MODS[@]}" -gt 0 ] || { echo "queue is empty"; exit 0; }
+# Every publishable mod, not a hand-kept queue. The queue was written when creating was the
+# bottleneck and a backlog had to be worked in order; every mod has a project now, so a list
+# that names a subset only means the rest never get their description, icon or gallery pushed
+# when a README changes. mc-publish works out what is publishable from the suite itself.
 
 DRY=""
 [ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
 
-echo "== $(date '+%Y-%m-%d %H:%M %Z') — ${#MODS[@]} in the queue"
+echo "== $(date '+%Y-%m-%d %H:%M %Z')"
 
 # Create first: everything after it wants the project to exist. mc-publish stops itself when
 # the day's ten are spent and says which are left, so this does not need to count.
-mc-publish --create $DRY "${MODS[@]}"
+mc-publish --create --all $DRY
 
-# Then the parts with no daily limit. Each is asked of the whole queue: a mod that is not up
-# yet answers "no project yet" and costs one request, which is cheaper than tracking which
-# ones today's run happened to make.
+# Then the parts with no daily limit. Each is asked of every mod: one that is not up yet
+# answers "no project yet" and costs one request, which is cheaper than tracking which ones
+# today's run happened to make.
 for step in --upload --sync --icon --gallery; do
 	echo "-- ${step#--}"
-	mc-publish "$step" $DRY "${MODS[@]}"
+	mc-publish "$step" --all $DRY
 done
 
 echo "== done $(date '+%H:%M')"
