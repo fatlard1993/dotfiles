@@ -52,6 +52,10 @@ for dir in */; do
 		continue
 	fi
 
+	# The status, not just the body. cfwidget answers 404 for projects that are really there -
+	# big-boats does, while its page is live - and an empty body parsed as "no version" reads as
+	# a published project with nothing on it, which is a different and much more alarming thing.
+	http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://api.cfwidget.com/minecraft/mc-mods/$slug")
 	json=$(curl -s --max-time 25 "https://api.cfwidget.com/minecraft/mc-mods/$slug" 2>/dev/null)
 	pub=$(printf '%s' "$json" | python3 -c '
 import json,sys
@@ -80,7 +84,9 @@ except Exception:
 	commits=0
 	[ "$pub_at" != "-" ] && commits=$(git -C "$mod" log --oneline --since="$pub_at" 2>/dev/null | wc -l | tr -d " ")
 
-	if [ "$pub_v" = "?" ]; then
+	if [ "$http" = "404" ]; then
+		state="not found through cfwidget - open the page before believing it"
+	elif [ "$pub_v" = "?" ]; then
 		state="no files yet"
 	elif [ "$local_v" != "$pub_v" ]; then
 		state="LOCAL AHEAD"
