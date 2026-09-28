@@ -8,6 +8,7 @@
     mc-publish --upload --all  every mod whose built version is not published yet
     mc-publish --sync --all    put each README's readable half on its page, links and all
     mc-publish --gallery MOD   upload the pictures MOD's README shows
+    mc-publish --deps --all    tell each published version what its manifest depends on
     mc-publish --icon --force  replace a page's icon with the repo's, not only set a missing one
 
 Written because the CurseForge half of a release is hand work that cannot be automated: their
@@ -465,6 +466,63 @@ def already(mod, version, published, jar):
     return 0
 
 
+# Fabric API's own Modrinth project. Every mod here depends on it, and it is the one
+# dependency that is not a sibling in this suite.
+FABRIC_API = "P7dR8mSH"
+
+# Declared in every manifest and meaningless as a Modrinth dependency: the loader and the game
+# are the version fields, and java is not a project.
+NOT_PROJECTS = {"fabricloader", "minecraft", "java", "fabric"}
+
+_by_id = None
+
+
+def suite_mod_ids():
+    """Every mod id declared in this suite, against the folder that declares it.
+
+    A manifest names its dependencies by mod id, and an id is not a folder name:
+    village-quests declares itself as village-quests-justfatlard, and four mods depend on it
+    under that name. Built by reading the manifests rather than by guessing a suffix.
+    """
+    global _by_id
+    if _by_id is None:
+        _by_id = {}
+        for folder in sorted(p.name for p in SUITE.iterdir() if p.is_dir()):
+            about = fabric_mod_json(folder)
+            if about and about.get("id"):
+                _by_id[about["id"]] = folder
+    return _by_id
+
+
+def dependencies_for(mod, tok):
+    """What this mod's manifest says it needs, as Modrinth wants it told.
+
+    depends becomes required and suggests becomes optional, which is the same split the
+    CurseForge relations table uses. A dependency whose project is not up yet is left out
+    rather than guessed at: a version cannot point at a project that does not exist, and the
+    upload would be refused whole.
+    """
+    about = fabric_mod_json(mod)
+    if not about:
+        return [], []
+    wanted = ([(k, "required") for k in (about.get("depends") or {})]
+              + [(k, "optional") for k in (about.get("suggests") or {})])
+    out, missing = [], []
+    for key, kind in wanted:
+        if key in NOT_PROJECTS:
+            continue
+        if key == "fabric-api":
+            out.append({"project_id": FABRIC_API, "dependency_type": kind})
+            continue
+        folder = suite_mod_ids().get(key)
+        existing = project(slug_for(folder), tok) if folder else None
+        if not existing:
+            missing.append(key)
+            continue
+        out.append({"project_id": existing["id"], "dependency_type": kind})
+    return out, missing
+
+
 def upload(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
@@ -488,6 +546,10 @@ def upload(mod, dry):
         print(f"  {mod}: no built jar for {about['version']} — mc-build {mod} first")
         return 1
 
+    deps, missing = dependencies_for(mod, token())
+    if missing:
+        print(f"  {mod}: no Modrinth project for {', '.join(missing)} — left off this version")
+
     data = {
         "project_id": existing["id"],
         "name": about["version"],
@@ -497,7 +559,7 @@ def upload(mod, dry):
         "game_versions": [about["game_version"]],
         "loaders": ["fabric"],
         "environment": about["environment"],
-        "dependencies": [],
+        "dependencies": deps,
         "featured": False,
         "file_parts": ["jar"],
         "primary_file": "jar",
@@ -642,6 +704,49 @@ def icon(mod, dry):
     return 1
 
 
+def deps(mod, dry):
+    """Put the manifest's dependencies onto the version already published.
+
+    Every version uploaded before this existed went up declaring nothing, so fifty-one mods
+    that will not load without Pandorical say on their page that they need nothing at all.
+    A version's dependencies can be edited in place, so this is a correction rather than a
+    re-upload.
+
+    Only the newest version is touched. The manifest read here is the current one, and an
+    older release may honestly have needed something else; guessing backwards would replace
+    one wrong answer with another.
+    """
+    about = describe(mod)
+    existing = project(about["slug"], token())
+    if not existing:
+        print(f"  {mod}: no project yet")
+        return 1
+    status, versions = call("GET", f"/project/{about['slug']}/version", tok=token())
+    if status != 200 or not versions:
+        print(f"  {mod}: no published versions to correct")
+        return 0 if status == 200 else 1
+
+    newest = versions[0]
+    wanted, missing = dependencies_for(mod, token())
+    if missing:
+        print(f"  {mod}: no Modrinth project for {', '.join(missing)} — left off")
+    have = {(d.get("project_id"), d.get("dependency_type")) for d in newest.get("dependencies", [])}
+    if have == {(d["project_id"], d["dependency_type"]) for d in wanted}:
+        print(f"  {mod}: {newest['version_number']} already declares them")
+        return 0
+    named = ", ".join(f"{d['dependency_type']} {d['project_id']}" for d in wanted) or "none"
+    if dry:
+        print(f"  {mod}: would set {newest['version_number']} to {named}")
+        return 0
+    status, answer = call("PATCH", f"/version/{newest['id']}", data={"dependencies": wanted},
+                          tok=token())
+    if status in (200, 204):
+        print(f"  {mod}: {newest['version_number']} now declares {len(wanted)} dependency(s)")
+        return 0
+    print(f"  {mod}: refused ({status}) {answer.get('description') or answer.get('error', '')}")
+    return 1
+
+
 def publishable():
     """Every mod in the suite: a directory with a gradle.properties and a mod version in it."""
     found = []
@@ -664,6 +769,8 @@ def main():
         doing, args = "gallery", [a for a in args if a != "--gallery"]
     if "--icon" in args:
         doing, args = "icon", [a for a in args if a != "--icon"]
+    if "--deps" in args:
+        doing, args = "deps", [a for a in args if a != "--deps"]
     dry = "--dry-run" in args or doing == "show"
     args = [a for a in args if a != "--dry-run"]
     global FORCE
@@ -701,6 +808,8 @@ def main():
             bad += gallery(mod, dry)
         elif doing == "icon":
             bad += icon(mod, dry)
+        elif doing == "deps":
+            bad += deps(mod, dry)
         else:
             bad += upload(mod, dry)
     return bad
