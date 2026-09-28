@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Write PUBLISH-CHANGELOGS.md: what to upload to CurseForge, and the text to paste.
+
+CurseForge has no API for uploading, so a release there is hand work, and the hand work needs a
+list. This builds it: mc-published says which mods have moved since their last upload, and each
+mod's own pandorical.changelog.json supplies the notes for every version since.
+
+    mc-cf-changelogs             write it
+    mc-cf-changelogs --check     only verify the file already there
+
+Nothing is written unless the three halves agree - the table, the jar list and the entries must
+name the same mods at the same versions. That gate exists because the file was maintained by hand
+edits for a while and silently lost two entries, which a reader would only notice by not finding
+a mod they meant to upload.
+"""
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+SUITE = pathlib.Path(os.environ.get("MINECRAFT_SUITE", pathlib.Path.home() / "Projects/minecraft"))
+OUT = SUITE / "PUBLISH-CHANGELOGS.md"
+
+
+def version_order(v):
+    return tuple(int(n) for n in re.findall(r"\d+", v))
+
+
+def changelog(mod):
+    for where in ("src/main/resources", "src/client/resources"):
+        path = SUITE / mod / where / "pandorical.changelog.json"
+        if path.exists():
+            return json.loads(path.read_text())
+    sys.exit(f"no changelog for {mod}")
+
+
+def jar(mod, version):
+    libs = SUITE / mod / "build/libs"
+    found = [p for p in libs.glob(f"*{version}.jar")
+             if not p.name.endswith(("-sources.jar", "-testsupport.jar"))]
+    if not found:
+        sys.exit(f"no built jar for {mod} {version} - mc-build {mod} first")
+    return str(found[0].relative_to(SUITE))
+
+
+def published():
+    """What CurseForge holds, per mc-published, which is the only thing that can say."""
+    rows = {}
+    out = subprocess.run(["mc-published"], capture_output=True, text=True, check=False).stdout
+    for line in out.splitlines()[2:]:
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] not in ("MOD", "----"):
+            rows[parts[0]] = (parts[1], parts[2])
+    return rows
+
+
+def entries(uploads):
+    out = []
+    for mod, on_cf, publish_as in uploads:
+        data = changelog(mod)
+        versions = data["versions"]
+        order = sorted(versions, key=version_order, reverse=True)
+        since = order if on_cf == "?" else [v for v in order if version_order(v) > version_order(on_cf)]
+        lines = [f"## {mod} - publish as {publish_as}", "```"]
+        if on_cf == "?" and data.get("overview"):
+            lines += data["overview"] + [""]
+        for v in since:
+            lines.append(v)
+            lines += [f"- {n}" for n in versions[v]]
+            lines.append("")
+        lines += ["```", ""]
+        out.append("\n".join(lines))
+    return "\n".join(out)
+
+
+def agrees(text, expected):
+    rows = re.findall(r"^\| ([a-z0-9-]+) \| (?:[\d.]+|\?) \| ([\d.]+) \|", text, re.MULTILINE)
+    heads = dict(re.findall(r"^## ([a-z0-9-]+) - publish as ([\d.]+)", text, re.MULTILINE))
+    jars = dict(re.findall(r"^([a-z0-9-]+)/build/libs/\S*?-([\d.]+)\.jar$", text, re.MULTILINE))
+    wrong = sorted({m for m, v in rows if heads.get(m) != v}
+                   | {m for m, v in rows if jars.get(m) != v}
+                   | {m for m in heads if m not in dict(rows)})
+    return (len(rows) == expected and not wrong), wrong
+
+
+def main():
+    if "--check" in sys.argv:
+        if not OUT.exists():
+            print("no PUBLISH-CHANGELOGS.md")
+            return 0
+        text = OUT.read_text()
+        rows = len(re.findall(r"^\| [a-z0-9-]+ \| (?:[\d.]+|\?) \| [\d.]+ \|", text, re.MULTILINE))
+        ok, wrong = agrees(text, rows)
+        print(f"{rows} entries, table, jars and entries agree" if ok else f"DISAGREE: {wrong}")
+        return 0 if ok else 1
+
+    uploads = []
+    for mod, (local, on_cf) in sorted(published().items()):
+        if on_cf in ("-",) or local == on_cf:
+            continue
+        uploads.append((mod, on_cf, local))
+    if not uploads:
+        print("nothing to upload: every mod on CurseForge matches its local version")
+        return 0
+
+    head = [
+        "# CurseForge publish changelogs",
+        "",
+        "One entry per mod: the version to publish as, and the changelog text to paste into the",
+        "CurseForge file upload. Written by mc-cf-changelogs; edit the changelogs, not this file.",
+        "Delete it after the publish run.",
+        "",
+        "A mod is here when its local version differs from what CurseForge holds. A mod CurseForge",
+        "could not be asked about is not here, and that is not the same as up to date: cfwidget",
+        "answers 404 for projects that exist, so check the page before believing an absence.",
+        "",
+        "## What to upload",
+        "",
+        f"{len(uploads)} file(s).",
+        "",
+        "| Mod | On CurseForge | Publish as | Why |",
+        "|---|---|---|---|",
+    ]
+    for mod, on_cf, local in uploads:
+        newest = max(changelog(mod)["versions"], key=version_order)
+        why = changelog(mod)["versions"][newest][0]
+        head.append(f"| {mod} | {on_cf} | {local} | {why[:80]} |")
+    head += ["", "## The jars", "", "```"]
+    head += [jar(m, v) for m, _, v in uploads]
+    head += ["```", "", "---", ""]
+
+    text = "\n".join(head) + entries(uploads)
+    ok, wrong = agrees(text, len(uploads))
+    if not ok:
+        sys.exit(f"refusing to write: table, jars and entries disagree on {wrong}")
+    OUT.write_text(text)
+    print(f"wrote {OUT} - {len(uploads)} entries, table and jar list agree")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

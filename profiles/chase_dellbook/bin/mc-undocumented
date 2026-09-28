@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Features that shipped without being announced.
+
+Every mod keeps two records: the README says what a feature is, the changelog says which
+release brought it. They drift apart in one direction - a release lands, the README grows a
+section for it, and the changelog entry gets written about whatever was worked on last. Five
+of those were found by hand in one sitting: Couch Controls shipped remapping, hotbar stepping,
+rumble, an on-screen keyboard and a settings page in 1.1.4 and announced none of them.
+
+So: for each README section, find the commit that introduced it, read the mod_version current
+at that moment, and check whether that version's notes use any of the heading's words.
+
+    mc-undocumented              every mod in the suite
+    mc-undocumented MOD ...      only these
+
+It over-reports, and is meant to. A note can describe a feature in words the heading never
+uses - "Growing Together" is announced as "geodes grow into one another" - so every line is a
+section to read, not a verdict. Exit status is 0 either way; this is a reading list, not a gate.
+"""
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+SUITE = pathlib.Path(os.environ.get("MINECRAFT_SUITE", pathlib.Path.home() / "Projects/minecraft"))
+
+# Sections about the repo, or about the suite, rather than about a feature.
+NOT_FEATURES = {
+    "development", "license", "licence", "building", "build", "installation", "install",
+    "credits", "contributing", "requirements", "changelog", "screenshots", "screenshot",
+    "known gaps", "why this exists", "how it works", "notes", "testing", "tests", "api",
+    "usage", "compatibility", "troubleshooting", "faq", "overview", "features",
+    "acknowledgements", "pandorical", "installing", "technical details", "known limitations",
+    "limitations", "limits",
+}
+# Words too common to carry a heading's meaning.
+STOP = {
+    "the", "a", "an", "and", "or", "of", "for", "to", "in", "on", "with", "it", "its", "is",
+    "are", "when", "what", "that", "this", "you", "your", "from", "by", "at", "as", "how",
+    "why", "which", "who", "there", "here", "into", "out", "up", "down", "other", "others",
+    "one", "two", "all", "any", "not", "no", "but", "so", "than", "then", "mod", "minecraft",
+    "fabric", "server", "client", "world", "game", "block", "blocks", "item", "items",
+    "player", "players", "new", "more", "can", "does", "do", "be", "them", "they", "their",
+}
+ENOUGH = 50          # words under a heading, below which it is a pointer rather than a feature
+
+
+def sh(*args):
+    return subprocess.run(args, capture_output=True, text=True, check=False).stdout
+
+
+def stem(word):
+    for suffix in ("ies", "es", "s"):
+        if len(word) > 4 and word.endswith(suffix):
+            return word[: -len(suffix)]
+    return word
+
+
+def words_in(text):
+    return {stem(w) for w in re.findall(r"[a-z]+", text.lower())}
+
+
+def changelog(mod):
+    for where in ("src/main/resources", "src/client/resources"):
+        path = SUITE / mod / where / "pandorical.changelog.json"
+        if path.exists():
+            try:
+                return json.loads(path.read_text()).get("versions", {})
+            except ValueError:
+                return {}
+    return {}
+
+
+def version_order(v):
+    return tuple(int(n) for n in re.findall(r"\d+", v))
+
+
+def version_at(mod, sha):
+    found = re.search(r"^\s*mod_version\s*=\s*(\S+)",
+                      sh("git", "-C", str(SUITE / mod), "show", f"{sha}:gradle.properties"), re.MULTILINE)
+    return found.group(1) if found else None
+
+
+def check(mod):
+    readme = SUITE / mod / "README.md"
+    notes = changelog(mod)
+    if not readme.exists() or len(notes) < 2:
+        return []
+    # A first release summarises the whole mod; its sections are not gaps.
+    first = min(notes, key=version_order)
+    born = sh("git", "-C", str(SUITE / mod), "log", "--reverse", "--format=%H").split()[:1]
+
+    lines = readme.read_text().splitlines()
+    headings = [(i, m.group(1).strip().strip("*`"))
+                for i, line in enumerate(lines) if (m := re.match(r"^#{2,3}\s+(.+?)\s*$", line))]
+    out = []
+    for n, (line_no, heading) in enumerate(headings):
+        if heading.lower() in NOT_FEATURES:
+            continue
+        end = headings[n + 1][0] if n + 1 < len(headings) else len(lines)
+        if len(" ".join(lines[line_no + 1:end]).split()) < ENOUGH:
+            continue
+        wanted = words_in(heading) - STOP
+        if not wanted:
+            continue
+        added = sh("git", "-C", str(SUITE / mod), "log", "--reverse", "--format=%H",
+                   "-S", lines[line_no], "--", "README.md").split()
+        if not added or added[0] in born:
+            continue
+        version = version_at(mod, added[0])
+        if not version or version not in notes or version == first:
+            continue
+        if not (wanted & words_in(" ".join(notes[version]))):
+            out.append((version, heading))
+    return out
+
+
+def main():
+    mods = sys.argv[1:] or sorted(
+        p.name for p in SUITE.iterdir()
+        if p.is_dir() and (p / "gradle.properties").exists() and (p / ".git").exists())
+    hits = 0
+    for mod in mods:
+        for version, heading in check(mod):
+            print(f"  {mod:22} {version:8} ## {heading}")
+            hits += 1
+    print(f"{hits} section(s) to read" if hits else "nothing to read: every README section is named by its release")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
