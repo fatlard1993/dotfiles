@@ -8,6 +8,7 @@
     mc-publish --upload --all  every mod whose built version is not published yet
     mc-publish --sync --all    put each README's readable half on its page, links and all
     mc-publish --gallery MOD   upload the pictures MOD's README shows
+    mc-publish --icon --force  replace a page's icon with the repo's, not only set a missing one
 
 Written because the CurseForge half of a release is hand work that cannot be automated: their
 API has no project creation at all, and reading what is published there means going through
@@ -48,6 +49,9 @@ SLUGS_FILE = DATA / "modrinth-slugs.txt"
 SKIP_FILE = DATA / "modrinth-skip.txt"
 API = os.environ.get("MODRINTH_API", "https://api.modrinth.com/v2")
 AGENT = "justfatlard/mc-publish/1.0 (justfatlard@gmail.com)"
+
+# Set by --force: overwrite what is already on the page, rather than reporting the difference.
+FORCE = False
 
 # What mc-where calls each group, against what Modrinth calls it. Its answer is derived from each
 # mod's own fabric.mod.json, which is the whole reason it is asked rather than a list kept here:
@@ -588,8 +592,19 @@ def gallery(mod, dry):
     return bad
 
 
+# Modrinth names a served icon after the sha1 of the bytes uploaded - sometimes the PNG as sent
+# (<sha1>.png), sometimes re-encoded smaller (<sha1>_96.webp). The re-encoded file can never be
+# compared against the PNG here, but the name can, and it costs no request.
+ICON_NAME = re.compile(r"/([0-9a-f]{40})(?:_\d+)?\.[a-z]+$")
+
+
+def published_icon_hash(url):
+    match = ICON_NAME.search(url or "")
+    return match.group(1) if match else None
+
+
 def icon(mod, dry):
-    """Put the mod's own icon on its page."""
+    """Put the mod's own icon on its page, and keep it there when the icon changes."""
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
@@ -598,16 +613,30 @@ def icon(mod, dry):
     if not about["icon"]:
         print(f"  {mod}: no icon.png in its assets")
         return 1
-    if existing.get("icon_url"):
-        print(f"  {mod}: already has an icon")
-        return 0
+
+    # Having an icon is not having this icon. Stopping at "there is one" is how a placeholder
+    # survives every run that was meant to replace it. Stopping at "they differ" is the other
+    # mistake: several pages carry an icon drawn for the page and better than the repo's, so a
+    # mismatch is reported and replaced only when --force says to.
+    up = existing.get("icon_url")
+    if up:
+        theirs = published_icon_hash(up)
+        if theirs is None:
+            print(f"  {mod}: has an icon, in a name this cannot read — left alone")
+            return 0
+        if theirs == hashlib.sha1(about["icon"].read_bytes()).hexdigest():
+            print(f"  {mod}: icon is current")
+            return 0
+        if not FORCE:
+            print(f"  {mod}: the page's icon is not this repo's — mc-publish --icon --force {mod}")
+            return 0
     if dry:
-        print(f"  {mod}: would upload {about['icon'].name}")
+        print(f"  {mod}: would {'replace' if up else 'upload'} the icon with {about['icon'].name}")
         return 0
     status, answer = call("PATCH", f"/project/{about['slug']}/icon?ext=png",
                           raw=about["icon"].read_bytes(), tok=token())
     if status in (200, 201, 204):
-        print(f"  {mod}: icon set")
+        print(f"  {mod}: icon {'replaced' if up else 'set'}")
         return 0
     print(f"  {mod}: refused ({status}) {answer.get('description') or answer.get('error', '')}")
     return 1
@@ -637,6 +666,9 @@ def main():
         doing, args = "icon", [a for a in args if a != "--icon"]
     dry = "--dry-run" in args or doing == "show"
     args = [a for a in args if a != "--dry-run"]
+    global FORCE
+    FORCE = "--force" in args
+    args = [a for a in args if a != "--force"]
     mods = publishable() if ("--all" in args or not args) else [a for a in args if a != "--all"]
 
     if not TOKEN_FILE.exists() and not dry:
