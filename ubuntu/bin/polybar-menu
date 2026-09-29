@@ -743,9 +743,11 @@ wallpaper)
 	esac
 	;;
 brightness)
-	screen_pct=$(( $(cat /sys/class/backlight/intel_backlight/brightness) * 100 / $(cat /sys/class/backlight/intel_backlight/max_brightness) ))
-	kbd_level=$(cat /sys/class/leds/dell::kbd_backlight/brightness)
-	kbd_max=$(cat /sys/class/leds/dell::kbd_backlight/max_brightness)
+	screen_dirs=(/sys/class/backlight/*)
+	kbd_dirs=(/sys/class/leds/*::kbd_backlight)
+	screen_pct=$(( $(cat "${screen_dirs[0]}/brightness") * 100 / $(cat "${screen_dirs[0]}/max_brightness") ))
+	kbd_level=$(cat "${kbd_dirs[0]}/brightness")
+	kbd_max=$(cat "${kbd_dirs[0]}/max_brightness")
 
 	kbd_line=" Cycle Keyboard Backlight"
 

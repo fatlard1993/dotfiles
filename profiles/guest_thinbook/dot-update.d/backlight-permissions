@@ -20,8 +20,11 @@ if [[ ! -f $udevRulesFile ]]; then
 	sudo udevadm trigger --subsystem-match=backlight --subsystem-match=leds
 fi
 
-groups $USER | grep -qw video || {
-	echo "Adding $USER to the video group (needs a new login session to take effect)"
+# guest (the other seat, from accounts) presses the same hotkeys
+for account in $USER guest; do
+	groups $account | grep -qw video || {
+		echo "Adding $account to the video group (needs a new login session to take effect)"
 
-	sudo usermod -aG video $USER
-}
+		sudo usermod -aG video $account
+	}
+done

@@ -9,11 +9,13 @@
 target=$1
 action=$2
 
-screen_file=/sys/class/backlight/intel_backlight/brightness
-screen_max=$(cat /sys/class/backlight/intel_backlight/max_brightness)
+screen_dirs=(/sys/class/backlight/*)
+screen_file=${screen_dirs[0]}/brightness
+screen_max=$(cat "${screen_dirs[0]}/max_brightness")
 
-kbd_file=/sys/class/leds/dell::kbd_backlight/brightness
-kbd_max=$(cat /sys/class/leds/dell::kbd_backlight/max_brightness)
+kbd_dirs=(/sys/class/leds/*::kbd_backlight)
+kbd_file=${kbd_dirs[0]}/brightness
+kbd_max=$(cat "${kbd_dirs[0]}/max_brightness" 2>/dev/null)
 
 case "$target" in
 screen)
@@ -36,7 +38,10 @@ screen)
 	[ "$new" -gt "$screen_max" ] && new=$screen_max
 	[ "$new" -lt 0 ] && new=0
 
-	echo "$new" > "$screen_file"
+	echo "$new" 2>/dev/null > "$screen_file" || {
+		notify-send -u critical "Screen Brightness" "Can't write $screen_file - is $USER in the video group?"
+		exit 1
+	}
 
 	pct=$((new * 100 / screen_max))
 	notify-send -h int:value:"$pct" -h string:x-canonical-private-synchronous:brightness "Screen Brightness" "${pct}%"
@@ -45,7 +50,10 @@ kbd)
 	current=$(cat "$kbd_file")
 	new=$(( (current + 1) % (kbd_max + 1) ))
 
-	echo "$new" > "$kbd_file"
+	echo "$new" 2>/dev/null > "$kbd_file" || {
+		notify-send -u critical "Keyboard Backlight" "Can't write $kbd_file - is $USER in the video group?"
+		exit 1
+	}
 
 	notify-send "Keyboard Backlight" "Level ${new}/${kbd_max}"
 	;;
