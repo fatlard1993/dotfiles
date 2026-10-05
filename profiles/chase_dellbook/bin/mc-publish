@@ -295,12 +295,6 @@ def suite_repos():
     return repos
 
 
-def skipped():
-    if not SKIP_FILE.exists():
-        return set()
-    return {l.split()[0] for l in SKIP_FILE.read_text().splitlines() if l.split() and not l.startswith("#")}
-
-
 def retarget(mod, url, repos, skip):
     """Where a README's link should point once the text is on Modrinth.
 
@@ -336,7 +330,7 @@ def clean_body(mod, readme):
     which go to the gallery instead; and badges, which count another site's downloads. Its links
     are kept, pointed where a reader on Modrinth can follow them: see retarget.
     """
-    repos, skip = suite_repos(), skipped()
+    repos, skip = suite_repos(), set(skipped())
     out = []
     skipping = False
     fence = False
