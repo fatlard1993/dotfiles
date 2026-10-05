@@ -276,23 +276,74 @@ def jar_for(mod, version):
 # Screenshots becomes the gallery rather than a row of broken images.
 SKIP_SECTIONS = {"license", "development", "screenshots", "building", "installation"}
 
-LINK = re.compile(r"\[([^\]]+)\]\((?!https://modrinth\.com)[^)]+\)")
-IMAGE = re.compile(r"^\s*!\[[^\]]*\]\([^)]+\)\s*$")
-BARE_LINK = re.compile(r"\[(?:https?://)?(?:www\.)?[\w.-]+\.[a-z]{2,}[^\]]*\]\([^)]+\)")
+IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+# A badge is an image wrapped in a link: a download counter for another site, not the mod.
+BADGE = re.compile(r"\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)")
+LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+
+
+def suite_repos():
+    """Every suite mod's repository address, and the mod it belongs to."""
+    repos = {}
+    for manifest in SUITE.glob("*/src/*/resources/fabric.mod.json"):
+        try:
+            source = (json.loads(manifest.read_text()).get("contact") or {}).get("sources")
+        except ValueError:
+            continue
+        if source:
+            repos[source.rstrip("/").lower()] = manifest.parents[3].name
+    return repos
+
+
+def skipped():
+    if not SKIP_FILE.exists():
+        return set()
+    return {l.split()[0] for l in SKIP_FILE.read_text().splitlines() if l.split() and not l.startswith("#")}
+
+
+def retarget(mod, url, repos, skip):
+    """Where a README's link should point once the text is on Modrinth.
+
+    Another mod of the suite is linked as its Modrinth page, the one a reader here can install,
+    whether the README named its repository or, as some do, its folder beside this one. A file in
+    this mod's own repository is linked where GitHub shows it: a relative path means nothing once
+    the text has left the repository. Everything else already says where it goes.
+    """
+    if url.startswith(("#", "mailto:")):
+        return url
+    own = link(((fabric_mod_json(mod) or {}).get("contact") or {}).get("sources"))
+    target = None
+    if url.startswith("../"):
+        target = url[3:].split("/")[0].split("#")[0]
+        if (SUITE / target / "gradle.properties").exists() and target not in skip and "/" not in url[3:].rstrip("/"):
+            return f"https://modrinth.com/mod/{slug_for(target)}"
+        if own:
+            return own.rsplit("/", 1)[0] + "/" + url[3:]
+        return None
+    if not re.match(r"^[a-z]+:", url):
+        return f"{own}/blob/main/{url.lstrip('./')}" if own else None
+    other = repos.get(url.rstrip("/").lower())
+    if other and other not in skip:
+        return f"https://modrinth.com/mod/{slug_for(other)}"
+    return url
 
 
 def clean_body(mod, readme):
     """The README as a player should read it.
 
-    A README opens by naming the mod, which the page already does above the body; it links to
-    GitHub and to files beside it, which lead off the page or nowhere; and it embeds screenshots
-    by relative path, which resolve to nothing at all once the text is somewhere else. What is
-    left - what the mod does, how it is used, what it wants installed - is the part worth showing.
+    A README opens by naming the mod, which the page already does above the body. It embeds
+    screenshots by relative path, which resolve to nothing once the text is somewhere else, and
+    which go to the gallery instead; and badges, which count another site's downloads. Its links
+    are kept, pointed where a reader on Modrinth can follow them: see retarget.
     """
+    repos, skip = suite_repos(), skipped()
     out = []
     skipping = False
+    fence = False
     for line in readme.splitlines():
-        heading = line.startswith("## ")
+        if line.lstrip().startswith(("```", "~~~")):
+            fence = not fence
+        heading = line.startswith("## ") and not fence
         if heading:
             skipping = line[3:].strip().lower() in SKIP_SECTIONS
         if skipping:
@@ -300,15 +351,17 @@ def clean_body(mod, readme):
         # The title line, and only at the top: a "# " deeper in is a real heading.
         if line.startswith("# ") and not out:
             continue
-        if IMAGE.match(line):
-            continue
-        # A link out is left as the words it was written as. Pointing a reader at a repository, or
-        # at a file that is not there, is worse than plain text saying the same thing.
-        # Where the words of a link are themselves an address, stripping the URL leaves the
-        # address behind as text - "github.com/fatlard1993" reads as a link even unlinked. Those
-        # lose the words too.
-        line = BARE_LINK.sub("", line)
-        out.append(LINK.sub(r"\1", line))
+        if not fence:
+            line = BADGE.sub("", line)
+            line = IMAGE.sub("", line)
+            if not line.strip() and out and out[-1].strip() == "":
+                continue
+
+            def relink(found):
+                target = retarget(mod, found.group(2), repos, skip)
+                return f"[{found.group(1)}]({target})" if target else found.group(1)
+            line = LINK.sub(relink, line)
+        out.append(line)
 
     text = "\n".join(out)
     while "\n\n\n" in text:
