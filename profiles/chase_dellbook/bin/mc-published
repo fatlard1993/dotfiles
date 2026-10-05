@@ -35,6 +35,10 @@ slug_for() {
 	grep -vE '^\s*(#|$)' "$DATA/curseforge-slugs.txt" | awk -v m="$1" '$1 == m { print $2; exit }'
 }
 
+id_for() {
+	grep -vE '^\s*(#|$)' "$DATA/curseforge-slugs.txt" | awk -v m="$1" '$1 == m { print $3; exit }'
+}
+
 printf "%-20s %-10s %-10s %-12s %-5s %s\n" MOD LOCAL PUBLISHED UPLOADED SINCE STATE
 printf "%-20s %-10s %-10s %-12s %-5s %s\n" ---- ----- --------- -------- ----- -----
 
@@ -57,6 +61,13 @@ for dir in */; do
 	# a published project with nothing on it, which is a different and much more alarming thing.
 	http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://api.cfwidget.com/minecraft/mc-mods/$slug")
 	json=$(curl -s --max-time 25 "https://api.cfwidget.com/minecraft/mc-mods/$slug" 2>/dev/null)
+	# A slug the mirror 404s, it keeps 404ing for a while (Cloudflare caches the miss), while the
+	# same project answers by its id. The id is the slug file's third column, where there is one.
+	id=$(id_for "$mod")
+	if [ "$http" = "404" ] && [ -n "$id" ]; then
+		http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://api.cfwidget.com/$id")
+		json=$(curl -s --max-time 25 "https://api.cfwidget.com/$id" 2>/dev/null)
+	fi
 	pub=$(printf '%s' "$json" | python3 -c '
 import json,sys
 try:
