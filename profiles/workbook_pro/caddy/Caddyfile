@@ -1,0 +1,11 @@
+# paude for a phone on the same network (see dot-update.d/paude). There's no domain name: Caddy's own certificate
+# authority signs for the Mac's Bonjour name, and the phone trusts that authority once. Installing it on the Mac
+# itself would need a password prompt mid-update, and nothing here uses it.
+{
+	skip_install_trust
+}
+
+{{HOST}}.local {
+	tls internal
+	reverse_proxy 127.0.0.1:8044
+}

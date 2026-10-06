@@ -2,6 +2,8 @@ brew "kubectl"
 brew "awscli"
 brew "glab"
 brew "go"
+# HTTPS in front of paude for the phone on the couch (dot-update.d/paude starts it, with its own Caddyfile)
+brew "caddy"
 
 cask "temurin@25"
 

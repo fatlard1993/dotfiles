@@ -1,0 +1,59 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# paude: Claude Code sessions to work in from the terminal here, or from the phone on the same network. paude's own
+# installer clones or updates it, builds it, keeps it running as a launchd agent, and links the paude command.
+# Caddy (from the Brewfile) serves it over HTTPS as <this Mac>.local: logging in needs HTTPS, and paude itself only
+# listens on this Mac.
+#
+# Not done here, because they're secrets or need a person: logging Claude Code in (`claude`, then /login), setting
+# paude's password (`cd ~/.paude-server && bun run set-password`), and trusting Caddy's certificate on the phone.
+
+if ! command -v claude > /dev/null && [[ ! -x $HOME/.local/bin/claude ]]; then
+	echo "Installing Claude Code"
+
+	curl -fsSL https://claude.ai/install.sh | bash > /dev/null
+fi
+
+echo "Installing/updating paude"
+
+curl -fsSL https://raw.githubusercontent.com/fatlard1993/paude/main/scripts/install.sh | sh
+
+command -v caddy > /dev/null || {
+	echo "  Caddy isn't installed (it's in this profile's Brewfile); the phone can't reach paude until it is" >&2
+
+	return 1
+}
+
+caddyfile=$(brew --prefix)/etc/Caddyfile
+# The Bonjour name the phone finds this Mac by; the computer name can have spaces, this one can't
+host=$(scutil --get LocalHostName)
+rendered=$(sed "s/{{HOST}}/$host/" $profilePath/caddy/Caddyfile)
+
+if [[ $rendered != "$(cat $caddyfile 2>/dev/null)" ]]; then
+	echo "Updating the Caddyfile for $host.local"
+
+	print -r -- "$rendered" > $caddyfile.new
+
+	if ! caddy validate --config $caddyfile.new --adapter caddyfile > /dev/null 2>&1; then
+		echo "  The new Caddyfile does not validate; the running one is unchanged" >&2
+		rm -f $caddyfile.new
+
+		return 1
+	fi
+
+	mv $caddyfile.new $caddyfile
+	brew services restart caddy > /dev/null
+	newCaddyfile=1
+elif ! brew services list | grep -q '^caddy *started'; then
+	brew services start caddy > /dev/null
+fi
+
+rootCert="$HOME/Library/Application Support/Caddy/pki/authorities/local/root.crt"
+
+if [[ -n $newCaddyfile ]]; then
+	echo "  paude for the phone: https://$host.local"
+	echo "  Once per phone, trust Caddy's certificate: $rootCert"
+	echo "  (iPhone: AirDrop it, install the profile, then Settings > General > About > Certificate Trust Settings)"
+fi
