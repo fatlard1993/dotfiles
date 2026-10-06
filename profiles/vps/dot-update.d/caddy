@@ -1,0 +1,46 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# HTTPS in front of paude (see dot-update.d/paude). There's no domain name: Caddy gets Let's Encrypt certificates
+# for the box's public IP, which needs Caddy 2.10 or later - Ubuntu's own package is older, so Caddy's apt
+# repository supplies it.
+
+if ! caddy version 2>/dev/null | grep -qE '^v2\.(1[0-9]|[2-9][0-9])\.'; then
+	echo "Installing Caddy from its own apt repository"
+
+	curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
+		| sudo gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+	curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt \
+		| sudo tee /etc/apt/sources.list.d/caddy-stable.list > /dev/null
+	sudo apt-get update -qq && sudo apt-get install -y -qq caddy > /dev/null || {
+		echo "  Caddy could not be installed" >&2
+
+		return 1
+	}
+fi
+
+# The address the box sends from is its public one on this host (no NAT in front)
+publicIp=$(ip -4 route get 1.1.1.1 | grep -o 'src [0-9.]*' | cut -d' ' -f2)
+rendered=$(sed "s/{{PUBLIC_IP}}/$publicIp/" $profilePath/caddy/Caddyfile)
+
+if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
+	echo "Updating the Caddyfile for $publicIp"
+
+	print -r -- "$rendered" | sudo tee /etc/caddy/Caddyfile.new > /dev/null
+
+	if ! caddy validate --config /etc/caddy/Caddyfile.new --adapter caddyfile > /dev/null 2>&1; then
+		echo "  The new Caddyfile does not validate; the running one is unchanged" >&2
+		sudo rm -f /etc/caddy/Caddyfile.new
+
+		return 1
+	fi
+
+	sudo mv /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile
+	sudo systemctl reload caddy
+fi
+
+# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude
+if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
+	for port in 80 443; do sudo ufw allow $port/tcp > /dev/null; done
+fi

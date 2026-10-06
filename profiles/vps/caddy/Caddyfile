@@ -1,0 +1,11 @@
+# paude over HTTPS on the bare IP (dot-update.d/caddy fills in the address). Let's Encrypt issues IP certificates
+# only as six-day "shortlived" ones; Caddy renews them.
+{{PUBLIC_IP}} {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8044
+}

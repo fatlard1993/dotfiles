@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# paude: long-lived Claude Code sessions shared between terminals and browsers, behind the Caddy set up by
+# dot-update.d/caddy. Like land-ledger, it ships its own idempotent installer (clone or update, build, its
+# systemd user unit, linger, a health check), so this only delegates to it.
+#
+# Not done here, because they're secrets: logging Claude Code in (`claude`, then /login) and setting paude's
+# password (`cd ~/.paude-server && bun run set-password`). The installer says when the password is missing.
+
+if ! command -v claude > /dev/null && [[ ! -x $HOME/.local/bin/claude ]]; then
+	echo "Installing Claude Code"
+
+	curl -fsSL https://claude.ai/install.sh | bash > /dev/null
+fi
+
+echo "Installing/updating paude"
+
+curl -fsSL https://raw.githubusercontent.com/fatlard1993/paude/main/scripts/install.sh | sh
