@@ -81,3 +81,9 @@ if ! is-at-least $bunFloor $(bun --version 2>/dev/null); then
 
 	bun upgrade > /dev/null 2>&1 || echo "  bun would not upgrade, so it stays at $(bun --version)" >&2
 fi
+
+# The ctx-* tools load ts-morph from dotfiles' own node_modules (bin/lib/ts-morph-loader.js); nothing else installs it
+echo "Installing dotfiles' own dependencies"
+
+(cd $dotfilesPath && bun install --frozen-lockfile > /dev/null 2>&1) \
+	|| echo "  dotfiles' dependencies did not install, so the ctx-* tools that need ts-morph won't run" >&2
