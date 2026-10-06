@@ -118,7 +118,7 @@ kitten @ --to="$KITTY_LISTEN_ON" send-text --match "id:$W" 'kitten icat --align 
 - `curl` → `-sLf`: HTTP errors return empty output + nonzero exit, no error body; drop the alias (`command curl`) when the body matters
 - `port <n>`: what's listening on port n
 
-**Auth:** Anthropic: token in env. GitHub via `gh` (also answers git's credential helper).
+**Auth:** Anthropic: Claude Code's own login (Max subscription); no key in env, and a set `ANTHROPIC_API_KEY` would override it. GitHub via `gh` (also answers git's credential helper).
 
 ## The back shelf
 
