@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Commits made here (by hand, or by a Claude session in paude) are mine. Only the identity: priv-config's
+# credentials stay off this box, since anyone invited into a paude session with the drive role has its shell.
+
+echo "Setting git identity"
+
+git config --global user.name justfatlard
+git config --global user.email fatlard1993@gmail.com
+git config --global init.defaultBranch main
+git config --global pull.rebase false
+git config --global push.default current
+
+# GitHub's published ed25519 host key, pinned rather than scanned, so the first clone or push needn't ask
+mkdir -p $HOME/.ssh
+ssh-keygen -F github.com -f $HOME/.ssh/known_hosts > /dev/null 2>&1 \
+	|| echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >> $HOME/.ssh/known_hosts
