@@ -13,7 +13,7 @@ function requireTsMorph() {
     const root = execSync('npm root -g 2>/dev/null', { encoding: 'utf8' }).trim()
     if (fs.existsSync(path.join(root, 'ts-morph'))) return require(path.join(root, 'ts-morph'))
   } catch {}
-  logError('ts-morph not found — run: bun install in ~/.dotfiles/bin/')
+  logError('ts-morph not found — run: bun install in ~/.dotfiles')
   process.exit(1)
 }
 
