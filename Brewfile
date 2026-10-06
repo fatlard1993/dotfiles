@@ -15,6 +15,8 @@ brew "just"
 brew "shellcheck"
 brew "sd"
 brew "semgrep"
+# paude holds each Claude session in it, so sessions outlive a server restart
+brew "dtach"
 
 # Not a CLI tool: a library for the python3 on PATH. Homebrew's python shadows
 # the system one on both platforms and cannot see apt's /usr/lib/python3/
