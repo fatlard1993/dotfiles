@@ -1,0 +1,12 @@
+# paude for a phone on the same network (see dot-update.d/paude-phone). There's no domain name: Caddy's own
+# certificate authority signs for the laptop's mDNS name (and its address, for phones that can't look
+# .local names up), and the phone trusts that authority once. Installing it on
+# the laptop itself isn't needed, since the laptop reaches paude directly.
+{
+	skip_install_trust
+}
+
+{{HOST}}.local, {{IP}} {
+	tls internal
+	reverse_proxy 127.0.0.1:8044
+}

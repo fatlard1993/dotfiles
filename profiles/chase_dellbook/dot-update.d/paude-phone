@@ -1,0 +1,50 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# paude from the phone on the couch: Caddy (from the aptfile) serves this laptop's paude over HTTPS as
+# <hostname>.local, since logging in needs HTTPS and paude itself only listens on the laptop. paude is a
+# development install here (sh scripts/install.sh --dev from ~/Projects/paude), so this only puts Caddy in front.
+#
+# Not done here, because it needs the phone: trusting Caddy's certificate on it, once. The certificate is copied to
+# ~/caddy-root.crt to send it from.
+
+command -v caddy > /dev/null || {
+	echo "  Caddy isn't installed (it's in this profile's aptfile); the phone can't reach paude until it is" >&2
+
+	return 1
+}
+
+host=$(hostname -s)
+# The address the router gave this laptop now; a new one is picked up on the next dot-update
+ip=$(ip -4 route get 1.1.1.1 | grep -o 'src [0-9.]*' | cut -d' ' -f2)
+rendered=$(sed -e "s/{{HOST}}/$host/" -e "s/{{IP}}/$ip/" $profilePath/caddy/Caddyfile)
+
+if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
+	echo "Updating the Caddyfile for $host.local"
+
+	print -r -- "$rendered" | sudo tee /etc/caddy/Caddyfile.new > /dev/null
+
+	if ! caddy validate --config /etc/caddy/Caddyfile.new --adapter caddyfile > /dev/null 2>&1; then
+		echo "  The new Caddyfile does not validate; the running one is unchanged" >&2
+		sudo rm -f /etc/caddy/Caddyfile.new
+
+		return 1
+	fi
+
+	sudo mv /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile
+	sudo systemctl enable --now caddy > /dev/null 2>&1
+	sudo systemctl reload caddy
+fi
+
+# Caddy makes its certificate authority on first start; the copy is what gets sent to the phone
+rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+
+for wait in {1..10}; do sudo test -f $rootCert && break; sleep 1; done
+
+if sudo test -f $rootCert && ! sudo cmp -s $rootCert $HOME/caddy-root.crt; then
+	sudo cat $rootCert > $HOME/caddy-root.crt
+	echo "  paude for the phone: https://$host.local (or https://$ip)"
+	echo "  Once per phone, trust ~/caddy-root.crt (iPhone: send it over, install the profile, then"
+	echo "  Settings > General > About > Certificate Trust Settings)"
+fi

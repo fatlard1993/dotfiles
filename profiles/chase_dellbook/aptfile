@@ -29,3 +29,5 @@ package "openjdk-25-jdk"
 package "python3-venv"
 package "python3-wheel"
 
+# HTTPS in front of paude for the phone on the same network (see dot-update.d/paude-phone)
+package "caddy"
