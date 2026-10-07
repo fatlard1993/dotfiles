@@ -52,6 +52,9 @@ json.dump(settings, open(path, "w"), indent="\t")' $serverSettings
 	echo "  paude lists the other servers for the phone too"
 fi
 
+# What this paude goes by in browser tab titles and on other machines; one renamed by hand keeps its name
+grep -q '"name"' $HOME/.config/paude/server.json 2>/dev/null || ${commands[bun]:-$HOME/.bun/bin/bun} $HOME/Projects/paude/bin/paude.js name dellbook
+
 # Caddy makes its certificate authority on first start; the copy is what gets sent to the phone
 rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
 

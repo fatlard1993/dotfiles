@@ -18,3 +18,6 @@ fi
 echo "Installing/updating paude"
 
 curl -fsSL https://raw.githubusercontent.com/fatlard1993/paude/main/scripts/install.sh | sh
+
+# What this paude goes by in browser tab titles and on other machines; one renamed by hand keeps its name
+grep -q '"name"' $HOME/.config/paude/server.json 2>/dev/null || ${commands[bun]:-$HOME/.bun/bin/bun} $HOME/.paude-server/bin/paude.js name vps

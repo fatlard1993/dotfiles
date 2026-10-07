@@ -20,6 +20,9 @@ echo "Installing/updating paude"
 
 curl -fsSL https://raw.githubusercontent.com/fatlard1993/paude/main/scripts/install.sh | sh
 
+# What this paude goes by in browser tab titles and on other machines; one renamed by hand keeps its name
+grep -q '"name"' $HOME/.config/paude/server.json 2>/dev/null || ${commands[bun]:-$HOME/.bun/bin/bun} $HOME/.paude-server/bin/paude.js name workbook
+
 command -v caddy > /dev/null || {
 	echo "  Caddy isn't installed (it's in this profile's Brewfile); the phone can't reach paude until it is" >&2
 
