@@ -9,3 +9,9 @@
 	tls internal
 	reverse_proxy 127.0.0.1:8044
 }
+
+# What paude's sessions share, on an origin of its own so a shared app can't act as you on paude
+{{HOST}}.local:8444 {
+	tls internal
+	reverse_proxy 127.0.0.1:8045
+}

@@ -9,3 +9,14 @@
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8044
 }
+
+# What paude's sessions share (dev servers, files, sites), on an origin of its own so a shared app can't act as you
+# on paude
+{{PUBLIC_IP}}:8444 {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	reverse_proxy 127.0.0.1:8045
+}

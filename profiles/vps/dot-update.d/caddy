@@ -40,7 +40,7 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	sudo systemctl reload caddy
 fi
 
-# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude
+# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share
 if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
-	for port in 80 443; do sudo ufw allow $port/tcp > /dev/null; done
+	for port in 80 443 8444; do sudo ufw allow $port/tcp > /dev/null; done
 fi
