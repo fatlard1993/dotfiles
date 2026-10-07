@@ -53,7 +53,9 @@ elif ! brew services list | grep -q '^caddy *started'; then
 	brew services start caddy > /dev/null
 fi
 
-rootCert="$HOME/Library/Application Support/Caddy/pki/authorities/local/root.crt"
+# Homebrew runs Caddy with its data under its own prefix; a Caddy run by hand (caddy validate, say) makes a different
+# authority in ~/Library that nothing serves with
+rootCert=$(brew --prefix)/var/lib/caddy/pki/authorities/local/root.crt
 
 if [[ -n $newCaddyfile ]]; then
 	echo "  paude for the phone: https://$host.local"

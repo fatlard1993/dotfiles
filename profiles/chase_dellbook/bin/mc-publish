@@ -363,6 +363,31 @@ def clean_body(mod, readme):
     return text.strip()
 
 
+# Modrinth refuses a longer page body, and blames the field "description" for it.
+BODY_LIMIT = 65536
+
+
+def fit_body(text, source):
+    """The body cut to fit, largest sections first, each left as a link to itself in the README.
+
+    Order is kept and nothing is silently gone: a reader still finds every heading, and the
+    biggest (the reference tables, as a rule) one click away on the repository.
+    """
+    if len(text.encode()) <= BODY_LIMIT:
+        return text
+    parts = re.split(r"(?m)^(?=## )", text)
+    def stub(part):
+        heading = part.splitlines()[0][3:].strip()
+        anchor = re.sub(r"[^a-z0-9 _-]", "", heading.lower()).replace(" ", "-")
+        where = f"[in the README]({source}#{anchor})" if source else "in the README"
+        return f"## {heading}\n\nThis section is {where}.\n\n"
+    for i in sorted(range(1, len(parts)), key=lambda i: -len(parts[i])):
+        if len("".join(parts).encode()) <= BODY_LIMIT:
+            break
+        parts[i] = stub(parts[i])
+    return "".join(parts).strip()
+
+
 def screenshots(mod, readme):
     """The pictures a README embeds, as (file, caption) — the alt text is already a caption."""
     found = []
@@ -432,8 +457,8 @@ def describe(mod):
         "game_version": props.get("minecraft_version", ""),
         "title": meta.get("name", mod),
         "description": (meta.get("description") or mod)[:255],
-        "body": clean_body(mod, readme.read_text()) if readme.exists()
-            else meta.get("description", ""),
+        "body": fit_body(clean_body(mod, readme.read_text()), link(contact.get("sources")))
+            if readme.exists() else meta.get("description", ""),
         "shots": screenshots(mod, readme.read_text()) if readme.exists() else [],
         "license": meta.get("license", "MIT"),
         "source_url": link(contact.get("sources")),
