@@ -24,6 +24,8 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	echo "Updating the Caddyfile for $host.local"
 
 	print -r -- "$rendered" | sudo tee /etc/caddy/Caddyfile.new > /dev/null
+	# Validated as this user: root's umask can leave the new file unreadable to it
+	sudo chmod 644 /etc/caddy/Caddyfile.new
 
 	if ! caddy validate --config /etc/caddy/Caddyfile.new --adapter caddyfile > /dev/null 2>&1; then
 		echo "  The new Caddyfile does not validate; the running one is unchanged" >&2
