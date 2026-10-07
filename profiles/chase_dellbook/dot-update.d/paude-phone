@@ -37,6 +37,21 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	sudo systemctl reload caddy
 fi
 
+# Only this laptop's own network reaches it, so the phone's password login may list the other servers it's logged
+# into (the VPS); paude keeps them from password logins otherwise
+serverSettings=$HOME/.config/paude/server.json
+
+if ! grep -q '"shareRemotes": *true' $serverSettings 2>/dev/null; then
+	mkdir -p ${serverSettings:h}
+	python3 -c 'import json, sys
+path = sys.argv[1]
+try: settings = json.load(open(path))
+except FileNotFoundError: settings = {}
+settings["shareRemotes"] = True
+json.dump(settings, open(path, "w"), indent="\t")' $serverSettings
+	echo "  paude lists the other servers for the phone too"
+fi
+
 # Caddy makes its certificate authority on first start; the copy is what gets sent to the phone
 rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
 
