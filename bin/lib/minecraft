@@ -300,6 +300,8 @@ mcEnsureSuite() {
 			(( cloned > 0 )) && echo "  cloned $cloned of ${#suiteRepos} suite repo(s)"
 		fi
 	fi
+
+	return 0
 }
 
 # The suite mods that belong in a client, as project directories.
