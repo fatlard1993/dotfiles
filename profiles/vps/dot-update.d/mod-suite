@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+source "$HOME/.dotfiles/bin/lib/minecraft"
+
+# The suite's source, so it can be worked on from here as well as from the dellbook.
+# Separate from dot-update.d/minecraft: that one is the house server, and nothing here
+# touches it.
+
+# The server needs only a runtime, and a runtime has no javac: gradle turns it down with
+# "does not provide the required capabilities: [JAVA_COMPILER]". The suite targets release 25.
+if ! command -v javac > /dev/null 2>&1; then
+	echo "Installing a JDK to build the suite with"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openjdk-25-jdk-headless > /dev/null \
+		|| echo "  openjdk-25-jdk-headless would not install, so the suite cannot be built here" >&2
+fi
+
+mcEnsureSuite
