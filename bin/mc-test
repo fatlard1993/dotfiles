@@ -22,6 +22,11 @@
 # and a bigger change than this script. -j is left here for the day that exists.
 set -uo pipefail
 
+# The client needs a display to open, so on a headless box (the vps) the run gets a virtual one.
+if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]] && command -v xvfb-run > /dev/null; then
+	exec xvfb-run -a -s "-screen 0 1280x720x24" "$0" "$@"
+fi
+
 SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
 [ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
 cd "$SUITE" || exit 2

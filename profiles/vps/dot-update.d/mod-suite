@@ -16,4 +16,12 @@ if ! command -v javac > /dev/null 2>&1; then
 		|| echo "  openjdk-25-jdk-headless would not install, so the suite cannot be built here" >&2
 fi
 
+# Gametests open a real client, and this box has no screen: mc-test runs them on a virtual one.
+if ! command -v xvfb-run > /dev/null 2>&1; then
+	echo "Installing a virtual display for the suite's gametests"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xvfb libgl1-mesa-dri > /dev/null \
+		|| echo "  xvfb would not install, so mc-test cannot open a client here" >&2
+fi
+
 mcEnsureSuite

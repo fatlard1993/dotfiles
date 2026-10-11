@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Ship built jars to the server (the rented box) without pulling the rug out from under it.
 #
-#   ./deploy.sh                 stage every changed jar, then stop/swap/start
-#   ./deploy.sh --stage-only    stage only; swap on the next ./deploy.sh --swap
-#   ./deploy.sh --swap          swap what is already staged and restart
+#   mc-deploy                   stage every changed jar, then stop/swap/start
+#   mc-deploy chest-utils ...   stage only the mods named, then stop/swap/start
+#   mc-deploy --stage-only      stage only; swap on the next mc-deploy --swap
+#   mc-deploy --swap            swap what is already staged and restart
+#
+# Name the mods when deploying from a second machine. Every jar that differs from the
+# server's is staged, and the server may be running another machine's uncommitted build
+# of a mod this one has only the committed version of.
 #
 # Why this exists: copying a jar straight into mods/ while the server is running
 # looks harmless because everything keeps working. It is not. The JVM reads
@@ -24,7 +29,27 @@ HOST=${MC_HOST:-vps}
 REMOTE=${MC_REMOTE:-/home/ubuntu/minecraft-server}
 STAGE="$REMOTE/mods-staged"
 
-mode="${1:-full}"
+# On the server's own box there is nowhere to ssh to, so the same commands run here. A
+# profile is named for its box, the same name ssh knows it by.
+if [ "$(cat "$HOME/.dotfilesProfile" 2>/dev/null)" = "$HOST" ]; then
+	on_host() { zsh -c "$1"; }
+	copy_to_host() { cp "$1" "$2"; }
+	script_on_host() { zsh -s; }
+else
+	on_host() { ssh -n "$HOST" "$1"; }
+	copy_to_host() { scp -q "$1" "$HOST:$2" </dev/null; }
+	script_on_host() { ssh "$HOST" zsh -s; }
+fi
+
+mode=full
+mods=()
+for arg in "$@"; do
+	case "$arg" in
+		--stage-only|--swap) mode="$arg" ;;
+		-*) echo "usage: mc-deploy [--stage-only|--swap] [mod ...]" >&2; exit 2 ;;
+		*) mods+=("${arg%/}") ;;
+	esac
+done
 
 # The mod a jar belongs to, with the version taken off: "loot-ender-1.1.3.jar"
 # becomes "loot-ender". Anchored on the last hyphen that starts a number, so a
@@ -79,13 +104,18 @@ fabric_api_jar() {
 }
 
 stage() {
-	ssh "$HOST" "mkdir -p '$STAGE'"
+	on_host "mkdir -p '$STAGE'"
 	local count=0
-	for dir in */; do
+	local -a dirs=("${mods[@]}")
+	[ ${#dirs[@]} -eq 0 ] && dirs=(*/)
+	for dir in "${dirs[@]}"; do
 		local mod="${dir%/}"
 		local jar
 		jar=$(mod_jar "$mod") || true
-		[ -z "$jar" ] && continue
+		if [ -z "$jar" ]; then
+			[ ${#mods[@]} -gt 0 ] && echo "  !! no built jar for $mod: run mc-build $mod first" >&2
+			continue
+		fi
 
 		# Client-only mods have no business on the server: Fabric will not load
 		# them there, so they are dead weight that reads as a deployed feature.
@@ -98,7 +128,7 @@ stage() {
 		local name local_sum remote_sum
 		name=$(basename "$jar")
 		local_sum=$(md5sum "$jar" | cut -d' ' -f1)
-		remote_sum=$(ssh "$HOST" "md5sum '$REMOTE/mods/$name' 2>/dev/null | cut -d' ' -f1" || true)
+		remote_sum=$(on_host "md5sum '$REMOTE/mods/$name' 2>/dev/null | cut -d' ' -f1" || true)
 
 		if [ "$local_sum" != "$remote_sum" ]; then
 			# Clear any other version of this same mod out of staging first. Staging
@@ -111,8 +141,8 @@ stage() {
 			# find, not a glob: the remote shell is zsh, where an unmatched pattern is a
 			# hard error the shell raises before rm ever runs - so "rm -f" cannot forgive
 			# it and neither can "|| true".
-			ssh -n "$HOST" "find '$STAGE' -maxdepth 1 -name '$(stem_of "$name")-*.jar' -delete"
-			scp -q "$jar" "$HOST:$STAGE/" </dev/null
+			on_host "find '$STAGE' -maxdepth 1 -name '$(stem_of "$name")-*.jar' -delete"
+			copy_to_host "$jar" "$STAGE/"
 			echo "  staged $name"
 			count=$((count + 1))
 		fi
@@ -126,10 +156,10 @@ stage() {
 	else
 		api_name=$(basename "$api")
 		api_local=$(md5sum "$api" | cut -d' ' -f1)
-		api_remote=$(ssh "$HOST" "md5sum '$REMOTE/mods/$api_name' 2>/dev/null | cut -d' ' -f1" || true)
+		api_remote=$(on_host "md5sum '$REMOTE/mods/$api_name' 2>/dev/null | cut -d' ' -f1" || true)
 		if [ "$api_local" != "$api_remote" ]; then
-			ssh -n "$HOST" "find '$STAGE' -maxdepth 1 -name 'fabric-api-*.jar' -delete"
-			scp -q "$api" "$HOST:$STAGE/" </dev/null
+			on_host "find '$STAGE' -maxdepth 1 -name 'fabric-api-*.jar' -delete"
+			copy_to_host "$api" "$STAGE/"
 			echo "  staged $api_name"
 			count=$((count + 1))
 		fi
@@ -145,7 +175,7 @@ stage() {
 	if [ -z "$launcher_url" ]; then
 		echo "  !! could not resolve the server launcher for the pin: game version left as it is" >&2
 	else
-		launcher_state=$(ssh -n "$HOST" "cd '$REMOTE' && curl -sfL -o '$STAGE/launcher.part' '$launcher_url' &&
+		launcher_state=$(on_host "cd '$REMOTE' && curl -sfL -o '$STAGE/launcher.part' '$launcher_url' &&
 			if cmp -s '$STAGE/launcher.part' fabric-server.jar; then
 				rm -f '$STAGE/launcher.part' '$STAGE/$LAUNCHER'; echo current
 			else
@@ -166,7 +196,7 @@ players_online() {
 	# server beats reading the log, which cannot tell a player who left from one
 	# who joined and stayed.
 	local line
-	line=$(ssh -n "$HOST" "python3 '$REMOTE/rcon.py' list 2>/dev/null" || true)
+	line=$(on_host "python3 '$REMOTE/rcon.py' list 2>/dev/null" || true)
 	[ -z "$line" ] && return 1              # no rcon: fall back to allowing the swap
 	echo "$line" | grep -qE 'There are 0 of' && return 1
 	return 0
@@ -234,9 +264,9 @@ swap() {
 	# Held in a variable rather than piped through tee: the swap's exit status is
 	# what says whether the server came back, and a pipeline hands back the last
 	# stage's status instead of ssh's.
-	# Handed to zsh by name rather than to whatever the login shell is: the htpc's is
-	# zsh, the rented box's is bash, and the script above is zsh.
-	result=$(printf '%s\n' "$remote" | ssh "$HOST" zsh -s) || rc=$?
+	# Handed to zsh by name rather than to whatever the login shell is: the script above
+	# is zsh.
+	result=$(printf '%s\n' "$remote" | script_on_host) || rc=$?
 	if [ -n "$result" ]; then echo "$result"; fi
 	if [ "$rc" -ne 0 ]; then return "$rc"; fi
 
@@ -249,7 +279,7 @@ swap() {
 	# Bounded, because the other way to never see "Done (" is a server that came
 	# down and did not come back. That is the case most worth reporting, and an
 	# unbounded wait is the one response that never reports it.
-	ssh "$HOST" 'for _ in $(seq 60); do
+	on_host 'for _ in $(seq 60); do
 			journalctl --user -u minecraft-server --since "-3min" --no-pager | grep -q "Done (" && break
 			sleep 3
 		done
@@ -261,5 +291,4 @@ case "$mode" in
 	--stage-only) stage ;;
 	--swap)       swap ;;
 	full)         stage; swap || true ;;
-	*) echo "usage: $0 [--stage-only|--swap]" >&2; exit 2 ;;
 esac
