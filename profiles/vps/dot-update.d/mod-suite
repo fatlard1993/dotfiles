@@ -24,4 +24,12 @@ if ! command -v xvfb-run > /dev/null 2>&1; then
 		|| echo "  xvfb would not install, so mc-test cannot open a client here" >&2
 fi
 
+# The suite's repos ask for two daemon heaps (1G and 2G), and a daemon only serves builds that
+# match its own, so idle ones collect beside the server. Half an hour rather than gradle's
+# three gives that memory back sooner.
+grep -q '^org.gradle.daemon.idletimeout=' $HOME/.gradle/gradle.properties 2>/dev/null || {
+	mkdir -p $HOME/.gradle
+	echo 'org.gradle.daemon.idletimeout=1800000' >> $HOME/.gradle/gradle.properties
+}
+
 mcEnsureSuite
