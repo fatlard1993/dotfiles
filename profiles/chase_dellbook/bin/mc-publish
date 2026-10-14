@@ -432,8 +432,11 @@ def changelog_for(mod, version):
     Modrinth asks the same question of an upload and was being handed nothing. One file, both
     audiences, and no second place to keep in step.
     """
-    file = SUITE / mod / "src/main/resources/pandorical.changelog.json"
-    if not file.exists():
+    # src/main or src/client (a client-only mod's home), never src/gametest: pandorical keeps a
+    # fixture changelog there.
+    file = next((f for side in ("main", "client")
+                 if (f := SUITE / mod / "src" / side / "resources/pandorical.changelog.json").exists()), None)
+    if file is None:
         return ""
     try:
         notes = json.loads(file.read_text()).get("versions", {}).get(version)
@@ -667,7 +670,10 @@ def sync(mod, dry):
         if value:
             data[key] = value
 
-    same = all(existing.get(k) == v for k, v in data.items() if k != "license_id")
+    # Modrinth hands categories back sorted, whatever order they went up in.
+    have = dict(existing, categories=sorted(existing.get("categories") or []))
+    want = dict(data, categories=sorted(data["categories"]))
+    same = all(have.get(k) == v for k, v in want.items() if k != "license_id")
     if same:
         print(f"  {mod}: already up to date")
         return 0
