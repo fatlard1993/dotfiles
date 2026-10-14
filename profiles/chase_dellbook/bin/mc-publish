@@ -10,6 +10,9 @@
     mc-publish --gallery MOD   upload the pictures MOD's README shows
     mc-publish --deps --all    tell each published version what its manifest depends on
     mc-publish --icon --force  replace a page's icon with the repo's, not only set a missing one
+    mc-publish --body MOD      print the page body --sync would set, and do nothing else
+    mc-publish --body --curseforge MOD
+                               the same, with the suite's links pointed at CurseForge pages
 
 Written because the CurseForge half of a release is hand work that cannot be automated: their
 API has no project creation at all, and reading what is published there means going through
@@ -53,6 +56,9 @@ AGENT = "justfatlard/mc-publish/1.0 (justfatlard@gmail.com)"
 
 # Set by --force: overwrite what is already on the page, rather than reporting the difference.
 FORCE = False
+
+# Set by --curseforge: the store a printed body is for, so the suite's links go to pages there.
+SITE = "modrinth"
 
 # What mc-where calls each group, against what Modrinth calls it. Its answer is derived from each
 # mod's own fabric.mod.json, which is the whole reason it is asked rather than a list kept here:
@@ -310,7 +316,7 @@ def retarget(mod, url, repos, skip):
     if url.startswith("../"):
         target = url[3:].split("/")[0].split("#")[0]
         if (SUITE / target / "gradle.properties").exists() and target not in skip and "/" not in url[3:].rstrip("/"):
-            return f"https://modrinth.com/mod/{slug_for(target)}"
+            return page_for(target)
         if own:
             return own.rsplit("/", 1)[0] + "/" + url[3:]
         return None
@@ -318,8 +324,32 @@ def retarget(mod, url, repos, skip):
         return f"{own}/blob/main/{url.lstrip('./')}" if own else None
     other = repos.get(url.rstrip("/").lower())
     if other and other not in skip:
-        return f"https://modrinth.com/mod/{slug_for(other)}"
+        return page_for(other)
     return url
+
+
+def page_for(mod):
+    """Where a reader on the store being written for installs another mod of the suite.
+
+    On CurseForge that is its CurseForge page when it has one; a mod not up there yet is linked on
+    Modrinth, which is a page that exists, rather than a CurseForge address that does not.
+    """
+    if SITE == "curseforge":
+        cf = curseforge_slug(mod)
+        if cf:
+            return f"https://www.curseforge.com/minecraft/mc-mods/{cf}"
+    return f"https://modrinth.com/mod/{slug_for(mod)}"
+
+
+def curseforge_slug(mod):
+    file = DATA / "curseforge-slugs.txt"
+    if not file.exists():
+        return None
+    for line in file.read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and not parts[0].startswith("#") and parts[0] == mod:
+            return parts[1]
+    return None
 
 
 def clean_body(mod, readme):
@@ -849,12 +879,27 @@ def main():
         doing, args = "icon", [a for a in args if a != "--icon"]
     if "--deps" in args:
         doing, args = "deps", [a for a in args if a != "--deps"]
+    if "--body" in args:
+        doing, args = "body", [a for a in args if a != "--body"]
+    global SITE
+    if "--curseforge" in args:
+        SITE, args = "curseforge", [a for a in args if a != "--curseforge"]
     dry = "--dry-run" in args or doing == "show"
     args = [a for a in args if a != "--dry-run"]
     global FORCE
     FORCE = "--force" in args
     args = [a for a in args if a != "--force"]
     mods = publishable() if ("--all" in args or not args) else [a for a in args if a != "--all"]
+
+    # Printed and nothing else, so it pipes straight to a clipboard. Not filtered by the skip
+    # list: that is Modrinth's, and a mod kept off Modrinth can still have a page elsewhere.
+    if doing == "body":
+        for mod in mods:
+            if len(mods) > 1:
+                print(f"===== {mod}")
+            about = describe(mod)
+            print(about["body"])
+        return 0
 
     if not TOKEN_FILE.exists() and not dry:
         sys.exit(f"no Modrinth token at {TOKEN_FILE}")
