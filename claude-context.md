@@ -59,6 +59,7 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 - `ctx-trim`: trim command output to signal
 - `ctx-file <file> [range]`: structural view of a source file, or line-range extraction
 - `ctx-stack`: parse a stack trace, drop library frames, show project code
+- `image-shrink <MB> <input> [output]`: re-encode an image to land under a size limit (upload caps, an image too big to Read); quality first, then dimensions; output's extension picks the format, so `.png` -> `.jpg` trades lossless for size
 
 ## The shop
 

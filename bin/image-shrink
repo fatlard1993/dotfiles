@@ -1,0 +1,93 @@
+#!/bin/zsh
+# Re-encode an image so the file lands under a target size.
+#
+# Lossy formats (jpg, webp, avif, heic) binary-search the quality first and
+# only shrink the dimensions once even MIN_QUALITY won't fit; lossless ones
+# (png, gif, ...) can only shrink the dimensions. Metadata is stripped after
+# auto-orienting, since EXIF and colour profiles are bytes too.
+#
+# Usage: image-shrink <MB> <input> [output]
+#
+#   MB       target size, decimal (1 MB = 1,000,000 bytes, so the result also
+#            fits a 1 MiB limit); fractions are fine: 0.5
+#   output   defaults to <input>-<MB>mb.<ext>; its extension picks the format,
+#            so photo.png -> photo.jpg is the way to trade lossless for size
+
+zmodload zsh/mathfunc
+
+MIN_QUALITY=${MIN_QUALITY:-60}
+MAX_QUALITY=92
+
+die() {
+	print -u2 "image-shrink: $1"
+	exit 1
+}
+
+(( $# >= 2 )) || { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 1 }
+[[ $1 == <->(.<->|) ]] || die "target must be a number of MB, got '$1'"
+[[ -f $2 ]] || die "no such file: $2"
+(( $+commands[magick] )) || die "needs ImageMagick 7 (magick)"
+
+target=$(( int($1 * 1000000) ))
+input=$2
+output=${3:-${input:r}-${1}mb.${input:e}}
+format=${output:e:l}
+
+bytes() { wc -c < "$1" | tr -d ' ' }
+
+if (( $(bytes "$input") < target )) && [[ $format == ${input:e:l} ]]; then
+	cp -- "$input" "$output"
+	print "already $(bytes "$output") bytes, copied as-is -> $output"
+	exit 0
+fi
+
+work=$(mktemp -d) || die "can't make a temp dir"
+trap 'rm -rf "$work"' EXIT
+probe=$work/probe.$format
+source=$work/source.mpc
+magick "$input" -auto-orient -strip "$source" || die "magick can't read $input"
+
+# encode SCALE [QUALITY] -> REPLY = size of $probe in bytes. Not called as
+# $(encode), so a failing magick can still exit the script through die.
+encode() {
+	magick "$source" -resize "$1%" ${2:+-quality} $2 "$probe" \
+		|| die "magick failed to write .$format"
+	REPLY=$(bytes "$probe")
+}
+
+case $format in
+	jpg | jpeg | webp | avif | heic) lossy=true ;;
+	*) lossy=false ;;
+esac
+
+scale=100
+while (( scale >= 1 )); do
+	if $lossy; then
+		encode $scale $MIN_QUALITY; size=$REPLY
+		if (( size < target )); then
+			lo=$MIN_QUALITY hi=$MAX_QUALITY
+			while (( lo < hi )); do
+				mid=$(( (lo + hi + 1) / 2 ))
+				encode $scale $mid
+				if (( REPLY < target )); then lo=$mid; else hi=$(( mid - 1 )); fi
+			done
+			encode $scale $lo; size=$REPLY
+			mv -- "$probe" "$output"
+			print "$size bytes at ${scale}% scale, quality $lo -> $output"
+			exit 0
+		fi
+	else
+		encode $scale; size=$REPLY
+		if (( size < target )); then
+			mv -- "$probe" "$output"
+			print "$size bytes at ${scale}% scale -> $output"
+			exit 0
+		fi
+	fi
+	# Bytes track pixel count, so area scales by target/size and each side by
+	# its square root; the 0.95 keeps the next try from landing just over.
+	next=$(( int(scale * sqrt(1.0 * target / size) * 0.95) ))
+	(( scale = next < scale ? next : scale - 1 ))
+done
+
+die "can't get under $1 MB even at 1% scale"
