@@ -38,7 +38,9 @@ shipped_to_clients() {
 
 classify() {
 	local mod=$1 manifest env pandorical
-	manifest=$(find "$mod/src" -name fabric.mod.json 2>/dev/null | head -1)
+	# src/main's, never the first find turns up: src/gametest carries its own
+	# manifest, which depends on no pandorical and filed every mod as vanilla.
+	manifest="$mod/src/main/resources/fabric.mod.json"
 	[ -n "$manifest" ] || return 1
 
 	env=$(jq -r '.environment // "*"' "$manifest" 2>/dev/null)

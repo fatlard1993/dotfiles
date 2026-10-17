@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+"""Put this suite's builds on CurseForge, and keep each file's dependencies right there.
+
+    mc-cf-publish                     what would go up, and nothing else
+    mc-cf-publish --upload --all      upload every mod whose built version CurseForge lacks
+    mc-cf-publish --upload MOD ...    just these
+    mc-cf-publish --deps --all        set the newest file's dependencies from its manifest
+
+The other half of mc-publish. CurseForge's upload API takes a file, its changelog, its game
+versions and its relations, behind a token from the authors site's API Tokens page. It has no
+way to create a project, set a description, an icon or a gallery: those stay hand work, and
+mc-publish --body --curseforge prints a description to paste.
+
+What CurseForge holds is read from its site API by project id (www.curseforge.com/api/v1), not
+cfwidget, which 404s projects that are there. A file still in moderation may not be listed
+there yet, so every upload is also written to curseforge-uploads.txt, and a version in that
+ledger is never sent twice: a second copy of a file is not something the API can take back.
+
+Dependencies on CurseForge belong to each file, not the project, so a missing one is meant to be
+mended by updating the newest file in place (--deps). As of 2026-10-14 that endpoint takes a
+display name but answers relations with a 500 (and a 400 when given a projectID), so in practice a
+file's relations are set when it is uploaded, and an older file's are fixed on the site by hand.
+"""
+
+import importlib.machinery
+import importlib.util
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def load(name):
+    loader = importlib.machinery.SourceFileLoader(name.replace("-", "_"), str(HERE / name))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+mp = load("mc-publish")
+cl = load("mc-cf-changelogs")
+
+SUITE, DATA = mp.SUITE, mp.DATA
+TOKEN_FILE = DATA / "curseforge-token"
+SLUGS_FILE = DATA / "curseforge-slugs.txt"
+LEDGER = DATA / "curseforge-uploads.txt"
+UPLOAD_API = "https://minecraft.curseforge.com/api"
+SITE_API = "https://www.curseforge.com/api/v1"
+AGENT = "justfatlard/mc-cf-publish/1.0 (justfatlard@gmail.com)"
+
+# Uploaded first, whatever the alphabet says: everything else needs the Pandorical it was built
+# against to be there when a player downloads it. Pairs that ship together go up together.
+FIRST = ["pandorical"]
+TOGETHER = {"piston-extension": "xp-crush"}
+
+# mc-where's groups, as CurseForge's environment tags. A client mod's server half is plumbing
+# (see mc-publish's ENVIRONMENTS), but CurseForge's tags are search filters, and a "both" mod
+# does load on a server, so it is tagged as both rather than hidden from server searches.
+SIDES = {
+    "client_only": ["Client"],
+    "server_only": ["Server"],
+    "client_and_server": ["Client", "Server"],
+}
+WHERE_BOTH = {"both"}
+
+
+def token():
+    if not TOKEN_FILE.exists():
+        sys.exit(f"no CurseForge token at {TOKEN_FILE}")
+    return TOKEN_FILE.read_text().strip()
+
+
+def request(url, tok=None, body=None, content_type=None):
+    headers = {"User-Agent": AGENT, "Accept": "application/json"}
+    if tok:
+        headers["X-Api-Token"] = tok
+    if content_type:
+        headers["Content-Type"] = content_type
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST" if body else "GET")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as answer:
+            text = answer.read().decode()
+            return answer.status, (json.loads(text) if text else {})
+    except urllib.error.HTTPError as failed:
+        text = failed.read().decode(errors="replace")
+        try:
+            return failed.code, json.loads(text)
+        except ValueError:
+            return failed.code, {"errorMessage": text[:300]}
+    except urllib.error.URLError as failed:
+        return 0, {"errorMessage": str(failed.reason)}
+
+
+def multipart(fields, file_path=None):
+    boundary = uuid.uuid4().hex
+    parts = []
+    for name, value in fields.items():
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
+    if file_path:
+        parts.append((f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'
+                      f"Content-Type: application/java-archive\r\n\r\n").encode() + file_path.read_bytes() + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    return b"".join(parts), f"multipart/form-data; boundary={boundary}"
+
+
+def slugs():
+    """Folder -> (slug, project id), for the projects CurseForge has."""
+    out = {}
+    for line in SLUGS_FILE.read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and not parts[0].startswith("#"):
+            out[parts[0]] = (parts[1], parts[2])
+    return out
+
+
+def ledger():
+    if not LEDGER.exists():
+        return set()
+    return {tuple(line.split()[:2]) for line in LEDGER.read_text().splitlines()
+            if line.split() and not line.startswith("#")}
+
+
+def record(mod, version, file_id):
+    new = not LEDGER.exists()
+    with LEDGER.open("a") as out:
+        if new:
+            out.write("# mod version file-id uploaded-utc, one line per file mc-cf-publish sent.\n")
+        out.write(f"{mod} {version} {file_id} {datetime.now(timezone.utc):%Y-%m-%dT%H:%MZ}\n")
+
+
+def version_of(file_name):
+    found = re.search(r"-(\d+(?:\.\d+)+)\.jar$", file_name)
+    return found.group(1) if found else None
+
+
+def on_curseforge(project_id):
+    """Every version CurseForge lists for the project, newest file first, or None if unreadable."""
+    status, answer = request(f"{SITE_API}/mods/{project_id}/files?pageSize=50")
+    if status != 200:
+        return None
+    return [(version_of(f.get("fileName", "")), f) for f in answer.get("data", [])]
+
+
+_versions = None
+
+
+def game_versions(tok, names):
+    """CurseForge's ids for these tags. A Minecraft number is matched only among Minecraft's
+    own version types: the same "26.3" also exists under an unrelated type."""
+    global _versions
+    if _versions is None:
+        _, types = request(f"{UPLOAD_API}/game/version-types", tok)
+        minecraft = {t["id"] for t in types if str(t.get("slug", "")).startswith("minecraft-")}
+        _, listed = request(f"{UPLOAD_API}/game/versions", tok)
+        _versions = (minecraft, listed)
+    minecraft, listed = _versions
+    ids, missing = [], []
+    for name in names:
+        pool = [v for v in listed if v["name"] == name]
+        if re.match(r"^\d+(\.\d+)+", name):
+            pool = [v for v in pool if v["gameVersionTypeID"] in minecraft]
+        if pool:
+            ids.append(pool[0]["id"])
+        else:
+            missing.append(name)
+    return ids, missing
+
+
+def sides(mod):
+    line = ""
+    try:
+        import subprocess
+        line = subprocess.run(["mc-where", mod], capture_output=True, text=True, timeout=30).stdout
+    except OSError:
+        pass
+    if any(group in line for group in WHERE_BOTH):
+        return ["Client", "Server"]
+    return SIDES.get(mp.where(mod), ["Client", "Server"])
+
+
+def relations(mod, known):
+    """The manifest's depends as required and suggests as optional, as CurseForge slugs.
+
+    A suite mod with no CurseForge project is left off: a relation to a slug that is not there
+    gets the whole upload refused.
+    """
+    about = mp.fabric_mod_json(mod) or {}
+    ids = mp.suite_mod_ids()
+    out, missing = [], []
+    for kind, key in ([("requiredDependency", k) for k in (about.get("depends") or {})]
+                      + [("optionalDependency", k) for k in (about.get("suggests") or {})]):
+        if key in mp.NOT_PROJECTS:
+            continue
+        if key == "fabric-api":
+            out.append({"slug": "fabric-api", "type": kind})
+            continue
+        folder = ids.get(key)
+        if folder in known:
+            out.append({"slug": known[folder][0], "type": kind})
+        else:
+            missing.append(key)
+    return out, missing
+
+
+def changelog(mod, since):
+    """Markdown for every version newer than what CurseForge has, newest first."""
+    data = cl.changelog(mod)
+    versions = data["versions"]
+    order = sorted(versions, key=cl.version_order, reverse=True)
+    newer = [v for v in order if since is None or cl.version_order(v) > cl.version_order(since)]
+    lines = []
+    for v in newer:
+        lines += [f"### {v}", ""] + [f"- {note}" for note in versions[v]] + [""]
+    return "\n".join(lines).strip()
+
+
+def ordered(mods):
+    rest = sorted(m for m in mods if m not in FIRST and m not in TOGETHER.values())
+    out = [m for m in FIRST if m in mods]
+    for mod in rest:
+        out.append(mod)
+        partner = TOGETHER.get(mod)
+        if partner in mods:
+            out.append(partner)
+    out += [m for m in TOGETHER.values() if m in mods and m not in out]
+    return out
+
+
+def unshipped(mod):
+    """Why this repo's build is not one to publish, or None. A jar built from uncommitted or
+    unpushed work is somebody's work in progress: published, it is a version nobody can find."""
+    import subprocess
+    git = ["git", "-C", str(SUITE / mod)]
+    dirty = subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout
+    if dirty.strip():
+        return "uncommitted changes"
+    ahead = subprocess.run(git + ["rev-list", "--count", "@{u}..HEAD"], capture_output=True, text=True)
+    if ahead.returncode != 0:
+        return "no upstream to compare with"
+    if ahead.stdout.strip() != "0":
+        return "commits not pushed"
+    return None
+
+
+def upload(mod, known, sent, dry, tok):
+    if mod not in known:
+        print(f"  {mod}: no CurseForge project - create it by hand, then add its line to {SLUGS_FILE.name}")
+        return 0
+    slug, project_id = known[mod]
+    about = mp.describe(mod)
+    version = about["version"]
+    if (mod, version) in sent:
+        print(f"  {mod}: {version} already sent (in {LEDGER.name}) - waiting on moderation, not sending twice")
+        return 0
+    files = on_curseforge(project_id)
+    if files is None:
+        print(f"  {mod}: could not read what CurseForge holds - not uploading blind")
+        return 1
+    if any(v == version for v, _ in files):
+        print(f"  {mod}: {version} is on CurseForge")
+        return 0
+    why = unshipped(mod)
+    if why:
+        print(f"  {mod}: {version} has {why} - commit and push it first")
+        return 0
+    jar = mp.jar_for(mod, version)
+    if jar is None:
+        print(f"  {mod}: {version} is not built - mc-build {mod}")
+        return 1
+
+    since = files[0][0] if files else None
+    tags = [about["game_version"], "Fabric"] + sides(mod)
+    rel, missing = relations(mod, known)
+    note = f" (left off, not on CurseForge: {', '.join(missing)})" if missing else ""
+    named = ", ".join(f"{r['slug']} {r['type'].replace('Dependency', '')}" for r in rel) or "none"
+    if dry:
+        print(f"  {mod}: would upload {jar.name} over {since or 'nothing'} - {', '.join(tags)}; needs {named}{note}")
+        return 0
+
+    ids, unknown = game_versions(tok, tags)
+    if unknown:
+        print(f"  {mod}: CurseForge has no game version {', '.join(unknown)} - not uploading")
+        return 1
+    metadata = {
+        "changelog": changelog(mod, since) or f"{version}",
+        "changelogType": "markdown",
+        "gameVersions": ids,
+        "releaseType": "release",
+        "relations": {"projects": rel},
+    }
+    body, kind = multipart({"metadata": json.dumps(metadata)}, jar)
+    status, answer = request(f"{UPLOAD_API}/projects/{project_id}/upload-file", tok, body, kind)
+    if status == 200 and answer.get("id"):
+        record(mod, version, answer["id"])
+        print(f"  {mod}: uploaded {version} as file {answer['id']}{note}")
+        return 0
+    print(f"  {mod}: refused ({status}) {answer.get('errorMessage') or answer}")
+    return 1
+
+
+def deps(mod, known, sent, dry, tok):
+    if mod not in known:
+        print(f"  {mod}: no CurseForge project")
+        return 0
+    slug, project_id = known[mod]
+    files = on_curseforge(project_id)
+    if not files:
+        print(f"  {mod}: no files listed to correct")
+        return 0 if files is not None else 1
+    newest = files[0][1]
+    # A file in moderation is not listed yet, so the newest listed would be the one it replaces,
+    # and it already carries its relations from the upload.
+    waiting = [v for m, v in sent if m == mod and not any(v == listed for listed, _ in files)]
+    if waiting:
+        print(f"  {mod}: {', '.join(waiting)} is in moderation with its relations - nothing to correct")
+        return 0
+    rel, missing = relations(mod, known)
+    status, have = request(f"{SITE_API}/mods/{project_id}/dependencies")
+    current = {(d.get("slug"), d.get("type", "").lower()) for d in (have.get("data") or [])} if status == 200 else None
+    want = {(r["slug"], r["type"].lower()) for r in rel}
+    note = f" (left off, not on CurseForge: {', '.join(missing)})" if missing else ""
+    if current == want:
+        print(f"  {mod}: {newest['fileName']} already declares them{note}")
+        return 0
+    named = ", ".join(f"{r['slug']} {r['type'].replace('Dependency', '')}" for r in rel) or "none"
+    if dry:
+        print(f"  {mod}: would set {newest['fileName']} to {named}{note}")
+        return 0
+    metadata = {"fileID": newest["id"], "relations": {"projects": rel}}
+    body, kind = multipart({"metadata": json.dumps(metadata)})
+    status, answer = request(f"{UPLOAD_API}/projects/{project_id}/update-file", tok, body, kind)
+    if status == 200:
+        print(f"  {mod}: {newest['fileName']} now declares {named}{note}")
+        return 0
+    hint = " - CurseForge's update-file fails on relations; set them on the file's page" if status == 500 else ""
+    print(f"  {mod}: refused ({status}) {answer.get('errorMessage') or answer}{hint}")
+    return 1
+
+
+def main():
+    args = sys.argv[1:]
+    doing = "show"
+    for flag in ("--upload", "--deps"):
+        if flag in args:
+            doing, args = flag[2:], [a for a in args if a != flag]
+    dry = doing == "show" or "--dry-run" in args
+    args = [a for a in args if a != "--dry-run"]
+    mods = mp.publishable() if ("--all" in args or not args) else [a.rstrip("/") for a in args if a != "--all"]
+
+    tok = token() if not dry else None
+    known, sent = slugs(), ledger()
+    label = "upload" if doing == "show" else doing
+    print(f"{label}{' (dry run)' if dry else ''}: {len(mods)} mod(s)")
+    bad = 0
+    for mod in ordered(mods):
+        if doing == "deps":
+            bad += deps(mod, known, sent, dry, tok)
+        else:
+            bad += upload(mod, known, sent, dry, tok)
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

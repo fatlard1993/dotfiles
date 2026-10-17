@@ -1,0 +1,27 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The house server and the suite's builds and gametests share this box's memory. With no swap,
+# a build that runs it out has the kernel kill the largest process, which is the server. Swap
+# is the cushion, and the low swappiness keeps it a cushion: the server's heap stays in RAM
+# until there is real pressure.
+
+if [[ ! -f /swapfile ]]; then
+	echo "Making a 4G swapfile"
+
+	sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile > /dev/null || {
+		echo "  The swapfile could not be made" >&2
+
+		return 1
+	}
+fi
+
+swapon --show=NAME --noheadings | grep -qx /swapfile || sudo swapon /swapfile
+
+grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+
+if [[ $(cat /etc/sysctl.d/99-swappiness.conf 2>/dev/null) != 'vm.swappiness=10' ]]; then
+	echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swappiness.conf > /dev/null
+	sudo sysctl -q -p /etc/sysctl.d/99-swappiness.conf
+fi

@@ -6,6 +6,10 @@
 #   mc-deploy --stage-only      stage only; swap on the next mc-deploy --swap
 #   mc-deploy --swap            swap what is already staged and restart
 #
+# The client mods in priv-config's client-mods.txt go to client-mods/ as well, which
+# Pandorical reads once at startup and offers to players as they join. A jar there that
+# is no longer on the list is retired on a full deploy.
+#
 # Name the mods when deploying from a second machine. Every jar that differs from the
 # server's is staged, and the server may be running another machine's uncommitted build
 # of a mod this one has only the committed version of.
@@ -28,6 +32,9 @@ cd "$SUITE" || exit 2
 HOST=${MC_HOST:-vps}
 REMOTE=${MC_REMOTE:-/home/ubuntu/minecraft-server}
 STAGE="$REMOTE/mods-staged"
+CLIENT_STAGE="$STAGE/client"
+CLIENT_DIR="$REMOTE/client-mods"
+CLIENT_LIST="${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/client-mods.txt"
 
 # On the server's own box there is nowhere to ssh to, so the same commands run here. A
 # profile is named for its box, the same name ssh knows it by.
@@ -81,6 +88,12 @@ mod_jar() {
 }
 
 # A value from the suite's pin file, which is pandorical's by convention.
+# Served to joining players from client-mods/. Not pandorical: the server offers its own
+# copy straight out of mods/, and a second one beside it would be offered twice.
+client_mod() {
+	[ "$1" != pandorical ] && [ -f "$CLIENT_LIST" ] && grep -vE '^\s*(#|$)' "$CLIENT_LIST" | grep -qxF "$1"
+}
+
 pin() {
 	grep -E "^\s*$1" pandorical/gradle.properties 2>/dev/null | head -1 | sed 's/.*=\s*//' | tr -d '[:space:]'
 }
@@ -104,8 +117,9 @@ fabric_api_jar() {
 }
 
 stage() {
-	on_host "mkdir -p '$STAGE'"
+	on_host "mkdir -p '$STAGE' '$CLIENT_STAGE'"
 	local count=0
+	local -a keep=()
 	local -a dirs=("${mods[@]}")
 	[ ${#dirs[@]} -eq 0 ] && dirs=(*/)
 	for dir in "${dirs[@]}"; do
@@ -121,13 +135,27 @@ stage() {
 		# them there, so they are dead weight that reads as a deployed feature.
 		# The suite already learned this the other way round, when the htpc client
 		# carried all 34 server mods and one of them crashed it.
-		local env
-		env=$(find "$mod/src" -name fabric.mod.json -exec jq -r '.environment // "*"' {} + 2>/dev/null | head -1)
-		[ "$env" = "client" ] && continue
-
 		local name local_sum remote_sum
 		name=$(basename "$jar")
 		local_sum=$(md5sum "$jar" | cut -d' ' -f1)
+
+		if client_mod "$mod"; then
+			keep+=("$(stem_of "$name")")
+			remote_sum=$(on_host "md5sum '$CLIENT_DIR/$name' 2>/dev/null | cut -d' ' -f1" || true)
+			if [ "$local_sum" != "$remote_sum" ]; then
+				on_host "find '$CLIENT_STAGE' -maxdepth 1 -name '$(stem_of "$name")-*.jar' -delete"
+				copy_to_host "$jar" "$CLIENT_STAGE/"
+				echo "  staged $name for players"
+				count=$((count + 1))
+			fi
+		fi
+
+		# The manifest a player's game reads, not the gametest one beside it, which says "*"
+		# for every mod: taking whichever find met first sent client-only jars to the server.
+		local manifest env
+		manifest=$(ls "$mod"/src/{main,client}/resources/fabric.mod.json 2>/dev/null | head -1) || true
+		env=$(jq -r '.environment // "*"' "$manifest" 2>/dev/null) || true
+		[ "$env" = "client" ] && continue
 		remote_sum=$(on_host "md5sum '$REMOTE/mods/$name' 2>/dev/null | cut -d' ' -f1" || true)
 
 		if [ "$local_sum" != "$remote_sum" ]; then
@@ -188,6 +216,13 @@ stage() {
 		esac
 	fi
 
+	# Only a sweep of every mod knows the whole list; a deploy of named mods leaves the rest be.
+	if [ ${#mods[@]} -eq 0 ] && [ ${#keep[@]} -gt 0 ]; then
+		printf '%s\n' "${keep[@]}" > "${TMPDIR:-/tmp}/mc-deploy-keep.$$"
+		copy_to_host "${TMPDIR:-/tmp}/mc-deploy-keep.$$" "$CLIENT_STAGE/keep"
+		rm -f "${TMPDIR:-/tmp}/mc-deploy-keep.$$"
+	fi
+
 	echo "staged $count jar(s)"
 }
 
@@ -213,7 +248,10 @@ swap() {
 	fi
 
 	# The remote shell is zsh, so no bash-isms here.
-	local remote result rc=0
+	local remote result rc=0 since
+	# The host's clock, from before the stop: a window like "-3min" also holds the previous
+	# start's "Done (", so two deploys inside it reported the old server as the new one up.
+	since=$(on_host "date '+%Y-%m-%d %H:%M:%S'")
 	remote="
 		set -e
 		# Counted through a zsh array rather than \"ls | wc -l\": with nothing staged
@@ -223,9 +261,20 @@ swap() {
 		# failure.
 		staged=('$STAGE'/*.jar(N))
 		count=\${#staged}
+		client=('$CLIENT_STAGE'/*.jar(N))
+		ccount=\${#client}
 		launcher=0
 		[ -f '$STAGE/$LAUNCHER' ] && launcher=1
-		if [ \"\$count\" -eq 0 ] && [ \"\$launcher\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
+		# Off the list: retired with the swap, so players stop being offered it.
+		gone=()
+		if [ -f '$CLIENT_STAGE/keep' ]; then
+			for jar in '$CLIENT_DIR'/*.jar(N); do
+				stem=\$(basename \"\$jar\" | sed 's/-[0-9][^-]*\\.jar\$//')
+				grep -qxF \"\$stem\" '$CLIENT_STAGE/keep' || gone+=(\"\$jar\")
+			done
+			rm -f '$CLIENT_STAGE/keep'
+		fi
+		if [ \"\$count\" -eq 0 ] && [ \"\$ccount\" -eq 0 ] && [ \${#gone} -eq 0 ] && [ \"\$launcher\" -eq 0 ]; then echo 'nothing staged'; exit 0; fi
 
 		systemctl --user stop minecraft-server
 
@@ -253,12 +302,28 @@ swap() {
 		done
 
 		[ \"\$count\" -gt 0 ] && mv '$STAGE'/*.jar '$REMOTE/mods/'
+
+		mkdir -p '$CLIENT_DIR' '$REMOTE/mods-retired'
+		for jar in '$CLIENT_STAGE'/*.jar(N); do
+			base=\$(basename \"\$jar\")
+			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
+			for old in '$CLIENT_DIR/'\$stem-*.jar(N); do
+				[ \"\$(basename \"\$old\")\" = \"\$base\" ] && continue
+				mv \"\$old\" '$REMOTE/mods-retired/'
+				echo \"  players: dropped \$(basename \"\$old\")\"
+			done
+			mv \"\$jar\" '$CLIENT_DIR/'
+		done
+		for jar in \$gone; do
+			mv \"\$jar\" '$REMOTE/mods-retired/'
+			echo \"  players: retired \$(basename \"\$jar\"), no longer on the client list\"
+		done
 		if [ \"\$launcher\" -eq 1 ]; then
 			mv '$STAGE/$LAUNCHER' '$REMOTE/fabric-server.jar'
 			echo '  swapped the server launcher: new game version'
 		fi
 		systemctl --user start minecraft-server
-		echo \"swapped \$count jar(s), server restarting\"
+		echo \"swapped \$count jar(s) and \$ccount for players, server restarting\"
 	"
 
 	# Held in a variable rather than piped through tee: the swap's exit status is
@@ -279,12 +344,12 @@ swap() {
 	# Bounded, because the other way to never see "Done (" is a server that came
 	# down and did not come back. That is the case most worth reporting, and an
 	# unbounded wait is the one response that never reports it.
-	on_host 'for _ in $(seq 60); do
-			journalctl --user -u minecraft-server --since "-3min" --no-pager | grep -q "Done (" && break
+	on_host "for _ in \$(seq 60); do
+			journalctl --user -u minecraft-server --since '$since' --no-pager | grep -q 'Done (' && break
 			sleep 3
 		done
-		journalctl --user -u minecraft-server --since "-3min" --no-pager | grep -E "Done \(|ERROR|MixinApply" | tail -5
-		systemctl --user is-active --quiet minecraft-server || echo "!! server is not running after the swap"'
+		journalctl --user -u minecraft-server --since '$since' --no-pager | grep -E 'Done \\(|ERROR|MixinApply|client mod' | tail -5
+		systemctl --user is-active --quiet minecraft-server || echo '!! server is not running after the swap'"
 }
 
 case "$mode" in
