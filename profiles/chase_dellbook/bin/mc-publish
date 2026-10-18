@@ -167,16 +167,21 @@ def fabric_mod_json(mod):
     return json.loads(found[0].read_text())
 
 
+# By path, not PATH: mc-where is in the dotfiles' own bin, which only the zsh config puts on PATH.
+# Off it, every mod was published as client_and_server without a word.
+MC_WHERE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "bin", "mc-where")
+
+
 def where(mod):
     """Which sides this mod belongs on, asked of the tool that already decides that."""
     try:
-        line = subprocess.run(["mc-where", mod], capture_output=True, text=True, timeout=30).stdout
-    except (OSError, subprocess.SubprocessError):
-        return "client_and_server"
+        line = subprocess.run([MC_WHERE, mod], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError) as e:
+        sys.exit(f"{mod}: mc-where failed ({e}), so which sides it belongs on is unknown")
     for group, environment in ENVIRONMENTS.items():
-        if group in line:
+        if group in line.split():
             return environment
-    return "client_and_server"
+    sys.exit(f"{mod}: mc-where named no side this knows: {line.strip()!r}")
 
 
 def call(method, path, data=None, files=None, tok=None, raw=None):
