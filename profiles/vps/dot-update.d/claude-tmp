@@ -1,0 +1,37 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Claude Code keeps task output and session scratch under /tmp, and /tmp here is a tmpfs: half of a RAM
+# that the server and the suite's builds already push into swap. A session unpacking Minecraft's sources
+# filled its quota and every shell command failed after. On disk instead, where there is room.
+#
+# Sessions run under paude's unit (dot-update.d/paude), not a login shell, so .zshenv never reaches them.
+# A drop-in, because paude's installer rewrites the unit itself. Sorted before paude, so the restart its
+# installer does picks this up; sessions already running keep the /tmp they started with.
+
+claudeTmp=$HOME/.cache/claude-tmp
+dropIn=$HOME/.config/systemd/user/paude.service.d/claude-tmp.conf
+wanted="[Service]
+Environment=CLAUDE_CODE_TMPDIR=$claudeTmp"
+
+mkdir -p $claudeTmp && chmod 700 $claudeTmp
+
+if [[ $wanted != "$(cat $dropIn 2>/dev/null)" ]]; then
+	echo "Pointing paude's Claude sessions at $claudeTmp"
+
+	mkdir -p ${dropIn:h}
+	print -r -- "$wanted" > $dropIn
+	systemctl --user daemon-reload
+fi
+
+# /tmp ages out on its own; this does not, so the same ten days, by the user's own tmpfiles timer
+rule="d $claudeTmp 0700 - - 10d"
+ruleFile=$HOME/.config/user-tmpfiles.d/claude-tmp.conf
+
+if [[ $rule != "$(cat $ruleFile 2>/dev/null)" ]]; then
+	mkdir -p ${ruleFile:h}
+	print -r -- "$rule" > $ruleFile
+fi
+
+systemctl --user is-enabled --quiet systemd-tmpfiles-clean.timer || systemctl --user enable --now systemd-tmpfiles-clean.timer > /dev/null 2>&1
