@@ -233,6 +233,28 @@ def ordered(mods):
     return out
 
 
+def curseforge_jar(mod, version):
+    """The jar CurseForge gets. A repo with src/curseforge builds a variant of its own with
+    -Pcurseforge, into build-curseforge/: Pandorical's leaves out taking client mods from servers,
+    since a jar that writes the mods folder is held in manual review there and never comes out."""
+    if not (SUITE / mod / "src/curseforge").is_dir():
+        return mp.jar_for(mod, version)
+    import subprocess
+    built = subprocess.run(["./gradlew", "build", "-Pcurseforge", "-x", "test", "-q"], cwd=SUITE / mod,
+                           capture_output=True, text=True)
+    if built.returncode != 0:
+        print(f"  {mod}: the -Pcurseforge build failed:\n{built.stderr[-2000:]}")
+        return None
+    libs = SUITE / mod / "build-curseforge/libs"
+    return next((j for j in libs.glob(f"*-{version}.jar")), None)
+
+
+def curseforge_note(mod):
+    """What a variant build says above its changelog, from src/curseforge/note.md."""
+    note = SUITE / mod / "src/curseforge/note.md"
+    return note.read_text().strip() + "\n\n" if note.exists() else ""
+
+
 def unshipped(mod):
     """Why this repo's build is not one to publish, or None. A jar built from uncommitted or
     unpushed work is somebody's work in progress: published, it is a version nobody can find."""
@@ -270,7 +292,7 @@ def upload(mod, known, sent, dry, tok):
     if why:
         print(f"  {mod}: {version} has {why} - commit and push it first")
         return 0
-    jar = mp.jar_for(mod, version)
+    jar = curseforge_jar(mod, version)
     if jar is None:
         print(f"  {mod}: {version} is not built - mc-build {mod}")
         return 1
@@ -289,7 +311,7 @@ def upload(mod, known, sent, dry, tok):
         print(f"  {mod}: CurseForge has no game version {', '.join(unknown)} - not uploading")
         return 1
     metadata = {
-        "changelog": changelog(mod, since) or f"{version}",
+        "changelog": curseforge_note(mod) + (changelog(mod, since) or f"{version}"),
         "changelogType": "markdown",
         "gameVersions": ids,
         "releaseType": "release",
