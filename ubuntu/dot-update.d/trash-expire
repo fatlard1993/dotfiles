@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Expiring week-old trash daily"
+
+mkdir -p $HOME/.config/systemd/user
+
+ln -sf $ubuntuPath/systemd/trash-expire.service $HOME/.config/systemd/user/
+ln -sf $ubuntuPath/systemd/trash-expire.timer $HOME/.config/systemd/user/
+
+systemctl --user daemon-reload
+systemctl --user enable --now trash-expire.timer

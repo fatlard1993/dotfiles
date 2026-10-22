@@ -1,0 +1,8 @@
+# Linked into ~/.config/systemd/user by dot-update.d/trash-expire. trash-empty
+# covers the home trash and each volume's (/tmp/.Trash-$UID among them).
+[Unit]
+Description=Empty trash older than a week
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/trash-empty 7
