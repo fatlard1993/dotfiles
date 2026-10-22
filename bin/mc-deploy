@@ -281,7 +281,8 @@ swap() {
 		# Drop any older build of each staged mod first. A version bump renames the
 		# jar, so a plain move leaves both beside each other and Fabric refuses to
 		# start with two copies of one mod: the deploy looks like it worked and the
-		# server never comes back.
+		# server never comes back. The version must start with a digit: pandorical-*
+		# also matches pandorical-geyser-0.1.0.jar, and deleted it.
 		#
 		# The (N) is zsh's nullglob qualifier and it is not optional. A mod being
 		# deployed for the very first time has nothing in mods/ to match, and an
@@ -293,7 +294,7 @@ swap() {
 		for jar in '$STAGE'/*.jar(N); do
 			base=\$(basename \"\$jar\")
 			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
-			for old in '$REMOTE/mods/'\$stem-*.jar(N); do
+			for old in '$REMOTE/mods/'\$stem-[0-9]*.jar(N); do
 				[ -e \"\$old\" ] || continue
 				[ \"\$(basename \"\$old\")\" = \"\$base\" ] && continue
 				rm -f \"\$old\"
@@ -307,7 +308,7 @@ swap() {
 		for jar in '$CLIENT_STAGE'/*.jar(N); do
 			base=\$(basename \"\$jar\")
 			stem=\$(echo \"\$base\" | sed 's/-[0-9][^-]*\\.jar\$//')
-			for old in '$CLIENT_DIR/'\$stem-*.jar(N); do
+			for old in '$CLIENT_DIR/'\$stem-[0-9]*.jar(N); do
 				[ \"\$(basename \"\$old\")\" = \"\$base\" ] && continue
 				mv \"\$old\" '$REMOTE/mods-retired/'
 				echo \"  players: dropped \$(basename \"\$old\")\"
