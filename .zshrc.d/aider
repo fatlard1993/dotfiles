@@ -1,16 +1,16 @@
 #!/bin/zsh
 
 # Claude stand-in for offline moments or spent usage limits - wraps the real
-# `aider` binary (uv-installed, see profiles/tiny_lappy/dot-update.d/aider)
+# `aider` binary (uv-installed, see profiles/tiny_lappy/dot-update.fallow/aider)
 # with the right Ollama backend pre-selected, so there's one command to
 # remember regardless of what's reachable:
 #   - htpc up (llm.home answers)  -> its models (qwen2.5-coder:14b for
 #                                    `code`, :7b for `quickcode`)
 #   - htpc down / off the LAN     -> this machine's own `code` model,
-#                                    qwen2.5-coder:7b (see dot-update.d/ollama
+#                                    qwen2.5-coder:7b (see dot-update.fallow/ollama
 #                                    in whichever profile is active) -
 #                                    `quickcode` doesn't exist here, see the
-#                                    comment in tiny_lappy's dot-update.d/ollama
+#                                    comment in tiny_lappy's dot-update.fallow/ollama
 #                                    for why
 # No-ops to nothing if aider isn't installed on this machine - htpc itself
 # doesn't run aider, only serves the model.

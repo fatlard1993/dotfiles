@@ -1,4 +1,4 @@
-# Built by dot-update.d/ollama as the `offload` model - `ollama run offload`.
+# Built by dot-update.fallow/ollama as the `offload` model - `ollama run offload`.
 #
 # Tuned for fast, low-stakes tasks handed down from Claude to save cost:
 # formatting, summarizing, extracting data, boilerplate, straightforward

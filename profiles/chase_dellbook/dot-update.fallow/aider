@@ -3,7 +3,7 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
 # Aider - CLI coding agent, driven by the `code` Ollama model (see
-# dot-update.d/ollama). The actual model/host selection lives in the
+# dot-update.fallow/ollama). The actual model/host selection lives in the
 # `aider` wrapper function, .zshrc.d/aider - this script only gets the
 # binary in place.
 #

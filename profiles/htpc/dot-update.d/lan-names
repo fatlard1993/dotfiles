@@ -19,7 +19,7 @@ typeset -A services=(
 	[llm]=11434
 )
 # htpc -> home-page (the landing server every machine runs); remote ->
-# htpc-remote; games -> game-night; llm -> ollama (dot-update.d/ollama),
+# htpc-remote; games -> game-night; llm -> ollama (dot-update.fallow/ollama),
 # port 11434 is Ollama's own default, nothing custom to remember. The four
 # games also appear in dot-update.d/game-servers' loop - a new game needs
 # both.

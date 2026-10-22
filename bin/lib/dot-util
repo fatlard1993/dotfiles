@@ -222,7 +222,7 @@ waitForOllama() {
 	done
 }
 
-# Builds the `code` Ollama model (see */ollama/dot-update.d/ollama and
+# Builds the `code` Ollama model (see */ollama/dot-update.fallow/ollama and
 # */ollama/Modelfile.code): the static FROM/PARAMETER block plus a SYSTEM
 # prompt assembled at build time from ~/.claude/context/{workbench,garden}.md
 # - the same identity/approach layer a real Claude Code session gets via

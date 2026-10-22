@@ -1,4 +1,4 @@
-# Built by dot-update.d/ollama as the `quickcode` model - the tier `code`
+# Built by dot-update.fallow/ollama as the `quickcode` model - the tier `code`
 # can't cover: mechanical, well-scoped coding tasks at chat speed (version
 # bumps, commit messages, find/replace, simple queries about a file) rather
 # than `code`'s "as capable as this hardware gets, speed be damned"
