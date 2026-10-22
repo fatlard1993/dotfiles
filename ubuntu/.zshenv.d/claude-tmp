@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+# Where ubuntu/bin/claude-tmp made room on disk, Claude Code keeps its temp there instead of the tmpfs /tmp
+[[ -d $HOME/.cache/claude-tmp ]] && export CLAUDE_CODE_TMPDIR=$HOME/.cache/claude-tmp
