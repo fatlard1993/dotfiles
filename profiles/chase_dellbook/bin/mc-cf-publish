@@ -257,17 +257,25 @@ def curseforge_note(mod):
 
 def unshipped(mod):
     """Why this repo's build is not one to publish, or None. A jar built from uncommitted or
-    unpushed work is somebody's work in progress: published, it is a version nobody can find."""
+    unpushed work is somebody's work in progress: published, it is a version nobody can find; one
+    built from a checkout behind its origin is older than what is already there."""
     import subprocess
     git = ["git", "-C", str(SUITE / mod)]
     dirty = subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout
     if dirty.strip():
-        return "uncommitted changes"
+        return "uncommitted changes; commit and push them first"
     ahead = subprocess.run(git + ["rev-list", "--count", "@{u}..HEAD"], capture_output=True, text=True)
     if ahead.returncode != 0:
         return "no upstream to compare with"
     if ahead.stdout.strip() != "0":
-        return "commits not pushed"
+        return "commits not pushed; push them first"
+    # Asked of the origin itself: a checkout another machine has pushed past still matches its own
+    # last look at the origin, and a build of it is a version older than the one already there.
+    if subprocess.run(git + ["fetch", "-q"], capture_output=True).returncode != 0:
+        return "an origin that could not be reached to compare with"
+    behind = subprocess.run(git + ["rev-list", "--count", "HEAD..@{u}"], capture_output=True, text=True)
+    if behind.stdout.strip() != "0":
+        return "commits on the origin it lacks; pull and build first"
     return None
 
 
@@ -290,7 +298,7 @@ def upload(mod, known, sent, dry, tok):
         return 0
     why = unshipped(mod)
     if why:
-        print(f"  {mod}: {version} has {why} - commit and push it first")
+        print(f"  {mod}: {version} has {why}")
         return 0
     jar = curseforge_jar(mod, version)
     if jar is None:

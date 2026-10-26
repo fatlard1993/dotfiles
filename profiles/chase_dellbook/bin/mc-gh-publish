@@ -62,7 +62,7 @@ def upload(mod, dry):
         return 1
     why = cf.unshipped(mod)
     if why:
-        print(f"  {mod}: {version} has {why} - commit and push it first")
+        print(f"  {mod}: {version} has {why}")
         return 0
     jar = mp.jar_for(mod, version)
     if jar is None:
