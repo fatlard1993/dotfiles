@@ -31,12 +31,13 @@ mcSuiteLoaderVersion=0.19.5
 # Third-party client mods every player's machine gets, on top of the suite's own.
 #
 # Not priv-config's client-mods.txt: that names suite project directories built on the dev
-# machine, and these come from Modrinth by name. No versions here - ender resolves the
-# newest build compatible with the instance's pin.
+# machine, and these come from Modrinth. The mr: is required: ender will not take a bare
+# name its index cannot vouch for. No versions here - ender resolves the newest build
+# compatible with the instance's pin.
 #
 # sodium replaces the world renderer. The htpc measured its GPU at 100% on the peaks driving
 # a 4K projector, and the laptops have a good deal less card than that.
-mcStandardClientMods=(sodium)
+mcStandardClientMods=(mr:sodium)
 
 # Hosts the house has stopped running. A dead address does not leave servers.dat on its
 # own; it stays under the name it always had and answers with a connection refused.
@@ -408,6 +409,19 @@ mcEnsureOfflineAccount() {
 	}
 }
 
+# Non-fatal: a machine that cannot reach Modrinth still has a playable client, just an
+# unaccelerated one, and saying so beats failing the whole update over it.
+mcAddStandardClientMods() {
+	local name=$1 addLog
+
+	(( ${#mcStandardClientMods} )) || return 0
+
+	addLog=$(ender add $mcStandardClientMods --instance $name 2>&1) || {
+		echo "  Could not add ${mcStandardClientMods}:" >&2
+		print -r -- $addLog | tail -3 | sed 's/^/    /' >&2
+	}
+}
+
 # A player's machine: an instance on the pin, an identity, and the server list. Mods are not
 # managed here - they arrive over ssh from the dev box and ender leaves what it did not
 # install where it found it.
@@ -426,12 +440,7 @@ mcEnsurePlayerClient() {
 		return 1
 	}
 
-	# Non-fatal: a machine that cannot reach Modrinth still has a playable client, just an
-	# unaccelerated one, and saying so beats failing the whole update over it.
-	if (( ${#mcStandardClientMods} )); then
-		ender add $mcStandardClientMods --instance $name > /dev/null 2>&1 \
-			|| echo "  Could not add ${mcStandardClientMods}; ender sync -i $name says why" >&2
-	fi
+	mcAddStandardClientMods $name
 
 	mcEnsureOfflineAccount $gameDir || echo "  This machine has no identity to play as" >&2
 
