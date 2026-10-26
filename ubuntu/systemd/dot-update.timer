@@ -1,0 +1,13 @@
+# A pull-only box has nobody at it who edits the dotfiles, so without this it only moves
+# when someone remembers to run dot-update there - the thickpad sat 99 commits behind.
+# A suspended laptop runs the missed update when it wakes.
+[Unit]
+Description=Daily dotfiles update
+
+[Timer]
+OnCalendar=04:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

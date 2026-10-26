@@ -204,6 +204,22 @@ ensureLinger() {
 		|| sudo loginctl enable-linger $USER
 }
 
+# A pull-only machine updates itself daily (ubuntu/systemd/dot-update.timer). Lingering so
+# the timer keeps time with nobody logged in.
+ensureAutoUpdate() {
+	echo "Updating the dotfiles daily"
+
+	mkdir -p $HOME/.config/systemd/user
+
+	ln -sf $HOME/.dotfiles/ubuntu/systemd/dot-update.service $HOME/.config/systemd/user/
+	ln -sf $HOME/.dotfiles/ubuntu/systemd/dot-update.timer $HOME/.config/systemd/user/
+
+	ensureLinger
+
+	systemctl --user daemon-reload
+	systemctl --user enable --now dot-update.timer
+}
+
 # Blocks until ollama's API answers, up to 30s. Both profiles' ollama
 # scripts restart the service then immediately call pullModel, which shells
 # out to `ollama list` to check what's already pulled - right after a
