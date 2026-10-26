@@ -1,0 +1,34 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Claude Code keeps task output and session scratch under /tmp; where /tmp is a tmpfs, that's RAM. On disk
+# instead. Shells pick it up from .zshenv.d/claude-tmp once the folder exists; paude's sessions run under its
+# unit, not a login shell, so they get it from a drop-in (paude's installer rewrites the unit itself), read at
+# paude's next start. Sessions already running keep the /tmp they started with.
+
+claudeTmp=$HOME/.cache/claude-tmp
+dropIn=$HOME/.config/systemd/user/paude.service.d/claude-tmp.conf
+wanted="[Service]
+Environment=CLAUDE_CODE_TMPDIR=$claudeTmp"
+
+mkdir -p $claudeTmp && chmod 700 $claudeTmp
+
+if [[ $wanted != "$(cat $dropIn 2>/dev/null)" ]]; then
+	echo "Pointing paude's Claude sessions at $claudeTmp"
+
+	mkdir -p ${dropIn:h}
+	print -r -- "$wanted" > $dropIn
+	systemctl --user daemon-reload
+fi
+
+# /tmp ages out on its own; this does not, so the same ten days, by the user's own tmpfiles timer
+rule="d $claudeTmp 0700 - - 10d"
+ruleFile=$HOME/.config/user-tmpfiles.d/claude-tmp.conf
+
+if [[ $rule != "$(cat $ruleFile 2>/dev/null)" ]]; then
+	mkdir -p ${ruleFile:h}
+	print -r -- "$rule" > $ruleFile
+fi
+
+systemctl --user is-enabled --quiet systemd-tmpfiles-clean.timer || systemctl --user enable --now systemd-tmpfiles-clean.timer > /dev/null 2>&1

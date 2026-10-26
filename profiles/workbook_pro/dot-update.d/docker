@@ -1,0 +1,25 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Docker Desktop's VM takes half of RAM (capped near 8GB) by default and rarely hands it back; the containers
+# here (two postgres, a valkey) use under 0.5GB. Docker rewrites its settings file itself, so the limit is merged
+# in rather than linked, and takes effect at Docker's next start: restarting it here would leave the containers
+# stopped (none has a restart policy).
+settings="$HOME/Library/Group Containers/group.com.docker/settings-store.json"
+
+[[ -f $settings ]] && python3 - "$settings" <<'EOF'
+import json, sys
+
+path = sys.argv[1]
+wanted = {"MemoryMiB": 4096}
+
+with open(path) as file:
+	settings = json.load(file)
+
+if any(settings.get(key) != value for key, value in wanted.items()):
+	print(f"Capping Docker's VM at {wanted['MemoryMiB']}MiB (applies when Docker restarts)")
+	settings.update(wanted)
+	with open(path, "w") as file:
+		json.dump(settings, file, indent=2)
+EOF

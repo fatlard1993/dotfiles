@@ -7,12 +7,13 @@ syncRepo https://github.com/fatlard1993/home-page.git $HOME/Projects/home-page
 
 (cd $HOME/Projects/home-page ; bun install)
 
-if ! launchctl print gui/$(id -u)/com.justfatlard.home-page &> /dev/null; then
+# The agent before vbc-service, still holding :8033 on a machine that had it.
+launchctl bootout gui/$(id -u)/com.justfatlard.home-page 2> /dev/null
+rm -f $HOME/Library/LaunchAgents/com.justfatlard.home-page.plist
+
+# enable rewrites the service's definition and restarts it, so an update takes it too.
+if [[ $repoUpdated == true ]] || ! launchctl print gui/$(id -u)/com.vanilla-bean.home-page &> /dev/null; then
 	echo "Enabling home-page service"
 
-	(cd $HOME/Projects/home-page ; bun scripts/service.js enable)
-elif [[ $repoUpdated == true ]]; then
-	echo "Reloading home-page service"
-
-	(cd $HOME/Projects/home-page ; bun scripts/service.js reload)
+	(cd $HOME/Projects/home-page ; bun run service:enable)
 fi

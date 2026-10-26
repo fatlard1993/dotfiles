@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# zswap (enabled on the kernel cmdline, etc/grub) compresses pages in RAM before
+# they reach /swap.img, so swapping out idle sessions and tabs is cheap enough
+# to prefer over dropping file cache.
+echo "Swapping eagerly into zswap"
+
+echo "vm.swappiness=100" | sudo tee /etc/sysctl.d/60-swappiness.conf > /dev/null
+
+sudo sysctl -p /etc/sysctl.d/60-swappiness.conf > /dev/null

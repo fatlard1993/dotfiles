@@ -1,4 +1,4 @@
-# Built by dot-update.d/ollama as the `code` model - used via the `aider`
+# Built by dot-update.fallow/ollama as the `code` model - used via the `aider`
 # wrapper function (.zshrc.d/aider) over http://llm.home, or directly with
 # `ollama run code`.
 #
@@ -14,7 +14,7 @@
 # can run at a usable pace. Check the actual split with `ollama ps`
 # (PROCESSOR column) after loading it.
 #
-# No SYSTEM block here - dot-update.d/ollama assembles it at build time from
+# No SYSTEM block here - dot-update.fallow/ollama assembles it at build time from
 # ~/.claude/context/{workbench,garden}.md (the same identity/approach layer
 # a real Claude Code session gets via SessionStart hooks) plus
 # code-system-addendum.md in this directory, WHEN priv-config is present on

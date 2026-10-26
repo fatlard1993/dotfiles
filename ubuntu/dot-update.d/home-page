@@ -7,12 +7,9 @@ syncRepo https://github.com/fatlard1993/home-page.git $HOME/Projects/home-page
 
 (cd $HOME/Projects/home-page ; bun install)
 
-if ! systemctl --user is-enabled home-page.service > /dev/null 2>&1; then
+# enable rewrites the service's definition and restarts it, so an update takes it too.
+if [[ $repoUpdated == true ]] || ! systemctl --user is-enabled home-page.service > /dev/null 2>&1; then
 	echo "Enabling home-page service"
 
-	(cd $HOME/Projects/home-page ; bun scripts/service.js enable)
-elif [[ $repoUpdated == true ]]; then
-	echo "Reloading home-page service"
-
-	(cd $HOME/Projects/home-page ; bun scripts/service.js reload)
+	(cd $HOME/Projects/home-page ; bun run service:enable)
 fi

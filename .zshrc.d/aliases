@@ -24,7 +24,7 @@ alias C="claude"
 # Flags are parsed here, not passed to trash: macOS's trash takes none of them.
 safe-rm() {
   local force= recurse= dir= verbose= rc=0 arg p
-  local -a paths keep contents
+  local -a paths keep volatile contents
   while (( $# )); do
     arg=$1; shift
     case $arg in
@@ -68,10 +68,18 @@ safe-rm() {
         continue
       fi
     fi
-    keep+=("$p")
+    # tmpfs is RAM, and so would be its trash (/tmp/.Trash-$UID); what's deleted there goes to the trash on disk
+    if [[ $OSTYPE == linux* && $(stat -f -c %T -- "${p:h}" 2>/dev/null) == tmpfs ]]; then
+      volatile+=("$p")
+    else
+      keep+=("$p")
+    fi
   done
-  (( ${#keep} )) || return $rc
-  trash ${verbose:+-v} -- "${keep[@]}" || rc=1
+  (( ${#keep} )) && { trash ${verbose:+-v} -- "${keep[@]}" || rc=1 }
+  if (( ${#volatile} )); then
+    local trashDir=${XDG_DATA_HOME:-$HOME/.local/share}/Trash
+    trash ${verbose:+-v} --force-volume="$(stat -c %m -- "${trashDir:h}")" --trash-dir "$trashDir" -- "${volatile[@]}" || rc=1
+  fi
   return $rc
 }
 

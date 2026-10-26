@@ -1,4 +1,4 @@
-# Built by dot-update.d/ollama as the `offload` model - `ollama run offload`
+# Built by dot-update.fallow/ollama as the `offload` model - `ollama run offload`
 # locally, or http://llm.home from any other machine on the LAN.
 #
 # Same role as tiny_lappy's Modelfile.offload (low-stakes tasks offloaded
@@ -6,7 +6,7 @@
 # Ryzen 5 5500 (6c/12t) and an 8GB card, vs. the laptop's CPU-only 2c/4t.
 # Built FROM the 7b model (better reasoning/coding than the 3b one also
 # pulled here) with a bigger num_ctx - there's headroom for it once a
-# request is running, and OLLAMA_KEEP_ALIVE (set in dot-update.d/ollama's
+# request is running, and OLLAMA_KEEP_ALIVE (set in dot-update.fallow/ollama's
 # systemd drop-in) releases that headroom back to the house between calls.
 # This is the one worth waiting on; tiny_lappy's is the instant-but-dumber
 # fallback for when htpc/the LAN isn't reachable.

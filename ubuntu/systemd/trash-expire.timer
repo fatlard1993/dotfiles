@@ -1,0 +1,10 @@
+# safe-rm sends every non-interactive rm to the trash, which nothing else empties
+[Unit]
+Description=Daily trash expiry
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

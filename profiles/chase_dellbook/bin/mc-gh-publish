@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Put this suite's builds on GitHub releases, where ender-index finds them.
+
+    mc-gh-publish                     what would be released, and why anything would not
+    mc-gh-publish --upload --all      release every mod whose built version has no release
+    mc-gh-publish --upload MOD ...    just these
+
+The third of mc-publish and mc-cf-publish. ender-index reads the jars attached to a repository's
+releases and nothing else, so a mod on Modrinth and CurseForge but with no release cannot be found
+by ender search. A release is tagged v<mod_version> at the pushed HEAD and carries the one jar
+jar_for names; the index would read a sources or testsupport jar as the mod.
+
+gh does the talking, signed in as whoever gh auth says, so there is no token file here.
+"""
+
+import importlib.machinery
+import importlib.util
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def load(name):
+    loader = importlib.machinery.SourceFileLoader(name.replace("-", "_"), str(HERE / name))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+mp = load("mc-publish")
+cf = load("mc-cf-publish")
+
+SUITE = mp.SUITE
+OWNER = "fatlard1993"
+ORIGIN = re.compile(r"^(?:git@github\.com:|https://github\.com/)([^/]+/[^/]+?)(?:\.git)?$")
+
+
+def git(mod, *args):
+    return subprocess.run(["git", "-C", str(SUITE / mod), *args], capture_output=True, text=True)
+
+
+def repository(mod):
+    """owner/repo of the origin the release's commit was pushed to, or None."""
+    found = ORIGIN.match(git(mod, "remote", "get-url", "origin").stdout.strip())
+    return found[1] if found else None
+
+
+def released(repo, tag):
+    return subprocess.run(["gh", "release", "view", tag, "-R", repo], capture_output=True).returncode == 0
+
+
+def upload(mod, dry):
+    version = mp.properties(SUITE / mod / "gradle.properties").get("mod_version", "")
+    tag = f"v{version}"
+    repo = repository(mod)
+    if repo is None or repo.split("/")[0] != OWNER:
+        print(f"  {mod}: origin is not a {OWNER} repository on GitHub - not releasing")
+        return 1
+    why = cf.unshipped(mod)
+    if why:
+        print(f"  {mod}: {version} has {why} - commit and push it first")
+        return 0
+    jar = mp.jar_for(mod, version)
+    if jar is None:
+        print(f"  {mod}: {version} is not built - mc-build {mod}")
+        return 1
+    # Gradle leaves an old build in place, and a jar older than the commit may not hold it.
+    if jar.stat().st_mtime < int(git(mod, "log", "-1", "--format=%ct").stdout):
+        print(f"  {mod}: {jar.name} was built before the last commit - mc-build {mod}")
+        return 1
+    if released(repo, tag):
+        print(f"  {mod}: {tag} is released")
+        return 0
+
+    head = git(mod, "rev-parse", "HEAD").stdout.strip()
+    title = f"{(mp.fabric_mod_json(mod) or {}).get('name', mod)} {version}"
+    notes = mp.changelog_for(mod, version) or f"Built from {head[:12]}."
+    if dry:
+        print(f"  {mod}: would release {tag} of {repo} with {jar.name}")
+        return 0
+
+    made = subprocess.run(["gh", "release", "create", tag, str(jar), "-R", repo, "--target", head,
+                           "--title", title, "--notes", notes], capture_output=True, text=True)
+    if made.returncode != 0:
+        print(f"  {mod}: GitHub refused {tag}: {made.stderr.strip()}")
+        return 1
+    print(f"  {mod}: released {made.stdout.strip()}")
+    return 0
+
+
+def main():
+    args = sys.argv[1:]
+    dry = "--upload" not in args or "--dry-run" in args
+    args = [a for a in args if a not in ("--upload", "--dry-run")]
+    mods = mp.publishable() if ("--all" in args or not args) else [a.rstrip("/") for a in args if a != "--all"]
+
+    print(f"release{' (dry run)' if dry else ''}: {len(mods)} mod(s)")
+    bad = sum(upload(mod, dry) for mod in cf.ordered(mods))
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

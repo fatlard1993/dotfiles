@@ -11,3 +11,5 @@ echo "Asserting dotfiles is pull-only on this machine"
 
 git -C $HOME/.dotfiles remote set-url --push origin \
 	'guest_thinbook_guest-is-pull-only--edit-the-dotfiles-on-the-dev-machine'
+
+ensureAutoUpdate

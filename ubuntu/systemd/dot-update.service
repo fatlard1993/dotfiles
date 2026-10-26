@@ -1,0 +1,11 @@
+# Linked into ~/.config/systemd/user by a pull-only profile's dot-update.d/git-pull-only.
+# zsh reads ~/.zshenv even for a script, so the run gets the same PATH a shell does.
+[Unit]
+Description=Pull the dotfiles and apply them
+
+[Service]
+Type=oneshot
+# A laptop fires the missed run on wake, before wifi is back; a user manager has no
+# network-online.target to wait on. Ten minutes without the remote skips the run.
+ExecStartPre=/bin/sh -c 'for i in $$(seq 60); do git -C %h/.dotfiles fetch -q && exit 0; sleep 10; done; exit 1'
+ExecStart=/bin/zsh %h/.dotfiles/dot-update
