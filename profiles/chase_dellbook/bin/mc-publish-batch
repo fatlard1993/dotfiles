@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Keep every mod in the suite current on Modrinth: create what has no project, then upload,
-# describe and illustrate the lot.
+# describe and illustrate the lot. Then release each new build on GitHub, where ender-index
+# finds it.
 #
 #   mc-publish-batch            the day's run
 #   mc-publish-batch --dry-run  say what it would do
@@ -26,6 +27,10 @@ case ":$PATH:" in
 	*":$HERE:"*) ;;
 	*) PATH="$HERE:$PATH" ;;
 esac
+# gh is Homebrew's, under /home/linuxbrew, which only the zsh config puts on PATH either.
+command -v gh > /dev/null || for brew in /home/linuxbrew/.linuxbrew/bin/brew /opt/homebrew/bin/brew; do
+	[ -x "$brew" ] && { eval "$("$brew" shellenv)"; break; }
+done
 export PATH
 
 # Every publishable mod, not a hand-kept queue. The queue was written when creating was the
@@ -49,5 +54,8 @@ for step in --upload --sync --icon --gallery; do
 	echo "-- ${step#--}"
 	mc-publish "$step" --all $DRY
 done
+
+echo "-- github"
+mc-gh-publish --upload --all $DRY
 
 echo "== done $(date '+%H:%M')"
