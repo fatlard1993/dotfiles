@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Sessions run under paude's unit, whose PATH its installer writes without the dotfiles' bins, so
+# mc-deploy and the rest were missing from every Claude session here. The login shell's PATH instead,
+# asked of zsh in a clean environment so it is what .zshenv builds and not whatever ran dot-update.
+# A drop-in, as in claude-tmp; sessions already running keep the PATH they started with.
+
+dropIn=$HOME/.config/systemd/user/paude.service.d/claude-path.conf
+loginPath=$(env -i HOME=$HOME /usr/bin/zsh -c 'print -r -- $PATH')
+
+[[ -n $loginPath ]] || { echo "  zsh gave no PATH, so paude's sessions keep their own" >&2; return 1 }
+
+wanted="[Service]
+Environment=PATH=$loginPath"
+
+if [[ $wanted != "$(cat $dropIn 2>/dev/null)" ]]; then
+	echo "Giving paude's Claude sessions the login shell's PATH"
+
+	mkdir -p ${dropIn:h}
+	print -r -- "$wanted" > $dropIn
+	systemctl --user daemon-reload
+fi
