@@ -14,4 +14,4 @@ mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuite
 #
 #     ender account add
 #     ender account assign <name> -i minecolonies
-mcReportMissingPackInstance minecolonies "CurseForge, \"MineColonies Official\""
+mcEnsurePackInstance minecolonies "CurseForge, \"MineColonies Official\"" $HOME/minecraft-minecolonies

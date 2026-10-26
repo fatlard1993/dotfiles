@@ -464,25 +464,48 @@ mcEnsurePlayerClient() {
 	fi
 }
 
-# Say that a non-house server's pack instance is missing, and how to get it. A report, not
-# a check: ender imports a pack file but cannot fetch one from CurseForge by name.
-mcReportMissingPackInstance() {
-	local name=$1 where=$2
+# A non-house server's pack instance. A machine that played it in Prism has it already, and
+# that copy is imported with its worlds. Otherwise this is only a report: ender imports a
+# pack file but cannot fetch one from CurseForge by name.
+mcEnsurePackInstance() {
+	local name=$1 where=$2 gameDir=$3
+	local prism=$HOME/.local/share/PrismLauncher/instances/$name
 
-	ender ls --names 2>/dev/null | grep -qxF $name && return 0
+	if ! ender ls --names 2>/dev/null | grep -qxF $name; then
+		[[ -f $prism/mmc-pack.json ]] || {
+			echo "  No '$name' instance yet. Download its pack from $where, then:"
+			echo "    ender import <the pack zip> --name $name"
 
-	echo "  No '$name' instance yet. Download its pack from $where, then:"
-	echo "    ender import <the pack zip> --name $name"
+			return 0
+		}
+
+		echo "Importing the $name instance from Prism"
+
+		ender import $prism --name $name > /dev/null || {
+			echo "  Prism's $name instance would not import" >&2
+
+			return 1
+		}
+	fi
+
+	# Imported, it still plays out of Prism's folder until the game is closed long enough to
+	# move it, so this is asked on every run rather than only after the import.
+	[[ $(ender info $name 2>/dev/null | sed -n 's/^ *game dir *//p') == $prism/* ]] || return 0
+
+	mcAdoptPrismGameDir $name $gameDir && ender set gameDir $gameDir --instance $name > /dev/null
 }
 
 # Move a game directory out of Prism's instance folder, once. Some seats never had one of
 # their own: worlds, options, screenshots and the server list all lived at
-# <prism>/instances/<name>/.minecraft.
+# <prism>/instances/<name>/.minecraft, or /minecraft - Prism takes the dotted one when it
+# exists and the other otherwise.
 #
 # A rename, so on one filesystem it is atomic and keeps every inode.
 mcAdoptPrismGameDir() {
 	local instance=$1 dest=$2
 	local old=$HOME/.local/share/PrismLauncher/instances/$instance/.minecraft
+
+	[[ -e $old ]] || old=${old:h}/minecraft
 
 	[[ -n $instance && -n $dest ]] || return 1
 
