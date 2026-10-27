@@ -5,7 +5,8 @@
     mc-gh-publish --upload --all      release every mod whose built version has no release
     mc-gh-publish --upload MOD ...    just these
 
-The third of mc-publish and mc-cf-publish. ender-index reads the jars attached to a repository's
+By hand: each mod's nightly release workflow does this from what is pushed. The third of
+mc-publish and mc-cf-publish. ender-index reads the jars attached to a repository's
 releases and nothing else, so a mod on Modrinth and CurseForge but with no release cannot be found
 by ender search. A release is tagged v<mod_version> at the pushed HEAD and carries the one jar
 jar_for names; the index would read a sources or testsupport jar as the mod.
@@ -60,6 +61,9 @@ def upload(mod, dry):
     if repo is None or repo.split("/")[0] != OWNER:
         print(f"  {mod}: origin is not a {OWNER} repository on GitHub - not releasing")
         return 1
+    if released(repo, tag):
+        print(f"  {mod}: {tag} is released")
+        return 0
     why = cf.unshipped(mod)
     if why:
         print(f"  {mod}: {version} has {why}")
@@ -72,9 +76,6 @@ def upload(mod, dry):
     if jar.stat().st_mtime < int(git(mod, "log", "-1", "--format=%ct").stdout):
         print(f"  {mod}: {jar.name} was built before the last commit - mc-build {mod}")
         return 1
-    if released(repo, tag):
-        print(f"  {mod}: {tag} is released")
-        return 0
 
     head = git(mod, "rev-parse", "HEAD").stdout.strip()
     title = f"{(mp.fabric_mod_json(mod) or {}).get('name', mod)} {version}"
