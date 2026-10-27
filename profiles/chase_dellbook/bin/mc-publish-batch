@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Release each new build on GitHub, where ender-index finds it, and then keep every mod current on
-# Modrinth: create what has no project, then upload, describe and illustrate the lot.
+# Keep every mod in the suite current on Modrinth: create what has no project, then upload,
+# describe and illustrate the lot. The GitHub releases ender-index reads are each mod's own nightly
+# workflow's, built from what is pushed; mc-gh-publish makes one by hand.
 #
 #   mc-publish-batch            the day's run
 #   mc-publish-batch --dry-run  say what it would do
@@ -41,10 +42,6 @@ DRY=""
 [ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
 
 echo "== $(date '+%Y-%m-%d %H:%M %Z')"
-
-# The releases are what ender-index reads, and nothing on Modrinth's side should hold them up.
-echo "-- github"
-mc-gh-publish --upload --all $DRY
 
 # Create first: everything after it wants the project to exist. mc-publish stops itself when
 # the day's ten are spent and says which are left, so this does not need to count.
