@@ -68,4 +68,5 @@ if ! $HOME/.bun/bin/ender ls --names 2>/dev/null | grep -qxF couch; then
 	exit 1
 fi
 
-exec /usr/games/gamemoderun $HOME/.bun/bin/ender launch couch $joinServer
+# --update: the house pack is read again first, so the couch is never a release behind it
+exec /usr/games/gamemoderun $HOME/.bun/bin/ender launch couch --update $joinServer

@@ -28,16 +28,12 @@ mcServerAddress() {
 mcSuiteVersion=26.3
 mcSuiteLoaderVersion=0.19.5
 
-# Third-party client mods every player's machine gets, on top of the suite's own.
-#
-# Not priv-config's client-mods.txt: that names suite project directories built on the dev
-# machine, and these come from Modrinth. The mr: is required: ender will not take a bare
-# name its index cannot vouch for. No versions here - ender resolves the newest build
-# compatible with the instance's pin.
-#
-# sodium replaces the world renderer. The htpc measured its GPU at 100% on the peaks driving
-# a 4K projector, and the laptops have a good deal less card than that.
-mcStandardClientMods=(mr:sodium)
+# The pack every client follows: the suite's client mods and sodium, as released, in an ender
+# pack on a gist (justfatpack-client). What a client runs is edited there, not here - each
+# client reads it again on every launch and every dot-update. sodium is in it because the
+# htpc measured its GPU at 100% on the peaks driving a 4K projector, and the laptops have a
+# good deal less card than that.
+mcSuitePack=gist:a1db98319884288ad3d83a0db854291f
 
 # Hosts the house has stopped running. A dead address does not leave servers.dat on its
 # own; it stays under the name it always had and answers with a connection refused.
@@ -409,22 +405,31 @@ mcEnsureOfflineAccount() {
 	}
 }
 
-# Non-fatal: a machine that cannot reach Modrinth still has a playable client, just an
-# unaccelerated one, and saying so beats failing the whole update over it.
-mcAddStandardClientMods() {
-	local name=$1 addLog
+# The instance following the house pack, and current with it. Following it again is only an
+# update, so this runs every time. Skipped while the game is open: replacing a jar under a
+# running game breaks it the first time a class is wanted from the old one. Non-fatal: the
+# launch updates again anyway, and a machine offline right now still has what it had.
+mcFollowSuitePack() {
+	local name=$1 gameDir=$2 followLog
 
-	(( ${#mcStandardClientMods} )) || return 0
+	if [[ -n $gameDir ]] && mcGameRunning $gameDir; then
+		echo "  The game is open, so $name's mods are left as they are; its next launch updates them"
 
-	addLog=$(ender add $mcStandardClientMods --instance $name 2>&1) || {
-		echo "  Could not add ${mcStandardClientMods}:" >&2
-		print -r -- $addLog | tail -3 | sed 's/^/    /' >&2
+		return 0
+	fi
+
+	followLog=$(ender follow $mcSuitePack --instance $name 2>&1) || {
+		echo "  $name could not follow the pack ($mcSuitePack):" >&2
+		print -r -- $followLog | tail -5 | sed 's/^/    /' >&2
+
+		return 0
 	}
+
+	print -r -- $followLog | grep -E '^\s+[+-] |^!! |^ok ' | sed 's/^/  /'
 }
 
-# A player's machine: an instance on the pin, an identity, and the server list. Mods are not
-# managed here - they arrive over ssh from the dev box and ender leaves what it did not
-# install where it found it.
+# A player's machine: an instance on the pin following the house pack, an identity, and the
+# server list.
 mcEnsurePlayerClient() {
 	local version=$1 loader=${2:-fabric} gameDir=$3 name=${4:-suite} loaderVersion=$5
 
@@ -440,7 +445,7 @@ mcEnsurePlayerClient() {
 		return 1
 	}
 
-	mcAddStandardClientMods $name
+	mcFollowSuitePack $name $gameDir
 
 	mcEnsureOfflineAccount $gameDir || echo "  This machine has no identity to play as" >&2
 
@@ -452,15 +457,13 @@ mcEnsurePlayerClient() {
 	mcEnsureServerList $gameDir
 
 	# Pandorical draws every server-side screen and HUD in the suite, so a client without it
-	# connects and cannot see half of what it joined. Nothing here can fix that - the jars
-	# come from the dev box - so it is worth saying out loud.
+	# connects and cannot see half of what it joined - worth saying out loud.
 	local -a carried
 	carried=($gameDir/mods/pandorical-*.jar(N:t))
 
 	if (( ! ${#carried} )); then
-		echo "  No Pandorical in $gameDir/mods, so this machine cannot properly join the"
-		echo "  house server. From the dev machine: mc-deploy-client"
-		echo "  (that ships to every client; mc-deploy-client --clients names them one by one)"
+		echo "  No Pandorical in $gameDir/mods, so this machine cannot properly join the house"
+		echo "  server. ender follow $mcSuitePack --instance $name says why it did not arrive."
 	fi
 }
 

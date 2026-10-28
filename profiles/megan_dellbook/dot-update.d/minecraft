@@ -3,8 +3,7 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# A player's machine: a client on the house pin, nothing built here. Mod jars arrive over
-# ssh from the dev machine (mc-deploy-client), not from this file.
+# A player's machine: a client on the house pin following the house pack, nothing built here.
 mcAdoptPrismGameDir suite $HOME/minecraft-suite || return 1
 
 mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1

@@ -80,21 +80,9 @@ if [[ -f $suiteProps ]]; then
 		return 1
 	}
 
-	# The curated list, not every project on disk: most of the suite is loadable in a client
-	# but belongs only in a server, and shipping all of it has crashed one before.
-	clientMods=(${(f)"$(mcClientMods)"})
-
-	if (( ${#clientMods} )); then
-		echo "Deploying ${#clientMods} client mod(s)"
-
-		ender add $clientMods --instance suite > /dev/null || echo "  Some mods would not deploy - ender sync -i suite says which"
-	else
-		echo "  No client mod list (priv-config/minecraft/client-mods.txt), so none were deployed"
-	fi
-
-	# The same third-party client mods every other machine gets. Declared in the library so
-	# the dev box and the players cannot drift on what a client is.
-	mcAddStandardClientMods suite
+	# The same pack every other client follows, as released: what this machine plays is what
+	# the house plays. A build from the checkouts is tested on the local server, or by hand.
+	mcFollowSuitePack suite $clientDir
 
 	# Optional: the house server runs offline-mode, so a machine with no client id still
 	# plays. With one, this is the account the game uses.

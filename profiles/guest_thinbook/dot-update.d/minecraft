@@ -3,8 +3,7 @@
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 source "$HOME/.dotfiles/bin/lib/minecraft"
 
-# A player's machine on two servers. Mod jars arrive over ssh from the dev machine
-# (mc-deploy-client), not from this file.
+# A player's machine on two servers. The suite instance follows the house pack.
 mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1
 
 # The colonies server runs the MineColonies Official pack on its own version and loader,
