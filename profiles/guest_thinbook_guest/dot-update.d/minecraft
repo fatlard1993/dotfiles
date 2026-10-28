@@ -7,6 +7,4 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # profile installs the system packages, and two user accounts on one machine do not each
 # need a copy. ender is per-user though - it links into ~/.bun/bin - so this seat clones
 # and links its own.
-mcAdoptPrismGameDir suite $HOME/minecraft-suite || return 1
-
 mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1

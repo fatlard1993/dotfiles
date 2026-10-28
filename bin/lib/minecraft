@@ -39,9 +39,9 @@ mcSuitePack=gist:a1db98319884288ad3d83a0db854291f
 # own; it stays under the name it always had and answers with a connection refused.
 mcRetiredServers=(htpc.home 192.168.1.151)
 
-# Whether a game is open on this directory. Asked of /proc, not of the command line: Prism
-# runs the game through its own instance directory and never puts the configured game dir
-# on the line, so a command-line match reports "clear" with a game open in front of it.
+# Whether a game is open on this directory. Asked of /proc, not of the command line: a
+# launcher need not put the game dir on the java line, and a command-line match then
+# reports "clear" with a game open in front of it.
 mcGameRunning() {
 	# Refused rather than guessed at: an empty root turns the test below into the pattern
 	# "/*", which every absolute path matches.
@@ -301,100 +301,14 @@ mcEnsureSuite() {
 	return 0
 }
 
-# The suite mods that belong in a client, as project directories.
-#
-# Curated in priv-config and deliberately not derived: most of the suite declares
-# environment "*" because it is loadable anywhere, and a client carrying the server-side
-# half has crashed for it.
-mcClientMods() {
-	local file=${MINECRAFT_DATA:-$HOME/.priv-config/minecraft}/client-mods.txt
-	local root=$HOME/Projects/minecraft
-
-	[[ -r $file ]] || return 1
-
-	local -a found
-	local name
-
-	for name in ${(f)"$(grep -vE '^\s*(#|$)' $file)"}; do
-		[[ -d $root/$name ]] && found+=($root/$name)
-	done
-
-	(( ${#found} )) || return 1
-
-	# One per line: the caller splits on newlines, so a path with a space survives.
-	print -rl -- $found
-}
-
-# 3 to 16 word characters, which is what ender accepts. Refused rather than trimmed: a
-# shortened name derives a different UUID, so it is a different player, not a near miss.
-mcValidPlayerName() {
-	[[ $1 =~ '^[A-Za-z0-9_]{3,16}$' ]]
-}
-
-# The name this machine already plays under, from the launcher it is migrating off. An
-# offline identity is only its name - the server derives the UUID from it - so adopting the
-# wrong one arrives as a stranger with an empty inventory.
-mcPreviousPlayerName() {
-	local gameDir=$1
-	local accounts=$HOME/.local/share/PrismLauncher/accounts.json
-	local name file
-
-	if [[ -r $accounts ]]; then
-		# Said, not skipped: falling through to the unix user is the wrong identity.
-		command -v python3 > /dev/null 2>&1 || {
-			echo "  No python3, so Prism's account cannot be read" >&2
-
-			return 1
-		}
-
-		name=$(python3 -c '
-import json, sys
-
-try:
-	data = json.load(open(sys.argv[1]))
-except Exception:
-	sys.exit(1)
-
-for account in data.get("accounts", []):
-	if account.get("active"):
-		print((account.get("profile") or {}).get("name", ""))
-		break
-' $accounts 2>/dev/null)
-
-		mcValidPlayerName $name && { echo $name; return 0 }
-	fi
-
-	# The whole startup line or nothing. A client logs chat to this same file, so a bare
-	# search for "Setting user:" also matches a stranger typing it in chat - and taking the
-	# last match preferred that line, because chat always follows startup.
-	#
-	# What separates them is that the text follows the thread tag immediately and the name
-	# ends the line: a chat line carries "[System] [CHAT] <who> " in between. Not the thread
-	# name, which is Render thread for both - an earlier version of this anchored on
-	# main/Client thread and so matched none of the 147 real lines on the two machines here.
-	if [[ -n $gameDir && -d $gameDir/logs ]]; then
-		for file in $gameDir/logs/*(Nom); do
-			name=$(zgrep -ohE '^\[[0-9:]+\] \[[^]]+/INFO\]: Setting user: [A-Za-z0-9_]{3,16}$' $file 2>/dev/null | head -1 | awk '{ print $NF }')
-
-			mcValidPlayerName $name && { echo $name; return 0 }
-		done
-	fi
-
-	return 1
-}
-
 # An offline identity to play as, when nobody has signed one in. The house server runs
 # offline-mode, so this is all it asks for.
 mcEnsureOfflineAccount() {
-	local gameDir=$1 name=$2
+	local name=${1:-$USER}
 
 	# Bare names, not the human listing: matching that by shape also matched the indented
 	# help printed under "No accounts yet.", so a machine with no account read as having one.
 	[[ -n $(ender account --names 2>/dev/null) ]] && return 0
-
-	# Looked up only when needed: this reads a file and scans logs.
-	name=${name:-$(mcPreviousPlayerName $gameDir)}
-	name=${name:-$USER}
 
 	echo "Adding an offline account for $name"
 
@@ -447,7 +361,7 @@ mcEnsurePlayerClient() {
 
 	mcFollowSuitePack $name $gameDir
 
-	mcEnsureOfflineAccount $gameDir || echo "  This machine has no identity to play as" >&2
+	mcEnsureOfflineAccount || echo "  This machine has no identity to play as" >&2
 
 	# Optional: with a client id this machine can also sign in to a Microsoft account, which
 	# the house server does not need but another server might.
@@ -467,79 +381,13 @@ mcEnsurePlayerClient() {
 	fi
 }
 
-# A non-house server's pack instance. A machine that played it in Prism has it already, and
-# that copy is imported with its worlds. Otherwise this is only a report: ender imports a
-# pack file but cannot fetch one from CurseForge by name.
+# A non-house server's pack instance. Only a report when it is missing: ender imports a pack
+# file but cannot fetch one from CurseForge by name.
 mcEnsurePackInstance() {
 	local name=$1 where=$2 gameDir=$3
-	local prism=$HOME/.local/share/PrismLauncher/instances/$name
 
-	if ! ender ls --names 2>/dev/null | grep -qxF $name; then
-		[[ -f $prism/mmc-pack.json ]] || {
-			echo "  No '$name' instance yet. Download its pack from $where, then:"
-			echo "    ender import <the pack zip> --name $name"
+	ender ls --names 2>/dev/null | grep -qxF $name && return 0
 
-			return 0
-		}
-
-		echo "Importing the $name instance from Prism"
-
-		ender import $prism --name $name > /dev/null || {
-			echo "  Prism's $name instance would not import" >&2
-
-			return 1
-		}
-	fi
-
-	# Imported, it still plays out of Prism's folder until the game is closed long enough to
-	# move it, so this is asked on every run rather than only after the import.
-	[[ $(ender info $name 2>/dev/null | sed -n 's/^ *game dir *//p') == $prism/* ]] || return 0
-
-	mcAdoptPrismGameDir $name $gameDir && ender set gameDir $gameDir --instance $name > /dev/null
-}
-
-# Move a game directory out of Prism's instance folder, once. Some seats never had one of
-# their own: worlds, options, screenshots and the server list all lived at
-# <prism>/instances/<name>/.minecraft, or /minecraft - Prism takes the dotted one when it
-# exists and the other otherwise.
-#
-# A rename, so on one filesystem it is atomic and keeps every inode.
-mcAdoptPrismGameDir() {
-	local instance=$1 dest=$2
-	local old=$HOME/.local/share/PrismLauncher/instances/$instance/.minecraft
-
-	[[ -e $old ]] || old=${old:h}/minecraft
-
-	[[ -n $instance && -n $dest ]] || return 1
-
-	# Both present means an earlier move was refused and something else created the
-	# destination. The worlds are still in Prism's folder, and the existence guard below
-	# would call that done forever.
-	if [[ -e $dest && -d $old && ! -L $old ]]; then
-		echo "  The worlds are still in Prism's folder, and $dest already exists:" >&2
-		echo "    $old" >&2
-		echo "  Nothing here can safely merge them. Move them by hand, then rerun." >&2
-
-		return 1
-	fi
-
-	[[ -e $dest ]] && return 0
-	[[ -d $old && ! -L $old ]] || return 0
-
-	if mcGameRunning $old; then
-		echo "  The game is open out of $old, so it was left there. Close it and rerun."
-
-		return 1
-	fi
-
-	echo "Moving the game directory out of Prism's instance folder"
-	echo "  $old"
-	echo "  -> $dest"
-
-	mkdir -p $(dirname $dest)
-	mv $old $dest || {
-		echo "  The move failed, so nothing was changed" >&2
-
-		return 1
-	}
+	echo "  No '$name' instance yet. Download its pack from $where, then:"
+	echo "    ender import <the pack zip> --name $name --game-dir $gameDir"
 }

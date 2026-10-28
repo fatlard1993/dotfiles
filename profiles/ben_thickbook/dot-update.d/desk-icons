@@ -52,11 +52,9 @@ for tile in home minecolonies; do
 
 	# The creeper first: an abstract cube says nothing to a kid scanning for minecraft (the
 	# thinbook's Home tile got walked past). ender is a command and ships no icon, so the
-	# game directory's own is tried first, then a launcher icon if one is still installed -
-	# apt does not remove prismlauncher just because nothing uses it any more.
+	# game directory's own is tried first, then a launcher icon if one is installed.
 	for candidate in $HOME/minecraft-suite/icon.png \
 		/usr/share/icons/hicolor/symbolic/apps/minecraft-launcher.svg \
-		/usr/share/icons/hicolor/*/apps/org.prismlauncher.PrismLauncher.png(N) \
 		/usr/share/icons/hicolor/*/apps/applications-games.png(N); do
 		[[ -s $candidate ]] && { ln -sf $candidate $iconDir/desk-$tile.png; break }
 	done

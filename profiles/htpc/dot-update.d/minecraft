@@ -64,7 +64,6 @@ fi
 # in this profile's minecraft-couch is all Steam needs.
 clientDir=$HOME/minecraft-client
 
-mcAdoptPrismGameDir suite $clientDir || return 1
 
 mcEnsurePlayerClient $mcSuiteVersion fabric $clientDir couch $mcSuiteLoaderVersion || return 1
 

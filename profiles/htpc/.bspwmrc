@@ -5,9 +5,7 @@
 
 # This box is a game console with a window manager behind it, so the game
 # takes the whole panel: fullscreen covers the status bar too, which tiled
-# does not. Tiled also only looks right while nothing shares the desktop -
-# Prism's own window sits there for the first moments after launch, and the
-# game comes up split down the middle.
+# does not, and tiled splits the desktop with anything else open on it.
 #
 # Matched on class, not instance: the instance is "java" (as good as
 # unmatchable), while the class is this. The class moved with 26.3 - the
