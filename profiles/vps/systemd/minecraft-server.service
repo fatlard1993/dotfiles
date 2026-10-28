@@ -14,11 +14,11 @@ WorkingDirectory=%h/minecraft-server
 # is not enough - the interpreter still has to be found, and a user unit gets systemd's
 # PATH, which has no ~/.bun/bin. Without this the unit exits 127 on env: 'bun' not found.
 Environment=PATH=%h/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# ender picks
-# the runtime the pinned version asks for, provisions the loader's server launcher, and
-# reads the heap from the instance - so this start does network work, which is why the
-# restarts are bounded rather than endless.
-ExecStart=%h/.bun/bin/ender server start suite-server
+# ender picks the runtime the pinned version asks for, provisions the loader's server
+# launcher, reads the heap from the instance, and with --update first takes what the server
+# pack names - so this start does network work, which is why the restarts are bounded rather
+# than endless. An update that cannot run starts what is installed.
+ExecStart=%h/.bun/bin/ender server start suite-server --update
 # The server saves and exits cleanly on SIGTERM (systemd's default stop signal), which
 # surfaces as 143. ender installs no signal handler of its own; systemd's default
 # KillMode=control-group signals the whole cgroup, so the JVM gets the TERM and saves.

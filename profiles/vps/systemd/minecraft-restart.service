@@ -1,0 +1,8 @@
+# Linked by dot-update.d/minecraft. The server takes new releases only as it starts, so this
+# restart is what lands them; minecraft-restart.timer runs it nightly.
+[Unit]
+Description=Restart the Minecraft server so it takes what was released since it started
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user restart minecraft-server.service

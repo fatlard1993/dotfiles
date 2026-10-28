@@ -35,6 +35,10 @@ mcSuiteLoaderVersion=0.19.5
 # good deal less card than that.
 mcSuitePack=gist:a1db98319884288ad3d83a0db854291f
 
+# The pack the house server follows (justfatpack-server): the suite's server mods, and Geyser
+# and Floodgate for Bedrock players, as released. The server reads it each time it starts.
+mcServerPack=gist:7e4eee2b11c998a93c0e3f661bb2a06c
+
 # Hosts the house has stopped running. A dead address does not leave servers.dat on its
 # own; it stays under the name it always had and answers with a connection refused.
 mcRetiredServers=(htpc.home 192.168.1.151)

@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Minecraft server restart, after the world backup
+
+[Timer]
+# Half an hour after minecraft-backup.timer, so the backup is of the world before the update
+OnCalendar=*-*-* 05:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -10,8 +10,8 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 # hand-written user units and a jar started by name, while seven clients were pinned to the
 # version in bin/lib/minecraft with nothing tying the two together. They drifted.
 #
-# Mod jars are not managed here - they arrive from the dev machine and ender leaves what it
-# did not install where it found it.
+# Its mods are the house server pack, read again each time the server starts, and a timer
+# restarts it nightly so releases land without anyone deploying them.
 # Bootstrapping this box into the fleet, once:
 #
 #     git clone https://github.com/fatlard1993/dotfiles ~/.dotfiles
@@ -29,6 +29,11 @@ mcEnsureInstance suite-server $mcSuiteVersion fabric $mcDir server $mcSuiteLoade
 }
 
 serverPinMoved=$mcInstanceChanged
+
+# Recorded only: jars swapped under a running server fail later, on the first class nobody had
+# needed yet. The unit starts it with --update, so the next start fetches what the pack names.
+ender follow $mcServerPack --instance suite-server --no-sync > /dev/null \
+	|| echo "  suite-server would not follow the server pack ($mcServerPack)" >&2
 
 ender server provision suite-server > /dev/null || echo "  suite-server could not be provisioned" >&2
 
@@ -54,11 +59,12 @@ ender server offline suite-server > /dev/null || echo "  suite-server would not 
 # supposed to leave a working server alone restarted it instead.
 runningExecStart=$(systemctl --user show minecraft-server.service -p ExecStart --value 2>/dev/null)
 
-echo "Linking minecraft server and backup units"
+echo "Linking minecraft server, backup and restart units"
 
 mkdir -p $HOME/.config/systemd/user
 
-for unit in minecraft-server.service minecraft-backup.service minecraft-backup.timer; do
+for unit in minecraft-server.service minecraft-backup.service minecraft-backup.timer \
+	minecraft-restart.service minecraft-restart.timer; do
 	ln -sf $profilePath/systemd/$unit $HOME/.config/systemd/user/
 done
 
@@ -70,6 +76,9 @@ ensureLinger
 
 systemctl --user enable --now minecraft-backup.timer > /dev/null 2>&1 \
 	|| echo "  The nightly world backup timer would not enable" >&2
+
+systemctl --user enable --now minecraft-restart.timer > /dev/null 2>&1 \
+	|| echo "  The nightly restart timer would not enable, so releases land only when the server restarts" >&2
 
 # The unit on disk now starts the server through ender; a server already running was started
 # by the jar name in the unit this replaced, and a daemon-reload does not restart anything.
