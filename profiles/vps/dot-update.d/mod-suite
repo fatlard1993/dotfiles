@@ -33,3 +33,15 @@ grep -q '^org.gradle.daemon.idletimeout=' $HOME/.gradle/gradle.properties 2>/dev
 }
 
 mcEnsureSuite
+
+# The suite is developed here, and the nightly release pushes version bumps to it, so its clones
+# are pulled each morning: forward only, and never over uncommitted work (bin/mc-pull-suite).
+mkdir -p $HOME/.config/systemd/user
+
+for unit in mc-pull-suite.service mc-pull-suite.timer; do
+	ln -sf $profilePath/systemd/$unit $HOME/.config/systemd/user/
+done
+
+systemctl --user daemon-reload
+systemctl --user enable --now mc-pull-suite.timer > /dev/null 2>&1 \
+	|| echo "  The suite's morning pull would not enable, so its clones fall behind the nightly bumps" >&2

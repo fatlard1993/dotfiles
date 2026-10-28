@@ -1,0 +1,8 @@
+# Linked by dot-update.d/mod-suite. The suite is developed here, and the nightly release pushes
+# version bumps to its repos, so the clones are brought up to them each morning.
+[Unit]
+Description=Pull the mod suite's clones up to what the nightly release pushed
+
+[Service]
+Type=oneshot
+ExecStart=%h/.dotfiles/bin/mc-pull-suite

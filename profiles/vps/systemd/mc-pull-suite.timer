@@ -1,0 +1,11 @@
+[Unit]
+Description=Pull the mod suite each morning, after the nightly releases
+
+[Timer]
+# GitHub starts scheduled workflows late: the 03:17 UTC releases have run near 09:40 UTC, which
+# is 02:40 here. Half past five clears that, and the server's restart at five.
+OnCalendar=*-*-* 05:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

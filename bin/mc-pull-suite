@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Bring every clone of the suite up to what is pushed, without touching work in progress.
+#
+#   mc-pull-suite      every repo under ~/Projects/minecraft (MINECRAFT_SUITE overrides it)
+#
+# The nightly release pushes a version bump to any mod changed since its last release, so a
+# clone falls a commit behind without anyone pushing to it by hand. Each clone is moved only
+# when that is safe:
+#   clean and behind              fast-forwarded
+#   commits of its own, unpushed  rebased onto what is pushed; a rebase that conflicts is
+#                                 undone, and the clone is left as it was
+#   uncommitted work, or off its  left alone, and named
+#   upstream branch
+# Exits non-zero when any clone was left behind, so a timer's failure says so.
+set -uo pipefail
+
+SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
+[ -d "$SUITE" ] || { echo "no mod suite at $SUITE" >&2; exit 2; }
+
+pulled=0
+current=0
+left=()
+
+for repo in "$SUITE"/*/; do
+	repo=${repo%/}
+	name=$(basename "$repo")
+	[ -d "$repo/.git" ] || continue
+
+	git -C "$repo" fetch -q 2>/dev/null || { left+=("$name: could not fetch"); continue; }
+
+	upstream=$(git -C "$repo" rev-parse -q --verify '@{upstream}' 2>/dev/null) || { left+=("$name: no upstream branch"); continue; }
+	read -r ahead behind < <(git -C "$repo" rev-list --left-right --count HEAD...@{upstream})
+
+	if [ "$behind" -eq 0 ]; then
+		current=$((current + 1))
+		continue
+	fi
+
+	if [ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]; then
+		left+=("$name: $behind behind, with uncommitted work")
+		continue
+	fi
+
+	if [ "$ahead" -eq 0 ]; then
+		git -C "$repo" merge -q --ff-only "$upstream" && pulled=$((pulled + 1)) || left+=("$name: would not fast-forward")
+	elif git -C "$repo" rebase -q "$upstream" > /dev/null 2>&1; then
+		echo "$name: $ahead unpushed commit(s) moved onto the $behind pushed since"
+		pulled=$((pulled + 1))
+	else
+		git -C "$repo" rebase --abort 2>/dev/null
+		left+=("$name: $ahead unpushed commit(s) conflict with the $behind pushed since")
+	fi
+done
+
+echo "$pulled pulled, $current already current, ${#left[@]} left behind"
+
+for line in "${left[@]}"; do echo "  $line"; done
+
+[ ${#left[@]} -eq 0 ]

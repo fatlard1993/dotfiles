@@ -246,6 +246,8 @@ mcEnsureInstance() {
 # Missing clones only - existing ones are left alone. These are working trees
 # with uncommitted work in them as often as not, and a dot-update that pulled
 # forty repos underneath you would be a maintenance step nobody could trust.
+# Where the suite is developed, mc-pull-suite brings them forward on a timer,
+# and only where nothing is in progress.
 mcEnsureSuite() {
 	local root=$HOME/Projects/minecraft
 	local suiteTopic="minecraft-mod-suite"
