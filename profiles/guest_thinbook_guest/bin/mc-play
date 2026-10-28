@@ -38,4 +38,5 @@ ender ls --names 2>/dev/null | grep -qxF suite || {
 	exit 1
 }
 
-exec ender launch suite $joinServer
+# --update: the house pack is read again first, so a client is never a release behind it
+exec ender launch suite --update $joinServer

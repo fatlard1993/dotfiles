@@ -36,4 +36,9 @@ ender ls --names 2>/dev/null | grep -qxF $instance || {
 	exit 1
 }
 
-exec ender launch $instance $joinServer
+# The suite follows the house pack, read again before each launch. minecolonies is a fixed
+# CurseForge pack, where an update would move mods its pack pins.
+update=()
+[[ $instance == suite ]] && update=(--update)
+
+exec ender launch $instance $update $joinServer
