@@ -80,7 +80,15 @@ one() {
 	local mod="$1" level="$2" logs="$3"
 	# :runClientGameTest, not the bare name: Pandorical is a subproject of most of these, and the
 	# bare name matches the task in every project in the build.
-	if (cd "$mod" && timeout 900 ./gradlew :runClientGameTest -Ptest.level="$level" \
+	#
+	# The vps runs the live server beside this, and a client plus its Gradle took enough RAM that
+	# the kernel OOM-killed the server instead. So the run gets its own cgroup: past MemoryHigh it
+	# is pushed into swap, past MemoryMax it is killed, and its OOM score of 1000 makes it the
+	# first pick when the whole box runs short. The server's unit cannot lower its own score, as
+	# a user unit may only raise one. --no-daemon because a client forked by an already-running
+	# daemon lands in that daemon's cgroup, outside these limits.
+	if (cd "$mod" && timeout 900 systemd-run --user --scope -q -p MemoryHigh=3G -p MemoryMax=5G \
+			choom -n 1000 -- ./gradlew --no-daemon :runClientGameTest -Ptest.level="$level" \
 			--console=plain > "$logs/$mod.log" 2>&1); then
 		echo "PASS  $mod"
 	else
