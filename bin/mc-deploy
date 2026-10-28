@@ -106,7 +106,7 @@ LAUNCHER=fabric-server.jar.next
 # it was put in mods/ by hand once and then sat there while the pin moved on, and
 # nothing noticed because every manifest asked for "*". Now that they name a
 # floor, a stale copy stops the whole server from starting, so the deploy owns it
-# the way mc-deploy-client already owns the client's.
+# the way ender owns each client's.
 fabric_api_jar() {
 	local want
 	want=$(grep -E '^\s*fabric_version' pandorical/gradle.properties 2>/dev/null \

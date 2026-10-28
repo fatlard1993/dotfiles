@@ -26,9 +26,9 @@ SUITE="${MINECRAFT_SUITE:-$HOME/Projects/minecraft}"
 [ -d "$SUITE" ] || { print -u2 "no mod suite at $SUITE"; exit 2 }
 cd "$SUITE" || exit 2
 
-# The list mc-deploy-client actually ships from. Read here so this tool answers
-# with what the deploy scripts do rather than with a rule of its own that happens
-# to agree - they disagreed the moment one mod grew a server half, and this said
+# The list mc-deploy hands the server to offer joining players. Read here so this
+# tool answers with what the deploy does rather than with a rule of its own that
+# happens to agree - they disagreed the moment one mod grew a server half, and this said
 # "no client-side anything" about a jar every client needs.
 CLIENT_LIST="${MINECRAFT_PRIV:-$HOME/.priv-config/minecraft}/client-mods.txt"
 shipped_to_clients() {

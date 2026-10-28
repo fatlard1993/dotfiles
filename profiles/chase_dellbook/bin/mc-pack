@@ -64,7 +64,7 @@ def slugs():
 
 
 def jar_for(mod):
-    """The jar the mod's build declares, the same reading mc-deploy-client does."""
+    """The jar the mod's build declares."""
     d = os.path.join(SUITE, mod)
     version = prop(os.path.join(d, "gradle.properties"), "mod_version")
     name = None
