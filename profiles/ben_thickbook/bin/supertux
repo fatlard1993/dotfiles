@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+# supertux
+#
+# SuperTux fullscreen at a size of its own switches the whole display to that mode, and a game that exits
+# badly leaves it there: small and smeared until a reboot. Its options menu can choose one, so each launch
+# puts fullscreen back at 0x0, which SuperTux reads as the desktop's own size, where nothing is switched.
+
+config=$HOME/.local/share/supertux2/config
+
+[[ -f $config ]] && sed -i -E 's/\((fullscreen_width|fullscreen_height|fullscreen_refresh_rate) [0-9]+\)/(\1 0)/' $config
+
+exec supertux2 "$@"
