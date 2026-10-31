@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Nightly tarball of the world, keeping a week. Run from the minecraft-backup timer.
+# Nightly tarball of the world, keeping five days. Run from the minecraft-backup timer.
 #
 # The save is required only when the server is actually running. The one-liner this
 # replaced ran `rcon.py save-all; tar ...` with a semicolon, so a failed save still
@@ -11,7 +11,7 @@ set -e
 
 serverDir=$HOME/minecraft-server
 backupDir=$HOME/backups
-keep=7
+keep=5
 
 cd $serverDir
 
