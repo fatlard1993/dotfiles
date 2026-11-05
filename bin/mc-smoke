@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Is anything in the suite broken? One answer for every mod, in minutes.
+
+    mc-smoke              check, build what is stale, then both combined runs
+    mc-smoke --static     only the dependency check, no game launched
+
+Three parts, each failing loudly:
+
+1. Every mod's jar is read for references to another suite mod's classes, and each one has to
+   be named in its fabric.mod.json (depends, recommends or suggests). An unguarded reference
+   to a mod it does not name works only because a sibling happens to be installed beside it,
+   and breaks for anyone who installs it alone. A reference behind isModLoaded is safe, but
+   still belongs under suggests: that is what the loader and the download pages read to know
+   the two go together. The jar alone cannot tell the two cases apart, so each line is a
+   manifest to fix and a call site to read.
+2. One client with every mod in it, under Pandorical's smoke tests: every mixin from every mod
+   is applied and audited (LaunchGate), and a world comes up with all of them in it - the way
+   the house server runs them, so a clash between two mods shows here and nowhere else.
+3. One client with the mods that do not depend on Pandorical, hosted by festering-portal, so
+   their path without it is exercised too.
+
+After each run its log is read for ERROR lines from a suite mod: a recipe, loot table or
+advancement that will not parse is logged and skipped, never fatal, so only the log shows it.
+
+server-issues stays out of both runs: a test client's unclean exit reads to it as a server
+crash, and it answers a crash by opening a session for the maintainers. Server-only mods
+(environment "server") stay out too; a client never loads them.
+
+Exit status is the number of parts that failed.
+"""
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+SUITE = pathlib.Path(os.environ.get("MINECRAFT_SUITE", pathlib.Path.home() / "Projects/minecraft"))
+HOST_WITH = "pandorical"
+HOST_WITHOUT = "festering-portal"
+KEPT_OUT = {"server-issues"}
+SKIPPED_JARS = ("-sources.jar", "-testsupport.jar", "-dev.jar", "-javadoc.jar")
+REFERENCE = re.compile(rb"justfatlard/([a-z0-9_]+)/")
+ERROR_LINE = re.compile(r"^\[[\d:]+\] \[[^\]]*/ERROR\] \(([^)]+)\) (.*)")
+
+
+class Mod:
+	def __init__(self, folder: pathlib.Path):
+		self.folder = folder
+		self.name = folder.name
+		self.jar = newest_jar(folder)
+		self.manifest = read_manifest(self.jar) if self.jar else None
+
+	@property
+	def id(self):
+		return self.manifest["id"]
+
+	def named(self):
+		"""Every mod id this one declares a relation to."""
+		ids = set()
+		for key in ("depends", "recommends", "suggests", "breaks", "conflicts"):
+			ids.update((self.manifest.get(key) or {}).keys())
+		return ids
+
+	def needs_pandorical(self):
+		return "pandorical" in (self.manifest.get("depends") or {})
+
+	def environment(self):
+		return self.manifest.get("environment", "*")
+
+
+def newest_jar(folder):
+	jars = [p for p in (folder / "build/libs").glob("*.jar") if not p.name.endswith(SKIPPED_JARS)]
+	return max(jars, key=lambda p: p.stat().st_mtime) if jars else None
+
+
+def read_manifest(jar):
+	with zipfile.ZipFile(jar) as zf:
+		return json.loads(zf.read("fabric.mod.json"))
+
+
+def stale(mod):
+	"""Unbuilt, or older than something it is built from."""
+	if mod.jar is None:
+		return True
+	built = mod.jar.stat().st_mtime
+	inputs = [mod.folder / "gradle.properties", mod.folder / "build.gradle"]
+	inputs += [p for p in (mod.folder / "src").rglob("*") if p.is_file() and "gametest" not in p.parts]
+	return any(p.exists() and p.stat().st_mtime > built for p in inputs)
+
+
+def discover():
+	mods = []
+	for folder in sorted(SUITE.iterdir()):
+		if (folder / "gradlew").exists() and any((folder / "src").glob("*/resources/fabric.mod.json")):
+			mods.append(Mod(folder))
+	return mods
+
+
+def build_stale(mods):
+	todo = [m for m in mods if stale(m)]
+	if not todo:
+		print("All jars are newer than their sources")
+		return 0
+	print(f"Building {len(todo)} stale or unbuilt mod(s): {' '.join(m.name for m in todo)}")
+	failed = []
+	for mod in todo:
+		result = subprocess.run(["./gradlew", "assemble", "-q", "--console=plain"], cwd=mod.folder,
+			stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+		if result.returncode != 0:
+			failed.append(mod.name)
+			print(f"  {mod.name} did not build:\n{result.stderr[-1500:]}")
+		mod.jar = newest_jar(mod.folder)
+		mod.manifest = read_manifest(mod.jar) if mod.jar else None
+		# Gradle skips a jar whose inputs changed only in time; a success means it is current.
+		if result.returncode == 0 and mod.jar:
+			os.utime(mod.jar)
+	return len(failed)
+
+
+def package_owners(mods):
+	"""Each suite package to the mod whose jar holds it."""
+	owners = {}
+	for mod in mods:
+		with zipfile.ZipFile(mod.jar) as zf:
+			for entry in zf.namelist():
+				match = REFERENCE.search(entry.encode())
+				if match and entry.endswith(".class"):
+					owners.setdefault(match.group(1).decode(), mod)
+	return owners
+
+
+def check_relations(mods):
+	"""References to a sibling's classes that the manifest does not declare."""
+	owners = package_owners(mods)
+	problems = []
+	for mod in mods:
+		named = mod.named()
+		reached = {}
+		with zipfile.ZipFile(mod.jar) as zf:
+			for entry in zf.namelist():
+				if not entry.endswith(".class"):
+					continue
+				for match in REFERENCE.finditer(zf.read(entry)):
+					owner = owners.get(match.group(1).decode())
+					if owner is not None and owner is not mod and owner.id not in named:
+						reached.setdefault(owner.id, entry)
+		for other, where in sorted(reached.items()):
+			problems.append(f"  {mod.name} references {other} (first in {where}), not named in its fabric.mod.json")
+	if problems:
+		print(f"Undeclared sibling references: {len(problems)}")
+		print("\n".join(problems))
+	else:
+		print(f"Every reference between the {len(mods)} mods' jars is declared")
+	return 1 if problems else 0
+
+
+def combined_run(host, jars, suite_ids):
+	"""One client with these jars added to the host's own tests, at smoke level; then its log."""
+	with tempfile.TemporaryDirectory(prefix="mc-smoke-") as extra:
+		for jar in jars:
+			shutil.copy(jar, extra)
+		env = dict(os.environ, JAVA_TOOL_OPTIONS=f"-Dfabric.addMods={extra}", ALSOFT_DRIVERS="null")
+		# The same fence mc-test puts round a client: a hard memory ceiling, and first in line
+		# for the OOM killer, so a runaway test dies before the house server does.
+		command = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryHigh=3G", "-p", "MemoryMax=5G",
+			"choom", "-n", "1000", "--", "./gradlew", "--no-daemon", ":runClientGameTest",
+			"-Ptest.level=smoke", "-q", "--console=plain"]
+		if not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+			command = ["xvfb-run", "-a", "-s", "-screen 0 1280x720x24"] + command
+		print(f"Running {len(jars) + 1} mods together under {host.name}'s smoke tests")
+		result = subprocess.run(command, cwd=host.folder, env=env, stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT, text=True, timeout=1500)
+	log = host.folder / "build/run/clientGameTest/logs/latest.log"
+	loaded = re.search(r"Loading (\d+) mods", log.read_text(errors="replace")) if log.exists() else None
+	errors = suite_errors(log, suite_ids)
+	print(f"  {'passed' if result.returncode == 0 else 'FAILED'}; "
+		f"{loaded.group(1) if loaded else '?'} mods loaded; {len(errors)} suite ERROR line(s) in the log")
+	for line in errors[:20]:
+		print(f"    {line}")
+	if result.returncode != 0:
+		print(result.stdout[-3000:])
+	return 0 if result.returncode == 0 and not errors else 1
+
+
+def suite_errors(log, suite_ids):
+	if not log.exists():
+		return ["no log written"]
+	names = set(suite_ids) | {i.removesuffix("-justfatlard") for i in suite_ids}
+	found = []
+	for line in log.read_text(errors="replace").splitlines():
+		match = ERROR_LINE.match(line)
+		# A test mod's own fixtures are built to trip some of these: Pandorical's blob entity
+		# exists to show the warning for a fallback that cannot read its data.
+		if match and match.group(1) in names and not re.search(r"[a-z0-9_-]+-gametest:", match.group(2)):
+			found.append(line[:240])
+	return found
+
+
+def main():
+	mods = discover()
+	failures = 0
+	if "--static" not in sys.argv:
+		failures += build_stale(mods)
+	missing = [m.name for m in mods if m.jar is None]
+	if missing:
+		print(f"No jar to check for: {' '.join(missing)}")
+	mods = [m for m in mods if m.jar is not None]
+	failures += check_relations(mods)
+	if "--static" in sys.argv:
+		return failures
+
+	by_name = {m.name: m for m in mods}
+	suite_ids = [m.id for m in mods]
+	client = [m for m in mods if m.environment() != "server" and m.name not in KEPT_OUT]
+	everything = [m.jar for m in client if m.name != HOST_WITH]
+	without = [m.jar for m in client if m.name not in (HOST_WITH, HOST_WITHOUT) and not m.needs_pandorical()]
+	failures += combined_run(by_name[HOST_WITH], everything, suite_ids)
+	failures += combined_run(by_name[HOST_WITHOUT], without, suite_ids)
+	return failures
+
+
+if __name__ == "__main__":
+	sys.exit(main())
