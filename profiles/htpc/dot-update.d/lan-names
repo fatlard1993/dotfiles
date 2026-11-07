@@ -51,6 +51,17 @@ typeset -A hostRewrite=(
 	[llm]=localhost:11434
 )
 
+# Names added while the box runs, without editing this map: a `name=port`
+# line per file in ~/.config/lan-names.d (shelf-game writes one for each
+# arcade game put on the shelf). They get TLS, like games: a game page
+# writes through fetch().
+for entry in $HOME/.config/lan-names.d/*.conf(N); do
+	line=$(head -1 $entry)
+	[[ $line == [a-z0-9]*([a-z0-9-])=<1024-65535> ]] || { echo "Skipping $entry: not name=port"; continue }
+	services[${line%%=*}]=${line##*=}
+	tlsNames+=(${line%%=*})
+done
+
 command -v caddy > /dev/null || {
 	echo "Installing caddy"
 

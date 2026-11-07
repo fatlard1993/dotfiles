@@ -1,0 +1,40 @@
+#!/bin/zsh
+# A game built in the arcade, put on the house shelf: run as one of the bun-server@ services on a port of its own,
+# and named <name>.home like the other house games. paude runs this (arcade.shelf in ~/.config/paude/server.json)
+# from the game's folder; by hand: shelf-game <name> <port>, with the game in ~/Projects/<name>.
+#
+# Shelving again (after more building) rebuilds and restarts it, on the same port.
+set -e
+
+name=$1
+port=$2
+
+[[ -n $name && -n $port ]] || { echo "usage: shelf-game <name> <port>" >&2; exit 2 }
+[[ $name == [a-z0-9]*([a-z0-9-]) ]] || { echo "the name is letters, digits and dashes" >&2; exit 2 }
+[[ $port == <1024-65535> ]] || { echo "the port is a number from 1024 to 65535" >&2; exit 2 }
+
+game=$HOME/Projects/$name
+
+[[ -d $game ]] || { echo "no game at $game" >&2; exit 1 }
+
+echo "Building $name"
+(cd $game && $HOME/.bun/bin/bun run build)
+
+# The template unit runs `bun run start` in ~/Projects/<name>; the game takes its port from PORT
+unit=$HOME/.config/systemd/user/bun-server@$name.service.d
+mkdir -p $unit
+printf '[Service]\nEnvironment=PORT=%s\n' $port > $unit/port.conf
+systemctl --user daemon-reload
+
+echo "Starting bun-server@$name on :$port"
+systemctl --user enable --now bun-server@$name.service
+systemctl --user restart bun-server@$name.service
+
+# Its name: lan-names reads these beside its own map, with TLS, since the games write through fetch()
+mkdir -p $HOME/.config/lan-names.d
+printf '%s=%s\n' $name $port > $HOME/.config/lan-names.d/$name.conf
+
+echo "Naming $name.home"
+zsh -c ". $HOME/.dotfiles/profiles/htpc/dot-update.d/lan-names"
+
+echo "$name is on the shelf: https://$name.home"
