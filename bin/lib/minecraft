@@ -185,12 +185,6 @@ mcEnsureEnder() {
 	}
 }
 
-# The client id ender signs in with. Without one a machine still plays offline, which is
-# all the house server asks for.
-mcClientId() {
-	mcPrivLine ender-client-id
-}
-
 # An instance matching the pin, created if missing and bumped if it has drifted.
 #
 # Sets mcInstanceChanged rather than returning it: a caller running a server needs to know
@@ -368,11 +362,6 @@ mcEnsurePlayerClient() {
 	mcFollowSuitePack $name $gameDir
 
 	mcEnsureOfflineAccount || echo "  This machine has no identity to play as" >&2
-
-	# Optional: with a client id this machine can also sign in to a Microsoft account, which
-	# the house server does not need but another server might.
-	local clientId
-	clientId=$(mcClientId) && { ender config clientId $clientId > /dev/null || echo "  The client id would not apply" >&2 }
 
 	mcEnsureServerList $gameDir
 

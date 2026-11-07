@@ -84,10 +84,6 @@ if [[ -f $suiteProps ]]; then
 	# the house plays. A build from the checkouts is tested on the local server, or by hand.
 	mcFollowSuitePack suite $clientDir
 
-	# Optional: the house server runs offline-mode, so a machine with no client id still
-	# plays. With one, this is the account the game uses.
-	clientId=$(mcClientId) && { ender config clientId $clientId > /dev/null || echo "  The client id would not apply" >&2 }
-
 	# A local server to test against without taking the household one down.
 	if mcEnsureInstance suite-server $mcVersion fabric $serverDir server $loaderVersion; then
 		ender server provision suite-server > /dev/null || echo "  The local server could not be provisioned" >&2
