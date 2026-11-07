@@ -17,12 +17,14 @@ typeset -A services=(
 	[land-ledger]=7450
 	[remote]=8793
 	[llm]=11434
+	[arcade]=8044
 )
 # htpc -> home-page (the landing server every machine runs); remote ->
 # htpc-remote; games -> game-night; llm -> ollama (dot-update.fallow/ollama),
-# port 11434 is Ollama's own default, nothing custom to remember. The four
-# games also appear in dot-update.d/game-servers' loop - a new game needs
-# both.
+# port 11434 is Ollama's own default, nothing custom to remember; arcade ->
+# paude (~/.paude-server, installed by its own installer), where the kids
+# build games with Claude. The four games also appear in
+# dot-update.d/game-servers' loop - a new game needs both.
 
 # Names in here get Caddy's automatic HTTPS (internal CA) instead of plain
 # HTTP. Chrome now refuses fetch()/XHR from a plain-HTTP page to any LAN
@@ -30,7 +32,16 @@ typeset -A services=(
 # breaks in-page writes; games is the first service that does that. Every
 # device that needs to edit games.home has to trust Caddy's root CA once
 # (see the echo below for the cert path).
-typeset -a tlsNames=(games)
+typeset -a tlsNames=(games arcade)
+
+# A service with a second origin on another port of the same name, as
+# `name.home:port -> localhost:upstream`. paude serves what its sessions
+# share (a game being built, say) from a separate origin on purpose, so a
+# shared app can't act as you on paude; 8444 is the port paude's invite
+# links expect it on.
+typeset -A sidePorts=(
+	[arcade]=8444:8045
+)
 
 # Some upstreams validate the incoming Host header themselves (DNS-rebinding
 # protection) and 403 anything that isn't localhost/127.0.0.1 - forwarding
@@ -100,6 +111,13 @@ caddyfile=$(mktemp)
 			echo "	reverse_proxy localhost:$services[$name]"
 		fi
 		echo "}"
+		if [[ -n $sidePorts[$name] ]]; then
+			echo ""
+			echo "$name.home:${sidePorts[$name]%%:*} {"
+			echo "	tls internal"
+			echo "	reverse_proxy localhost:${sidePorts[$name]##*:}"
+			echo "}"
+		fi
 	done
 } > $caddyfile
 
