@@ -18,16 +18,28 @@ id guest > /dev/null 2>&1 || {
 
 echo "guest:guest" | sudo chpasswd 2>/dev/null
 
-# guest runs its own dot-update below, and that run needs three things
+# guest runs its own dot-update below, and that run needs four things
 # armed before it starts: sudo (the ubuntu sudo step arms it mid-run, too
 # late for the steps before it), a git identity (the git step's prompt has
-# no tty here), and its own clone of the public repo.
+# no tty here), its own clone of the public repo, and a session bus.
 echo "guest ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/010_guest-nopasswd > /dev/null
 
 sudo -u guest bash -c '[ -f ~/.gitconfig ] || printf "[user]\n\tname = justfatlard\n\temail = fatlard1993@gmail.com\n" > ~/.gitconfig'
 
 sudo -u guest bash -c '[ -d ~/Projects/dotfiles ] || { mkdir -p ~/Projects && git clone -q https://github.com/fatlard1993/dotfiles ~/Projects/dotfiles; }'
 
+# sudo -u hands over neither guest's user manager nor the two variables that find its bus
+# at /run/user/<uid>/bus, and every `systemctl --user` in the nested run needs that bus.
+# The manager is only up while guest has a session or lingers; lingering is what guest's
+# own hooks assert for their timers anyway, so asserting it here is what makes the bus
+# exist before they do.
+guestUid=$(id -u guest)
+guestRuntimeDir=/run/user/$guestUid
+
+sudo loginctl enable-linger guest
+sudo systemctl start user@$guestUid.service
+
 echo "Converging the guest account (guest_thinbook_guest)"
 
-sudo -u guest env HOME=/home/guest zsh -c 'cd ~/Projects/dotfiles && git pull -q; ./dot-update guest_thinbook_guest' < /dev/null
+sudo -u guest env HOME=/home/guest XDG_RUNTIME_DIR=$guestRuntimeDir DBUS_SESSION_BUS_ADDRESS=unix:path=$guestRuntimeDir/bus \
+	zsh -c 'cd ~/Projects/dotfiles && git pull -q; ./dot-update guest_thinbook_guest' < /dev/null
