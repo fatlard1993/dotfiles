@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Arcade
+Icon=desk-arcade
+Exec=google-chrome --app=https://arcade.home/
+Terminal=false
+Categories=Desk;
