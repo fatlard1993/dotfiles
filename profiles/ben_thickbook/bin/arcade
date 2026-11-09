@@ -1,0 +1,8 @@
+#!/bin/zsh
+# The Arcade tile: Ben's own arcade on the htpc's paude, through the game maker's link it gave him (an invite, so it's a
+# secret: kept in ~/.config/arcade-link on this machine alone, never in a repo). Opening the link each time logs him
+# back in if Chrome has let go of his login. Without the file, the plain arcade page, which asks him to log in.
+
+link=$(cat $HOME/.config/arcade-link 2>/dev/null)
+
+exec google-chrome --app="${link:-https://arcade.home/}"
