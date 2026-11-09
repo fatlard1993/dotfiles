@@ -54,8 +54,8 @@ typeset -A hostRewrite=(
 )
 
 # Names added while the box runs, without editing this map: a `name=port`
-# line per file in ~/.config/lan-names.d (shelf-game writes one for each
-# arcade game put on the shelf). They get TLS, like games: a game page
+# line per file in ~/.config/lan-names.d (web-game-mother-hub writes one for
+# each game paude's arcade hosts). They get TLS, like games: a game page
 # writes through fetch().
 for entry in $HOME/.config/lan-names.d/*.conf(N); do
 	line=$(head -1 $entry)

@@ -1,5 +1,5 @@
 # Linked into ~/.config/systemd/user by dot-update.d/games. One
-# template for the bun servers in ~/Projects (games put on the shelf by bin/shelf-game) - the
+# template for the bun servers in ~/Projects (games paude's mother hub hosts) - the
 # instance name is the project folder: bun-server@sand-sorter.
 # Each project's own `start` script stays authoritative for how it runs
 # (the game scaffold's sets NODE_ENV=production itself); PORT comes from a drop-in.

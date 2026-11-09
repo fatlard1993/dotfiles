@@ -8,8 +8,8 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # whose `prepare` script builds the client during install, run by the shared
 # bun-server@ template unit (see systemd/bun-server@.service). Once installed,
 # they're turned on and off, updated and reset from web-game-mother-hub
-# (https://hub.home, dot-update.d/mother-hub), which also lists the games
-# bin/shelf-game puts on the shelf.
+# (https://hub.home, dot-update.d/mother-hub), which also hosts the games
+# paude's arcade finishes.
 
 ensureBun
 

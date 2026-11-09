@@ -2,10 +2,9 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# Games built in paude's arcade and put on this box's shelf (bin/shelf-game) run as bun-server@<name> user units
-# from ~/Projects/<name>, each on a port of its own that Caddy serves over HTTPS at the public IP (dot-update.d/caddy
-# reads ~/.config/shelf-games). This only makes the template unit available and keeps the units alive past logout;
-# shelf-game does the rest, per game.
+# Games built in paude's arcade here are hosted by paude's own copy of web-game-mother-hub, as bun-server@<name> user
+# units from ~/Projects/<name>; opened to the internet, Caddy serves them on its slots (dot-update.d/caddy). This makes
+# the template unit theirs and keeps the units alive past logout; the hub does the rest, per game.
 
 ensureBun
 
