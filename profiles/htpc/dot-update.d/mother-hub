@@ -19,6 +19,18 @@ syncRepo https://github.com/fatlard1993/web-game-mother-hub.git $hub
 # --frozen-lockfile for the same reason as the games: a rewritten bun.lock blocks the next pull
 (cd $hub ; bun install --frozen-lockfile)
 
+# The key its tunnels reach the vps with, its own, made here and never leaving: priv-config's
+# web-game-mother-hub/tunnel.pub is its public half, which profiles/vps/update lets forward the tunnel ports and nothing
+# else. A new one (a fresh htpc) has to go there before a game can be opened to the internet.
+if [[ ! -f $HOME/.ssh/mother-hub-tunnel ]]; then
+	echo "Making web-game-mother-hub's tunnel key"
+
+	mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh
+	ssh-keygen -q -t ed25519 -N "" -C "mother-hub-tunnel@htpc" -f $HOME/.ssh/mother-hub-tunnel
+	echo "  Put this in priv-config's web-game-mother-hub/tunnel.pub, and run its update on the vps:"
+	echo "  $(cat $HOME/.ssh/mother-hub-tunnel.pub)"
+fi
+
 # The leading - lets it start without the file, printing a password of its own once to its journal
 unit=$HOME/.config/systemd/user/bun-server@web-game-mother-hub.service.d
 mkdir -p $unit
