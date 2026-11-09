@@ -27,7 +27,9 @@ rendered=$(sed "s/{{PUBLIC_IP}}/$publicIp/" $profilePath/caddy/Caddyfile)
 # Games opened to the internet by web-game-mother-hub: each of a hub's slots is a public port here, proxied to the
 # loopback port that hub's tunnel listens on. Two hubs use them: the htpc's (9101 on, from its ssh tunnels at 19101 on)
 # and paude's own copy on this box (9201 on, forwarded locally from 19201 on; its hubSettings in paude's server.json
-# give it those bases). Nothing here changes when a game opens or closes; with no tunnel up, the port says so.
+# give it those bases). Nothing here changes when a game opens or closes; with no tunnel up, the port says so. The
+# eight slots and both bases match the hub's --slots and port bases and priv-config's profiles/vps/update (the tunnel
+# key's allowed ports, the VPS hub's settings): change one, change them all.
 gamePorts=()
 for hub in htpc:9100:19100 vps:9200:19200; do
 	name=${hub%%:*} public=${${hub#*:}%%:*} tunnel=${hub##*:}
