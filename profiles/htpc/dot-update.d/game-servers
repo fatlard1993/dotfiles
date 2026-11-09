@@ -6,7 +6,10 @@ source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 # :1040, sorcery-and-savagery :3040, game-night :8034 - no collisions with
 # htpc-remote :8793 or land-ledger :7450). All the same shape: bun apps
 # whose `prepare` script builds the client during install, run by the shared
-# bun-server@ template unit (see systemd/bun-server@.service).
+# bun-server@ template unit (see systemd/bun-server@.service). Once installed,
+# they're turned on and off, updated and reset from web-game-mother-hub
+# (https://hub.home, dot-update.d/mother-hub), which also lists the games
+# bin/shelf-game puts on the shelf.
 
 ensureBun
 
@@ -19,14 +22,10 @@ systemctl --user daemon-reload
 # the servers shouldn't depend on the couch session being logged in
 ensureLinger
 
-# The games (except game-night, which stands alone) share one engine via a
-# file:../web-game-framework dependency -
-# a sibling checkout, not a registry package. It has to exist (with its own
-# node_modules) before any game's install can link it; on a fresh machine
-# nothing else clones it, and every game server crash-loops on a missing
-# module without it.
-syncRepo https://github.com/fatlard1993/web-game-framework.git $HOME/Projects/web-game-framework
-(cd $HOME/Projects/web-game-framework ; bun install --frozen-lockfile)
+# The games (except game-night, which stands alone) share one engine,
+# web-game-framework, each pinning a commit of it from GitHub in its own
+# package.json, so their installs fetch it themselves: no sibling checkout to
+# keep here.
 
 # Adding a game? Give it a *.home name + port in dot-update.d/lan-names too.
 for game in humanity void-driller sorcery-and-savagery game-night; do
