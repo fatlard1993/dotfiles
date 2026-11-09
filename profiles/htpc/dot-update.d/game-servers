@@ -30,6 +30,9 @@ syncRepo https://github.com/fatlard1993/web-game-framework.git $HOME/Projects/we
 
 # Adding a game? Give it a *.home name + port in dot-update.d/lan-names too.
 for game in humanity void-driller sorcery-and-savagery game-night; do
+	fresh=false
+	[[ -d $HOME/Projects/$game ]] || fresh=true
+
 	syncRepo https://github.com/fatlard1993/$game.git $HOME/Projects/$game
 
 	# bun install runs each game's `prepare` (client build) as a side effect.
@@ -39,11 +42,14 @@ for game in humanity void-driller sorcery-and-savagery game-night; do
 	# regenerating the lockfile in the game's repo, never on the htpc.
 	(cd $HOME/Projects/$game ; bun install --frozen-lockfile)
 
-	if ! systemctl --user is-active --quiet bun-server@$game.service; then
+	# Started when it's first installed; after that, on and off are
+	# web-game-mother-hub's (dot-update.d/mother-hub), so a game turned off
+	# there stays off through the next dot-update
+	if [[ $fresh == true ]]; then
 		echo "Starting $game"
 
 		systemctl --user enable --now bun-server@$game.service
-	elif [[ $repoUpdated == true ]]; then
+	elif [[ $repoUpdated == true ]] && systemctl --user is-active --quiet bun-server@$game.service; then
 		echo "Restarting $game (updated)"
 
 		systemctl --user restart bun-server@$game.service

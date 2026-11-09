@@ -18,12 +18,14 @@ typeset -A services=(
 	[remote]=8793
 	[llm]=11434
 	[arcade]=8044
+	[hub]=8036
 )
 # htpc -> home-page (the landing server every machine runs); remote ->
 # htpc-remote; games -> game-night; llm -> ollama (dot-update.fallow/ollama),
 # port 11434 is Ollama's own default, nothing custom to remember; arcade ->
 # paude (~/.paude-server, installed by its own installer), where the kids
-# build games with Claude. The four games also appear in
+# build games with Claude; hub -> web-game-mother-hub (dot-update.d/mother-hub),
+# the page that turns the games on and off. The four games also appear in
 # dot-update.d/game-servers' loop - a new game needs both.
 
 # Names in here get Caddy's automatic HTTPS (internal CA) instead of plain
@@ -32,7 +34,7 @@ typeset -A services=(
 # breaks in-page writes; games is the first service that does that. Every
 # device that needs to edit games.home has to trust Caddy's root CA once
 # (see the echo below for the cert path).
-typeset -a tlsNames=(games arcade)
+typeset -a tlsNames=(games arcade hub)
 
 # A service with a second origin on another port of the same name, as
 # `name.home:port -> localhost:upstream`. paude serves what its sessions
@@ -61,6 +63,16 @@ for entry in $HOME/.config/lan-names.d/*.conf(N); do
 	services[${line%%=*}]=${line##*=}
 	tlsNames+=(${line%%=*})
 done
+
+# A third half, for web-game-mother-hub: each service's address as a
+# `port url` line, so a game's card links to its name rather than a port
+for name in ${(k)services}; do
+	if (( ${tlsNames[(Ie)$name]} )); then
+		echo "$services[$name] https://$name.home"
+	else
+		echo "$services[$name] http://$name.home"
+	fi
+done > $HOME/.config/lan-names.urls
 
 command -v caddy > /dev/null || {
 	echo "Installing caddy"
