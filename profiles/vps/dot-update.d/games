@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Games built in paude's arcade and put on this box's shelf (bin/shelf-game) run as bun-server@<name> user units
+# from ~/Projects/<name>, each on a port of its own that Caddy serves over HTTPS at the public IP (dot-update.d/caddy
+# reads ~/.config/shelf-games). This only makes the template unit available and keeps the units alive past logout;
+# shelf-game does the rest, per game.
+
+ensureBun
+
+echo "Linking bun-server@ template unit"
+
+mkdir -p $HOME/.config/systemd/user
+ln -sf $profilePath/systemd/bun-server@.service $HOME/.config/systemd/user/
+systemctl --user daemon-reload
+
+ensureLinger

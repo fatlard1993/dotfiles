@@ -1,0 +1,54 @@
+#!/bin/zsh
+# A game built in the arcade, put on this box's shelf: run as a bun-server@ service on a port of its own, and served
+# by Caddy over HTTPS at the public IP on a public port of its own, so it can be played from anywhere. The game's
+# source goes to ~/Projects/<name> first (rsync from wherever it was built, without node_modules, client/build, data
+# and .git); then: shelf-game <name> <port> <public-port>, say shelf-game sand-sorter 3100 8446.
+#
+# Shelving again (after more building) installs, rebuilds and restarts it, on the same ports.
+set -e
+
+name=$1
+port=$2
+public=$3
+
+[[ -n $name && -n $port && -n $public ]] || { echo "usage: shelf-game <name> <port> <public-port>" >&2; exit 2 }
+[[ $name == [a-z0-9]*([a-z0-9-]) ]] || { echo "the name is letters, digits and dashes" >&2; exit 2 }
+[[ $port == <1024-65535> && $public == <1024-65535> ]] || { echo "the ports are numbers from 1024 to 65535" >&2; exit 2 }
+[[ $public != (80|443|8444) ]] || { echo "$public is paude's" >&2; exit 2 }
+
+game=$HOME/Projects/$name
+bun=$HOME/.bun/bin/bun
+
+[[ -d $game ]] || { echo "no game at $game" >&2; exit 1 }
+
+echo "Installing $name's libraries and building it"
+(cd $game && $bun install --frozen-lockfile && $bun run build)
+
+# The template unit runs `bun run start` in ~/Projects/<name>; the game takes its port from PORT
+mkdir -p $HOME/.config/systemd/user
+ln -sf $HOME/.dotfiles/profiles/vps/systemd/bun-server@.service $HOME/.config/systemd/user/
+unit=$HOME/.config/systemd/user/bun-server@$name.service.d
+mkdir -p $unit
+printf '[Service]\nEnvironment=PORT=%s\n' $port > $unit/port.conf
+systemctl --user daemon-reload
+
+echo "Starting bun-server@$name on :$port"
+systemctl --user enable --now bun-server@$name.service
+systemctl --user restart bun-server@$name.service
+
+# Its public port: dot-update.d/caddy reads these, gives each a site with the IP certificate, and opens the port
+mkdir -p $HOME/.config/shelf-games
+printf 'port=%s\npublic=%s\n' $port $public > $HOME/.config/shelf-games/$name.conf
+
+echo "Serving it at :$public"
+zsh -c ". $HOME/.dotfiles/profiles/vps/dot-update.d/caddy"
+
+sleep 2
+if ! systemctl --user is-active --quiet bun-server@$name.service; then
+	echo "$name did not stay up:" >&2
+	journalctl --user -u bun-server@$name.service -n 20 --no-pager >&2
+	exit 1
+fi
+
+publicIp=$(ip -4 route get 1.1.1.1 | grep -o 'src [0-9.]*' | cut -d' ' -f2)
+echo "$name is on the shelf: https://$publicIp:$public"

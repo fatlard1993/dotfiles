@@ -1,0 +1,17 @@
+# Linked into ~/.config/systemd/user by dot-update.d/games. One
+# template for the bun servers in ~/Projects (games put on the shelf by bin/shelf-game) - the
+# instance name is the project folder: bun-server@sand-sorter.
+# Each project's own `start` script stays authoritative for how it runs
+# (the game scaffold's sets NODE_ENV=production itself); PORT comes from a drop-in.
+[Unit]
+Description=%i bun server
+
+[Service]
+WorkingDirectory=%h/Projects/%i
+# Absolute path - systemd user units don't get the shell PATH that knows
+# about ~/.bun/bin.
+ExecStart=%h/.bun/bin/bun run start
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

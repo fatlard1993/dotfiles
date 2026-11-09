@@ -24,6 +24,28 @@ fi
 publicIp=$(ip -4 route get 1.1.1.1 | grep -o 'src [0-9.]*' | cut -d' ' -f2)
 rendered=$(sed "s/{{PUBLIC_IP}}/$publicIp/" $profilePath/caddy/Caddyfile)
 
+# Each game on the shelf (bin/shelf-game writes ~/.config/shelf-games/<name>.conf: port=<local> public=<port>) gets a
+# site of its own on its public port, with the same short-lived IP certificate
+gamePorts=()
+for conf in $HOME/.config/shelf-games/*.conf(N); do
+	port=$(sed -n 's/^port=//p' $conf) public=$(sed -n 's/^public=//p' $conf)
+
+	[[ $port == <1024-65535> && $public == <1024-65535> ]] || continue
+	gamePorts+=$public
+	rendered+="
+
+# ${conf:t:r}, a game on the shelf (bin/shelf-game)
+$publicIp:$public {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:$port
+}"
+done
+
 if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	echo "Updating the Caddyfile for $publicIp"
 
@@ -42,7 +64,8 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	sudo systemctl reload caddy
 fi
 
-# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share
+# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share, and each
+# game on the shelf has its own
 if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
-	for port in 80 443 8444; do sudo ufw allow $port/tcp > /dev/null; done
+	for port in 80 443 8444 $gamePorts; do sudo ufw allow $port/tcp > /dev/null; done
 fi
