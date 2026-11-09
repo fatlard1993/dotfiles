@@ -46,6 +46,28 @@ $publicIp:$public {
 }"
 done
 
+# Games on the htpc opened to the internet by web-game-mother-hub: each of its slots is a public port here, 9101 on,
+# proxied to the loopback port its ssh reverse tunnel from the htpc listens on, 19101 on. Nothing here changes when a
+# game opens or closes; with no tunnel up, the port says so.
+for slot in {1..8}; do
+	gamePorts+=$((9100 + slot))
+	rendered+="
+
+# web-game-mother-hub's slot $slot, a game on the htpc while its tunnel is up
+$publicIp:$((9100 + slot)) {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:$((19100 + slot))
+	handle_errors {
+		respond \"This game isn't open right now.\" 503
+	}
+}"
+done
+
 if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	echo "Updating the Caddyfile for $publicIp"
 
@@ -65,7 +87,7 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 fi
 
 # 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share, and each
-# game on the shelf has its own
+# game on the shelf and each of the mother hub's slots has its own
 if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
 	for port in 80 443 8444 $gamePorts; do sudo ufw allow $port/tcp > /dev/null; done
 fi
