@@ -61,8 +61,20 @@ $HOME/.dotfiles/ubuntu/bin/dnsmasq-update-blocklist
 
 # The resolver only changes hands once dnsmasq demonstrably answers. If it
 # does not, the machine keeps (or gets back) a working upstream resolver so
-# the rest of this run can still reach apt and GitHub.
-if dig +short +time=3 +tries=1 @127.0.0.1 ubuntu.com 2>/dev/null | grep -q .; then
+# the rest of this run can still reach apt and GitHub. Polled, not asked
+# once: the blocklist step (or a second account's dot-update running at the
+# same moment) restarts dnsmasq right before this, and a probe landing in
+# that gap is refused instantly, and the fallback below strands the machine
+# on 1.1.1.1 (no .home names) until a later run passes.
+dnsmasqAnswers() {
+	for i in {1..10}; do
+		dig +short +time=2 +tries=1 @127.0.0.1 ubuntu.com 2>/dev/null | grep -q . && return 0
+		sleep 1
+	done
+	return 1
+}
+
+if dnsmasqAnswers; then
 	if [[ $(cat /etc/resolv.conf 2>/dev/null) != "nameserver 127.0.0.1" ]]; then
 		echo "Switching the system resolver to dnsmasq"
 
