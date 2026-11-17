@@ -14,7 +14,7 @@ sudo cmp -s $houseCert $systemCopy || {
 	echo "Trusting the htpc's certificate authority (system store)"
 
 	sudo install -m 644 $houseCert $systemCopy
-	sudo update-ca-certificates > /dev/null
+	sudo update-ca-certificates 2>&1 | grep -v -e '^Updating' -e 'added, .* removed' -e '^Running hooks' -e '^Done' -e 'rehash: warning'
 }
 
 # Homebrew's curl links Homebrew's OpenSSL, which reads its own store and
@@ -23,13 +23,15 @@ brewOpenssl=/home/linuxbrew/.linuxbrew/bin/openssl
 
 [[ -x $brewOpenssl ]] && {
 	brewCerts=$($brewOpenssl version -d | cut -d'"' -f2)/certs
+	# Written as Homebrew's owner, which on a shared machine is another account
+	brewOwner=$(stat -c %U /home/linuxbrew/.linuxbrew)
 
 	cmp -s $houseCert $brewCerts/htpc-caddy-root.pem || {
 		echo "Trusting the htpc's certificate authority (Homebrew's OpenSSL)"
 
-		mkdir -p $brewCerts
-		cp $houseCert $brewCerts/htpc-caddy-root.pem
-		$brewOpenssl rehash $brewCerts
+		sudo install -d -o $brewOwner -g $brewOwner $brewCerts
+		sudo install -m 644 -o $brewOwner -g $brewOwner $houseCert $brewCerts/htpc-caddy-root.pem
+		sudo -u $brewOwner $brewOpenssl rehash $brewCerts
 	}
 }
 
