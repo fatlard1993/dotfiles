@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The htpc's Caddy signs the HTTPS .home names (lan-names' tlsNames) with its
+# own certificate authority. The System keychain covers Safari, Chrome and
+# Firefox alike.
+houseCert=$dotfilesPath/profiles/htpc/caddy-root.crt
+
+security verify-cert -c $houseCert > /dev/null 2>&1 || {
+	echo "Trusting the htpc's certificate authority (macOS may ask for your password)"
+
+	sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain $houseCert
+}

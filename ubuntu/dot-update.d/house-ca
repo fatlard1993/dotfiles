@@ -1,0 +1,52 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The htpc's Caddy signs the HTTPS .home names (lan-names' tlsNames) with its
+# own certificate authority. Chrome on Linux reads trust from the account's
+# NSS database, not the system store, so both get it: the system store for
+# curl and friends, ~/.pki/nssdb for each account's Chrome.
+houseCert=$dotfilesPath/profiles/htpc/caddy-root.crt
+systemCopy=/usr/local/share/ca-certificates/htpc-caddy-root.crt
+nickname="htpc caddy root"
+
+sudo cmp -s $houseCert $systemCopy || {
+	echo "Trusting the htpc's certificate authority (system store)"
+
+	sudo install -m 644 $houseCert $systemCopy
+	sudo update-ca-certificates > /dev/null
+}
+
+# Homebrew's curl links Homebrew's OpenSSL, which reads its own store and
+# never the system's; it's first on PATH, so it's the curl a shell gets.
+brewOpenssl=/home/linuxbrew/.linuxbrew/bin/openssl
+
+[[ -x $brewOpenssl ]] && {
+	brewCerts=$($brewOpenssl version -d | cut -d'"' -f2)/certs
+
+	cmp -s $houseCert $brewCerts/htpc-caddy-root.pem || {
+		echo "Trusting the htpc's certificate authority (Homebrew's OpenSSL)"
+
+		mkdir -p $brewCerts
+		cp $houseCert $brewCerts/htpc-caddy-root.pem
+		$brewOpenssl rehash $brewCerts
+	}
+}
+
+command -v certutil > /dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt install -y libnss3-tools
+
+nssdb=sql:$HOME/.pki/nssdb
+
+[[ -f $HOME/.pki/nssdb/cert9.db ]] || {
+	mkdir -p $HOME/.pki/nssdb
+	certutil -d $nssdb -N --empty-password
+}
+
+fingerprint() { openssl x509 -noout -fingerprint -sha256 }
+
+if [[ $(certutil -d $nssdb -L -n $nickname -a 2>/dev/null | fingerprint 2>/dev/null) != $(fingerprint < $houseCert) ]]; then
+	echo "Trusting the htpc's certificate authority (Chrome)"
+
+	certutil -d $nssdb -D -n $nickname 2>/dev/null
+	certutil -d $nssdb -A -t "C,," -n $nickname -i $houseCert
+fi

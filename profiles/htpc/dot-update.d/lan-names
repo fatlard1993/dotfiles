@@ -149,11 +149,16 @@ if caddy validate --config $caddyfile --adapter caddyfile > /dev/null 2>&1; then
 	sudo cp $caddyfile /etc/caddy/Caddyfile
 	sudo systemctl reload-or-restart caddy
 
-	if (( ${#tlsNames} )); then
-		rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
-		echo "TLS names (${tlsNames[*]}) need Caddy's root CA trusted on any"
-		echo "device that will use them: copy $rootCert"
-		echo "off this box and install it as a trusted root cert."
+	# Every machine trusts the committed copy (house-ca in ubuntu/ and
+	# macos/), so a CA Caddy regenerated breaks every TLS name everywhere
+	# until the copy is replaced.
+	rootCert=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+	for wait in {1..10}; do sudo test -f $rootCert && break; sleep 1; done
+
+	if ! sudo cmp -s $rootCert $profilePath/caddy-root.crt; then
+		echo "Caddy's root CA no longer matches profiles/htpc/caddy-root.crt - no"
+		echo "device will trust ${tlsNames[*]} until it does. Replace the"
+		echo "committed copy with $rootCert and push."
 	fi
 else
 	echo "Generated Caddyfile failed validation - keeping the existing one:"
