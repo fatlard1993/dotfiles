@@ -1,5 +1,11 @@
 #!/bin/zsh
 
+# zsh runs every `&` job at nice +5 unless told otherwise, and the whole session is
+# backgrounded from here - sxhkd, polybar, Steam - so everything they launch inherited it,
+# games included. Lowering nice again needs root, so the child cannot undo it; it has to
+# be stopped here.
+setopt no_bg_nice
+
 # GDM launches bspwm directly (no session script sets this up like GNOME does),
 # but systemd's per-user dbus socket is already running - just point apps at it
 # so they don't fall back to spawning the nonexistent dbus-launch.
