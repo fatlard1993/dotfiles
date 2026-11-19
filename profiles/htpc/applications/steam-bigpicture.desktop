@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Steam Big Picture
+Comment=Pull a running Steam back into Big Picture, or start it there
+Exec=/usr/games/steam steam://open/bigpicture
+Icon=steam
+Terminal=false
+Categories=Game;
+Keywords=steam;big;picture;bigpicture;tv;couch;
