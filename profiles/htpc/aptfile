@@ -18,7 +18,7 @@ package "mpv"
 package "steam-devices"
 
 # X driver that puts a joystick on the pointer. Only the 8BitDo pad, and
-# only while Steam is closed - profiles/htpc/xorg/60-controller-pointer.conf
+# only while the desktop has focus - profiles/htpc/xorg/60-controller-pointer.conf
 # and bin/controller-pointer-gate
 package "xserver-xorg-input-joystick"
 

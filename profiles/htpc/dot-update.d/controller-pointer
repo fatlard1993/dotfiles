@@ -2,7 +2,7 @@
 
 source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
 
-# Pad-as-pointer when Steam is closed: the driver comes from the aptfile
+# Pad-as-pointer while the desktop has focus: the driver comes from the aptfile
 # (1_apt sorts before this), the mapping from xorg/, the on/off switching
 # from startup.d/controller-pointer. X only parses xorg.conf.d at server
 # start, so a fresh install lands at the next login.

@@ -1,15 +1,17 @@
 #!/bin/zsh
 
-# Switches the pad's X pointer device (xorg/60-controller-pointer.conf) off
-# while Steam runs and back on when it exits. Steam Input owns the pad
-# while Steam is up - it reads without an exclusive grab, so the X driver
-# would fire on the same presses - and the pad is a plain joystick to X
-# the moment Steam is gone.
+# Switches the pad's X pointer device (xorg/60-controller-pointer.conf) on
+# while the desktop has the couch and off while Steam or a game does: a
+# Steam window focused (Big Picture is one), a Steam game running, or
+# gamemode active (minecraft-couch launches through gamemoderun). Steam
+# reads the pad without an exclusive grab, so left on, the X driver would
+# move the pointer under Big Picture and every game. Big Picture starts at
+# login and stays up, so gating on Steam merely running kept it off for good.
 #
-# Polled, not event-driven: nothing announces Steam's exit (Big Picture
-# quits from its own menu, no window to watch, no pid file cleanup), and
-# X re-adds the device enabled on every replug, so a one-shot toggle would
-# also miss those. One pgrep a second is nothing.
+# Polled, not event-driven: focus, game launches and gamemode each announce
+# themselves differently or not at all, and X re-adds the device enabled on
+# every replug, so a one-shot toggle would miss those. A few cheap checks a
+# second is nothing.
 #
 # The pad's own HID interfaces enumerate as "... Controller Keyboard" and
 # "... Controller Mouse"; the joystick driver's devices are the bare name
@@ -18,12 +20,21 @@
 
 [ -n "$DISPLAY" ] || export DISPLAY=:0
 
-# Applied on change only: a Steam start/exit, or the device set changing
-# (X re-adds a replugged pad enabled, which would otherwise stick).
+steamHasThePad() {
+	local active=$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -o '0x[0-9a-f]*')
+
+	[[ -n $active ]] && xprop -id $active WM_CLASS 2>/dev/null | grep -q '"steam"$' && return 0
+	pgrep -f 'reaper SteamLaunch' > /dev/null && return 0
+	gamemoded -s 2>/dev/null | grep -q 'is active'
+}
+
+# Applied on change only: focus moving between Steam and the desktop, a game
+# starting or ending, or the device set changing (X re-adds a replugged pad
+# enabled, which would otherwise stick).
 last=
 while true; do
 	ids=$(xinput list | grep -E '8BitDo .*Controller( \(keys\))?\s+id=' | grep -oP 'id=\K\d+')
-	if pgrep -x steam > /dev/null; then want=0; else want=1; fi
+	if steamHasThePad; then want=0; else want=1; fi
 
 	state="$want:$ids"
 	if [[ $state != $last ]]; then
