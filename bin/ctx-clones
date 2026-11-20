@@ -112,17 +112,20 @@ const nameTokens = (name) =>
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+let homeScansCapped = 0
 function homeMatch(name, shape, file, changedSet) {
   if (homes.length === 0) return null
-  const candidates = new Set()
+  const tokenHits = new Map()
   for (const token of nameTokens(name)) {
     for (const home of homes) {
       for (const f of grepAt(head, ['-l', '-i'], `(function|const)\\s+\\w*${escapeRe(token)}\\w*`, home, SIGNAL)) {
-        if (!changedSet.has(f) && f !== file && !isTest(f)) candidates.add(f)
+        if (!changedSet.has(f) && f !== file && !isTest(f)) tokenHits.set(f, (tokenHits.get(f) ?? 0) + 1)
       }
     }
   }
-  for (const cand of capped([...candidates].sort(), HOME_CAP, `shared-home scan for \`${name}\``, SIGNAL)) {
+  const ranked = [...tokenHits].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f]) => f)
+  if (ranked.length > HOME_CAP) homeScansCapped++
+  for (const cand of ranked.slice(0, HOME_CAP)) {
     for (const [cname, c] of functionsAt(head, cand)) {
       if (cname !== name && sameShape(shape, c.shape)) return { name: cname, file: cand }
     }
@@ -189,5 +192,6 @@ for (const file of capped(changed, FILE_CAP, 'clone scan', SIGNAL)) {
     )
   }
 }
+if (homeScansCapped > 0) gap(SIGNAL, `shared-home scan: for ${homeScansCapped} function(s) only the ${HOME_CAP} files sharing the most name tokens were compared.`)
 if (homes.length === 0) gap(SIGNAL, 'no shared homes given (--homes) or configured (cloneHomes); searched the same file and directory only.')
 finish()
