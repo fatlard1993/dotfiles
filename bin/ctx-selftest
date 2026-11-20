@@ -114,14 +114,17 @@ export function formatCurrencyAmount(cents: number, symbol: string): string {
 EOF
 cat > src/client.ts <<'EOF'
 import axios from "axios"
+import { toast } from "ui/toast"
+import { log } from "app/log"
 
 export async function fetchUser(id: string) {
   const res = await axios.get("/users/" + id)
+  toast(log(res.data))
   return res.data
 }
 EOF
 echo 'export const gone = 1' > src/gone.ts
-echo '{ "name": "widgets", "scripts": { "typecheck": "true" } }' > package.json
+echo '{ "name": "widgets", "scripts": { "typecheck": "true" }, "dependencies": { "axios": "^1.0.0", "ui": "workspace:*" } }' > package.json
 : > bun.lock
 echo 'node_modules/' > .gitignore
 echo 'docs' > README.md
@@ -249,6 +252,8 @@ lacks "removed guard is not critical"     '🔴 .*GUARD-REMOVED'
 has   "untouched caller of a changed signature" '🔎 greet \(src/util.ts\): its signature changed'
 has   "the caller is listed"              'src/caller.ts:3'
 has   "dropped library import"            '🔎 src/client.ts dropped its import of axios'
+lacks "a workspace package is no library" 'dropped its import of ui/toast'
+lacks "an uninstalled name is no library" 'dropped its import of app/log'
 has   "merge-base, not the base tip"      ', 1 deleted'
 lacks "trunk's later commit is not ours"  'later\.ts'
 lacks "deleted file wants no test"        'gone\.ts'

@@ -345,11 +345,20 @@ echo "### Library Migrations"
 echo ""
 migration_found=false
 imports_of() { grep -oE "from ['\"][^'\"]+['\"]" "$1" 2> /dev/null | sed -E "s/from ['\"]//; s/['\"]\$//" | grep -vE '^[./#]' | LC_ALL=C sort -u || true; }
+# A library is something the root package.json installs from a registry. A monorepo's own
+# packages are imported by bare name too, and the migration rules mean nothing for them.
+installed_libs=$(git show "$head:package.json" 2> /dev/null | jq -r '[.dependencies, .devDependencies, .peerDependencies] | map(. // {} | to_entries[]) | .[] | select(.value | test("^(workspace|file|link|portal):") | not) | .key' 2> /dev/null || true)
+is_library() {
+    local name="${1%%/*}"
+    [[ "$1" == @*/* ]] && name=$(cut -d/ -f1-2 <<< "$1")
+    grep -qxF -- "$name" <<< "$installed_libs"
+}
 while IFS= read -r f; do
     [[ -z "$f" || ! -f "$pin/old/$f" || ! -f "$pin/head/$f" ]] && continue
     removed=$(LC_ALL=C comm -23 <(imports_of "$pin/old/$f") <(imports_of "$pin/head/$f"))
     while IFS= read -r spec; do
         [[ -z "$spec" ]] && continue
+        is_library "$spec" || continue
         rc=0
         result=$(timeout 60 ctx-migration "$f" --from "${spec##*/}" --base "$old" "--head=$head" 2> /dev/null) || rc=$?
         if [[ $rc -ne 0 ]]; then
