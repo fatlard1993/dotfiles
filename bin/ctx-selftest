@@ -213,6 +213,7 @@ git rm -q src/gone.ts
 printf 'DROP TABLE users;\nALTER TABLE a ADD COLUMN "truncated_at" text;\nALTER TABLE a ALTER COLUMN "type_id" SET DEFAULT 1;\n' > migrations/001_init/migration.sql
 echo 'DROP TABLE old_things;' > db/changes/1.sql
 echo 'on: push' > .github/workflows/ci.yml
+echo 'on: push' > '.github/workflows/de"ploy.yml'
 git add -A && git commit -q -m feature
 git branch 'feat|x'
 
@@ -261,7 +262,7 @@ has   "destructive migration"             '🟡 migrations/001_init/migration.sq
 lacks "a column named truncated_at"       'migration.sql:2: '
 lacks "a column named type_id"            'migration.sql:3: '
 lacks "sql outside the default pattern"   'db/changes/1.sql'
-has   "sensitive path"                    '🔎 1 file\(s\) under CI configuration'
+has   "sensitive paths, one with a quote" '🔎 2 file\(s\) under CI configuration'
 has   "dissonance read from the pin"      '🟡 BOOL-FLAG: loud'
 lacks "the pin path stays out"            '/pin/(head|old)/'
 lacks "an untouched function's flags are not new" 'NULL-GUARD: opts'
