@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+# ctx-selftest — runs ctx-mr-review, ctx-type-escapes and ctx-clones against a throwaway repo
+# and checks what they report.
+# Usage: ctx-selftest
+#   CTX_MR_REVIEW=<path>   run the checks against another copy of ctx-mr-review
+#   CTX_SELFTEST_SHOW=1    print the output behind each failed check
+# Exit: 0 every check passed, 1 otherwise.
+
+set -uo pipefail
+bin="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$bin:$PATH"
+review="${CTX_MR_REVIEW:-$bin/ctx-mr-review}"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+repo="$tmp/repo"
+export CTX_CONFIG_DIR="$tmp/cfg"
+mkdir -p "$repo" "$CTX_CONFIG_DIR" "$tmp/scratch"
+
+pass=0
+fail=0
+out=""
+show()  { [[ -n "${CTX_SELFTEST_SHOW:-}" ]] && sed 's/^/      | /' <<< "$out"; return 0; }
+has()   { if grep -qE -- "$2" <<< "$out"; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "  ✗ $1: expected /$2/"; show; fi; }
+lacks() { if grep -qE -- "$2" <<< "$out"; then fail=$((fail + 1)); echo "  ✗ $1: did not expect /$2/"; show; else pass=$((pass + 1)); fi; }
+same()  { if [[ "$2" == "$3" ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "  ✗ $1: wanted '$2', got '$3'"; show; fi; }
+
+cd "$repo" || { echo "could not enter $repo"; exit 1; }
+git init -q -b main
+git config user.email selftest@example.com
+git config user.name selftest
+git remote add origin git@example.com:acme/widgets.git
+
+mkdir -p src 'src/$dir' shared
+cat > src/util.ts <<'EOF'
+export function sumPositive(items: number[]): number {
+  let total = 0
+  for (const item of items) {
+    if (item > 0) {
+      total = total + item
+    }
+  }
+  return Math.max(total, 0)
+}
+
+export function loadUser(id: string) {
+  if (!id) {
+    return null
+  }
+  return { id }
+}
+
+export function legacy(raw: string) {
+  return JSON.parse(raw) as any
+}
+
+export function greet(name: string): string {
+  return `hi ${name}`
+}
+EOF
+cat > src/caller.ts <<'EOF'
+import { greet } from "./util"
+
+export const hello = () => greet("x")
+EOF
+cat > src/ledger.ts <<'EOF'
+export function tallyCredits(rows: { amount: number }[]): number {
+  let sum = 0
+  for (const row of rows) {
+    if (row.amount > 0) {
+      sum = sum + row.amount
+    } else {
+      sum = sum - 1
+    }
+  }
+  return Math.round(sum)
+}
+EOF
+cat > src/twin.ts <<'EOF'
+export function tallyDebits(entries: { amount: number }[]): number {
+  let acc = 0
+  for (const entry of entries) {
+    if (entry.amount > 0) {
+      acc = acc + entry.amount
+    } else {
+      acc = acc - 1
+    }
+  }
+  return Math.round(acc)
+}
+EOF
+cat > 'src/$dir/page.ts' <<'EOF'
+export function openPage(slug: string) {
+  if (!slug) {
+    return null
+  }
+  return { slug }
+}
+EOF
+cat > shared/money.ts <<'EOF'
+export function formatCurrencyAmount(cents: number, symbol: string): string {
+  const whole = Math.floor(cents / 100)
+  const rest = cents % 100
+  if (rest < 10) {
+    return symbol + whole + ".0" + rest
+  }
+  return symbol + whole + "." + rest
+}
+EOF
+cat > src/client.ts <<'EOF'
+import axios from "axios"
+
+export async function fetchUser(id: string) {
+  const res = await axios.get("/users/" + id)
+  return res.data
+}
+EOF
+echo 'export const gone = 1' > src/gone.ts
+echo '{ "name": "widgets", "scripts": { "typecheck": "true" } }' > package.json
+: > bun.lock
+echo 'node_modules/' > .gitignore
+echo 'docs' > README.md
+git add -A && git commit -q -m base
+git branch trunk2
+
+git checkout -q -b feature
+cat > src/util.ts <<'EOF'
+export function sumPositive(items: number[]): number {
+  let total = 0
+  for (const item of items) {
+    if (item > 0) {
+      total = total + item
+    }
+  }
+  return Math.max(total, 0)
+}
+
+export function loadUser(id: string) {
+  return { id }
+}
+
+export function legacy(raw: string) {
+  return JSON.parse(raw) as any
+}
+
+export function greet(name: string, loud: boolean): string {
+  return loud ? `HI ${name}` : `hi ${name}`
+}
+EOF
+cat > src/escapes.ts <<'EOF'
+// a comment that says as any
+const label = "as any"
+export function a(x: unknown) { return x as any }
+export function b(x: unknown) { return `${(x as any).y} ${label}` }
+export function c(x: unknown) { return x as unknown as string }
+export function d(raw: string) { return JSON.parse(raw) as { id: string } }
+// @ts-ignore
+export const e: number = "s"
+export function f(x: unknown) { return x as any[] }
+export function g(x: unknown) { return x as Record<string, any> }
+EOF
+cat > src/clone.ts <<'EOF'
+export function addUpGains(values: number[]): number {
+  let acc = 0
+  for (const v of values) {
+    if (v > 0) {
+      acc = acc + v
+    }
+  }
+  return Math.max(acc, 0)
+}
+EOF
+sed -i.bak 's/row.amount > 0/row.amount > 10/' src/ledger.ts && rm src/ledger.ts.bak
+cat > 'src/$dir/page.ts' <<'EOF'
+export function openPage(slug: string) {
+  return { slug }
+}
+EOF
+mkdir -p lib tests 'src/my dir' migrations/001_init db/changes .github/workflows
+cat > lib/render.ts <<'EOF'
+export function renderCurrencyLabel(pennies: number, sign: string): string {
+  const major = Math.floor(pennies / 100)
+  const minor = pennies % 100
+  if (minor < 10) {
+    return sign + major + ".0" + minor
+  }
+  return sign + major + "." + minor
+}
+EOF
+cat > src/client.ts <<'EOF'
+export async function fetchUser(id: string) {
+  const res = await fetch("/users/" + id)
+  return res.json()
+}
+EOF
+echo 'export const helper = (x: unknown) => x as any' > tests/helper.ts
+echo 'export const spaced = (x: unknown) => x as any' > 'src/my dir/b.ts'
+echo 'export const quoted = (x: unknown) => x as any' > 'src/evil"q.ts'
+git rm -q src/gone.ts
+printf 'DROP TABLE users;\nALTER TABLE a ADD COLUMN "truncated_at" text;\nALTER TABLE a ALTER COLUMN "type_id" SET DEFAULT 1;\n' > migrations/001_init/migration.sql
+echo 'DROP TABLE old_things;' > db/changes/1.sql
+echo 'on: push' > .github/workflows/ci.yml
+git add -A && git commit -q -m feature
+git branch 'feat|x'
+
+git checkout -q -b tiny main
+echo 'export const one = 1' > src/one.ts
+echo 'import { one } from "./one"; test("one", () => expect(one).toBe(1))' > src/one.test.ts
+git add -A && git commit -q -m tiny
+
+git checkout -q -b docs main
+echo 'more docs' >> README.md
+git add -A && git commit -q -m docs
+
+git checkout -q main
+echo 'export const later = 1' > src/later.ts
+git add -A && git commit -q -m "trunk moves on"
+
+echo "## a branch that is not checked out"
+out=$(TMPDIR="$tmp/scratch" "$review" feature --base main 2>&1); rc=$?
+has   "cast on an added line"             '🟡 src/escapes.ts:3: added line casts to a type containing `any`'
+has   "cast inside a template"            '🟡 src/escapes.ts:4: added line casts'
+has   "double cast"                       '🟡 src/escapes.ts:5: .*double cast'
+has   "assertion on JSON.parse"           '🟡 src/escapes.ts:6: .*JSON.parse'
+has   "ts-ignore directive"               '🟡 src/escapes.ts:7: added line carries a @ts- directive'
+has   "cast to an array of any"           '🟡 src/escapes.ts:9: added line casts'
+has   "cast to a record of any"           '🟡 src/escapes.ts:10: added line casts'
+lacks "the words in a comment"            'src/escapes.ts:1: '
+lacks "the words in a string"             'src/escapes.ts:2: '
+lacks "an escape on an untouched line"    'src/util.ts:[0-9]+: added line'
+has   "a file under tests/ is source"     '🟡 tests/helper.ts:1: added line casts'
+has   "a path with a space"               '🟡 src/my dir/b.ts:1: added line casts'
+has   "a path git would quote"            '🟡 src/evil"q.ts:1: added line casts'
+has   "added clone in the same directory" '🔎 src/clone.ts: added function `addUpGains` has the same control-flow shape as `sumPositive`'
+has   "changed function with a twin"      '🔎 src/ledger.ts: changed function `tallyCredits` .*`tallyDebits` in src/twin.ts, which this diff does not touch'
+has   "removed guard is a look"           '🔎 GUARD-REMOVED: if \(!id\)'
+has   "removed guard under a \$ path"     'src/\$dir/page.ts'
+lacks "removed guard is not critical"     '🔴 .*GUARD-REMOVED'
+has   "untouched caller of a changed signature" '🔎 greet \(src/util.ts\): its signature changed'
+has   "the caller is listed"              'src/caller.ts:3'
+has   "dropped library import"            '🔎 src/client.ts dropped its import of axios'
+has   "merge-base, not the base tip"      ', 1 deleted'
+lacks "trunk's later commit is not ours"  'later\.ts'
+lacks "deleted file wants no test"        'gone\.ts'
+has   "destructive migration"             '🟡 migrations/001_init/migration.sql:1: destructive'
+lacks "a column named truncated_at"       'migration.sql:2: '
+lacks "a column named type_id"            'migration.sql:3: '
+lacks "sql outside the default pattern"   'db/changes/1.sql'
+has   "sensitive path"                    '🔎 1 file\(s\) under CI configuration'
+has   "dissonance read from the pin"      '🟡 BOOL-FLAG: loud'
+lacks "the pin path stays out"            '/pin/(head|old)/'
+has   "typecheck gap is stated"           '\[typecheck\] the compiler reads the working tree'
+has   "formatting gap is stated"          '\[formatting\] prettier and its config are read from the working tree'
+has   "no config is stated"               'No repo config \(looked for .*acme-widgets.json\)'
+lacks "no clean bill"                     '✓ Nothing found'
+same  "warnings exit 1" "1" "$rc"
+same  "temp directory removed" "0" "$(find "$tmp/scratch" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
+
+out=$("$review" 'feat|x' --base main 2>&1)
+has   "a ref with a pipe in it"           '🔎 greet \(src/util.ts\): its signature changed'
+
+echo "## gaps without findings, and a clean run"
+out=$("$review" tiny --base main 2>&1); rc=$?
+lacks "the scenario has no warnings"      '🟡|🔴'
+has   "the gap is counted"                '⚠ NOT EXAMINED: [0-9]+ gap'
+lacks "no clean bill with a gap open"     '✓ Nothing found'
+same  "gaps alone exit 1" "1" "$rc"
+git checkout -q docs
+out=$("$review" --base main 2>&1); rc=$?
+has   "clean bill when everything ran"    '✓ Nothing found where this tool looks, and every check ran'
+same  "clean exit 0" "0" "$rc"
+git checkout -q main
+
+echo "## uncommitted work"
+echo 'export const z = (q: unknown) => q as any' >> src/util.ts
+echo 'export const staged = 1' > src/staged.ts
+git add src/staged.ts
+echo 'export const fresh = (q: unknown) => q as any' > src/fresh.ts
+echo 'SECRET=hunter2' > .env
+git stash push -q -- README.md 2> /dev/null; echo 'wip' >> README.md; git stash push -q -- README.md
+state() { git status --porcelain; git rev-parse HEAD; git ls-files -s | git hash-object --stdin; git stash list | wc -l; }
+before=$(state)
+out=$("$review" --base main 2>&1); rc=$?
+snap=$(sed -nE 's/^Snapshot ([0-9a-f]{40}) .*/\1/p' <<< "$out")
+has   "the snapshot is announced"         '^Snapshot [0-9a-f]{40} holds the uncommitted changes'
+has   "an unstaged edit is reviewed"      '🟡 src/util.ts:[0-9]+: added line casts'
+has   "an untracked file is reviewed"     '🟡 src/fresh.ts:1: added line casts'
+has   "the secret is named as left out"   '\[snapshot\] 1 untracked file\(s\) look like secrets.*\.env'
+same  "the secret is not stored" "" "$(git ls-tree -r --name-only "${snap:-HEAD}" | grep -x '.env')"
+same  "the untracked file is stored" "src/fresh.ts" "$(git ls-tree -r --name-only "${snap:-HEAD}" | grep -x 'src/fresh.ts')"
+has   "typecheck ran on the working tree" '✓ `bun run typecheck` passes'
+same  "status, HEAD, index and stash untouched" "$before" "$(state)"
+
+echo '{ "name": "widgets", "scripts": { "typecheck": "exit 1" } }' > package.json
+out=$("$review" --base main 2>&1); rc=$?
+has   "a failing typecheck is critical"   '🔴 `bun run typecheck` fails'
+same  "critical exit 2" "2" "$rc"
+
+echo '{ "name": "widgets" }' > package.json
+echo '{}' > tsconfig.json
+mkdir -p node_modules/.bin
+printf '#!/bin/sh\nexit 1\n' > node_modules/.bin/tsc && chmod +x node_modules/.bin/tsc
+out=$("$review" --base main 2>&1)
+lacks "a compiler that says nothing is no tick" '✓ tsc'
+has   "it is a gap instead"               '\[typecheck\] tsc \(root tsconfig\) exited 1 with no error it could read'
+printf '#!/bin/sh\necho "src/util.ts(3,1): error TS2322: bad"\nexit 2\n' > node_modules/.bin/tsc
+out=$("$review" --base main 2>&1); rc=$?
+has   "a compiler error in a changed file" '🔴 tsc \(root tsconfig\): 1 error\(s\) in changed files'
+printf '#!/bin/sh\necho "error TS5083: Cannot read file tsconfig.json."\nexit 1\n' > node_modules/.bin/tsc
+out=$("$review" --base main 2>&1)
+has   "a broken compiler config"          '🔴 tsc \(root tsconfig\): error TS5083'
+out=$("$review" --base main --no-typecheck 2>&1)
+has   "--no-typecheck is a gap"           '\[typecheck\] skipped by --no-typecheck'
+rm -rf node_modules tsconfig.json .env src/fresh.ts
+git checkout -q -- package.json src/util.ts && git rm -q --cached src/staged.ts && rm src/staged.ts
+git stash drop -q
+
+echo "## a sub-tool that fails"
+farm="$tmp/farm"
+mkdir -p "$farm"
+for tool in "$bin"/ctx-* "$bin"/lib; do ln -s "$tool" "$farm/$(basename "$tool")"; done
+rm "$farm/ctx-mr-review" && ln -s "$review" "$farm/ctx-mr-review"
+for broken in ctx-rhythm ctx-invariants ctx-test-gen ctx-semantic-diff ctx-migration; do
+    rm "$farm/$broken"
+    printf '#!/bin/sh\nexit 3\n' > "$farm/$broken" && chmod +x "$farm/$broken"
+done
+out=$("$farm/ctx-mr-review" feature --base main 2>&1)
+has   "a failed rhythm run is a gap"      '\[rhythm\] ctx-rhythm exited 3 on src/util.ts'
+has   "a failed invariants run is a gap"  '\[invariants\] ctx-invariants exited 3'
+has   "a failed dissonance run is a gap"  '\[dissonance\] ctx-test-gen exited 3'
+has   "a failed structural run is a gap"  '\[structure\] ctx-semantic-diff failed'
+has   "a failed migration run is a gap"   '\[migrations\] ctx-migration exited 3'
+
+echo "## arguments"
+out=$("$review" feature --bsae main 2>&1); rc=$?
+same  "an unknown option stops the run" "3" "$rc"
+has   "and says which"                    'unknown option: --bsae'
+out=$("$review" feature --base 2>&1); rc=$?
+same  "--base without a value stops the run" "3" "$rc"
+out=$("$review" feature main 2>&1); rc=$?
+same  "a second ref stops the run" "3" "$rc"
+out=$("$review" nosuchref --base main 2>&1); rc=$?
+same  "a missing head stops the run" "3" "$rc"
+out=$("$review" --help 2>&1); rc=$?
+has   "--help prints usage"               '^Usage: ctx-mr-review'
+lacks "--help does not review"            '## MR Review'
+out=$("$review" feature --base=main 2>&1)
+has   "--base=<ref> is read"              '^## MR Review: main → feature'
+
+echo "## no shared history"
+git checkout -q --orphan lonely && git rm -rq --cached . && git clean -fdq
+echo 'export const alone = 1' > alone.ts && git add -A && git commit -q -m lonely
+git checkout -q main
+out=$("$review" lonely --base main 2>&1)
+has   "the missing merge-base is stated"  '\[all\] no merge-base'
+
+echo "## repo config"
+cat > "$CTX_CONFIG_DIR/acme-widgets.json" <<'EOF'
+{
+  "trunk": "trunk2",
+  "typecheck": "skip",
+  "typecheckNote": "Use the build.",
+  "typo": true,
+  "cloneHomes": ["shared/"],
+  "dbMigrationPattern": "^db/changes/.*\\.sql$",
+  "coverageRules": [
+    { "name": "core", "when": "^src/", "unless": "^tests/integration/", "note": "An integration test is required." }
+  ]
+}
+EOF
+out=$("$review" feature 2>&1)
+has   "trunk comes from config"           '^## MR Review: trunk2 → feature'
+has   "a configured coverage rule fires"  '🟡 [0-9]+ file\(s\) under core changed.*An integration test is required'
+has   "a configured migration pattern"    '🟡 db/changes/1.sql:1: destructive'
+lacks "which replaces the default"        'migrations/001_init/migration.sql'
+has   "a configured home is searched"     '🔎 lib/render.ts: added function `renderCurrencyLabel` .*`formatCurrencyAmount` in shared/money.ts'
+has   "a configured skip is stated"       'Not run here by repo config. Use the build.'
+lacks "and is not a gap"                  '\[typecheck\]'
+has   "an unknown key is a gap"           '\[config\] unknown key\(s\).*typo'
+echo '{ "trunk": "main", }' > "$CTX_CONFIG_DIR/acme-widgets.json"
+out=$("$review" feature 2>&1); rc=$?
+same  "a config that will not parse stops the run" "3" "$rc"
+echo '{ "trunk": "main", "typecheck": "sh -c \"exit 0\"" }' > "$CTX_CONFIG_DIR/acme-widgets.json"
+git checkout -q feature
+out=$("$review" 2>&1)
+has   "a configured typecheck command runs" '✓ `sh -c "exit 0"` passes'
+git checkout -q main
+rm "$CTX_CONFIG_DIR/acme-widgets.json"
+
+echo "## the tools on their own"
+out=$(ctx-type-escapes main feature 2>&1); rc=$?
+same  "ten escapes, no more" "10" "$(grep -c 'added line' <<< "$out")"
+same  "a full run exits 0" "0" "$rc"
+out=$(cd src && ctx-type-escapes main feature 2>&1)
+same  "the same from a subdirectory" "10" "$(grep -c 'added line' <<< "$out")"
+out=$(ctx-clones main feature 2>&1); rc=$?
+has   "the same-directory clone"          'src/clone.ts: added function `addUpGains`'
+lacks "a distant clone needs a home"      'renderCurrencyLabel'
+has   "an unconfigured search is a gap"   'gap\[clones\]: no shared homes'
+same  "a run with gaps exits 1" "1" "$rc"
+out=$(cd src && ctx-clones main feature --homes shared/ 2>&1); rc=$?
+has   "--homes finds the distant clone"   'lib/render.ts: added function `renderCurrencyLabel` .*`formatCurrencyAmount` in shared/money.ts'
+same  "a full clone run exits 0" "0" "$rc"
+out=$(ctx-clones nosuchref feature 2>&1); rc=$?
+has   "a missing ref is named"            'ref not found: nosuchref'
+same  "and exits 2" "2" "$rc"
+out=$(cd "$tmp/scratch" && ctx-type-escapes main feature 2>&1); rc=$?
+same  "outside a repository exits 2" "2" "$rc"
+
+echo ""
+echo "---"
+if [[ $fail -eq 0 ]]; then
+    echo "✓ $pass checks passed"
+else
+    echo "✗ $fail of $((pass + fail)) checks failed"
+    exit 1
+fi

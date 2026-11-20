@@ -36,7 +36,9 @@ Scopes: repo / file / diff; picks its own toolset per scope.
 - `ctx-hotspots [path]`: cyclomatic complexity × git churn
 - `ctx-complexity <file>`: cyclomatic complexity per function
 - `ctx-duplicates [path]`: structurally similar files
-- `ctx-migration <file> --from <lib> [--base <ref>]`: behavioral equivalence across a library migration; omit `--base` for plan mode
+- `ctx-clones <base> <head> [--homes dir/,dir/]`: functions a diff added or changed that share their control-flow shape (70% overlap, names ignored) with another function: a possible reimplementation, or a twin the change left behind. Looks in the same file, the same directory, then the shared homes; a place to look, never proof.
+- `ctx-type-escapes <base> <head>`: casts to a type containing `any`, double casts, assertions on `JSON.parse`, and `@ts-` directives on the lines a diff added, read from the syntax tree
+- `ctx-migration <file> --from <lib> [--base <ref>] [--head=<ref>]`: behavioral equivalence across a library migration; omit `--base` for plan mode, pass `--head=` to read the new version at a ref
 
 ## Testing
 
@@ -128,7 +130,8 @@ Heavier instruments for bigger jobs.
 - `ctx-symbol <name> [path]`: definition + usages + history in one call (subsumes where / refs / history)
 - `ctx-arch [path] [--cycles-only]`: module dependency graph: coupling table (in/out), cycle detection; ⚠ marks when dynamic loaders make the graph partial
 - `ctx-unused-deps [path]`: packages declared but never imported; Node/Bun and Python
-- `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors in changed files) + 🟡 warnings (tests, formatting, dissonance); exits 2/1/0. Diffs **commits**, so it refuses with ⚠ INCONCLUSIVE when the work is uncommitted - reach for `ctx-diff HEAD` there
+- `ctx-mr-review [head] [--base <ref>] [--committed] [--no-typecheck]`: reads at git refs, so the branch need not be checked out; with a dirty tree and no head it reviews a stored snapshot of the working tree (secret-looking untracked files left out) and moves nothing. 🔴 only from the compiler or the audit, 🟡 warnings, 🔎 places to open and judge. "Not examined" lists every check that was skipped, capped or failed. Exits 0 clean, 1 warnings or gaps, 2 critical, 3 could not run. Per-repo settings in `~/.priv-config/ctx/<owner>-<repo>.json`; `--help` lists the keys. About four seconds a source file, plus the repo's typecheck when one is configured
+- `ctx-selftest`: runs the review tools against a throwaway repo (about two minutes); run it after changing any of them, and break the code to see a new check fail before trusting it
 - `ctx-rhythm <file|dir>`: flags when functions in the same module throw vs return null, or names promise a value but return void
 - `ctx-audit [path]`: security and quality scan via `semgrep --config=auto`
 - `ctx-mutate <file> [test-file] [--runner "<cmd>"]`: surviving mutations are uncovered behaviour. Four coarse mutation kinds, a first pass and never proof a test guards a specific line; exits 2 INCONCLUSIVE when the tests fail unmutated, which usually means the wrong runner

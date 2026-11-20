@@ -1151,7 +1151,7 @@ function learnSetupPatterns(depModules, filePath) {
   const patterns = []
   try {
     const testFiles = require('child_process')
-      .execSync(`fd -t f -e test.ts -e test.js -e test.tsx -e test.jsx -e spec.ts -e spec.js . "${dir}" 2>/dev/null`)
+      .execFileSync('fd', ['-t', 'f', '-e', 'test.ts', '-e', 'test.js', '-e', 'test.tsx', '-e', 'test.jsx', '-e', 'spec.ts', '-e', 'spec.js', '.', dir], { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString().trim().split('\n').filter(Boolean)
 
     for (const tf of testFiles.slice(0, 5)) {
@@ -1217,15 +1217,12 @@ ${mockBlock}${setupBlock}${blocks}${classBlocksStr}
 // Directory mode: process all .ts and .js files
 if (fs.statSync(file).isDirectory()) {
   const tsFiles = require('child_process')
-    .execSync(`fd -t f -e ts -e tsx -e js -e jsx . "${file}" 2>/dev/null`)
+    .execFileSync('fd', ['-t', 'f', '-e', 'ts', '-e', 'tsx', '-e', 'js', '-e', 'jsx', '.', file], { stdio: ['ignore', 'pipe', 'ignore'] })
     .toString().trim().split('\n').filter(f => f && !f.includes('.test.') && !f.includes('.spec.') && !f.includes('.d.ts') && !f.includes('node_modules'))
   if (tsFiles.length === 0) { console.log('No TypeScript files found.'); process.exit(0) }
   console.log(`// ctx-test-gen: ${tsFiles.length} file(s) in ${file}\n`)
   tsFiles.forEach(f => {
-    require('child_process').execSync(
-      `${process.argv[1]} "${f}"${apply ? ' --apply' : ''}`,
-      { stdio: 'inherit' }
-    )
+    require('child_process').execFileSync(process.argv[1], apply ? [f, '--apply'] : [f], { stdio: 'inherit' })
   })
   process.exit(0)
 }

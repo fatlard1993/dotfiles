@@ -1,0 +1,104 @@
+#!/usr/bin/env bun
+
+// ctx-type-escapes — type escapes on the lines a diff added, read from the syntax tree at the head
+// ref: a cast to a type containing `any`, an `as unknown as` double cast, a type asserted on
+// JSON.parse output, and @ts-ignore / @ts-expect-error / @ts-nocheck.
+// Usage: ctx-type-escapes <base-ref> <head-ref> [file...]
+// Exit: 0 ran in full, 1 ran with gaps, 2 could not run. Checked by ctx-selftest.
+
+const path = require('path')
+const { requireTsMorph } = require(path.join(__dirname, 'lib', 'ts-morph-loader.js'))
+const { gap, finish, fail, requireRefs, showAt, diffRange, changedSource, addedLines } = require(path.join(__dirname, 'lib', 'ctx-git.js'))
+const { Project, Node, SyntaxKind, ts } = requireTsMorph()
+
+const [, , base, head, ...files] = process.argv
+if (!base || !head || base.startsWith('-')) fail('usage: ctx-type-escapes <base-ref> <head-ref> [file...]')
+requireRefs(base, head)
+
+const SIGNAL = 'type-escapes'
+const STATEMENTS = [
+  'added line uses an `as unknown as` double cast',
+  'added line casts to a type containing `any`',
+  'added line carries a @ts- directive',
+  'added line asserts a type on JSON.parse output (unvalidated external data)',
+]
+const [DOUBLE_CAST, ANY_CAST, TS_DIRECTIVE, JSON_ASSERT] = [0, 1, 2, 3]
+const TS_DIRECTIVE_LINE = /^[\s/*]*@ts-(ignore|expect-error|nocheck)\b/
+
+const mentionsAny = (typeNode) =>
+  typeNode.getKind() === SyntaxKind.AnyKeyword || typeNode.getDescendantsOfKind(SyntaxKind.AnyKeyword).length > 0
+
+function escapesIn(file, content, addedSet) {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } })
+  const src = project.createSourceFile(`f${path.extname(file) || '.ts'}`, content, { overwrite: true })
+  const found = new Map()
+  const note = (line, escape) => {
+    if (addedSet.has(line) && (found.get(line) ?? STATEMENTS.length) > escape) found.set(line, escape)
+  }
+  src.forEachDescendant((node) => {
+    if (!Node.isAsExpression(node) && !Node.isTypeAssertion(node)) return
+    const typeNode = node.getTypeNodeOrThrow()
+    let inner = node.getExpression()
+    while (Node.isParenthesizedExpression(inner)) inner = inner.getExpression()
+    const line = typeNode.getStartLineNumber()
+    const innerIsUnknownCast =
+      (Node.isAsExpression(inner) || Node.isTypeAssertion(inner)) &&
+      inner.getTypeNodeOrThrow().getKind() === SyntaxKind.UnknownKeyword
+    if (innerIsUnknownCast) {
+      note(line, DOUBLE_CAST)
+    } else if (mentionsAny(typeNode)) {
+      note(line, ANY_CAST)
+    } else if (
+      typeNode.getKind() !== SyntaxKind.UnknownKeyword &&
+      Node.isCallExpression(inner) &&
+      inner.getExpression().getText() === 'JSON.parse'
+    ) {
+      note(line, JSON_ASSERT)
+    }
+  })
+
+  const sf = src.compilerNode
+  const text = sf.getFullText()
+  const seen = new Set()
+  const visitComments = (ranges) => {
+    for (const r of ranges ?? []) {
+      if (seen.has(r.pos)) continue
+      seen.add(r.pos)
+      const firstLine = sf.getLineAndCharacterOfPosition(r.pos).line + 1
+      text
+        .slice(r.pos, r.end)
+        .split('\n')
+        .forEach((commentLine, i) => {
+          if (TS_DIRECTIVE_LINE.test(commentLine)) note(firstLine + i, TS_DIRECTIVE)
+        })
+    }
+  }
+  // Every comment is leading trivia of the next token or trailing trivia of the previous one, and
+  // getChildren includes tokens, so this walk reaches every comment in the file.
+  const walk = (n) => {
+    visitComments(ts.getLeadingCommentRanges(text, n.getFullStart()))
+    visitComments(ts.getTrailingCommentRanges(text, n.getEnd()))
+    for (const child of n.getChildren(sf)) walk(child)
+  }
+  walk(sf)
+  return found
+}
+
+const range = diffRange(base, head, SIGNAL)
+for (const file of files.length > 0 ? files : changedSource(range, SIGNAL)) {
+  const added = addedLines(range, file, SIGNAL)
+  if (added.length === 0) continue
+  const content = showAt(head, file, SIGNAL)
+  if (content === null) continue
+  let found
+  try {
+    found = escapesIn(file, content, new Set(added.map((a) => a.line)))
+  } catch {
+    gap(SIGNAL, `could not parse ${file}; it was not scanned.`)
+    continue
+  }
+  for (const [line, escape] of [...found].sort((a, b) => a[0] - b[0])) {
+    console.log(`${file}:${line}: ${STATEMENTS[escape]}`)
+  }
+}
+finish()

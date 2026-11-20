@@ -8,7 +8,8 @@ const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-mo
 // Guards removed, error handling dropped, signature drift, new branches
 // Usage: ctx-semantic-diff <file> [old-ref=HEAD] [new-ref=working-tree]
 
-const { execSync } = require('child_process')
+const { execFileSync } = require('child_process')
+const GIT_READ = { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
 const { Project, SyntaxKind } = requireTsMorph()
 const path = require('path')
 const fs = require('fs')
@@ -18,9 +19,9 @@ if (!file) { console.error('usage: ctx-semantic-diff <file> [old-ref] [new-ref]'
 
 function contentAtRef(ref, filePath) {
   try {
-    const gitRoot = execSync('git rev-parse --show-toplevel 2>/dev/null').toString().trim()
+    const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], GIT_READ).trim()
     const relPath = path.relative(gitRoot, path.resolve(filePath))
-    return execSync(`git show ${ref}:${relPath} 2>/dev/null`).toString()
+    return execFileSync('git', ['show', `${ref}:${relPath}`], GIT_READ)
   } catch { return null }
 }
 

@@ -18,7 +18,8 @@ const { requireTsMorph } = require(require('path').join(__dirname, 'lib', 'ts-mo
 // The behavioral requirements are derived from AST patterns in the old code,
 // not from a static library dictionary. Works for any library pair.
 
-const { execSync } = require('child_process')
+const { execFileSync } = require('child_process')
+const GIT_READ = { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
 const { Project, SyntaxKind } = requireTsMorph()
 const path = require('path')
 const fs = require('fs')
@@ -32,14 +33,16 @@ const fromLib = (args.find(a => a.startsWith('--from=')) || '').replace('--from=
                 (args.indexOf('--from') >= 0 ? args[args.indexOf('--from') + 1] : '')
 const base    = (args.find(a => a.startsWith('--base=')) || '').replace('--base=', '') ||
                 (args.indexOf('--base') >= 0 ? args[args.indexOf('--base') + 1] : null)
+const headRef = (args.find(a => a.startsWith('--head=')) || '').replace('--head=', '') || null
 
 if (!file) {
   console.error([
-    'usage: ctx-migration <file> --from <lib> [--base <ref>]',
+    'usage: ctx-migration <file> --from <lib> [--base <ref>] [--head=<ref>]',
     '',
     '  --from <lib>        Library being replaced (e.g. axios)',
     '  --base <ref>        Git ref of old version (enables review/progress mode)',
     '                      Omit to analyze current code only (plan mode)',
+    '  --head=<ref>        Read the new version at this ref instead of from the working tree',
   ].join('\n'))
   process.exit(1)
 }
@@ -207,9 +210,9 @@ function checkBehaviorPresent(newText, dep) {
 // ---------------------------------------------------------------------------
 function contentAtRef(ref, filePath) {
   try {
-    const gitRoot = execSync('git rev-parse --show-toplevel 2>/dev/null').toString().trim()
+    const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], GIT_READ).trim()
     const relPath = path.relative(gitRoot, path.resolve(filePath))
-    return execSync(`git show ${ref}:${relPath} 2>/dev/null`).toString()
+    return execFileSync('git', ['show', `${ref}:${relPath}`], GIT_READ)
   } catch { return null }
 }
 
@@ -246,7 +249,9 @@ function importBindings(content) {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-const newContent = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
+const newContent = headRef
+  ? contentAtRef(headRef, file)
+  : (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null)
 if (!newContent) { console.error(`not found: ${file}`); process.exit(1) }
 
 const detectionContent = base ? (contentAtRef(base, file) || newContent) : newContent
@@ -292,7 +297,7 @@ console.log(`## Migration ${mode === 'plan' ? 'Plan' : 'Review'}: ${detectedLib}
 if (mode === 'plan') {
   console.log(`## (plan mode — shows what needs to be handled when migrating away from ${detectedLib})`)
 } else {
-  console.log(`## (review mode — checking ${base} → working tree)`)
+  console.log(`## (review mode — checking ${base} → ${headRef || 'working tree'})`)
 }
 console.log()
 

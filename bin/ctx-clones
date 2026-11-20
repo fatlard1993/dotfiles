@@ -1,0 +1,193 @@
+#!/usr/bin/env bun
+
+// ctx-clones — functions a diff added or changed that share their control-flow shape with another
+// function under a different name. An added function with a match may be a reimplementation; a
+// changed function whose match sits in code the diff does not touch may be a twin left behind.
+// Shape means the sequence of branches, loops, calls and operators, with names and literals
+// dropped; a match is 70% overlap of that sequence, so it is a place to look and proves nothing.
+// Searched, in order: the same file, the same directory, then the shared homes (--homes, or
+// `cloneHomes` in the repo's ctx config). A function in a distant directory with no name token in
+// common is out of reach.
+// Usage: ctx-clones <base-ref> <head-ref> [--homes dir/,dir/] [file...]
+// Exit: 0 ran in full, 1 ran with gaps, 2 could not run. Checked by ctx-selftest.
+
+const path = require('path')
+const { requireTsMorph } = require(path.join(__dirname, 'lib', 'ts-morph-loader.js'))
+const ctxGit = require(path.join(__dirname, 'lib', 'ctx-git.js'))
+const { gap, finish, fail, git, gitTry, requireRefs, showAt, grepAt, capped, diffRange, changedSource, addedLines, repoConfig, isSource, isTest } = ctxGit
+const { Project, Node } = requireTsMorph()
+
+const argv = process.argv.slice(2)
+const homesIdx = argv.indexOf('--homes')
+let homes = homesIdx >= 0 ? (argv[homesIdx + 1] || '').split(',').map((s) => s.trim()).filter(Boolean) : null
+if (homesIdx >= 0) argv.splice(homesIdx, 2)
+const [base, head, ...files] = argv
+if (!base || !head || base.startsWith('-')) fail('usage: ctx-clones <base-ref> <head-ref> [--homes dir/,dir/] [file...]')
+requireRefs(base, head)
+homes ??= repoConfig().cloneHomes ?? []
+
+const SIGNAL = 'clones'
+const MIN_SHAPE = 6
+const FILE_CAP = 40
+const SIBLING_CAP = 25
+const HOME_CAP = 12
+const STOPWORD = new Set(['get', 'set', 'use', 'make', 'create', 'to', 'from', 'is', 'has', 'the', 'for', 'with'])
+
+function shapeOf(node) {
+  const seq = []
+  node.forEachDescendant((d) => {
+    if (Node.isIfStatement(d)) seq.push('if')
+    else if (Node.isForStatement(d) || Node.isForOfStatement(d) || Node.isForInStatement(d)) seq.push('for')
+    else if (Node.isWhileStatement(d) || Node.isDoStatement(d)) seq.push('while')
+    else if (Node.isSwitchStatement(d)) seq.push('switch')
+    else if (Node.isTryStatement(d)) seq.push('try')
+    else if (Node.isConditionalExpression(d)) seq.push('ternary')
+    else if (Node.isReturnStatement(d)) seq.push('ret')
+    else if (Node.isCallExpression(d)) seq.push(`call${d.getArguments().length}`)
+    else if (Node.isBinaryExpression(d)) seq.push(`bin:${d.getOperatorToken().getText()}`)
+    else if (Node.isArrayLiteralExpression(d)) seq.push('arr')
+    else if (Node.isObjectLiteralExpression(d)) seq.push('obj')
+  })
+  return seq
+}
+
+function functionsIn(file, content) {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } })
+  const src = project.createSourceFile(`f${path.extname(file) || '.ts'}`, content, { overwrite: true })
+  const out = new Map()
+  const add = (name, node) => out.set(name, { shape: shapeOf(node), start: node.getStartLineNumber(), end: node.getEndLineNumber() })
+  for (const fn of src.getFunctions()) {
+    if (fn.getName()) add(fn.getName(), fn)
+  }
+  for (const v of src.getVariableDeclarations()) {
+    const init = v.getInitializer()
+    if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) add(v.getName(), init)
+  }
+  for (const cls of src.getClasses()) {
+    for (const method of cls.getMethods()) add(`${cls.getName() ?? 'class'}.${method.getName()}`, method)
+  }
+  return out
+}
+
+function kgrams(seq, k) {
+  const s = new Set()
+  for (let i = 0; i + k <= seq.length; i++) s.add(seq.slice(i, i + k).join('>'))
+  return s
+}
+
+function sameShape(a, b) {
+  if (a.length < MIN_SHAPE || b.length < MIN_SHAPE) return false
+  if (a.join('>') === b.join('>')) return true
+  const ga = kgrams(a, 3)
+  const gb = kgrams(b, 3)
+  if (ga.size === 0 || gb.size === 0) return false
+  let inter = 0
+  for (const g of ga) if (gb.has(g)) inter++
+  return inter / (ga.size + gb.size - inter) >= 0.7
+}
+
+const cache = new Map()
+function functionsAt(ref, file, quiet) {
+  const key = `${ref}:${file}`
+  if (cache.has(key)) return cache.get(key)
+  const content = quiet ? gitTry(['show', key]) : showAt(ref, file, SIGNAL)
+  let fns = new Map()
+  if (content !== null) {
+    try {
+      fns = functionsIn(file, content)
+    } catch {
+      gap(SIGNAL, `could not parse ${file}; it was not scanned.`)
+    }
+  }
+  cache.set(key, fns)
+  return fns
+}
+
+const nameTokens = (name) =>
+  name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[\s_.]+/)
+    .filter((t) => t.length >= 5 && !STOPWORD.has(t))
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+function homeMatch(name, shape, file, changedSet) {
+  if (homes.length === 0) return null
+  const candidates = new Set()
+  for (const token of nameTokens(name)) {
+    for (const home of homes) {
+      for (const f of grepAt(head, ['-l', '-i'], `(function|const)\\s+\\w*${escapeRe(token)}\\w*`, home, SIGNAL)) {
+        if (!changedSet.has(f) && f !== file && !isTest(f)) candidates.add(f)
+      }
+    }
+  }
+  for (const cand of capped([...candidates].sort(), HOME_CAP, `shared-home scan for \`${name}\``, SIGNAL)) {
+    for (const [cname, c] of functionsAt(head, cand)) {
+      if (cname !== name && sameShape(shape, c.shape)) return { name: cname, file: cand }
+    }
+  }
+  return null
+}
+
+const range = diffRange(base, head, SIGNAL)
+const old = gitTry(['merge-base', base, head])?.trim() || base
+const changed = files.length > 0 ? files : changedSource(range, SIGNAL)
+const changedSet = new Set(changed)
+
+for (const file of capped(changed, FILE_CAP, 'clone scan', SIGNAL)) {
+  const addedSet = new Set(addedLines(range, file, SIGNAL).map((a) => a.line))
+  if (addedSet.size === 0) continue
+  const own = functionsAt(head, file)
+  const before = functionsAt(old, file, true)
+  const touched = new Set()
+  for (const [name, fn] of own) {
+    for (let line = fn.start; line <= fn.end; line++) {
+      if (addedSet.has(line)) {
+        touched.add(name)
+        break
+      }
+    }
+  }
+  if (touched.size === 0) continue
+
+  const dir = file.includes('/') ? file.slice(0, file.lastIndexOf('/') + 1) : ''
+  const siblingCandidates = git(['ls-tree', '--name-only', head, dir || './'], SIGNAL)
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((f) => f && f !== file && isSource(f) && !isTest(f))
+  const siblings = capped(siblingCandidates, SIBLING_CAP, `sibling scan of ${dir || 'the repo root'}`, SIGNAL)
+
+  for (const name of touched) {
+    const { shape } = own.get(name)
+    if (shape.length < MIN_SHAPE) continue
+    const isNew = !before.has(name)
+    let hit = null
+    for (const [cname, c] of own) {
+      if (cname !== name && !touched.has(cname) && sameShape(shape, c.shape)) {
+        hit = { name: cname, file }
+        break
+      }
+    }
+    for (const sib of hit ? [] : siblings) {
+      if (!isNew && changedSet.has(sib)) continue
+      for (const [cname, c] of functionsAt(head, sib)) {
+        if (cname !== name && sameShape(shape, c.shape)) {
+          hit = { name: cname, file: sib }
+          break
+        }
+      }
+      if (hit) break
+    }
+    hit ??= homeMatch(name, shape, file, changedSet)
+    if (!hit) continue
+    const where = hit.file === file ? 'the same file' : hit.file
+    console.log(
+      isNew
+        ? `${file}: added function \`${name}\` has the same control-flow shape as \`${hit.name}\` in ${where}`
+        : `${file}: changed function \`${name}\` has the same control-flow shape as \`${hit.name}\` in ${where}, which this diff does not touch`,
+    )
+  }
+}
+if (homes.length === 0) gap(SIGNAL, 'no shared homes given (--homes) or configured (cloneHomes); searched the same file and directory only.')
+finish()

@@ -1,582 +1,786 @@
 #!/usr/bin/env bash
-# ctx-mr-review — deterministic bug detection on a branch diff
-# Checks: signature drift vs call sites, removed guards, dropped error handling,
-#         new dissonance patterns, broken invariants, type contract violations
-# Usage: ctx-mr-review [branch] [--base <ref>]
+# ctx-mr-review — deterministic review of a branch diff, read at git refs
 #
-# Synthesis layer: Agent(subagent_type="ctx-reviewer") wraps this tool and
-# produces structured 🔴/🟡 findings with a merge recommendation.
+# Usage: ctx-mr-review [head-ref] [--base <ref>] [--committed] [--no-typecheck]
+#   head-ref        defaults to HEAD. With a dirty tree and no head-ref, the working tree is
+#                   stored as a dangling commit and that is reviewed: HEAD, the branch and the
+#                   index are untouched, and untracked files that look like secrets are left out.
+#   --base <ref>    defaults to `trunk` in the repo config, then the remote's default branch
+#   --committed     review HEAD only, ignoring uncommitted work
+#   --no-typecheck  skip the compiler; the skip is listed under Not examined
+#
+# Tiers:
+#   🔴 critical  the compiler or the audit said so
+#   🟡 warning   a pattern to fix or explain
+#   🔎 look      a place to open and judge; unverified, and no effect on the exit code
+# "Not examined" lists every check that was skipped, capped, or failed to run. A section with an
+# entry there was not checked, whatever it shows.
+#
+# Exit: 0 nothing found and everything ran, 1 warnings or gaps, 2 critical, 3 could not run.
+#
+# Repo config: ${CTX_CONFIG_DIR:-~/.priv-config/ctx}/<owner>-<repo>.json, all keys optional:
+#   trunk               ref to compare against
+#   typecheck           a command to run from the repo root, or "skip"
+#   typecheckTimeout    seconds, default 900
+#   typecheckNote       shown when typecheck is "skip"
+#   cloneHomes          directories searched for an existing copy of a new function
+#   dbMigrationPattern  regex for migration files (default: any .sql under a migrations/ folder)
+#   coverageRules       [{name, when, unless, note}]: warn when a path matching `when` changed
+#                       and no changed path matches `unless`
+#   sensitivePaths      [{zone, pattern}]: extra zones for the Sensitive Paths section
+#
+# Prettier and the compiler read the working tree, so those two run only when the reviewed head
+# is what is checked out. Checked by ctx-selftest; run it after changing this file.
 
 set -eo pipefail
 
-branch="${1:-HEAD}"
-base="main"
-while [[ $# -gt 0 ]]; do
-    case "$1" in --base) base="$2"; shift 2 ;; *) shift ;; esac
+usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
+stop() { echo "⚠ INCONCLUSIVE: $1"; exit 3; }
+
+(( BASH_VERSINFO[0] >= 4 )) || stop "bash 4 or newer is required (this is $BASH_VERSION)"
+for needed in git jq bun timeout perl; do
+    command -v "$needed" > /dev/null 2>&1 || stop "$needed is not on PATH"
+done
+export PATH="$(cd "$(dirname "$0")" && pwd):$PATH"
+
+head_arg=""
+base_arg=""
+committed_only=false
+run_typecheck=true
+while (( $# )); do
+    case "$1" in
+        -h|--help) usage; exit 0 ;;
+        --base) [[ $# -ge 2 && "$2" != -* ]] || stop "--base needs a ref (see --help)"; base_arg="$2"; shift 2 ;;
+        --base=*) base_arg="${1#--base=}"; shift ;;
+        --committed) committed_only=true; shift ;;
+        --no-typecheck) run_typecheck=false; shift ;;
+        -*) stop "unknown option: $1 (see --help)" ;;
+        *) [[ -z "$head_arg" ]] || stop "unexpected argument: $1 (one head ref; the base goes in --base)"; head_arg="$1"; shift ;;
+    esac
 done
 
-# Validate refs
-git rev-parse "$base" > /dev/null 2>&1 || { echo "base ref not found: $base"; exit 1; }
-git rev-parse "$branch" > /dev/null 2>&1 || { echo "branch ref not found: $branch"; exit 1; }
+git_root=$(git rev-parse --show-toplevel 2> /dev/null) || stop "not a git repository"
+cd "$git_root"
 
-echo "## MR Review: $base → $branch"
-echo ""
-
-# Changed TypeScript files
-changed_files=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' | grep -v '\.test\.' | grep -v '\.spec\.' || true)
-# Same set including tests — a type error in a new test file is still this branch's to answer for.
-changed_files_with_tests=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' || true)
-
-# --- Dependency bump detection (runs even when no source files changed) ---
-pkg_changed=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '^package\.json$' || true)
-lock_changed=$(git diff --name-only "${base}...${branch}" 2>/dev/null | grep -E '^package-lock\.json$|^bun\.lockb$|^yarn\.lock$' || true)
-
-if [[ -n "$pkg_changed" ]]; then
-    echo "### Dependency Changes"
-    echo ""
-
-    bumped=$(git diff "${base}...${branch}" -- package.json 2>/dev/null \
-        | grep '^[+-]' | grep -v '^---\|^+++' \
-        | grep -oE '"[@a-z@/][^"]+": "[^"]+"' \
-        | sort | uniq -u | head -20 || true)
-
-    # Extract changed packages using jq for reliability
-    tmp_pkg=$(mktemp)
-    trap 'rm -f "$tmp_pkg"' EXIT
-
-    # Get old and new package.json as JSON, compare dependencies
-    git show "${base}:package.json" 2>/dev/null > "${tmp_pkg}.old" || true
-    cp package.json "${tmp_pkg}.new" 2>/dev/null || true
-
-    if [[ -f "${tmp_pkg}.old" && -f "${tmp_pkg}.new" ]]; then
-        for dep_key in dependencies devDependencies peerDependencies; do
-            old_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "${tmp_pkg}.old" 2>/dev/null || true)
-            new_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "${tmp_pkg}.new" 2>/dev/null || true)
-
-            # Find packages that changed or were removed
-            while IFS='=' read -r pkg old_ver; do
-                [[ -z "$pkg" ]] && continue
-                new_ver=$(echo "$new_deps" | grep "^${pkg}=" | cut -d= -f2- || true)
-
-                if [[ -z "$new_ver" ]]; then
-                    # Removed
-                    echo "  📦 $pkg: $old_ver → (removed)"
-                elif [[ "$old_ver" != "$new_ver" ]]; then
-                    # Changed
-                    echo "  📦 $pkg"
-                    echo "     $old_ver → $new_ver"
-                    if [[ -n "$lock_changed" ]]; then
-                        resolved=$(jq -r ".packages[\"node_modules/${pkg}\"].version // empty" package-lock.json 2>/dev/null || true)
-                        [[ -n "$resolved" ]] && echo "     Lock resolved: $resolved"
-                    fi
-                    if echo "$new_ver" | grep -q '^\^'; then
-                        echo "     Range: ^ (allows minor/patch bumps automatically)"
-                    elif echo "$new_ver" | grep -q '^\~'; then
-                        echo "     Range: ~ (allows patch bumps only)"
-                    fi
-                    clean_ver=$(echo "$new_ver" | tr -d '^~>=<')
-                    echo "     Changelog: https://www.npmjs.com/package/${pkg}/v/${clean_ver}"
-                    echo ""
-                fi
-            done <<< "$old_deps"
-        done
-    fi
-    rm -f "${tmp_pkg}.old" "${tmp_pkg}.new"
-
-    # Quick audit check
-    echo "  Running npm audit on changed dependencies..."
-    audit_out=$(npm audit --audit-level=high 2>/dev/null | grep -E "^(found|high|critical)" | head -5 || true)
-    if [[ -n "$audit_out" ]]; then
-        echo "  🔴 Audit findings:"
-        echo "$audit_out" | sed 's/^/    /'
-        critical=$((critical + 1))
-    else
-        echo "  ✓ No high/critical vulnerabilities"
-    fi
-    echo ""
-fi
-
-if [[ -z "$changed_files" ]]; then
-    # An empty commit range with a dirty tree means the work is uncommitted and this tool cannot
-    # see it. Reporting "no issues" there is a clean bill of health for code never examined, so
-    # say what happened and exit non-zero instead.
-    uncommitted=$(git status --porcelain 2>/dev/null \
-        | grep -E '\.(ts|tsx|js|jsx|mjs)$' | grep -v '\.d\.ts$' || true)
-    if [[ -n "$uncommitted" ]]; then
-        uncommitted_count=$(echo "$uncommitted" | wc -l | tr -d ' ')
-        echo "⚠ NOT REVIEWED: ${base}...${branch} is empty, but $uncommitted_count changed source file(s)"
-        echo "  are uncommitted. This tool diffs commits, so it never saw them."
-        echo "  Commit the work, or review the working tree with: ctx-diff HEAD"
-        echo ""
-        echo "---"
-        echo "⚠ INCONCLUSIVE: nothing was analyzed"
-        exit 1
-    fi
-
-    [[ -z "$pkg_changed" ]] && echo "No source files or dependencies changed."
-    # Still run summary
-    echo "---"
-    if [[ $critical -eq 0 && $warnings -eq 0 ]]; then
-        echo "✓ No issues detected."
-        exit 0
-    elif [[ $critical -gt 0 ]]; then
-        echo "🔴 CRITICAL: $critical issue(s)"
-        exit 2
-    else
-        echo "🟡 WARNING: $warnings issue(s)"
-        exit 1
-    fi
-fi
-
-file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
-echo "Changed files: $file_count"
-echo ""
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+trap 'rc=$?; echo ""; echo "⚠ INCONCLUSIVE: ctx-mr-review aborted at line $LINENO (status $rc); the output above is incomplete"; exit 3' ERR
 
 critical=0
 warnings=0
-changed_fns_file=$(mktemp)
-trap 'rm -f "$changed_fns_file"' EXIT
+looks=0
+gaps=()
 
-# Severity classification
-is_critical() { echo "$1" | grep -qE 'GUARD-REMOVED|TRY-CATCH-REMOVED|params:.*→'; }
-is_warning()  { echo "$1" | grep -qE 'THROW-LITERAL|CONSOLE|GHOST-CALL|UNHANDLED-REJECTION|DEAD-PARAM|LOOSE-EQ|OPEN-CIRCUIT|MUTATION'; }
+crit() { echo "  🔴 $1"; critical=$((critical + 1)); }
+warn() { echo "  🟡 $1"; warnings=$((warnings + 1)); }
+look() { echo "  🔎 $1"; looks=$((looks + 1)); }
+gap()  { gaps+=("[$1] $2"); }
+count() { [[ -z "$1" ]] && echo 0 || grep -c '' <<< "$1"; }
+escape_re() { sed 's/[][\.*+?^${}()|]/\\&/g' <<< "$1"; }
+valid_re() { local rc=0; grep -E -- "$1" <<< "" > /dev/null 2>&1 || rc=$?; [[ $rc -ne 2 ]]; }
 
-# --- 1. Semantic diff on each changed file ---
-echo "### Structural Changes"
+# Sub-tools print their own gaps as "⚠ gap[<signal>]: <note>"; everything else is a finding.
+split_gaps() {
+    findings=""
+    local line
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^⚠\ gap\[([^]]+)\]:\ (.*)$ ]]; then
+            gap "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        elif [[ -n "$line" ]]; then
+            findings+="$line"$'\n'
+        fi
+    done <<< "$1"
+    findings="${findings%$'\n'}"
+}
+
+remote_url=$(git remote get-url origin 2> /dev/null || true)
+repo_slug=$(sed -E 's#\.git$##; s#.*[:/]([^/:]+)/([^/]+)$#\1-\2#' <<< "$remote_url")
+[[ "$repo_slug" == */* || "$repo_slug" == "$remote_url" ]] && repo_slug=""
+cfg_path="${CTX_CONFIG_DIR:-$HOME/.priv-config/ctx}/${repo_slug}.json"
+cfg_file=""
+if [[ -n "$repo_slug" && -f "$cfg_path" ]]; then
+    jq -e 'type == "object"' "$cfg_path" > /dev/null 2>&1 || stop "repo config $cfg_path is not a JSON object"
+    cfg_file="$cfg_path"
+    unknown_keys=$(jq -r 'keys[]' "$cfg_file" | grep -vxE 'trunk|typecheck|typecheckTimeout|typecheckNote|cloneHomes|dbMigrationPattern|coverageRules|sensitivePaths' | paste -sd, - || true)
+    [[ -n "$unknown_keys" ]] && gap config "unknown key(s) in $cfg_file ignored: $unknown_keys"
+    while IFS= read -r configured_re; do
+        [[ -z "$configured_re" ]] || valid_re "$configured_re" || stop "repo config $cfg_file holds an invalid regex: $configured_re"
+    done < <(jq -r '.dbMigrationPattern // empty, (.coverageRules[]? | .when, .unless), (.sensitivePaths[]? | .pattern)' "$cfg_file")
+fi
+cfg() { [[ -n "$cfg_file" ]] && jq -r "$1 // empty" "$cfg_file" || true; }
+
+base_name="$base_arg"
+if [[ -z "$base_name" ]]; then
+    base_name=$(cfg '.trunk')
+    [[ -z "$base_name" ]] && base_name=$(git symbolic-ref --short refs/remotes/origin/HEAD 2> /dev/null || true)
+    if [[ -z "$base_name" ]]; then
+        for candidate in origin/main origin/master main master; do
+            git rev-parse --verify --quiet "${candidate}^{commit}" > /dev/null && { base_name="$candidate"; break; }
+        done
+    fi
+fi
+[[ -n "$base_name" ]] || stop "no base ref: pass --base <ref>"
+base=$(git rev-parse --verify --quiet "${base_name}^{commit}") || stop "base ref not found: $base_name"
+
+dirty=$(git status --porcelain 2> /dev/null)
+snapshot=""
+left_out=()
+if [[ -z "$head_arg" ]]; then
+    head_name="HEAD"
+    head=$(git rev-parse --verify --quiet 'HEAD^{commit}') || stop "HEAD does not resolve to a commit"
+    tree_matches_head=true
+    if [[ -n "$dirty" ]] && ! $committed_only; then
+        idx="$work/index"
+        cp "$(git rev-parse --git-path index)" "$idx"
+        GIT_INDEX_FILE="$idx" git add -u > /dev/null 2>&1
+        secret_re='(^|/)\.env(\.[^/]*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)id_(rsa|dsa|ecdsa|ed25519)[^/]*$|(^|/)\.(npmrc|netrc|pgpass)$|(^|/)[^/]*(credential|secret)[^/]*\.(json|ya?ml|txt)$'
+        while IFS= read -r -d '' untracked; do
+            if grep -qiE -- "$secret_re" <<< "$untracked"; then
+                left_out+=("$untracked")
+            else
+                printf '%s\0' "$untracked"
+            fi
+        done < <(git ls-files -z --others --exclude-standard) > "$work/untracked"
+        if [[ -s "$work/untracked" ]]; then
+            GIT_INDEX_FILE="$idx" git add --pathspec-from-file="$work/untracked" --pathspec-file-nul > /dev/null 2>&1
+        fi
+        tree=$(GIT_INDEX_FILE="$idx" git write-tree)
+        snapshot=$(git commit-tree "$tree" -p HEAD -m "ctx-mr-review working-tree snapshot")
+        head="$snapshot"
+        head_name="the working tree"
+        [[ ${#left_out[@]} -gt 0 ]] && gap snapshot "${#left_out[@]} untracked file(s) look like secrets and were left out of the review: $(printf '%s, ' "${left_out[@]}" | sed 's/, $//')"
+    elif [[ -n "$dirty" ]]; then
+        tree_matches_head=false
+    fi
+else
+    head_name="$head_arg"
+    head=$(git rev-parse --verify --quiet "${head_arg}^{commit}") || stop "head ref not found: $head_arg"
+    tree_matches_head=false
+    [[ -z "$dirty" && "$head" == "$(git rev-parse HEAD)" ]] && tree_matches_head=true
+fi
+
+old=$(git merge-base "$base" "$head" 2> /dev/null || true)
+if [[ -z "$old" ]]; then
+    old="$base"
+    gap all "no merge-base for $base_name and $head_name (shallow clone or unrelated history); compared against the tip of $base_name, so its later commits read as this branch's removals"
+fi
+
+echo "## MR Review: $base_name → $head_name"
+[[ -n "$snapshot" ]] && echo "Snapshot $snapshot holds the uncommitted changes and untracked files as a dangling commit until git's garbage collection. Nothing was moved."
+$tree_matches_head || echo "The working tree differs from the reviewed head; the checks that need the working tree are listed under Not examined."
+if [[ -n "$cfg_file" ]]; then
+    echo "Repo config: $cfg_file"
+elif [[ -n "$repo_slug" ]]; then
+    echo "No repo config (looked for $cfg_path)"
+else
+    echo "No repo config (no origin remote to name one by)"
+fi
 echo ""
 
-while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    result=$(ctx-semantic-diff "$f" "$base" "$branch" 2>/dev/null || true)
-    [[ -z "$result" ]] && continue
-    [[ "$result" == *"no structural changes"* ]] && continue
+diff_rc=0
+git diff --quiet --no-renames "$old" "$head" > /dev/null 2>&1 || diff_rc=$?
+[[ $diff_rc -le 1 ]] || stop "git diff $old $head failed; nothing was analyzed"
+changed_all=""
+added_files=""
+deleted=""
+while IFS= read -r -d '' status && IFS= read -r -d '' changed_path; do
+    if [[ "$changed_path" == *$'\n'* ]]; then
+        gap all "a changed path contains a newline and was not reviewed"
+        continue
+    fi
+    case "$status" in
+        D) deleted+="$changed_path"$'\n' ;;
+        A) added_files+="$changed_path"$'\n'; changed_all+="$changed_path"$'\n' ;;
+        *) changed_all+="$changed_path"$'\n' ;;
+    esac
+done < <(git diff -z --name-status --no-renames "$old" "$head")
+changed_all="${changed_all%$'\n'}"
+added_files="${added_files%$'\n'}"
+deleted="${deleted%$'\n'}"
+changed_code=$(grep -E '\.(ts|tsx|js|jsx|mjs)$' <<< "$changed_all" | grep -v '\.d\.ts$' || true)
+changed_src=$(grep -vE '\.(test|spec)\.' <<< "$changed_code" || true)
 
-    # Tag lines with severity
-    while IFS= read -r line; do
-        if is_critical "$line"; then
-            echo "  🔴 $line"
-            critical=$((critical + 1))
-        elif is_warning "$line"; then
-            echo "  🟡 $line"
-            warnings=$((warnings + 1))
+if [[ -z "$changed_all" && -z "$deleted" ]]; then
+    echo "No changes between $base_name and $head_name."
+    echo "---"
+    echo "✓ Nothing to review."
+    exit 0
+fi
+
+read -r stat_add stat_del < <(git diff --numstat --no-renames "$old" "$head" | awk '{a += $1; d += $2} END {print a + 0, d + 0}')
+src_total=$(count "$changed_src")
+echo "Changed: $(count "$changed_all") file(s), $src_total source, $(count "$deleted") deleted (+$stat_add −$stat_del)"
+[[ $src_total -gt 30 ]] && echo "About $((src_total * 4 / 60 + 1)) minute(s) at four seconds a source file." >&2
+echo ""
+
+pin="$work/pin"
+mkdir -p "$pin"
+pin_real=$(cd "$pin" && pwd -P)
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    mkdir -p "$pin/head/$(dirname "$f")" "$pin/old/$(dirname "$f")"
+    git show "$head:$f" > "$pin/head/$f" 2> /dev/null || { rm -f "$pin/head/$f"; gap all "could not read $f at the head ref; it was not scanned"; }
+    git show "$old:$f" > "$pin/old/$f" 2> /dev/null || rm -f "$pin/old/$f"
+done <<< "$changed_code"
+
+if grep -qxF 'package.json' <<< "$changed_all"; then
+    echo "### Dependency Changes"
+    echo ""
+    git show "$old:package.json" > "$work/pkg.old" 2> /dev/null || echo '{}' > "$work/pkg.old"
+    git show "$head:package.json" > "$work/pkg.new" 2> /dev/null || echo '{}' > "$work/pkg.new"
+    git show "$head:package-lock.json" > "$work/lock.new" 2> /dev/null || rm -f "$work/lock.new"
+    for dep_key in dependencies devDependencies peerDependencies; do
+        old_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "$work/pkg.old" 2> /dev/null || true)
+        new_deps=$(jq -r ".${dep_key} // {} | to_entries[] | \"\(.key)=\(.value)\"" "$work/pkg.new" 2> /dev/null || true)
+        while IFS='=' read -r pkg old_ver; do
+            [[ -z "$pkg" ]] && continue
+            new_ver=$(grep "^$(escape_re "$pkg")=" <<< "$new_deps" | cut -d= -f2- || true)
+            if [[ -z "$new_ver" ]]; then
+                echo "  📦 $pkg: $old_ver → (removed)"
+            elif [[ "$old_ver" != "$new_ver" ]]; then
+                echo "  📦 $pkg: $old_ver → $new_ver"
+                if [[ -f "$work/lock.new" ]]; then
+                    resolved=$(jq -r --arg p "node_modules/$pkg" '.packages[$p].version // empty' "$work/lock.new" 2> /dev/null || true)
+                    [[ -n "$resolved" ]] && echo "     Lock resolved: $resolved"
+                fi
+                echo "     Changelog: https://www.npmjs.com/package/${pkg}/v/$(tr -d '^~>=<' <<< "$new_ver")"
+            fi
+        done <<< "$old_deps"
+        while IFS='=' read -r pkg new_ver; do
+            [[ -z "$pkg" ]] && continue
+            grep -q "^$(escape_re "$pkg")=" <<< "$old_deps" || echo "  📦 $pkg: (added) $new_ver"
+        done <<< "$new_deps"
+    done
+
+    if ! $tree_matches_head; then
+        gap audit "npm audit reads the working tree's lockfile, which is not the reviewed head; dependencies were not audited"
+    elif [[ ! -f package-lock.json ]]; then
+        gap audit "no package-lock.json; this tool only knows npm audit, so dependencies were not audited"
+    elif ! command -v npm > /dev/null 2>&1; then
+        gap audit "npm is not on PATH; dependencies were not audited"
+    else
+        audit_json=$(npm audit --json 2> /dev/null || true)
+        serious=$(jq -r '.metadata.vulnerabilities | (.high // 0) + (.critical // 0)' <<< "$audit_json" 2> /dev/null || true)
+        if [[ "$serious" =~ ^[0-9]+$ && $serious -gt 0 ]]; then
+            crit "npm audit reports $serious high or critical vulnerabilit(ies)"
+        elif [[ "$serious" == "0" ]]; then
+            echo "  ✓ No high or critical vulnerabilities"
         else
-            echo "$line"
+            gap audit "npm audit gave no verdict (offline, or a registry error)"
+        fi
+    fi
+    echo ""
+fi
+
+echo "### Sensitive Paths"
+echo ""
+sensitive_zones=$(cat <<'ZONES'
+CI configuration	^\.(github|circleci)/
+infrastructure	^terraform/|\.tf$|(^|/)([^/]*\.)?Dockerfile$|(^|/)docker-compose[^/]*\.ya?ml$
+auth or permissions	(^|/)(auth|security|permissions)(/|\.[cm]?[jt]sx?$)
+feature-flag plumbing	(^|/)featureFlags/|(^|/)[fF]eatureFlag[^/]*\.[cm]?[jt]sx?$
+dependency manifests	(^|/)(package\.json|yarn\.lock|package-lock\.json|bun\.lockb?|Cargo\.(toml|lock))$
+ZONES
+)
+extra_zones=$(cfg '.sensitivePaths[]? | "\(.zone)\t\(.pattern)"')
+[[ -n "$extra_zones" ]] && sensitive_zones+=$'\n'"$extra_zones"
+sensitive_found=false
+touched_paths=$(printf '%s\n%s\n' "$changed_all" "$deleted" | grep -v '^$' || true)
+while IFS=$'\t' read -r zone pattern; do
+    [[ -z "$zone" ]] && continue
+    hits=$(grep -E -- "$pattern" <<< "$touched_paths" | grep -vE '\.(test|spec)\.' || true)
+    [[ -z "$hits" ]] && continue
+    look "$(count "$hits") file(s) under $zone changed or were deleted, first: $(head -1 <<< "$hits")"
+    sensitive_found=true
+done <<< "$sensitive_zones"
+$sensitive_found || echo "  (none)"
+echo ""
+
+echo "### Structural Changes"
+echo ""
+mkdir -p "$work/sd"
+sig_changed="$work/sig-changed"
+: > "$sig_changed"
+structural_found=false
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    sd_file="$work/sd/${f//\//__}"
+    if ! ctx-semantic-diff "$f" "$old" "$head" > "$sd_file" 2> /dev/null; then
+        gap structure "ctx-semantic-diff failed on $f"
+        continue
+    fi
+    result=$(cat "$sd_file")
+    [[ -z "$result" || "$result" == *"no structural changes"* ]] && continue
+    if [[ "$result" == *": new file" && -f "$pin/old/$f" ]]; then
+        gap structure "ctx-semantic-diff could not read the old version of $f"
+        continue
+    fi
+    [[ "$result" == *": new file" || "$result" == *": deleted" ]] && continue
+    structural_found=true
+    echo "  $f"
+    current_fn=""
+    while IFS= read -r line; do
+        trimmed="${line#"${line%%[![:space:]]*}"}"
+        if [[ "$line" == "## "* || -z "$line" ]]; then
+            continue
+        elif [[ "$line" =~ ^\ \ ~\ ([^[:space:]]+) ]]; then
+            current_fn="${BASH_REMATCH[1]}"
+            echo "  $line"
+        elif [[ "$line" == *GUARD-REMOVED* || "$line" == *TRY-CATCH-REMOVED* ]]; then
+            echo -n "  "; look "${trimmed#⚠  } Was it moved into a helper, or is it gone?"
+        elif grep -qE 'THROW-LITERAL|CONSOLE-ADDED' <<< "$line"; then
+            echo -n "  "; warn "${trimmed#⚠  }"
+        else
+            echo "  $line"
+            if [[ -n "$current_fn" ]] && grep -qE "params:.*→|param '.*' (type|optional):" <<< "$line"; then
+                printf '%s\t%s\n' "$current_fn" "$f" >> "$sig_changed"
+            fi
         fi
     done <<< "$result"
     echo ""
+done <<< "$changed_src"
+$structural_found || { echo "  (no structural changes in exported functions)"; echo ""; }
 
-    # Record changed function names for call-site audit
-    echo "$result" | grep "^  ~ " | sed 's/^  ~ //' | awk '{print $1}' | while read -r fname; do
-        echo "$fname $f" >> "$changed_fns_file"
-    done || true
-done <<< "$changed_files"
-
-# --- 1b. Migration check — detect library replacements ---
-echo "### Migration Analysis"
+echo "### Library Migrations"
 echo ""
-
 migration_found=false
+imports_of() { grep -oE "from ['\"][^'\"]+['\"]" "$1" 2> /dev/null | sed -E "s/from ['\"]//; s/['\"]\$//" | grep -vE '^[./#]' | LC_ALL=C sort -u || true; }
 while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    result=$(ctx-migration "$f" --base "$base" 2>/dev/null || true)
-    [[ -z "$result" ]] && continue
-    [[ "$result" == *"no recognized migration"* ]] && continue
-    [[ "$result" == *"new file"* ]] && continue
-
-    echo "$result"
-    # Count flags — grep exits 1 if no match, arithmetic handles it cleanly
-    mig_crit=$(echo "$result" | awk '/🔴/{c++} END{print c+0}')
-    mig_warn=$(echo "$result" | awk '/🟡/{c++} END{print c+0}')
-    critical=$((critical + mig_crit))
-    warnings=$((warnings + mig_warn))
-    migration_found=true
-done <<< "$changed_files"
-
-$migration_found || echo "  (no library migrations detected)"
+    [[ -z "$f" || ! -f "$pin/old/$f" || ! -f "$pin/head/$f" ]] && continue
+    removed=$(LC_ALL=C comm -23 <(imports_of "$pin/old/$f") <(imports_of "$pin/head/$f"))
+    while IFS= read -r spec; do
+        [[ -z "$spec" ]] && continue
+        rc=0
+        result=$(timeout 60 ctx-migration "$f" --from "${spec##*/}" --base "$old" "--head=$head" 2> /dev/null) || rc=$?
+        if [[ $rc -ne 0 ]]; then
+            gap migrations "ctx-migration exited $rc on $f (dropped import: $spec)"
+            continue
+        fi
+        flagged=$(grep -E '🔴|🟡' <<< "$result" | sed -E 's/^[[:space:]]*(🔴|🟡)[[:space:]]*//' || true)
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && { look "$f dropped its import of $spec: $line"; migration_found=true; }
+        done <<< "$flagged"
+    done <<< "$removed"
+done <<< "$changed_src"
+$migration_found || echo "  (no file dropped a library import with behavior left to carry over)"
 echo ""
 
-# --- 1c. TypeScript compilation check ---
 echo "### TypeScript Compilation"
 echo ""
-
-git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-tsconfig_path=""
-[[ -f "$git_root/tsconfig.json" ]] && tsconfig_path="$git_root/tsconfig.json"
-
-# A project's own typecheck script knows its layout — which tsconfig covers tests, which
-# workspaces build separately. Prefer it; raw tsc against the root config is the fallback.
-project_typecheck=""
-if [[ -f "$git_root/package.json" ]] && command -v jq &>/dev/null; then
-    for script_name in typecheck type-check tsc; do
-        if jq -e --arg s "$script_name" '.scripts[$s] // empty' "$git_root/package.json" &>/dev/null; then
-            project_typecheck="$script_name"
-            break
+# Errors in changed files are critical, a failure with nothing readable is a gap, and a tick
+# is printed only when the run exited 0.
+judge_typecheck() {
+    local label="$1" rc="$2" output="$3" distrust_above="$4"
+    local clean in_diff="" out_count=0 global="" line file
+    clean=$(sed -E $'s/\x1b\\[[0-9;]*m//g' <<< "$output" | sed "s|${git_root}/||g")
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^(.+)\([0-9]+,[0-9]+\):\ error\ TS[0-9]+ ]] || [[ "$line" =~ ^(.+):[0-9]+:[0-9]+\ -\ error\ TS[0-9]+ ]]; then
+            file="${BASH_REMATCH[1]#./}"
+            if grep -qxF -- "$file" <<< "$changed_code"; then in_diff+="$line"$'\n'; else out_count=$((out_count + 1)); fi
+        elif [[ "$line" =~ ^error\ TS[0-9]+ ]]; then
+            global+="$line"$'\n'
         fi
+    done <<< "$clean"
+    if [[ $rc -eq 124 ]]; then
+        gap typecheck "$label did not finish in time; types were not checked"
+        echo "  (timed out, see Not examined)"
+    elif [[ -n "$in_diff" ]]; then
+        crit "$label: $(count "${in_diff%$'\n'}") error(s) in changed files"
+        head -10 <<< "${in_diff%$'\n'}" | cut -c1-200 | sed 's/^/      /'
+    elif [[ -n "$global" ]]; then
+        crit "$label: $(head -1 <<< "$global" | cut -c1-200)"
+    elif [[ $rc -eq 0 ]]; then
+        echo "  ✓ $label passes"
+    elif [[ $out_count -gt $distrust_above ]]; then
+        gap typecheck "$label reports $out_count errors outside the diff, so it does not describe this project's build; types were not checked"
+        echo "  (unreliable, see Not examined)"
+    elif [[ $out_count -gt 0 ]]; then
+        warn "$label fails with $out_count error(s), none in changed files; the checkout may need a setup step before its verdict on this diff means anything"
+    else
+        gap typecheck "$label exited $rc with no error it could read; types were not checked"
+        echo "  (no verdict, see Not examined)"
+    fi
+}
+typecheck_cfg=$(cfg '.typecheck')
+typecheck_hint=""
+[[ -n "$typecheck_cfg" && "$typecheck_cfg" != "skip" ]] && typecheck_hint=" Run \`$typecheck_cfg\` on that head."
+[[ "$typecheck_cfg" == "skip" && -n "$(cfg '.typecheckNote')" ]] && typecheck_hint=" $(cfg '.typecheckNote')"
+project_script=""
+if [[ -f package.json ]]; then
+    for script_name in typecheck type-check tsc; do
+        jq -e --arg s "$script_name" '.scripts[$s] // empty' package.json > /dev/null 2>&1 && { project_script="$script_name"; break; }
     done
 fi
+pm="npm run"
+[[ -f yarn.lock ]] && pm="yarn"
+[[ -f bun.lockb || -f bun.lock ]] && pm="bun run"
 
-if [[ -n "$project_typecheck" ]]; then
-    pm="npm run"
-    [[ -f "$git_root/yarn.lock" ]] && pm="yarn"
-    [[ -f "$git_root/bun.lockb" ]] && pm="bun run"
-    if (cd "$git_root" && timeout 300 $pm "$project_typecheck" &>/dev/null); then
-        echo "  ✓ Project typecheck passes ($pm $project_typecheck)"
+if [[ -z "$changed_code" ]]; then
+    echo "  (no source files changed)"
+elif ! $run_typecheck; then
+    gap typecheck "skipped by --no-typecheck; types were not checked"
+    echo "  (not run, see Not examined)"
+elif [[ "$typecheck_cfg" == "skip" ]]; then
+    echo "  Not run here by repo config.$typecheck_hint"
+elif ! $tree_matches_head; then
+    gap typecheck "the compiler reads the working tree, which is not the reviewed head; types were not checked.$typecheck_hint"
+    echo "  (not run, see Not examined)"
+elif [[ -n "$typecheck_cfg" ]]; then
+    read -r typecheck_bin _ <<< "$typecheck_cfg"
+    if ! command -v "$typecheck_bin" > /dev/null 2>&1; then
+        gap typecheck "$typecheck_bin is not on PATH, so \`$typecheck_cfg\` was not run; types were not checked"
+        echo "  (not run, see Not examined)"
     else
-        echo "  🔴 Project typecheck fails ($pm $project_typecheck) — run it directly for details"
-        critical=$((critical + 1))
+        tc_timeout=$(cfg '.typecheckTimeout')
+        [[ "$tc_timeout" =~ ^[0-9]+$ ]] || tc_timeout=900
+        echo "Running \`$typecheck_cfg\` (up to ${tc_timeout}s)..." >&2
+        rc=0
+        tc_out=$(timeout "$tc_timeout" bash -c "$typecheck_cfg" 2>&1) || rc=$?
+        judge_typecheck "\`$typecheck_cfg\`" "$rc" "$tc_out" 1000000
     fi
-elif [[ -z "$tsconfig_path" ]]; then
-    echo "  (no tsconfig.json found — skipping)"
+elif [[ -n "$project_script" ]]; then
+    if ! command -v "${pm%% *}" > /dev/null 2>&1; then
+        gap typecheck "${pm%% *} is not on PATH, so \`$pm $project_script\` was not run; types were not checked"
+        echo "  (not run, see Not examined)"
+    else
+        rc=0
+        tc_out=$(timeout 300 $pm "$project_script" 2>&1) || rc=$?
+        if [[ $rc -ne 0 && $rc -ne 124 ]] && ! grep -qE 'error TS[0-9]+' <<< "$tc_out"; then
+            crit "\`$pm $project_script\` fails (exit $rc); run it directly for details"
+        else
+            judge_typecheck "\`$pm $project_script\`" "$rc" "$tc_out" 1000000
+        fi
+    fi
+elif [[ ! -f tsconfig.json ]]; then
+    gap typecheck "no typecheck command in the repo config, no typecheck script and no root tsconfig.json; types were not checked"
+    echo "  (not run, see Not examined)"
 else
     tsc_bin=""
-    [[ -x "$git_root/node_modules/.bin/tsc" ]] && tsc_bin="$git_root/node_modules/.bin/tsc"
-    [[ -z "$tsc_bin" ]] && command -v tsc &>/dev/null && tsc_bin="tsc"
-
+    [[ -x node_modules/.bin/tsc ]] && tsc_bin="node_modules/.bin/tsc"
+    [[ -z "$tsc_bin" ]] && command -v tsc > /dev/null 2>&1 && tsc_bin="tsc"
     if [[ -z "$tsc_bin" ]]; then
-        echo "  (tsc not available — run npm ci or install typescript globally to enable)"
+        gap typecheck "tsc is not installed; types were not checked"
+        echo "  (not run, see Not examined)"
     else
-        all_tsc_errors=$(cd "$git_root" && timeout 120 $tsc_bin --noEmit --skipLibCheck 2>&1 \
-            | grep " error TS" | sed "s|${git_root}/||g" || true)
-
-        # The root tsconfig rarely describes a whole monorepo: workspaces with project references
-        # report unresolved imports here that their real build never sees, and test files usually
-        # need a separate config for their runner's globals. Only changed non-test files are held
-        # against the branch; everything else is context, not a regression.
-        in_diff_errors=""
-        out_of_diff_errors=""
-        if [[ -n "$all_tsc_errors" ]]; then
-            while IFS= read -r err_line; do
-                [[ -z "$err_line" ]] && continue
-                err_file="${err_line%%(*}"
-                if echo "$changed_files" | grep -qxF "$err_file"; then
-                    in_diff_errors+="${err_line}"$'\n'
-                else
-                    out_of_diff_errors+="${err_line}"$'\n'
-                fi
-            done <<< "$all_tsc_errors"
-        fi
-
-        out_count=$(grep -c '' <<< "${out_of_diff_errors%$'\n'}" 2>/dev/null || echo 0)
-        [[ -z "$out_of_diff_errors" ]] && out_count=0
-
-        # Thousands of errors outside the diff means the root config does not describe this
-        # project at all, so its verdict on the changed files is not worth much either.
-        if [[ $out_count -gt 200 ]]; then
-            echo "  ⚠ The root tsconfig reports $out_count errors across files this branch never"
-            echo "    touched, so it does not describe this project's real build (monorepo"
-            echo "    workspaces, project references, or a separate test config). Treating its"
-            echo "    verdict on changed files as unreliable — run the project's own typecheck."
-        elif [[ -n "$in_diff_errors" ]]; then
-            in_count=$(grep -c '' <<< "${in_diff_errors%$'\n'}")
-            echo "  🔴 TypeScript errors in changed files ($in_count):"
-            head -10 <<< "${in_diff_errors%$'\n'}" | sed 's/^/    /'
-            critical=$((critical + 1))
-        else
-            echo "  ✓ No TypeScript errors in changed source files (root tsconfig)"
-            if [[ $out_count -gt 0 ]]; then
-                echo "  ℹ $out_count error(s) elsewhere — pre-existing, in changed test files, or"
-                echo "    outside the root config's scope. Not counted against this branch."
-                head -3 <<< "${out_of_diff_errors%$'\n'}" | sed 's/^/      /'
-            fi
-        fi
+        rc=0
+        tc_out=$(timeout 120 "$tsc_bin" --noEmit --skipLibCheck 2>&1) || rc=$?
+        judge_typecheck "tsc (root tsconfig)" "$rc" "$tc_out" 200
     fi
 fi
 echo ""
 
-# --- 2. Call-site audit for changed signatures ---
-if [[ -s "$changed_fns_file" ]]; then
-    echo "### Call-Site Audit"
+if [[ -s "$sig_changed" ]]; then
+    echo "### Callers of Changed Signatures"
     echo ""
-    while IFS= read -r entry; do
-        fname=$(echo "$entry" | awk '{print $1}')
-        src_file=$(echo "$entry" | awk '{print $2}')
-
-        call_sites=$(rg --no-heading --color=never -n "\b${fname}\s*(" . \
-            --glob='!*.test.*' --glob='!*.spec.*' 2>/dev/null \
-            | grep -v "^${src_file}:" || true)
-
-        if [[ -n "$call_sites" ]]; then
-            echo "  🔴 $fname — callers may use old signature:"
-            echo "$call_sites" | head -5 | sed 's/^/    /'
-            critical=$((critical + 1))
-        fi
-    done < "$changed_fns_file"
+    while IFS=$'\t' read -r fname src_file; do
+        callers=$(git -c core.quotePath=false grep -n -P -e "(?<![\\w\$])$(escape_re "$fname")\\s*\\(" "$head" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' 2> /dev/null \
+            | sed "s|^${head}:||" | grep -vE '^[^:]*\.(test|spec)\.' || true)
+        untouched=""
+        while IFS= read -r caller; do
+            [[ -z "$caller" || "${caller%%:*}" == "$src_file" ]] && continue
+            grep -qxF -- "${caller%%:*}" <<< "$changed_all" || untouched+="$caller"$'\n'
+        done <<< "$callers"
+        untouched="${untouched%$'\n'}"
+        [[ -z "$untouched" ]] && continue
+        n=$(count "$untouched")
+        look "$fname ($src_file): its signature changed, and $n call line(s) sit in files this diff does not touch. A typecheck settles it; see TypeScript Compilation for whether one ran."
+        head -5 <<< "$untouched" | cut -c1-160 | sed 's/^/      /'
+        [[ $n -gt 5 ]] && echo "      ($((n - 5)) more)"
+    done < <(sort -u "$sig_changed")
     echo ""
 fi
 
-# --- 3. New dissonance — only flags introduced by this MR, not pre-existing ---
+echo "### Type Escapes on Added Lines"
+echo ""
+if [[ -n "$changed_src" ]]; then
+    rc=0
+    raw=$(ctx-type-escapes "$old" "$head" 2> /dev/null) || rc=$?
+    [[ $rc -ge 2 ]] && gap type-escapes "ctx-type-escapes exited $rc; added lines were not scanned for type escapes"
+    split_gaps "$raw"
+    if [[ -n "$findings" ]]; then
+        while IFS= read -r line; do warn "$line"; done <<< "$findings"
+    else
+        echo "  (none)"
+    fi
+else
+    echo "  (no source files changed)"
+fi
+echo ""
+
 echo "### New Dissonance in Changed Code"
 echo ""
-
+[[ -n "$changed_src" ]] && echo "  Read from isolated copies of each file, so types imported from other files are unresolved."
 has_dissonance=false
-# The old revision is analyzed from a temp copy, and ctx-test-gen picks its parser from the
-# file extension — an extensionless temp yields zero flags, which would silently report every
-# pre-existing flag as newly introduced. The suffix is added per file below.
-tmp_old_dir=$(mktemp -d)
-trap 'rm -rf "$tmp_old_dir"' EXIT
-
+# LC_ALL=C: the flags hold multibyte characters whose locale collation makes sort and comm
+# disagree. The pin path is stripped because type names carry it, and the old and new copies
+# sit under different paths.
+flags_of() {
+    local rc=0 out
+    out=$(timeout 60 ctx-test-gen "$1" $2 2> /dev/null) || rc=$?
+    [[ $rc -ne 0 ]] && return "$rc"
+    grep "⚠" <<< "$out" | sed -e 's/^[[:space:]]*//' -e "s|$pin_real/head/||g; s|$pin_real/old/||g; s|$pin/head/||g; s|$pin/old/||g" | LC_ALL=C sort -u || true
+}
 while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-
-    line_count=$(wc -l < "$f" | tr -d ' ')
-    large_threshold=400
-
-    # Build --only filter from changed functions in semantic diff (for large files)
+    [[ -z "$f" || ! -f "$pin/head/$f" ]] && continue
     only_arg=""
-    if [[ $line_count -gt $large_threshold ]]; then
-        echo "  ⚠ $(basename "$f") is $line_count lines — analyzing changed functions only"
-
-        # Get changed/added function names from the semantic diff
-        changed_fns=$(ctx-semantic-diff "$f" "$base" "$branch" 2>/dev/null \
-            | grep -E "^  [+~] " | sed 's/^  [+~] //' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//' || true)
-
-        if [[ -n "$changed_fns" ]]; then
-            only_arg="--only=${changed_fns}"
-            echo "    Functions: $changed_fns"
-        fi
-        echo ""
+    if [[ $(wc -l < "$pin/head/$f") -gt 400 ]]; then
+        changed_fns=$(grep -E "^  [+~] " "$work/sd/${f//\//__}" 2> /dev/null | sed 's/^  [+~] //' | awk '{print $1}' | sed 's/(.*//' | paste -sd, - || true)
+        [[ -n "$changed_fns" ]] && only_arg="--only=${changed_fns}"
     fi
-
-    # ctx-test-gen indents a flag by its nesting depth, so the same finding arrives at several
-    # indents and survives sort -u as duplicates. Normalize before deduping and diffing.
-    # LC_ALL=C throughout: flag lines hold multibyte characters (⚠, —) whose locale collation
-    # can make sort and comm disagree, and comm on "unsorted" input silently emits pre-existing
-    # flags as new. Byte order is stable.
-    new_flags=$(timeout 60 ctx-test-gen "$f" $only_arg 2>/dev/null | grep "⚠" \
-        | sed 's/^[[:space:]]*/  /' | LC_ALL=C sort -u || true)
+    rc=0
+    new_flags=$(flags_of "$pin/head/$f" "$only_arg") || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        gap dissonance "ctx-test-gen $([[ $rc -eq 124 ]] && echo "did not finish in 60s" || echo "exited $rc") on $f"
+        continue
+    fi
     [[ -z "$new_flags" ]] && continue
-
-    # Compare against old version — only show what's newly introduced
-    git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    rel=$(cd "$git_root" && realpath --relative-to="." "$f" 2>/dev/null || echo "$f")
-    old_content=$(git show "${base}:${rel}" 2>/dev/null || true)
-
-    if [[ -n "$old_content" ]]; then
-        tmp_old="${tmp_old_dir}/old.${f##*.}"
-        echo "$old_content" > "$tmp_old"
-        old_flags=$(timeout 60 ctx-test-gen "$tmp_old" $only_arg 2>/dev/null | grep "⚠" \
-            | sed 's/^[[:space:]]*/  /' | LC_ALL=C sort -u || true)
-        new_only=$(LC_ALL=C comm -23 <(echo "$new_flags") <(echo "$old_flags") 2>/dev/null || echo "$new_flags")
-    else
-        new_only="$new_flags"
+    old_flags=""
+    if [[ -f "$pin/old/$f" ]]; then
+        rc=0
+        old_flags=$(flags_of "$pin/old/$f" "$only_arg") || rc=$?
+        if [[ $rc -ne 0 ]]; then
+            gap dissonance "ctx-test-gen could not read the old version of $f, so its flags cannot be told from pre-existing ones"
+            continue
+        fi
     fi
-
-    if [[ -n "$new_only" ]]; then
-        echo "  $f:"
-        while IFS= read -r flag; do
-            [[ -z "$flag" ]] && continue
-            if is_critical "$flag"; then
-                echo "    🔴 $flag"; critical=$((critical + 1))
-            else
-                echo "    🟡 $flag"; warnings=$((warnings + 1))
-            fi
-        done <<< "$new_only"
-        has_dissonance=true
-    fi
-done <<< "$changed_files"
-
+    new_only=$(LC_ALL=C comm -23 <(echo "$new_flags") <(echo "$old_flags"))
+    [[ -z "$new_only" ]] && continue
+    echo "  $f:"
+    while IFS= read -r flag; do
+        [[ -n "$flag" ]] && { echo -n "  "; warn "${flag#⚠  }"; }
+    done <<< "$new_only"
+    has_dissonance=true
+done <<< "$changed_src"
 $has_dissonance || echo "  (none)"
 echo ""
 
-# --- 4. Invariant check on changed files ---
-echo "### Invariant Check"
+echo "### Invariants and Rhythm"
 echo ""
-
+shape_found=false
 while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    inv=$(ctx-invariants "$f" 2>/dev/null | grep -v "^$\|^##\|no complementary" || true)
-    if [[ -n "$inv" ]]; then
-        echo "  🟡 $f — verify these roundtrips still hold:"
-        echo "$inv" | grep "→" | sed 's/^/    /'
-        warnings=$((warnings + 1))
+    [[ -z "$f" || ! -f "$pin/head/$f" ]] && continue
+    rc=0
+    inv_out=$(timeout 60 ctx-invariants "$pin/head/$f" 2> /dev/null) || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        gap invariants "ctx-invariants exited $rc on $f"
+    else
+        inv=$(grep "→" <<< "$inv_out" || true)
+        if [[ -n "$inv" ]]; then
+            look "$f: do these roundtrips still hold?"
+            sed 's/^[[:space:]]*/      /' <<< "$inv"
+            shape_found=true
+        fi
     fi
-done <<< "$changed_files"
-
+    rc=0
+    rhythm_out=$(timeout 60 ctx-rhythm "$pin/head/$f" 2> /dev/null) || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        gap rhythm "ctx-rhythm exited $rc on $f"
+    else
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            line="${line//$pin_real\/head\//}"
+            line="${line//$pin\/head\//}"
+            warn "$f: ${line#*🟡 }"
+            shape_found=true
+        done < <(grep -E "🟡|🔴" <<< "$rhythm_out" || true)
+    fi
+done <<< "$changed_src"
+$shape_found || echo "  (none)"
 echo ""
 
-# --- 4b. Rhythm check — error signaling and return shape consistency ---
-echo "### Rhythm"
+echo "### Same Shape Elsewhere"
+echo ""
+if [[ -n "$changed_src" ]]; then
+    homes=$(cfg '.cloneHomes // [] | join(",")')
+    rc=0
+    raw=$(ctx-clones "$old" "$head" --homes "$homes" 2> /dev/null) || rc=$?
+    [[ $rc -ge 2 ]] && gap clones "ctx-clones exited $rc; added and changed functions were not compared"
+    split_gaps "$raw"
+    if [[ -n "$findings" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" == *": changed function"* ]]; then
+                look "$line. Does the same change belong there?"
+            else
+                look "$line. Reuse it, or is the difference intended?"
+            fi
+        done <<< "$findings"
+    else
+        echo "  (none found where it looked)"
+    fi
+else
+    echo "  (no source files changed)"
+fi
 echo ""
 
-rhythm_found=false
+echo "### Blast Radius"
+echo ""
+fan_cap=40
+[[ $src_total -gt $fan_cap ]] && gap blast-radius "import fan-in: examined the first $fan_cap of $src_total changed files"
+fan_rows=""
 while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    result=$(ctx-rhythm "$f" 2>/dev/null || true)
-    [[ -z "$result" ]] && continue
-    [[ "$result" == *"✓ Consistent"* ]] && continue
-
-    echo "$result" | grep -E "🟡|🔴" | sed 's/^/  /'
-    rhythm_w=$(echo "$result" | awk '/🟡/{c++} END{print c+0}')
-    warnings=$((warnings + rhythm_w))
-    rhythm_found=true
-done <<< "$changed_files"
-
-$rhythm_found || echo "  (no rhythm issues in changed files)"
+    [[ -z "$f" ]] && continue
+    stem=$(escape_re "$(basename "$f" | sed -E 's/\.[cm]?[jt]sx?$//')")
+    parent=$(escape_re "$(basename "$(dirname "$f")")")
+    # A bare-stem match over-counts: every same-named module in a monorepo collides. Anchor on the
+    # parent directory, plus same-directory relative imports.
+    importers=$( {
+        git -c core.quotePath=false grep -l -P -e "from ['\"][^'\"]*${parent}/${stem}['\"]" "$head" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' 2> /dev/null || true
+        git -c core.quotePath=false grep -l -P -e "from ['\"]\./${stem}['\"]" "$head" -- ":(literal)$(dirname "$f")" 2> /dev/null || true
+    } | sed "s|^${head}:||" | grep -vxF -- "$f" | sort -u || true)
+    n=$(count "$importers")
+    [[ $n -ge 10 ]] && fan_rows+="$n"$'\t'"$f"$'\n'
+done < <(head -n "$fan_cap" <<< "$changed_src")
+if [[ -n "$fan_rows" ]]; then
+    fan_sorted=$(sort -rn <<< "${fan_rows%$'\n'}")
+    while IFS=$'\t' read -r n f; do
+        [[ -n "$f" ]] && look "$n files import $f. Did anything they rely on change?"
+    done < <(head -5 <<< "$fan_sorted")
+    [[ $(count "$fan_sorted") -gt 5 ]] && echo "      ($(( $(count "$fan_sorted") - 5 )) more changed files have 10 or more importers)"
+else
+    echo "  (no changed file has 10 or more importers)"
+fi
 echo ""
 
-# --- 5. Env var regressions ---
 echo "### Environment Variable Changes"
 echo ""
-
-new_env_vars=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
-    | grep "^+" | grep -oE 'process\.env\.[A-Z_][A-Z0-9_]+' \
-    | sed 's/process\.env\.//' | sort -u || true)
-
+new_env_vars=""
+if [[ -n "$changed_src" ]]; then
+    mapfile -t src_array <<< "$changed_src"
+    src_specs=("${src_array[@]/#/:(literal)}")
+    new_env_vars=$(git diff "$old" "$head" -- "${src_specs[@]}" 2> /dev/null \
+        | grep '^+' | grep -oE 'process\.env\.[A-Z_][A-Z0-9_]+' | sed 's/process\.env\.//' | sort -u || true)
+fi
 if [[ -n "$new_env_vars" ]]; then
-    echo "  🟡 New env vars — verify documented and have fallbacks:"
-    echo "$new_env_vars" | sed 's/^/    /'
-    warnings=$((warnings + 1))
+    warn "env vars read on added lines; confirm each is documented and has a fallback: $(paste -sd, - <<< "$new_env_vars")"
 else
     echo "  (none)"
 fi
-
 echo ""
 
-# --- 6. Test coverage check ---
-echo "### Test Coverage"
-echo ""
-
-# Tests are looked up in the reviewed branch's tree, not the working tree: the branch under
-# review is usually not the one checked out, and its new test files would otherwise be invisible.
-branch_tree=$(git ls-tree -r --name-only "$branch" 2>/dev/null || true)
-diff_files=$(git diff --name-only "${base}...${branch}" 2>/dev/null || true)
-
-test_gap=false
-while IFS= read -r f; do
-    [[ -z "$f" ]] && continue
-    # Skip files that are themselves test files
-    echo "$f" | grep -qE '\.(test|spec)\.' && continue
-
-    base_name="${f%.*}"
-    stem=$(basename "$base_name")
-
-    # Colocated first, allowing an infix for repo-specific suites (foo.component.test.tsx,
-    # foo.db.test.ts). Falling back to a basename match elsewhere in the tree catches suites
-    # kept apart, e.g. test/server/middleware/errors.test.ts for controllers/.../errors.ts.
-    test_files=$(grep -E "^${base_name}(\..+)?\.(test|spec)\.[a-z]+$" <<< "$branch_tree" || true)
-    if [[ -z "$test_files" ]]; then
-        test_files=$(grep -E "(^|/)${stem}(\..+)?\.(test|spec)\.[a-z]+$" <<< "$branch_tree" || true)
-    fi
-
-    if [[ -z "$test_files" ]]; then
-        echo "  🟡 $(basename "$f") — no test file found"
-        warnings=$((warnings + 1))
-        test_gap=true
-    else
-        # A source file can have several suites (unit, db, component); any one of them being
-        # touched means this change carries test work, so only flag when none were.
-        touched=""
-        while IFS= read -r tf; do
-            [[ -z "$tf" ]] && continue
-            grep -qxF "$tf" <<< "$diff_files" && { touched="$tf"; break; }
-        done <<< "$test_files"
-
-        if [[ -z "$touched" ]]; then
-            names=$(while IFS= read -r tf; do [[ -n "$tf" ]] && basename "$tf"; done <<< "$test_files" | paste -sd ", " -)
-            echo "  🟡 $(basename "$f") changed but its tests were not updated ($names)"
-            warnings=$((warnings + 1))
-            test_gap=true
-        fi
-    fi
-done <<< "$changed_files"
-
-$test_gap || echo "  (test files updated alongside source)"
-echo ""
-
-# --- 7. Formatter check ---
-# A formatter is usually its own CI gate, and it fails on files a reviewer would call clean.
-echo "### Formatting"
-echo ""
-
-prettier_bin=""
-[[ -x "$git_root/node_modules/.bin/prettier" ]] && prettier_bin="$git_root/node_modules/.bin/prettier"
-
-format_cap=40
-if [[ -z "$prettier_bin" ]]; then
-    echo "  (prettier not installed locally — skipping)"
-elif [[ -z "$changed_files_with_tests" ]]; then
-    echo "  (no formattable files changed)"
-else
-    file_total=$(grep -c '' <<< "$changed_files_with_tests")
-    # Content is read from the branch rather than the working tree, since the branch under
-    # review is usually not the one checked out. prettier has no branch-aware mode, so each
-    # file is piped through --stdin-filepath and compared with what the branch actually holds.
-    unformatted=""
-    checked=0
+migration_re=$(cfg '.dbMigrationPattern')
+[[ -z "$migration_re" ]] && migration_re='(^|/)migrations/.*\.sql$'
+new_sql=$(grep -E -- "$migration_re" <<< "$added_files" || true)
+schema_changed=$(grep -E '(^|/)schema\.prisma$|(^|/)prisma/models/.*\.prisma$' <<< "$changed_all" || true)
+if [[ -n "$new_sql" || -n "$schema_changed" ]]; then
+    echo "### Database Migrations"
+    echo ""
+    sql_cap=10
+    [[ $(count "$new_sql") -gt $sql_cap ]] && gap db-migrations "examined the first $sql_cap of $(count "$new_sql") new migration files"
     while IFS= read -r f; do
         [[ -z "$f" ]] && continue
-        [[ $checked -ge $format_cap ]] && break
-        checked=$((checked + 1))
+        risks=$(git show "$head:$f" 2> /dev/null | perl -ne '
+            my $u = uc($_); $u =~ s/^\s+//;
+            next if $u =~ /^$/ || $u =~ /^--/;
+            if ($u =~ /\bDROP\s+(TABLE|COLUMN)\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/) { print "$.: destructive (drops or deletes data)\n" }
+            elsif ($u =~ /\bALTER\s+COLUMN\b.*\bSET\s+NOT\s+NULL\b/ || ($u =~ /\bADD\s+COLUMN\b/ && $u =~ /\bNOT\s+NULL\b/ && $u !~ /\bDEFAULT\b/)) { print "$.: NOT NULL with no default (fails or locks on existing rows)\n" }
+            elsif ($u =~ /\bALTER\s+COLUMN\b.*\bTYPE\b/) { print "$.: column type change (may rewrite or lock the table)\n" }
+            elsif ($u =~ /\bRENAME\s+(COLUMN|TO|CONSTRAINT)\b/) { print "$.: rename (breaks readers during a rolling deploy)\n" }
+        ' || true)
+        while IFS= read -r risk; do [[ -n "$risk" ]] && warn "$f:$risk"; done < <(head -8 <<< "$risks")
+        [[ $(count "$risks") -gt 8 ]] && gap db-migrations "$f: showed the first 8 of $(count "$risks") risky statements"
+    done < <(head -n "$sql_cap" <<< "$new_sql")
+    if [[ -n "$schema_changed" && -z "$new_sql" ]]; then
+        warn "$(head -1 <<< "$schema_changed") changed with no new migration file; client types will change while the database will not"
+    fi
+    echo ""
+fi
+
+echo "### Test Coverage"
+echo ""
+coverage_found=false
+while IFS= read -r rule; do
+    [[ -z "$rule" ]] && continue
+    when=$(jq -r '.when' <<< "$rule")
+    unless=$(jq -r '.unless' <<< "$rule")
+    matched=$(grep -E -- "$when" <<< "$changed_all" | grep -vE '\.(test|spec)\.' || true)
+    [[ -z "$matched" ]] && continue
+    grep -qE -- "$unless" <<< "$changed_all" && continue
+    warn "$(count "$matched") file(s) under $(jq -r '.name' <<< "$rule") changed, first: $(head -1 <<< "$matched"). $(jq -r '.note' <<< "$rule")"
+    coverage_found=true
+done < <([[ -n "$cfg_file" ]] && jq -c '.coverageRules[]?' "$cfg_file" || true)
+
+head_tree=$(git -c core.quotePath=false ls-tree -r --name-only "$head" 2> /dev/null || true)
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    base_path="${f%.*}"
+    stem=$(basename "$base_path")
+    test_files=$(grep -E "^$(escape_re "$base_path")(\..+)?\.(test|spec)\.[a-z]+$" <<< "$head_tree" || true)
+    [[ -z "$test_files" ]] && test_files=$(grep -E "(^|/)$(escape_re "$stem")(\..+)?\.(test|spec)\.[a-z]+$" <<< "$head_tree" || true)
+    if [[ -z "$test_files" ]]; then
+        look "$f has no test file named after it. Is it covered somewhere else?"
+        coverage_found=true
+    elif ! grep -qxFf <(echo "$test_files") <<< "$changed_all"; then
+        look "$f changed and no test named after it did ($(while IFS= read -r t; do basename "$t"; done <<< "$test_files" | paste -sd, -)). Does the change need one?"
+        coverage_found=true
+    fi
+done <<< "$changed_src"
+if ! $coverage_found; then
+    [[ -z "$changed_src" ]] && echo "  (no source files changed)" || echo "  (a test named after each changed source file changed too)"
+fi
+echo ""
+
+echo "### Formatting"
+echo ""
+prettier_bin=""
+[[ -x node_modules/.bin/prettier ]] && prettier_bin="$git_root/node_modules/.bin/prettier"
+format_cap=40
+if [[ -z "$changed_code" ]]; then
+    echo "  (no formattable files changed)"
+elif ! $tree_matches_head; then
+    gap formatting "prettier and its config are read from the working tree, which is not the reviewed head; formatting was not checked"
+    echo "  (not run, see Not examined)"
+elif [[ -z "$prettier_bin" ]]; then
+    gap formatting "prettier is not installed in this checkout; formatting was not checked"
+    echo "  (not run, see Not examined)"
+elif ! "$prettier_bin" --version > /dev/null 2>&1; then
+    gap formatting "prettier would not start (is node on PATH?); formatting was not checked"
+    echo "  (not run, see Not examined)"
+else
+    file_total=$(count "$changed_code")
+    [[ $file_total -gt $format_cap ]] && gap formatting "checked the first $format_cap of $file_total files"
+    unformatted=""
+    format_checked=0
+    format_silent=""
+    while IFS= read -r f; do
+        [[ -z "$f" || ! -f "$pin/head/$f" ]] && continue
         # The trailing 'x' survives command substitution's newline stripping, so a file that
-        # differs only by a missing or extra final newline is still caught.
-        branch_content=$(git show "${branch}:${f}" 2>/dev/null; printf x) || true
-        [[ "$branch_content" == "x" ]] && continue
-        formatted=$(printf '%s' "${branch_content%x}" \
-            | (cd "$git_root" && timeout 30 "$prettier_bin" --stdin-filepath "$f" 2>/dev/null; printf x) || true)
-        [[ "$formatted" == "x" ]] && continue
-        [[ "$branch_content" == "$formatted" ]] || unformatted+="${f}"$'\n'
-    done <<< "$changed_files_with_tests"
-
+        # differs only by its final newline is still caught.
+        head_content=$(cat "$pin/head/$f"; printf x)
+        formatted=$(timeout 30 "$prettier_bin" --stdin-filepath "$f" < "$pin/head/$f" 2> /dev/null; printf x) || true
+        [[ "$formatted" == "x" ]] && { format_silent+="$f"$'\n'; continue; }
+        format_checked=$((format_checked + 1))
+        [[ "$head_content" == "$formatted" ]] || unformatted+="$f"$'\n'
+    done < <(head -n "$format_cap" <<< "$changed_code")
+    [[ -n "$format_silent" ]] && gap formatting "prettier gave no output for $(count "${format_silent%$'\n'}") file(s), first: $(head -1 <<< "$format_silent")"
     if [[ -n "$unformatted" ]]; then
-        unformatted_count=$(grep -c '' <<< "${unformatted%$'\n'}")
-        echo "  🟡 $unformatted_count file(s) are not prettier-formatted:"
-        head -5 <<< "${unformatted%$'\n'}" | sed 's/^/    /'
-        warnings=$((warnings + 1))
+        warn "$(count "${unformatted%$'\n'}") file(s) are not prettier-formatted: $(head -5 <<< "${unformatted%$'\n'}" | paste -sd, -)"
+    elif [[ $format_checked -gt 0 ]]; then
+        echo "  ✓ $format_checked changed file(s) are formatted"
     else
-        echo "  ✓ Changed files are formatted"
+        echo "  (none checked, see Not examined)"
     fi
-    [[ $file_total -gt $format_cap ]] && echo "  (checked first $format_cap of $file_total files)"
 fi
 echo ""
 
-# --- 8. Config divergence check ---
-# Check if this MR introduces code that diverges from declared Prettier/tsconfig config
-echo "### Config Conformance"
-echo ""
-
-conventions_file=".claude/conventions.md"
-if [[ -f "$conventions_file" ]]; then
-    declared_qs=$(grep "Import quotes.*single" "$conventions_file" 2>/dev/null | head -1 || true)
-    declared_qd=$(grep "Import quotes.*double" "$conventions_file" 2>/dev/null | head -1 || true)
-
-    if [[ -n "$declared_qs" ]]; then
-        # Declared single — check if MR introduces double-quoted imports
-        double_in_diff=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
-            | grep '^+' | grep -v '^+++' | grep -oE '^.*from "' | head -3 || true)
-        if [[ -n "$double_in_diff" ]]; then
-            echo "  🟡 MR introduces double-quoted imports but config declares single quotes:"
-            echo "$double_in_diff" | head -3 | sed 's/^/    /'
-            warnings=$((warnings + 1))
-        else
-            echo "  ✓ Import style matches declared config"
-        fi
-    elif [[ -n "$declared_qd" ]]; then
-        single_in_diff=$(git diff "${base}...${branch}" -- $(echo "$changed_files") 2>/dev/null \
-            | grep '^+' | grep -v '^+++' | grep -oE "^.*from '" | head -3 || true)
-        if [[ -n "$single_in_diff" ]]; then
-            echo "  🟡 MR introduces single-quoted imports but config declares double quotes"
-            warnings=$((warnings + 1))
-        else
-            echo "  ✓ Import style matches declared config"
-        fi
-    else
-        echo "  (no conventions file or import style not declared — run ctx-conventions first)"
-    fi
-else
-    echo "  (no .claude/conventions.md — run ctx-conventions to enable)"
+gap_lines=""
+[[ ${#gaps[@]} -gt 0 ]] && gap_lines=$(printf '%s\n' "${gaps[@]}" | awk 'NF && !seen[$0]++')
+gap_total=$(count "$gap_lines")
+if [[ $gap_total -gt 0 ]]; then
+    echo "### Not examined"
+    echo ""
+    sed 's/^/  ⚠ /' <<< "$gap_lines"
+    echo ""
 fi
-echo ""
 
-# --- Summary + exit code ---
 echo "---"
-if [[ $critical -eq 0 && $warnings -eq 0 ]]; then
-    echo "✓ No issues detected. Review for logic and intent."
-    exit 0
-elif [[ $critical -gt 0 ]]; then
-    echo "🔴 CRITICAL: $critical regression(s) — fix before merging"
-    [[ $warnings -gt 0 ]] && echo "🟡 WARNING:  $warnings issue(s) — review"
-    exit 2
-else
-    echo "🟡 WARNING: $warnings issue(s) — review before merging"
-    exit 1
+[[ $critical -gt 0 ]] && echo "🔴 CRITICAL: $critical issue(s) from the compiler or the audit; fix before merging"
+[[ $warnings -gt 0 ]] && echo "🟡 WARNING: $warnings issue(s) to fix or explain"
+[[ $looks -gt 0 ]] && echo "🔎 LOOK: $looks place(s) to open and judge; unverified, no effect on the exit code"
+[[ $gap_total -gt 0 ]] && echo "⚠ NOT EXAMINED: $gap_total gap(s); a section with an entry there was not checked, whatever it shows above"
+if [[ $critical -eq 0 && $warnings -eq 0 && $gap_total -eq 0 ]]; then
+    echo "✓ Nothing found where this tool looks, and every check ran. Review for logic and intent."
 fi
+trap - ERR
+[[ $critical -gt 0 ]] && exit 2
+[[ $warnings -gt 0 || $gap_total -gt 0 ]] && exit 1
+exit 0
