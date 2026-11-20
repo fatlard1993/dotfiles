@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+mkdir -p $HOME/.config
+ln -sf $profilePath/gamemode.ini $HOME/.config/gamemode.ini
+
+# minecraft-couch launches through gamemoderun, and gamemoded does its real work (the
+# performance governor, split-lock mitigation off, the GPU clocks gamemode.ini asks for)
+# through pkexec helpers that polkit grants only to the gamemode group. Without the group every launch is refused, logged
+# as "Not authorized", and the game runs exactly as it would without gamemode.
+groups $USER | grep -qw gamemode || {
+	echo "Adding $USER to the gamemode group"
+
+	sudo usermod -aG gamemode $USER
+}

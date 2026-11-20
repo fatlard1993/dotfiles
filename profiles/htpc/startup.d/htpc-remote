@@ -8,6 +8,7 @@
 # ~/.bun/bin on PATH. The entrypoint is an absolute path (not
 # `cd && bun server/index.js`) so the pgrep guard can find it in the
 # command line; the cd stays because the server resolves its client/build
-# assets from cwd.
+# assets from cwd. --names lets it answer as remote.home, Caddy's slot for it
+# (dot-update.d/lan-names): it refuses any other name as a rebound one.
 pgrep -f "htpc-remote/server" > /dev/null || \
-	(cd $HOME/Projects/htpc-remote && NODE_ENV=production $HOME/.bun/bin/bun $HOME/Projects/htpc-remote/server/index.js > /dev/null 2>&1 &)
+	(cd $HOME/Projects/htpc-remote && NODE_ENV=production $HOME/.bun/bin/bun $HOME/Projects/htpc-remote/server/index.js --names remote.home > /dev/null 2>&1 &)

@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# paude's installer links its command, but a machine can still end up with a running server and no `paude` (the
+# htpc did), so dot-update makes sure of it. A paude already on PATH, such as a dev checkout's, is left alone.
+paudeServer=$HOME/.paude-server
+
+if [[ -f $paudeServer/package.json ]] && ! command -v paude > /dev/null 2>&1; then
+	echo "Linking the paude command"
+
+	(cd $paudeServer && ${commands[bun]:-$HOME/.bun/bin/bun} link > /dev/null 2>&1) \
+		|| echo "  bun could not link paude; it runs as bun $paudeServer/bin/paude.js until it can" >&2
+fi
