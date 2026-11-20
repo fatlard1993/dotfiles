@@ -57,6 +57,7 @@ for (const fn of sourceFile.getFunctions()) {
 // Also extract methods from factory functions/arrows returning objects (e.g. createCRUD)
 // Handles both: `function f() { return {...} }` and `const f = () => ({...})`
 function extractObjectMethods(node, factoryName) {
+  if (!node) return []
   // Arrow with immediate object: () => ({...})
   if (node.getKindName() === 'ParenthesizedExpression') {
     node = node.getExpression()
