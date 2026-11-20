@@ -62,7 +62,8 @@ done
 git_root=$(git rev-parse --show-toplevel 2> /dev/null) || stop "not a git repository"
 cd "$git_root"
 
-work=$(mktemp -d)
+tmp_base="${TMPDIR:-/tmp}"
+work=$(mktemp -d "${tmp_base%/}/ctx-mr-review.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 trap 'rc=$?; echo ""; echo "⚠ INCONCLUSIVE: ctx-mr-review aborted at line $LINENO (status $rc); the output above is incomplete"; exit 3' ERR
 
@@ -215,7 +216,6 @@ echo ""
 
 pin="$work/pin"
 mkdir -p "$pin"
-pin_real=$(cd "$pin" && pwd -P)
 while IFS= read -r f; do
     [[ -z "$f" ]] && continue
     mkdir -p "$pin/head/$(dirname "$f")" "$pin/old/$(dirname "$f")"
@@ -518,7 +518,7 @@ flags_of() {
     local rc=0 out
     out=$(timeout 60 ctx-test-gen "$1" $2 2> /dev/null) || rc=$?
     [[ $rc -ne 0 ]] && return "$rc"
-    grep "⚠" <<< "$out" | sed -e 's/^[[:space:]]*//' -e "s|$pin_real/head/||g; s|$pin_real/old/||g; s|$pin/head/||g; s|$pin/old/||g" | LC_ALL=C sort -u || true
+    grep "⚠" <<< "$out" | sed -e 's/^[[:space:]]*//' -E -e 's#[^"( ]*/pin/(head|old)/##g' | LC_ALL=C sort -u || true
 }
 while IFS= read -r f; do
     [[ -z "$f" || ! -f "$pin/head/$f" ]] && continue
@@ -578,8 +578,7 @@ while IFS= read -r f; do
     else
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
-            line="${line//$pin_real\/head\//}"
-            line="${line//$pin\/head\//}"
+            line=$(sed -E 's#[^"( ]*/pin/(head|old)/##g' <<< "$line")
             warn "$f: ${line#*🟡 }"
             shape_found=true
         done < <(grep -E "🟡|🔴" <<< "$rhythm_out" || true)

@@ -57,6 +57,11 @@ export function legacy(raw: string) {
 export function greet(name: string): string {
   return `hi ${name}`
 }
+
+export interface Opts { deep: boolean }
+export function configure(opts: Opts, items: Opts[]) {
+  return items.filter((item) => item.deep === opts.deep)
+}
 EOF
 cat > src/caller.ts <<'EOF'
 import { greet } from "./util"
@@ -146,6 +151,11 @@ export function legacy(raw: string) {
 export function greet(name: string, loud: boolean): string {
   return loud ? `HI ${name}` : `hi ${name}`
 }
+
+export interface Opts { deep: boolean }
+export function configure(opts: Opts, items: Opts[]) {
+  return items.filter((item) => item.deep === opts.deep)
+}
 EOF
 cat > src/escapes.ts <<'EOF'
 // a comment that says as any
@@ -217,7 +227,7 @@ echo 'export const later = 1' > src/later.ts
 git add -A && git commit -q -m "trunk moves on"
 
 echo "## a branch that is not checked out"
-out=$(TMPDIR="$tmp/scratch" "$review" feature --base main 2>&1); rc=$?
+out=$(TMPDIR="$tmp/scratch/" "$review" feature --base main 2>&1); rc=$?
 has   "cast on an added line"             '🟡 src/escapes.ts:3: added line casts to a type containing `any`'
 has   "cast inside a template"            '🟡 src/escapes.ts:4: added line casts'
 has   "double cast"                       '🟡 src/escapes.ts:5: .*double cast'
@@ -249,6 +259,7 @@ lacks "sql outside the default pattern"   'db/changes/1.sql'
 has   "sensitive path"                    '🔎 1 file\(s\) under CI configuration'
 has   "dissonance read from the pin"      '🟡 BOOL-FLAG: loud'
 lacks "the pin path stays out"            '/pin/(head|old)/'
+lacks "an untouched function's flags are not new" 'NULL-GUARD: opts'
 has   "typecheck gap is stated"           '\[typecheck\] the compiler reads the working tree'
 has   "formatting gap is stated"          '\[formatting\] prettier and its config are read from the working tree'
 has   "no config is stated"               'No repo config \(looked for .*acme-widgets.json\)'
