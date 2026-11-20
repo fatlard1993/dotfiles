@@ -131,6 +131,6 @@ Heavier instruments for bigger jobs.
 - `ctx-mr-review [branch] [--base main]`: 🔴 critical (guard removal, try/catch dropped, signature drift, tsc errors in changed files) + 🟡 warnings (tests, formatting, dissonance); exits 2/1/0. Diffs **commits**, so it refuses with ⚠ INCONCLUSIVE when the work is uncommitted - reach for `ctx-diff HEAD` there
 - `ctx-rhythm <file|dir>`: flags when functions in the same module throw vs return null, or names promise a value but return void
 - `ctx-audit [path]`: security and quality scan via `semgrep --config=auto`
-- `ctx-mutate <file> [test-file]`: surviving mutations are uncovered behaviour
+- `ctx-mutate <file> [test-file] [--runner "<cmd>"]`: surviving mutations are uncovered behaviour. Four coarse mutation kinds, a first pass and never proof a test guards a specific line; exits 2 INCONCLUSIVE when the tests fail unmutated, which usually means the wrong runner
 - `ctx-types <file|stdin>`: TypeScript types from a JSON sample or JSON schema
 - `ctx-fragment list|show|expand`: composable TS fragments; `ctx-fragment expand repository ENTITY=User`

@@ -7,6 +7,7 @@ set -eo pipefail
 
 source_file="${1:?usage: ctx-mutate <source-file> [test-file] [--runner bun|jest|vitest]}"
 test_file="${2:-}"
+[[ "$test_file" == --* ]] && test_file=""
 runner=""
 
 while [[ $# -gt 0 ]]; do
@@ -41,8 +42,11 @@ echo "   Tests: $test_file"
 echo "   Runner: $runner"
 echo ""
 
-# Save original
+# Save original; restore from the byte-exact copy on any exit, including an interrupt
 original=$(cat "$source_file")
+backup=$(mktemp)
+cp "$source_file" "$backup"
+trap 'cp "$backup" "$source_file"; rm -f "$backup"' EXIT
 survived=0
 killed=0
 
@@ -67,8 +71,15 @@ apply_and_test() {
     fi
 
     # Restore
-    echo "$original" > "$source_file"
+    cp "$backup" "$source_file"
 }
+
+# A runner that cannot pass the unmutated code "kills" every mutation by failing for its own reasons
+if ! run_tests; then
+    echo "⚠ INCONCLUSIVE: tests do not pass unmutated under '$runner'."
+    echo "  Check the runner (--runner \"<command>\") and the test file before trusting any result."
+    exit 2
+fi
 
 # --- Mutation 1: Flip === to !== in conditions ---
 while IFS= read -r line; do
