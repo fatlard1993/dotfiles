@@ -46,10 +46,23 @@ mcEnsureSuite
 # are pulled each morning: forward only, and never over uncommitted work (bin/mc-pull-suite).
 mkdir -p $HOME/.config/systemd/user
 
-for unit in mc-pull-suite.service mc-pull-suite.timer; do
+# The store pages are kept from here too: a weekly upload of each mod's newest release to Modrinth and
+# CurseForge, with each Modrinth page's signpost (bin/mc-publish-batch). Their tokens and CurseForge
+# slugs are priv-config's, in ~/.priv-config/minecraft.
+for unit in mc-pull-suite.service mc-pull-suite.timer mc-publish-weekly.service mc-publish-weekly.timer; do
 	ln -sf $profilePath/systemd/$unit $HOME/.config/systemd/user/
 done
 
 systemctl --user daemon-reload
 systemctl --user enable --now mc-pull-suite.timer > /dev/null 2>&1 \
 	|| echo "  The suite's morning pull would not enable, so its clones fall behind the nightly bumps" >&2
+
+if [ -e $HOME/.priv-config/minecraft/modrinth-token ] && [ -e $HOME/.priv-config/minecraft/curseforge-token ]; then
+	systemctl --user enable --now mc-publish-weekly.timer > /dev/null 2>&1 \
+		|| echo "  mc-publish-weekly.timer would not enable, so the store pages are not kept from here" >&2
+else
+	echo "  No Modrinth or CurseForge token in ~/.priv-config/minecraft, so the store pages are not kept from here" >&2
+fi
+
+# A user's timers run only while they are logged in, unless lingering keeps their manager up
+loginctl show-user $USER --property=Linger 2>/dev/null | grep -q 'Linger=yes' || sudo loginctl enable-linger $USER

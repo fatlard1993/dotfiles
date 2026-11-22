@@ -1,0 +1,11 @@
+# Linked by dot-update.d/mod-suite.
+[Unit]
+Description=Upload each mod's newest release to Modrinth and CurseForge, and keep each store page's signpost
+Documentation=man:mc-publish-batch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# By absolute path: systemd reads no zsh config, so the dotfiles' bins are not on its PATH
+ExecStart=%h/.dotfiles/profiles/vps/bin/mc-publish-batch

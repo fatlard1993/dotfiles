@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Keep every mod in the suite current on Modrinth and CurseForge, from the vps where the suite is
+# developed, once a week (mc-publish-weekly.timer, linked by dot-update.d/mod-suite):
+#
+#   mc-publish-batch            upload each mod's newest release to Modrinth and CurseForge, where
+#                               that store lacks it, and keep each Modrinth page's signpost, icon
+#                               and gallery in step
+#   mc-publish-batch --dry-run  say what it would do
+#
+# Every mod has its Modrinth project, so creating them is no longer part of a run; mc-publish
+# --create MOD still makes one by hand.
+#
+# Weekly, and only the newest version: the nightly release bumps versions far oftener than a store
+# page needs, and each CurseForge file waits in moderation. The jar uploaded is the one the mod's
+# GitHub release carries (mc-publish's jar_for), so every store has the bytes ender-index scanned,
+# and nothing is built on a timer.
+#
+# A step that fails fails the run, so a broken setup shows as a failed unit rather than a quiet
+# success: from 2026-11-05 a run on a machine without the suite died on its first line for weeks
+# while the unit said it had finished.
+set -uo pipefail
+
+# mc-publish is found by where this script is, not by PATH. A systemd timer starts with a minimal
+# environment, and a login bash reads ~/.profile, which adds ~/bin and ~/.local/bin and nothing
+# else - the dotfiles bin is put on PATH by the zsh config, which bash never reads. So the first
+# scheduled run died with "mc-publish-batch: command not found" before it did anything, and had it
+# got past that it would have died again on its own sibling.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case ":$PATH:" in
+	*":$HERE:"*) ;;
+	*) PATH="$HERE:$PATH" ;;
+esac
+# gh is Homebrew's, under /home/linuxbrew, which only the zsh config puts on PATH either.
+command -v gh > /dev/null || for brew in /home/linuxbrew/.linuxbrew/bin/brew /opt/homebrew/bin/brew; do
+	[ -x "$brew" ] && { eval "$("$brew" shellenv)"; break; }
+done
+export PATH
+
+# Every publishable mod, as mc-publish works it out from the suite itself, not a hand-kept list.
+
+DRY=""
+[ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
+
+failed=()
+
+run() {
+	echo "-- $*"
+	"$@" || failed+=("$*")
+}
+
+echo "== $(date '+%Y-%m-%d %H:%M %Z')"
+
+# Uploads first: a page's signpost names the newest release's home, and each upload is the week's news
+run mc-publish --upload --all $DRY
+run mc-cf-publish --upload --all $DRY
+
+for step in --sync --icon --gallery; do
+	run mc-publish "$step" --all $DRY
+done
+
+echo "== done $(date '+%H:%M')"
+
+if [ ${#failed[@]} -gt 0 ]; then
+	printf 'failed: %s\n' "${failed[@]}" >&2
+	exit 1
+fi

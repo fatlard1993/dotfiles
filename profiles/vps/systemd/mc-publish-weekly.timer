@@ -1,0 +1,11 @@
+[Unit]
+Description=The stores take each mod's newest release once a week
+
+[Timer]
+# After the morning pull (mc-pull-suite.timer, 05:30), so each clone names the version the nightly
+# release last published
+OnCalendar=Mon *-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
