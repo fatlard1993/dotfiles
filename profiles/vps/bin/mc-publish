@@ -32,6 +32,7 @@ the CurseForge slugs and the server address. Modrinth asks for a User-Agent that
 is calling and how to reach them, and blocks generic ones, so it names this tool and its author.
 """
 
+import functools
 import hashlib
 import json
 import mimetypes
@@ -300,13 +301,18 @@ def released_jar(mod, version):
         try:
             with urllib.request.urlopen(urllib.request.Request(
                 f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}",
-                headers={"Accept": "application/vnd.github+json", "User-Agent": AGENT},
+                headers=github_headers(),
             ), timeout=30) as response:
                 release = json.load(response)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 continue
-            raise
+            # Said, and taken as no jar: the caller reports a missing jar, which fails that one mod
+            print(f"  {mod}: GitHub would not say what release {tag} carries ({e.code} {e.reason})")
+            return None
+        except (urllib.error.URLError, TimeoutError) as e:
+            print(f"  {mod}: GitHub could not be reached for release {tag} ({e})")
+            return None
         for asset in release.get("assets", []):
             name = asset.get("name", "")
             if name.endswith(f"-{version}.jar") and not name.endswith(("-sources.jar", "-testsupport.jar")):
@@ -359,6 +365,27 @@ def link(value):
 
 
 INDEX = "https://fatlard1993.github.io/ender-index"
+
+# A mod with no Modrinth project is one published on GitHub alone: new mods are not put on Modrinth any
+# more, so a run says so and goes on, rather than failing every week over a choice. mc-publish --create
+# MOD still makes one by hand.
+NO_PROJECT = "not on Modrinth, so GitHub alone (mc-publish --create makes a project by hand)"
+
+
+@functools.cache
+def github_headers():
+    """GitHub's API asked as the signed-in account where there is one: unsigned, it answers sixty
+    requests an hour, and a run looks up each of the suite's ninety-odd mods' releases."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": AGENT}
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if not tok:
+        try:
+            tok = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=15).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            tok = ""
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    return headers
 
 
 def signpost(name, mod, sources, description):
@@ -573,8 +600,8 @@ def upload(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
-        print(f"  {mod}: no project yet — mc-publish --create {mod}")
-        return 1
+        print(f"  {mod}: {NO_PROJECT}")
+        return 0
 
     # Asked with the token. Without it a draft project's versions come back as nothing at all,
     # which reads exactly like "nothing published yet" - and the answer to that is to upload,
@@ -626,8 +653,8 @@ def sync(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
-        print(f"  {mod}: no project yet")
-        return 1
+        print(f"  {mod}: {NO_PROJECT}")
+        return 0
     data = {
         "title": about["title"],
         "description": about["description"],
@@ -664,8 +691,8 @@ def gallery(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
-        print(f"  {mod}: no project yet")
-        return 1
+        print(f"  {mod}: {NO_PROJECT}")
+        return 0
     if not about["shots"]:
         print(f"  {mod}: no screenshots")
         return 0
@@ -719,8 +746,8 @@ def icon(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
-        print(f"  {mod}: no project yet")
-        return 1
+        print(f"  {mod}: {NO_PROJECT}")
+        return 0
     if not about["icon"]:
         print(f"  {mod}: no icon.png in its assets")
         return 1
@@ -768,8 +795,8 @@ def deps(mod, dry):
     about = describe(mod)
     existing = project(about["slug"], token())
     if not existing:
-        print(f"  {mod}: no project yet")
-        return 1
+        print(f"  {mod}: {NO_PROJECT}")
+        return 0
     status, versions = call("GET", f"/project/{about['slug']}/version", tok=token())
     if status != 200 or not versions:
         print(f"  {mod}: no published versions to correct")
