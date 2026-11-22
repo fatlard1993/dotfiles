@@ -323,7 +323,9 @@ def upload(mod, known, sent, dry, tok):
         "changelogType": "markdown",
         "gameVersions": ids,
         "releaseType": "release",
-        "relations": {"projects": rel},
+        # Left out when there are none: CurseForge refuses an empty list with "Array item count 0 is less
+        # than minimum count of 1", which a mod that depends on nothing would always send
+        **({"relations": {"projects": rel}} if rel else {}),
     }
     body, kind = multipart({"metadata": json.dumps(metadata)}, jar)
     status, answer = request(f"{UPLOAD_API}/projects/{project_id}/upload-file", tok, body, kind)
