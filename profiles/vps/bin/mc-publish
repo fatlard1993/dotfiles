@@ -365,6 +365,7 @@ def link(value):
 
 
 INDEX = "https://fatlard1993.github.io/ender-index"
+ENDER = "https://github.com/fatlard1993/ender-launcher"
 
 # A mod with no Modrinth project is one published on GitHub alone: new mods are not put on Modrinth any
 # more, so a run says so and goes on, rather than failing every week over a choice. mc-publish --create
@@ -395,23 +396,26 @@ def signpost(name, mod, sources, description):
     Short on purpose. A page holds only what will not go stale: the major themes, and where the
     newest releases, docs and issues are. The README stays on GitHub, where it is kept. On
     CurseForge, which allows no outside download links and wants links to other sites below the
-    description, it names the repository at the bottom and leaves the index out.
+    description, the ender command is said in the text and every link sits under the divider.
     """
     sources = sources or f"https://github.com/fatlard1993/{mod}"
     about = description.strip().rstrip(".")
     about = f"{about}." if about else ""
     repo = urllib.parse.urlparse(sources).path.strip("/")
     owner, _, project_name = repo.partition("/")
+    index = f"{INDEX}/mod/github/{urllib.parse.quote(owner)}/{urllib.parse.quote(project_name)}"
+    every = f"{INDEX}/?author={urllib.parse.quote(owner)}"
     if SITE == "curseforge":
+        # The command is said in the text; every link to another site goes below the description
         return (
             f"{about}\n\n"
             f"**{name} now lives on GitHub.** This page is a mirror: the newest release is copied here each week "
             f"when it has changed, and may be late or held in review. This description isn't kept up to date, "
-            f"and comments here aren't read. New mods of mine aren't published here at all.\n\n---\n\n"
-            f"Source, docs and issues: [{mod} on GitHub]({sources}) · All my mods: [GitHub](https://github.com/{owner})\n"
+            f"and comments here aren't read. New mods of mine aren't published here at all.\n\n"
+            f"**With ender**, the launcher, `ender add gh:{repo}` follows new releases on its own.\n\n---\n\n"
+            f"Source, docs and issues: [{mod} on GitHub]({sources}) · [{name} on the ender index]({index}) · "
+            f"[ender]({ENDER}) · All my mods: [GitHub](https://github.com/{owner}), [the ender index]({every})\n"
         )
-    index = f"{INDEX}/mod/github/{urllib.parse.quote(owner)}/{urllib.parse.quote(project_name)}"
-    every = f"{INDEX}/?author={urllib.parse.quote(owner)}"
     return (
         f"## 📦 {name} now lives on GitHub\n\n"
         f"This page is a mirror: the newest release is copied here each week when it has changed, and may be late "
@@ -419,7 +423,7 @@ def signpost(name, mod, sources, description):
         f"find them on [GitHub](https://github.com/{owner}) or [the ender index]({every}).\n\n"
         f"**Newest releases, docs and issues:** [GitHub]({sources})  \n"
         f"**Every release within the hour, with what each jar's code can reach:** [{name} on the ender index]({index})  \n"
-        f"**With ender:** `ender add gh:{repo}` follows new releases on its own\n\n"
+        f"**With [ender]({ENDER}), the launcher:** `ender add gh:{repo}` follows new releases on its own\n\n"
         f"{about}\n"
     )
 
