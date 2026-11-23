@@ -7,10 +7,10 @@
 # desktop, focus leaves, and the game stops answering the mouse. Fullscreen leaves the
 # pointer nowhere else to go.
 #
-# A watcher rather than a bspc rule: rules match WM_CLASS exactly, and Minecraft's carries
-# its version ("Minecraft* 26.3"), so one rule would go stale with every update and miss
-# the other instances. The match is dwt-watch's: launchers don't carry the name, the game
-# window always does.
+# A watcher rather than a bspc rule: rules match WM_CLASS exactly, and Minecraft's has
+# changed across versions (26.3 is "com.mojang.minecraft", older ones "Minecraft* <version>"),
+# so a rule fits one instance and misses the other. The match is dwt-watch's: launchers
+# don't carry the name, the game window does.
 
 [ -n "$DISPLAY" ] || export DISPLAY=:0
 
