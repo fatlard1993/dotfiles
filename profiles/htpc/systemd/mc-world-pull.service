@@ -1,0 +1,8 @@
+[Unit]
+Description=Weekly copy of the VPS's newest Minecraft world backup, keeping four
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.dotfiles/profiles/htpc/bin/mc-world-pull

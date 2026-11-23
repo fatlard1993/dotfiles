@@ -1,0 +1,32 @@
+#!/bin/zsh
+# Weekly copy of the VPS's newest Minecraft world backup, kept here so the world outlives
+# the VPS. Pulled from this side because the VPS cannot reach into the house. Run from the
+# mc-world-pull timer.
+
+set -e
+
+source=vps:backups
+pulledDir=$HOME/backups/vps-minecraft
+keep=4
+
+mkdir -p $pulledDir
+
+# The VPS writes world-<date>.tar.gz.partial and renames it once whole, so this glob only
+# ever sees finished archives.
+newest=$(ssh -n -o BatchMode=yes vps 'ls -t backups/world-*.tar.gz | head -n 1')
+name=${newest:t}
+
+[[ -n $name ]] || { echo "The VPS has no world backup to pull" >&2; exit 1 }
+[[ -f $pulledDir/$name ]] && { echo "$name is already here"; exit 0 }
+
+partial=$pulledDir/$name.partial
+
+trap 'rm -f -- $partial' EXIT
+rsync --partial -t vps:$newest $partial
+gzip -t $partial
+mv -- $partial $pulledDir/$name
+
+kept=($pulledDir/world-*.tar.gz(Nom))
+(( ${#kept} <= keep )) || rm -- ${kept[keep+1,-1]}
+
+echo "Pulled $name"

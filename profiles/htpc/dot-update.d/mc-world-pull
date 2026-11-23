@@ -1,0 +1,15 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+echo "Linking the weekly VPS world backup pull"
+
+mkdir -p $HOME/.config/systemd/user
+
+for unit in mc-world-pull.service mc-world-pull.timer; do
+	ln -sf $profilePath/systemd/$unit $HOME/.config/systemd/user/
+done
+
+systemctl --user daemon-reload
+systemctl --user enable --now mc-world-pull.timer > /dev/null 2>&1 \
+	|| echo "  The weekly VPS world backup pull would not enable" >&2
