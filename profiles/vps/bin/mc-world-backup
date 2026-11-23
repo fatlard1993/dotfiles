@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Nightly tarball of the world, keeping five days. Run from the minecraft-backup timer.
+# Nightly tarball of the world, keeping three days. Run from the minecraft-backup timer.
 #
 # The save is required only when the server is actually running. The one-liner this
 # replaced ran `rcon.py save-all; tar ...` with a semicolon, so a failed save still
@@ -11,7 +11,7 @@ set -e
 
 serverDir=$HOME/minecraft-server
 backupDir=$HOME/backups
-keep=5
+keep=3
 
 cd $serverDir
 
@@ -25,7 +25,14 @@ fi
 
 mkdir -p $backupDir
 
-tar -czf $backupDir/world-$(date +%Y%m%d).tar.gz world
+# Room is made before the new one is written, so the disk never holds more than keep: a
+# week of these once filled it, and a tarball cut short by a full disk is no backup.
+kept=($backupDir/world-*.tar.gz(Nom))
+(( ${#kept} < keep )) || rm -- ${kept[keep,-1]}
 
-# Newest first, so tail drops everything past the keep count.
-ls -t $backupDir/world-*.tar.gz | tail -n +$((keep + 1)) | xargs -r rm --
+archive=$backupDir/world-$(date +%Y%m%d).tar.gz
+partial=$archive.partial
+
+trap 'rm -f -- $partial' EXIT
+tar -czf $partial world
+mv -- $partial $archive
