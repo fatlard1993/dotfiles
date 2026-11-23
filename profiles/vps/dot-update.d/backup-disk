@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# The world backups live on a disk of their own (the provider's 100G add-on), mounted over
+# ~/backups, so a week of 5G tarballs can never again fill the root disk the server, paude and
+# the builds run on. The disk is found by its ext4 label, "backups"; this never formats one,
+# since a wrong guess at which disk is blank destroys it. A new disk is made once, by hand:
+#
+#     sudo mkfs.ext4 -L backups -m 0 /dev/sdX
+#
+# nofail keeps the box booting if the disk is ever detached; the backup then lands on the root
+# disk again, and keeps only three.
+
+backupDir=$HOME/backups
+
+[[ -e /dev/disk/by-label/backups ]] || {
+	echo "  No disk labelled backups, so world backups stay on the root disk" >&2
+
+	return 0
+}
+
+mkdir -p $backupDir
+
+awk -v dir=$backupDir '$2 == dir' /etc/fstab | grep -q . \
+	|| echo "LABEL=backups $backupDir ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab > /dev/null
+
+if ! findmnt -rn $backupDir > /dev/null; then
+	echo "Mounting the backup disk"
+
+	sudo systemctl daemon-reload
+	sudo mount $backupDir && sudo chown $USER:$USER $backupDir
+fi
