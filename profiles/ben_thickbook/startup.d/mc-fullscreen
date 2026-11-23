@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+# Minecraft opens fullscreen (see bin/mc-fullscreen-watch). Anchored pgrep, as dwt-watch.
+pgrep -f "^/bin/zsh $HOME/.dotfiles/profiles/ben_thickbook/bin/mc-fullscreen-watch" > /dev/null \
+	|| $HOME/.dotfiles/profiles/ben_thickbook/bin/mc-fullscreen-watch &

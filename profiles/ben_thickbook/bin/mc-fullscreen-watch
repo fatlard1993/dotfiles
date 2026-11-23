@@ -1,0 +1,19 @@
+#!/bin/zsh
+
+# Minecraft's game window opens in bspwm fullscreen, the one exception to no-fullscreen.
+# Tiled, it sits under the bar inside a window gap, and when its pointer confinement
+# silently fails (X refuses the grab while another client holds one, and LWJGL never
+# re-asks) the hidden cursor drifts out the top: a click there lands on the bar or the
+# desktop, focus leaves, and the game stops answering the mouse. Fullscreen leaves the
+# pointer nowhere else to go.
+#
+# A watcher rather than a bspc rule: rules match WM_CLASS exactly, and Minecraft's carries
+# its version ("Minecraft* 26.3"), so one rule would go stale with every update and miss
+# the other instances. The match is dwt-watch's: launchers don't carry the name, the game
+# window always does.
+
+[ -n "$DISPLAY" ] || export DISPLAY=:0
+
+bspc subscribe node_add | while read -r _ _ _ _ node; do
+	[[ ${(L)$(xprop -id $node WM_CLASS 2>/dev/null)} == *minecraft* ]] && bspc node $node -t fullscreen
+done
