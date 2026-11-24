@@ -234,8 +234,10 @@ mcEnsureInstance() {
 #
 # Membership is a GitHub topic rather than a list kept in this repo, because a
 # list is a thing to forget: a mod started next month joins by being tagged, and
-# every machine picks it up on its next update. The account carries 114 repos and
-# the topic is the only thing that separates the suite from the rest of them.
+# every machine picks it up on its next update. The topic is minecraft-mod, the one
+# GitHub gathers Minecraft mods by and the only one a suite mod carries; the
+# account's older mods, made before the suite, carry none, so it still separates
+# the suite from the rest of the account.
 #
 # Missing clones only - existing ones are left alone. These are working trees
 # with uncommitted work in them as often as not, and a dot-update that pulled
@@ -244,7 +246,7 @@ mcEnsureInstance() {
 # and only where nothing is in progress.
 mcEnsureSuite() {
 	local root=$HOME/Projects/minecraft
-	local suiteTopic="minecraft-mod-suite"
+	local suiteTopic="minecraft-mod"
 	local suiteOwner=$(git config --global github.user)
 	local -a suiteRepos
 	local suiteJson suiteTotal repo cloned

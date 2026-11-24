@@ -416,7 +416,7 @@ def github(method, path, data=None):
 
 
 # The one topic every mod's repository carries, and no other: the one GitHub's topic pages and searches
-# gather Minecraft mods by
+# gather Minecraft mods by, and what bin/lib/minecraft's mcEnsureSuite finds the suite's repositories by
 REPO_TOPICS = ["minecraft-mod"]
 
 
