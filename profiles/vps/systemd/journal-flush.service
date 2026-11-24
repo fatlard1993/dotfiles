@@ -1,0 +1,11 @@
+# Installed into /etc/systemd/system by dot-update.d/journal-flush and fired hourly by
+# journal-flush.timer. journald falls back to memory when it cannot write to /var/log/journal, a
+# full root disk say, and stays there once the disk has room again; flushing moves it back. A system
+# unit: only root may ask journald to flush.
+[Unit]
+Description=Move the journal back to disk if journald fell back to memory
+RequiresMountsFor=/var/log/journal
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/journalctl --flush

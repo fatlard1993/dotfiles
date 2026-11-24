@@ -1,0 +1,11 @@
+# Hourly: the night the world backup filled the disk, the journal sat in memory for thirteen hours
+# and nothing the server did that day could be read back.
+[Unit]
+Description=Hourly check that the journal is on disk
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

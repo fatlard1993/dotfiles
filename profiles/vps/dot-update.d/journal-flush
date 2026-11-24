@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# Copied into /etc/systemd/system rather than linked from the repo: it runs as root, and its job is
+# to recover from the root disk filling, which is no time to depend on /home.
+
+echo "Installing journal flush"
+
+sudo install -m 644 $profilePath/systemd/journal-flush.service /etc/systemd/system/
+sudo install -m 644 $profilePath/systemd/journal-flush.timer /etc/systemd/system/
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now journal-flush.timer
