@@ -54,6 +54,49 @@ $publicIp:$((public + slot)) {
 	done
 done
 
+# The Minecraft server's map, which the web-map mod draws into ~/minecraft-server/web-map, served only behind the
+# household login in priv-config's minecraft/web-map-login.bcrypt ("user bcrypt-hash"; web-map-login beside it holds
+# the password to hand out). With no login there, the map is not served at all. Caddy runs as its own user and the home
+# folder is shut to it, so the folder lives in /srv and the server's path links to it: Caddy reaches the map without
+# being let into the home folder, where the files beside it (server.properties, with the RCON password) can be read.
+mapPorts=()
+mapLogin=$HOME/.priv-config/minecraft/web-map-login.bcrypt
+mapLink=$HOME/minecraft-server/web-map
+mapRoot=/srv/web-map
+if [ -s $mapLogin ] && [ -d $HOME/minecraft-server ]; then
+	if [ ! -d $mapRoot ]; then
+		sudo mkdir -p $mapRoot && sudo chown $USER:$USER $mapRoot && chmod 755 $mapRoot
+	fi
+	if [ -d $mapLink ] && [ ! -L $mapLink ]; then
+		# Renamed aside and linked at once, then copied: the running server writes here every few seconds
+		echo "Moving the web map to $mapRoot"
+		mv $mapLink $mapLink.moving && ln -s $mapRoot $mapLink && cp -a $mapLink.moving/. $mapRoot/ && rm -rf $mapLink.moving
+	fi
+	[ -e $mapLink ] || ln -s $mapRoot $mapLink
+	[ -L $mapLink ] || echo "  $mapLink is not a link to $mapRoot, so the map Caddy serves is not the one being drawn" >&2
+
+	read -r mapUser mapHash < $mapLogin
+	mapPorts+=8445
+	rendered+="
+
+# The Minecraft server's map (the web-map mod), behind the household login in priv-config
+$publicIp:8445 {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	root * $mapRoot
+	basic_auth {
+		$mapUser $mapHash
+	}
+	header X-Content-Type-Options nosniff
+	header /tiles/* Cache-Control no-cache
+	file_server
+}"
+fi
+
 if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	echo "Updating the Caddyfile for $publicIp"
 
@@ -72,8 +115,8 @@ if [[ $rendered != "$(cat /etc/caddy/Caddyfile 2>/dev/null)" ]]; then
 	sudo systemctl reload caddy
 fi
 
-# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share, and each of
-# the mother hubs' slots has its own
+# 80 answers Let's Encrypt's challenge and redirects to HTTPS; 443 is paude, 8444 what its sessions share, each of
+# the mother hubs' slots has its own, and 8445 is the Minecraft map when it is served
 if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
-	for port in 80 443 8444 $gamePorts; do sudo ufw allow $port/tcp > /dev/null; done
+	for port in 80 443 8444 $gamePorts $mapPorts; do sudo ufw allow $port/tcp > /dev/null; done
 fi
