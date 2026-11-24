@@ -119,3 +119,12 @@ else
 	systemctl --user enable --now minecraft-server.service
 	mcReportServerState
 fi
+
+# The game's own ports: Java on 25565, Bedrock through Geyser on 19132 (UDP for play, TCP for its
+# signalling), and Simple Voice Chat's proximity voice on 24454/udp, its default
+if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
+	sudo ufw allow 25565/tcp > /dev/null
+	sudo ufw allow 19132/udp comment 'Bedrock via Geyser' > /dev/null
+	sudo ufw allow 19132/tcp comment 'Bedrock signaling via Geyser' > /dev/null
+	sudo ufw allow 24454/udp comment 'Simple Voice Chat' > /dev/null
+fi
