@@ -39,23 +39,43 @@ fi
 
 since=$(on_host "date '+%Y-%m-%d %H:%M:%S'")
 
+# The game's own log, rotated as each start begins. Up is read there, not from the user journal: on
+# this box journald stopped keeping the user journal, so a server that came up looked like one that
+# never said Done. A new run is told from the last one by the line the log opens with, which carries
+# the time it started; the last run's log says Done too.
+# shellcheck disable=SC2088 # expanded by the shell on the server's host, which may be over ssh
+gameLog='~/minecraft-server/logs/latest.log'
+opening() { on_host "head -1 $gameLog 2>/dev/null" || true; }
+previous=$(opening)
+
 echo "Restarting the server on $HOST; it reads the server pack as it starts"
 on_host "systemctl --user restart minecraft-server.service"
+
+# What ender's update moved is printed before the game starts, so it is in the journal or nowhere.
+summary() {
+	on_host "journalctl --user -u minecraft-server.service --since '$since' --no-pager -o cat" 2>/dev/null \
+		| grep -E '^  [+-] |->|^!! |^xx |^ok ' | sed 's/^/  /' || true
+}
+
+# The log of this run, once it has begun one; empty until then.
+thisRun() {
+	[ "$(opening)" != "$previous" ] && on_host "cat $gameLog 2>/dev/null" || true
+}
 
 # Up when the game says Done, not when systemd says active: the update runs first, inside the
 # start, and active is reported the moment the process begins.
 for _ in $(seq 1 90); do
-	log=$(on_host "journalctl --user -u minecraft-server.service --since '$since' --no-pager -o cat" 2>/dev/null || true)
+	log=$(thisRun)
 
 	if grep -q 'Done (' <<< "$log"; then
-		grep -E '^  [+-] |->|^!! |^xx |^ok ' <<< "$log" | sed 's/^/  /' || true
+		summary
 		echo "The server is up"
 		exit 0
 	fi
 
 	if ! on_host "systemctl --user is-active --quiet minecraft-server.service"; then
 		echo "The server stopped while starting:" >&2
-		tail -15 <<< "$log" | sed 's/^/  /' >&2
+		tail -15 <<< "${log:-$(on_host "tail -15 $gameLog 2>/dev/null")}" | sed 's/^/  /' >&2
 		exit 1
 	fi
 
@@ -63,5 +83,5 @@ for _ in $(seq 1 90); do
 done
 
 echo "The server has not said Done after 7 minutes; its log:" >&2
-tail -15 <<< "$log" | sed 's/^/  /' >&2
+tail -15 <<< "${log:-$(on_host "tail -15 $gameLog 2>/dev/null")}" | sed 's/^/  /' >&2
 exit 1
