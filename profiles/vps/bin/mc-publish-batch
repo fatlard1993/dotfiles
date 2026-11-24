@@ -58,6 +58,9 @@ for step in --sync --icon --gallery; do
 	run mc-publish "$step" --all $DRY
 done
 
+# Each repository's About line, the one the ender index shows, to the line its store pages open with
+run mc-publish --about --all $DRY
+
 echo "== done $(date '+%H:%M')"
 
 if [ ${#failed[@]} -gt 0 ]; then

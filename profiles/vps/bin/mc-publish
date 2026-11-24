@@ -10,6 +10,10 @@
     mc-publish --gallery MOD   upload the pictures MOD's README shows
     mc-publish --deps --all    tell each published version what its manifest depends on
     mc-publish --icon --force  replace a page's icon with the repo's, not only set a missing one
+    mc-publish --about --all   set each mod's GitHub About line to its short description, where it differs,
+                               and its topics to minecraft-mod alone
+    mc-publish --about --dry-run --all
+                               print each About line it would change, as it is and as it would be
     mc-publish --body MOD      print the page body --sync would set, and do nothing else
     mc-publish --body --curseforge MOD
                                the same, as CurseForge's rules want it: links below, no download links
@@ -389,6 +393,74 @@ def github_headers():
     return headers
 
 
+def short_line(description):
+    """A mod's one line on what it is about, out of its fabric.mod.json description: the line a store page
+    opens with, and its GitHub About line."""
+    about = (description or "").strip().rstrip(".")
+    return f"{about}." if about else ""
+
+
+def github(method, path, data=None):
+    """GitHub's REST API, as the signed-in account: the status and the answer."""
+    request = urllib.request.Request(
+        f"https://api.github.com{path}",
+        method=method,
+        data=json.dumps(data).encode() if data is not None else None,
+        headers={**github_headers(), **({"Content-Type": "application/json"} if data is not None else {})},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.status, json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read() or b"{}")
+
+
+# The one topic every mod's repository carries, and no other: the one GitHub's topic pages and searches
+# gather Minecraft mods by
+REPO_TOPICS = ["minecraft-mod"]
+
+
+def about_line(mod, dry):
+    """Set a mod's GitHub About line to its short description, the one its store pages open with, so the
+    repository, the stores and the ender index, which shows the About line, say the same; and give it the
+    one topic every mod's repository has."""
+    meta = fabric_mod_json(mod) or {}
+    want = short_line(meta.get("description"))
+    sources = link(meta.get("contact", {}).get("sources")) or f"https://github.com/fatlard1993/{mod}"
+    repo = urllib.parse.urlparse(sources).path.strip("/")
+    status, found = github("GET", f"/repos/{repo}")
+    if status != 200:
+        print(f"  {mod}: {repo} could not be read ({status})")
+        return 1
+    # A mod with no description keeps the line it has; its topics are still seen to
+    have = (found.get("description") or "").strip()
+    want = want or have
+    topics = found.get("topics") or []
+    retopic = sorted(topics) != sorted(REPO_TOPICS)
+    if have == want and not retopic:
+        print(f"  {mod}: already says it, with its topics")
+        return 0
+    if dry:
+        print(f"  {mod}:")
+        if have != want:
+            print(f"    now:   {have or '(none)'}\n    would: {want}")
+        if retopic:
+            print(f"    topics: {', '.join(topics) or '(none)'} -> {', '.join(REPO_TOPICS)}")
+        return 0
+    bad = 0
+    if have != want:
+        status, answer = github("PATCH", f"/repos/{repo}", {"description": want})
+        said = "set" if status == 200 else f"refused ({status}) {answer.get('message', '')}"
+        print(f"  {mod}: About line {said}")
+        bad += status != 200
+    if retopic:
+        status, answer = github("PUT", f"/repos/{repo}/topics", {"names": REPO_TOPICS})
+        said = f"set to {', '.join(REPO_TOPICS)}" if status == 200 else f"refused ({status}) {answer.get('message', '')}"
+        print(f"  {mod}: topics {said}")
+        bad += status != 200
+    return min(bad, 1)
+
+
 def signpost(name, mod, sources, description):
     """A store page's body: that the mod lives on GitHub and this page is a mirror, then one line on
     what the mod is about, out of its fabric.mod.json description.
@@ -399,8 +471,7 @@ def signpost(name, mod, sources, description):
     description, the ender command is said in the text and every link sits under the divider.
     """
     sources = sources or f"https://github.com/fatlard1993/{mod}"
-    about = description.strip().rstrip(".")
-    about = f"{about}." if about else ""
+    about = short_line(description)
     repo = urllib.parse.urlparse(sources).path.strip("/")
     owner, _, project_name = repo.partition("/")
     index = f"{INDEX}/mod/github/{urllib.parse.quote(owner)}/{urllib.parse.quote(project_name)}"
@@ -853,6 +924,8 @@ def main():
         doing, args = "deps", [a for a in args if a != "--deps"]
     if "--body" in args:
         doing, args = "body", [a for a in args if a != "--body"]
+    if "--about" in args:
+        doing, args = "about", [a for a in args if a != "--about"]
     global SITE
     if "--curseforge" in args:
         SITE, args = "curseforge", [a for a in args if a != "--curseforge"]
@@ -872,6 +945,11 @@ def main():
             about = describe(mod)
             print(about["body"])
         return 0
+
+    # GitHub's, not Modrinth's: every mod has its repository, kept off Modrinth or not, and no Modrinth token
+    if doing == "about":
+        print(f"about{' (dry run)' if dry else ''}: {len(mods)} mod(s)")
+        return sum(about_line(mod, dry) for mod in mods)
 
     if not TOKEN_FILE.exists() and not dry:
         sys.exit(f"no Modrinth token at {TOKEN_FILE}")
