@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+source "$HOME/.dotfiles/bin/lib/dot-util" "$0" "$@"
+
+# safe-rm, in the shared aliases, sends every non-interactive rm to trash; without trash-cli
+# every one of those fails with "command not found: trash" and deletes nothing.
+if ! command -v trash > /dev/null 2>&1; then
+	echo "Installing trash-cli for safe-rm"
+
+	sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq trash-cli > /dev/null \
+		|| echo "  trash-cli would not install, so non-interactive rm fails here" >&2
+fi
+
+$ubuntuPath/dot-update.d/trash-expire
