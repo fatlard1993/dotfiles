@@ -185,30 +185,44 @@ mcEnsureEnder() {
 	}
 }
 
-# ender web on a player machine. A checkout serves no pages of its own: it builds them on each
-# start from an ender-index checkout beside it, so that clone is part of the install. And
-# ender's install scripts add its app menu icon, which a clone linked by bun never gets.
-# Non-fatal: the game launches without either.
-mcEnsureEnderWeb() {
-	local dir=$HOME/Projects/ender-index
+# The launcher on a player machine: the release, through ender's own installer, which checks
+# the download against the release's sha256 and adds the app menu icon. A release carries
+# ender web's pages; a checkout builds them from an ender-index clone beside it, and a bun
+# install of its dependencies can fail on any one fetch. The dev machine and the servers keep
+# the checkout (mcEnsureEnder): it is where unreleased work is made and run.
+mcEnsureEnderRelease() {
+	local binary=$HOME/.local/bin/ender
 
-	if [[ -d $dir/.git ]]; then
-		git -C $dir pull -q --ff-only 2>/dev/null || echo "  ender-index has local work, so it was left where it is"
+	if [[ -x $binary ]]; then
+		# Non-fatal: the ender already here still plays
+		$binary upgrade > /dev/null 2>&1 || echo "  ender could not upgrade, so it stays at $($binary --version 2>/dev/null)" >&2
 	else
-		echo "Cloning ender-index (ender web's pages)"
+		echo "Installing ender (the release)"
 
-		# Shallow and main alone: the pages want only the index as it stands, and its history
-		# is four times the size, slow enough on a laptop's wifi to read as a hang.
-		git clone -q --depth 1 --single-branch https://github.com/fatlard1993/ender-index $dir || {
-			echo "  Could not clone ender-index, so ender web has no pages" >&2
+		curl -fsSL https://raw.githubusercontent.com/fatlard1993/ender-launcher/main/install.sh | sh > /dev/null || {
+			echo "  ender would not install" >&2
 
-			return 0
+			return 1
 		}
 	fi
 
-	(cd $dir && bun install > /dev/null 2>&1) || echo "  ender-index would not install, so ender web cannot build its pages" >&2
+	# A machine that had the checkout: its bun link would still answer to `ender` from a shell
+	# that put ~/.bun/bin first, and the clone is nobody's working tree here.
+	local checkout=$HOME/Projects/ender-launcher
 
-	ender desktop add > /dev/null 2>&1 || echo "  The Ender icon could not be added to the app menu" >&2
+	[[ -L $HOME/.bun/bin/ender && $(readlink $HOME/.bun/bin/ender) == $checkout/* ]] && rm -f $HOME/.bun/bin/ender
+
+	if [[ -d $checkout/.git && -z $(git -C $checkout status --porcelain 2>/dev/null) ]]; then
+		echo "  Removing the ender checkout the release replaces"
+
+		rm -rf $checkout
+	fi
+
+	[[ $(command -v ender) == $binary ]] || {
+		echo "  ender is installed at $binary, but \`ender\` finds $(command -v ender) instead" >&2
+
+		return 1
+	}
 }
 
 # An instance matching the pin, created if missing and bumped if it has drifted.
@@ -377,9 +391,7 @@ mcEnsurePlayerClient() {
 
 	[[ -n $version && -n $gameDir ]] || return 1
 
-	mcEnsureEnder || return 1
-
-	mcEnsureEnderWeb
+	mcEnsureEnderRelease || return 1
 
 	mkdir -p $gameDir/mods
 
