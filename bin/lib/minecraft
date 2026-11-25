@@ -210,7 +210,13 @@ mcEnsureEnderRelease() {
 	# that put ~/.bun/bin first, and the clone is nobody's working tree here.
 	local checkout=$HOME/Projects/ender-launcher
 
-	[[ -L $HOME/.bun/bin/ender && $(readlink $HOME/.bun/bin/ender) == $checkout/* ]] && rm -f $HOME/.bun/bin/ender
+	# bun links through its global modules, so the link resolves into the checkout, or nowhere
+	# once the checkout is gone.
+	local bunLink=$HOME/.bun/bin/ender
+
+	if [[ -L $bunLink ]] && [[ ! -e $bunLink || $(readlink -f $bunLink) == $checkout/* ]]; then
+		rm -f $bunLink $HOME/.bun/install/global/node_modules/ender-launcher
+	fi
 
 	if [[ -d $checkout/.git && -z $(git -C $checkout status --porcelain 2>/dev/null) ]]; then
 		echo "  Removing the ender checkout the release replaces"
