@@ -353,6 +353,10 @@ mcEnsurePlayerClient() {
 
 	mcEnsureEnder || return 1
 
+	# ender's install scripts add its app menu icon, and a clone linked by bun gets none, so
+	# a player machine had no way into ender web short of a terminal. Adding again updates it.
+	ender desktop add > /dev/null 2>&1 || echo "  The Ender icon (ender web) could not be added to the app menu" >&2
+
 	mkdir -p $gameDir/mods
 
 	mcEnsureInstance $name $version $loader $gameDir '' $loaderVersion || {
