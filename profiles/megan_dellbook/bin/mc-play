@@ -38,5 +38,43 @@ ender ls --names 2>/dev/null | grep -qxF suite || {
 	exit 1
 }
 
+# Who plays is picked here, every launch: this is a shared seat, and a name is the whole
+# identity on an offline-mode server. The list is ender's own accounts plus an entry that
+# adds one. Dismissing either prompt cancels the launch rather than guessing a name.
+newProfile="+ New profile..."
+
+while true; do
+	choice=$( { ender account --names 2>/dev/null; print -r -- $newProfile } | rofi -dmenu -i -p "Play as" ) || exit 0
+	[[ -n $choice ]] || exit 0
+
+	if [[ $choice != $newProfile ]]; then
+		ender account use $choice > /dev/null 2>&1 || {
+			notify-send "Minecraft" "Could not switch to $choice" 2>/dev/null
+
+			exit 1
+		}
+
+		break
+	fi
+
+	name=$(rofi -dmenu -p "New profile name" -mesg "3-16 letters, numbers or _" < /dev/null) || continue
+	[[ -n $name ]] || continue
+
+	if [[ ! $name =~ ^[A-Za-z0-9_]{3,16}$ ]]; then
+		notify-send "Minecraft" "\"$name\" is not a usable name: 3-16 letters, numbers or _" 2>/dev/null
+
+		continue
+	fi
+
+	# An existing name is just chosen, not added twice
+	ender account --names 2>/dev/null | grep -qxF -- $name || ender account add --offline $name > /dev/null 2>&1 || {
+		notify-send "Minecraft" "Could not add $name" 2>/dev/null
+
+		continue
+	}
+
+	ender account use $name > /dev/null 2>&1 && break
+done
+
 # --update: the house pack is read again first, so a client is never a release behind it
 exec ender launch suite --update $joinServer

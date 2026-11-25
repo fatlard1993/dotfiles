@@ -5,3 +5,12 @@ source "$HOME/.dotfiles/bin/lib/minecraft"
 
 # A player's machine: a client on the house pin following the house pack, nothing built here.
 mcEnsurePlayerClient $mcSuiteVersion fabric $HOME/minecraft-suite suite $mcSuiteLoaderVersion || return 1
+
+# Stevie plays here too, as an offline player of her own; mc-play asks who is playing.
+# After the client: on a machine with no account yet, mcEnsureOfflineAccount above still
+# gives Megan hers first.
+ender account --names 2>/dev/null | grep -qxF Stevie || {
+	echo "Adding an offline account for Stevie"
+
+	ender account add --offline Stevie > /dev/null 2>&1 || echo "  Could not add Stevie's account" >&2
+}
