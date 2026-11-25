@@ -197,7 +197,9 @@ mcEnsureEnderWeb() {
 	else
 		echo "Cloning ender-index (ender web's pages)"
 
-		git clone -q https://github.com/fatlard1993/ender-index $dir || {
+		# Shallow and main alone: the pages want only the index as it stands, and its history
+		# is four times the size, slow enough on a laptop's wifi to read as a hang.
+		git clone -q --depth 1 --single-branch https://github.com/fatlard1993/ender-index $dir || {
 			echo "  Could not clone ender-index, so ender web has no pages" >&2
 
 			return 0
