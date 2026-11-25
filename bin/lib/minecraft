@@ -185,6 +185,30 @@ mcEnsureEnder() {
 	}
 }
 
+# ender web on a player machine. A checkout serves no pages of its own: it builds them on each
+# start from an ender-index checkout beside it, so that clone is part of the install. And
+# ender's install scripts add its app menu icon, which a clone linked by bun never gets.
+# Non-fatal: the game launches without either.
+mcEnsureEnderWeb() {
+	local dir=$HOME/Projects/ender-index
+
+	if [[ -d $dir/.git ]]; then
+		git -C $dir pull -q --ff-only 2>/dev/null || echo "  ender-index has local work, so it was left where it is"
+	else
+		echo "Cloning ender-index (ender web's pages)"
+
+		git clone -q https://github.com/fatlard1993/ender-index $dir || {
+			echo "  Could not clone ender-index, so ender web has no pages" >&2
+
+			return 0
+		}
+	fi
+
+	(cd $dir && bun install > /dev/null 2>&1) || echo "  ender-index would not install, so ender web cannot build its pages" >&2
+
+	ender desktop add > /dev/null 2>&1 || echo "  The Ender icon could not be added to the app menu" >&2
+}
+
 # An instance matching the pin, created if missing and bumped if it has drifted.
 #
 # Sets mcInstanceChanged rather than returning it: a caller running a server needs to know
@@ -353,9 +377,7 @@ mcEnsurePlayerClient() {
 
 	mcEnsureEnder || return 1
 
-	# ender's install scripts add its app menu icon, and a clone linked by bun gets none, so
-	# a player machine had no way into ender web short of a terminal. Adding again updates it.
-	ender desktop add > /dev/null 2>&1 || echo "  The Ender icon (ender web) could not be added to the app menu" >&2
+	mcEnsureEnderWeb
 
 	mkdir -p $gameDir/mods
 
